@@ -1,5 +1,5 @@
-Scorpio 2.5 cluster beta
-------------------------
+Scorpio 2.5 cluster
+-------------------
 
 Changes
 -------
@@ -7,7 +7,7 @@ Changes
       and probably have tons of bugs. I just put this up on my website for those
       who want to help me with testing. 
  
-      The way it works is like this. Lets say if you 2 quads connected by ethernet,
+      The way it works is like this. Lets say you have 2 quads connected by ethernet,
       then you start two processes on each computer using "mpirun -pernode" or some other
       command. Then you set the "mt" option in ini file to "auto" so that it detects the
       number of processors automatically. You can also opt to start a process for each processor
