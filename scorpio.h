@@ -830,6 +830,7 @@ utility functions
 int   get_time();
 void  init_sqatt();
 void  init_io();
+void  remove_log_file();
 void  print(const char* format,...);
 void  print_log(const char* format,...);
 void  print_std(const char* format,...);

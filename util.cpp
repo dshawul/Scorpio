@@ -11,6 +11,16 @@ static const char start_fen[] = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w K
 print to logfile / stdout
 */
 static FILE* log_file = 0;
+static char log_name[MAX_STR];
+
+void remove_log_file() {
+	if(log_file) {
+		fclose(log_file);
+		remove(log_name);
+		log_file = 0;
+		log_on = false;
+	}
+}
 
 void print(const char* format,...) {
 
@@ -789,7 +799,6 @@ void init_io() {
 
 #ifdef LOG_FILE
 	/*log file*/
-	char log_name[MAX_STR];
 	int i;
 	const int MAX_LOGS = 1000;
 TOP:

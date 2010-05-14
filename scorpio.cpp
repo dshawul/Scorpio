@@ -169,11 +169,16 @@ int CDECL main(int argc, char* argv[]) {
 		if(!parse_commands(commands))
 			goto END;
 
+		/* If log is off either from command line or ini file 
+		 * delete the log file.*/
+		if(!log_on)
+			remove_log_file();
+
+		/*
+		 * Parse commands from stdin.
+		 */
 		print_log("==============================\n");
 		while(true) {
-			/*
-			Parse commands from stdin.
-			*/
 			if(!read_line(buffer)) {
 				break;
 			}
