@@ -3,7 +3,7 @@
 ############################
 EXE = scorpio
 RM = rm -rf
-OBJ = attack.o scorpio.o eval.o hash.o moves.o probe.o search.o see.o magics.o util.o
+OBJ = attack.o scorpio.o eval.o hash.o moves.o parallel.o probe.o search.o see.o magics.o util.o
 HPP = scorpio.h my_types.h
 
 ################################################################
@@ -25,7 +25,7 @@ default:
 	$(MAKE) gcc
 
 clean:
-	$(RM) $(OBJ) $(EXE)
+	$(RM) $(OBJ) $(EXE) core.* cluster.*
 
 strip:
 	strip $(EXE)
@@ -52,12 +52,13 @@ gcc-profile:
 	LXXFLAGS="-pg -lm -lpthread -ldl" \
 	all
 
-all : $(EXE)
+all: $(EXE)
 	
 help:
 	@echo ""
 	@echo "make                  --> gcc compiler"            
 	@echo "make gcc-profile      --> gcc profile with -pg switch on"
+	@echo "make cluster          --> compile cluster version"     
 	@echo "make strip            --> remove debug information."
 	@echo "make clean            --> remove intermediate files"
 	@echo ""
@@ -66,8 +67,8 @@ help:
 # Dependencies
 ############## 
 
-$(EXE) : $(OBJ)
+$(EXE): $(OBJ)
 	$(CXX) $(LXXFLAGS) $(DEFINES) -o $@ $(OBJ)
 
-%.o : %.cpp $(HPP)
+%.o: %.cpp $(HPP)
 	$(CXX) $(CXXFLAGS) $(DEFINES) -c -o $@ $<
