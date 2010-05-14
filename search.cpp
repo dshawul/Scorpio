@@ -334,12 +334,13 @@ int SEARCHER::be_selective() {
 			if(node_t != PV_NODE) {
 				if(nmoves > 7 && pstack->depth >= 4 * UNITDEPTH) {
 					pstack->depth -= 2 * UNITDEPTH;
-					pstack->reduction+=2;
+					pstack->reduction += 2;
 					if(nmoves > 24 && pstack->depth >= 4 * UNITDEPTH) {
-						pstack->depth -= UNITDEPTH;
-						pstack->reduction++;
+						pstack->depth -= 2 * UNITDEPTH;
+						pstack->reduction += 2;
 						if(nmoves > 36 && pstack->depth >= 4 * UNITDEPTH) {
 							pstack->depth -= UNITDEPTH;
+							pstack->reduction++;
 						}
 					}
 				} else if(nmoves > 18 && pstack->depth > UNITDEPTH) {
