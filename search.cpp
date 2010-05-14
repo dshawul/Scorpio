@@ -333,8 +333,8 @@ int SEARCHER::be_selective() {
 			pstack->reduction++;
 			if(node_t != PV_NODE) {
 				if(nmoves > 7 && pstack->depth >= 4 * UNITDEPTH) {
-					pstack->depth -= 2 * UNITDEPTH;
-					pstack->reduction += 2;
+					pstack->depth -= UNITDEPTH;
+					pstack->reduction++;
 					if(nmoves > 24 && pstack->depth >= 4 * UNITDEPTH) {
 						pstack->depth -= UNITDEPTH;
 						pstack->reduction++;
