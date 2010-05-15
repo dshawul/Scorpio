@@ -266,8 +266,8 @@ int SEARCHER::be_selective() {
 		if(hstack[hply - 1].checks) {
 			extend(UNITDEPTH);
 		}
-		if(depth >= 6
-			&& is_passed(move,HALFR)
+		if(depth >= 6 && 
+			is_passed(move,HALFR)
 			) { 
 			extend(0);
 		}
@@ -286,10 +286,7 @@ int SEARCHER::be_selective() {
 	/*
 	pruning
 	*/
-	int lmr_start,prune_start = 24;
-	if(node_t == PV_NODE) lmr_start = 5;
-	else lmr_start = 1;
-
+	const int prune_start = 24;
 	if(depth <= 7
 		&& depth >= 2
 		&& !pstack->extension
@@ -301,13 +298,13 @@ int SEARCHER::be_selective() {
 			int margin = 0;
 			if(depth <= 5) {
 				score = -eval(DO_LAZY);
-				if(nmoves > prune_start || (depth <= 3 && PIECE(m_piece(move)) == pawn)) margin = 50;
+				if(nmoves >= prune_start || (depth <= 3 && PIECE(m_piece(move)) == pawn)) margin = 50;
 				else if(depth <= 2) margin = 150;
 				else if(depth <= 4) margin = 300;
 				else margin = 400;
 			} else if(depth <= 7 && nmoves > 7 && !(pstack - 1)->mate_threat) {
 				score = -eval(DO_LAZY);
-				if(nmoves > prune_start) margin = 400;
+				if(nmoves >= prune_start) margin = 400;
 				else margin = 800;
 			} 
 			if(margin) {
@@ -323,26 +320,27 @@ int SEARCHER::be_selective() {
 	/*
 	late move reduction
 	*/
+	const int lmr_start = (node_t == PV_NODE) ? 8 : 2;
 	if(pstack->depth > UNITDEPTH 
 		&& !pstack->extension
 		&& (pstack - 1)->gen_status - 1 == GEN_NONCAPS
-		&& nmoves > lmr_start
+		&& nmoves >= lmr_start
 		&& all_man_c > 5
 		) {
 			pstack->depth -= UNITDEPTH;
 			pstack->reduction++;
 			if(node_t != PV_NODE) {
-				if(nmoves > 7 && pstack->depth >= 4 * UNITDEPTH) {
+				if((pstack - 1)->legal_moves >= 8 && pstack->depth >= 4 * UNITDEPTH) {
 					pstack->depth -= UNITDEPTH;
 					pstack->reduction++;
-					if(nmoves > 24 && pstack->depth >= 4 * UNITDEPTH) {
+					if((pstack - 1)->legal_moves >= 24 && pstack->depth >= 4 * UNITDEPTH) {
 						pstack->depth -= UNITDEPTH;
 						pstack->reduction++;
-						if(nmoves > 36 && pstack->depth >= 4 * UNITDEPTH) {
+						if((pstack - 1)->legal_moves >= 32 && pstack->depth >= 4 * UNITDEPTH) {
 							pstack->depth -= UNITDEPTH;
 						}
 					}
-				} else if(nmoves > 18 && pstack->depth > UNITDEPTH) {
+				} else if((pstack - 1)->legal_moves > 16 && pstack->depth > UNITDEPTH) {
 					pstack->depth -= UNITDEPTH;
 					pstack->reduction++;
 				}
