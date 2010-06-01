@@ -1,6 +1,6 @@
 #include "scorpio.h"
 
-#define VERSION "2.5"
+#define VERSION "2.5.2"
 
 /*
 all external variables declared here
@@ -235,7 +235,6 @@ void init_game() {
 #ifdef BOOK_PROBE
 	load_book();
 #endif
-
 }
 /*
 "help" command added by Dann Corbit

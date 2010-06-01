@@ -137,7 +137,7 @@ int SEARCHER::eval(int lazy) {
 	register int w_ksq = plist[wking]->sq;
     register int b_ksq = plist[bking]->sq;
 	int w_win_chance = 8,b_win_chance = 8;
-	int phase = piece_c[white] + piece_c[black];
+	int phase = min(62,piece_c[white] + piece_c[black]);
 	int temp;
 	
 	/*reset*/

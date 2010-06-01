@@ -474,9 +474,9 @@ void search(SEARCHER* const sb) {
 									GOBACK(false); //I
 							} else
 #endif
-								/*
-								* Get a move in the regular manner
-								*/
+							/*
+							* Get a move in the regular manner
+							*/
 							{
 								if(!sb->get_move()) {
 									if(!sb->pstack->legal_moves) {
@@ -919,7 +919,7 @@ void SEARCHER::root_search() {
 
 		/*set next ply's depth*/	
 		pstack->depth = (pstack - 1)->depth - UNITDEPTH;
-		if(i > 0
+		if(i > 3
 			&& !hstack[hply - 1].checks
 			&& !m_capture(move)
 			&& !is_passed(move,HALFR)) {

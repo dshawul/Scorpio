@@ -1,5 +1,5 @@
-Scorpio 2.5 cluster
--------------------
+Scorpio 2.5
+-----------
 
 Changes
 -------
@@ -58,20 +58,12 @@ Thanks
     Andres Valverde
        CCT11 operator
        And all friends from Olivier's Live broadcasts :)
+
 BOOK
 ----
     Salvo Spitaleri is the book author for scorpio. 
     Thanks also goes to Oliver Deuville for the book which
     earlier version use.
-
-Personality
------------
-    scorpio supports multi personality for its opening, middle game
-    and endgame. You can also use one personality for the whole of the
-    game.
-    eg. personality mid
-           or
-        multi_personality opn mid end
 
 EGBBs
 -----

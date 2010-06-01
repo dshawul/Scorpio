@@ -107,6 +107,7 @@ void PROCESSOR::idle_loop() {
 				MPI_Recv(MPI_BOTTOM,0,MPI_INT,source,message_id,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
 				help_messages--;
 				l_unlock(lock_mpi);
+
 			} else if(message_id == SPLIT) {
 				SPLIT_MESSAGE message;
 				MPI_Recv(&message,1,SPLIT_Datatype,source,message_id,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
@@ -237,9 +238,9 @@ REDO:
 					merge.pv_length = (psb->pstack + 1)->pv_length;
 				}
 
+                            /*send it*/
 				l_lock(lock_mpi);
 				MPI_Send(&merge,1,MERGE_Datatype,source,MERGE,MPI_COMM_WORLD);
-				help_messages--;
 				l_unlock(lock_mpi);
 
 				/*cancel all unused hosts*/
@@ -285,12 +286,29 @@ REDO:
 				master->bad_splits += merge.bad_splits;
 				master->egbb_probes += merge.egbb_probes;
 
-				/*remove host*/
-				master->host_workers.remove(source);
-				master->n_host_workers--;
-
 				l_unlock(master->lock);
+
+				/* Now that result is fully backed up to master, add the
+				 * host to the list of available hosts. MERGE acts like an implicit HELP offer.
+				 */
+				SPLIT_MESSAGE split;
+				if(master->get_cluster_move(&split)) {
+					l_lock(lock_mpi);
+					MPI_Send(&split,1,SPLIT_Datatype,source,PROCESSOR::SPLIT,MPI_COMM_WORLD);
+					l_unlock(lock_mpi);
+				} else {
+					/*remove host*/
+					l_lock(master->lock);
+					master->host_workers.remove(source);
+					master->n_host_workers--;
+					l_unlock(master->lock);
+
+					l_lock(lock_smp);
+					available_host_workers.push_back(source);
+					l_unlock(lock_smp);
+				}
 				/*end*/
+
 			} else if(message_id == INIT) {
 				INIT_MESSAGE message;
 				MPI_Recv(&message,1,INIT_Datatype,source,message_id,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
