@@ -4,11 +4,11 @@
 #$ -N cluster
 #$ -cwd
 #$ -j y
-#$ -pe orte 4
+#$ -pe orte 2
 
 echo "Got $NSLOTS processors."
 network="--mca btl_tcp_if_include eth1"
 
-mpirun $network -pernode scorpio st 120 go quit
+#mpirun $network -pernode scorpio st 60 go quit
 
-#mpirun $network -np $NSLOTS scorpio st 60 go quit
+mpirun $network -np $NSLOTS scorpio st 60 go quit

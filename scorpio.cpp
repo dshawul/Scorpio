@@ -150,7 +150,7 @@ int CDECL main(int argc, char* argv[]) {
 	MPI_Comm_rank(MPI_COMM_WORLD, &PROCESSOR::host_id);
 	MPI_Get_processor_name(PROCESSOR::host_name, &namelen);
 	print("Process [%d/%d] on %s : pid %d\n",PROCESSOR::host_id,
-		PROCESSOR::n_hosts,PROCESSOR::host_name,getpid());
+		PROCESSOR::n_hosts,PROCESSOR::host_name,GETPID());
 	init_messages();
 #endif
 #ifdef  CLUSTER

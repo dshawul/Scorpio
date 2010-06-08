@@ -16,6 +16,8 @@ Useful to compile minimal scorpio engine.
 #define BOOK_CREATE
 #define EGBB
 #define PARALLEL
+//#define CLUSTER
+//#define HAS_POPCNT
 /*
 parallel search options
 */
@@ -26,19 +28,13 @@ parallel search options
 #   endif
 #	define MAX_SEARCHERS (MAX_CPUS * 16)
 #else
-#	define MAX_CPUS          1
-#	define MAX_SEARCHERS     1
+#	define MAX_CPUS				 1
+#	define MAX_SEARCHERS		 1
 #endif
 #ifdef  CLUSTER
 #   define MAX_HOSTS            64
 #endif
 #define MAX_CPUS_PER_SPLIT       4
-/*
-others
-*/
-#if !defined(HAS_POPCNT)
-//#define HAS_POPCNT
-#endif
 /*
 end
 */

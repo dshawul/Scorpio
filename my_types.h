@@ -48,8 +48,8 @@ Intrinsic popcnt
 */
 #if defined(HAS_POPCNT) && defined(ARC_64BIT)
 #   if defined (__GNUC__)
-#       define popcnt(x)										\
-	({														\
+#       define popcnt(x)								\
+	({													\
 	typeof(x) __ret;									\
 	__asm__("popcnt %1, %0" : "=r" (__ret) : "r" (x));	\
 	__ret;							                    \
@@ -78,6 +78,7 @@ Os stuff
 #    define FMT64    "%I64d"
 #    define FMT64W   "%20I64d"
 #    define FORCEINLINE __forceinline
+#	 define GETPID()  _getpid()
 #else
 #    include <unistd.h>
 #    include <dlfcn.h>
@@ -91,6 +92,7 @@ Os stuff
 #    define FMT64      "%lld"
 #    define FMT64W     "%20lld"
 #    define FORCEINLINE __inline
+#	 define GETPID()  getpid()
 #endif
 
 /*threads*/

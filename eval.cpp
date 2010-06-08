@@ -3,7 +3,7 @@
 /*
 first and last bits of a byte
 */
-static const unsigned char first_bit[0x100] = {
+static const UBMP8 first_bit[0x100] = {
 	8, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0,
 	4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0,
 	5, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0,
@@ -21,7 +21,7 @@ static const unsigned char first_bit[0x100] = {
 	5, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0,
 	4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0
 };
-static const unsigned char last_bit[0x100] = {
+static const UBMP8 last_bit[0x100] = {
 	8, 0, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3,
 	4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
 	5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
@@ -39,7 +39,7 @@ static const unsigned char last_bit[0x100] = {
 	7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
 	7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7
 };
-static const unsigned char center_bit[0x100] = {
+static const UBMP8 center_bit[0x100] = {
 	0, 1, 2, 1, 3, 2, 2, 2, 4, 2, 3, 2, 3, 2, 3, 2,
 	5, 3, 3, 2, 4, 3, 3, 2, 4, 3, 3, 3, 4, 3, 3, 3,
 	6, 3, 4, 3, 4, 3, 3, 3, 5, 3, 4, 3, 4, 3, 3, 3,
