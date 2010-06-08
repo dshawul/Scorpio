@@ -131,6 +131,9 @@ int CDECL main(int argc, char* argv[]) {
 	*/
 	if(!load_ini()) 
 		return 0;
+	/* If log is off delete the log file.*/
+	if(!log_on)
+		remove_log_file();
 	/*
 	Start loading egbbs with a separate thread.
 	If there are command line options wait for the egbb to load fully.  
@@ -168,11 +171,6 @@ int CDECL main(int argc, char* argv[]) {
 		commands[tokenize(buffer,commands)] = NULL;
 		if(!parse_commands(commands))
 			goto END;
-
-		/* If log is off either from command line or ini file 
-		 * delete the log file.*/
-		if(!log_on)
-			remove_log_file();
 
 		/*
 		 * Parse commands from stdin.

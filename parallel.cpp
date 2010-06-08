@@ -238,7 +238,10 @@ REDO:
 					merge.pv_length = (psb->pstack + 1)->pv_length;
 				}
 
-                            /*send it*/
+				
+				//print("nodes = "FMT64" qnodes = "FMT64" \n",psb->nodes,psb->qnodes,move);
+
+                /*send it*/
 				l_lock(lock_mpi);
 				MPI_Send(&merge,1,MERGE_Datatype,source,MERGE,MPI_COMM_WORLD);
 				l_unlock(lock_mpi);

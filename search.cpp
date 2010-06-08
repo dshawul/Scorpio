@@ -119,9 +119,11 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 		return true;
 	}
 
-	/*processor 0 does polling for input*/
-	if(processor_id == 0) {
-		/*check keyboard input & time limit*/
+	/*
+	 * Processor 0 of host 0 does polling for input
+	 * from keypress or time limit.
+	 */
+	if(processor_id == 0 CLUSTER_CODE(&& PROCESSOR::host_id == 0)) {
 		if(nodes > time_check) {
 			time_check += poll_nodes;
 			if(!abort_search)
