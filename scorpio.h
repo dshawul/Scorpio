@@ -750,6 +750,7 @@ typedef struct PROCESSOR {
 	static MPI_Status mpi_status;
 	static void cancel_idle_hosts();
 	static void abort_hosts();
+	static int MESSAGE_POLL_NODES;
 	static int CLUSTER_SPLIT_DEPTH;
 #endif
 #ifdef PARALLEL

@@ -15,7 +15,7 @@ network="--mca btl_tcp_if_include eth1"
 #############
 # Controls
 #############
-TYPE=1
+TYPE=0
 ST=120
 
 #############

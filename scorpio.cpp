@@ -52,6 +52,7 @@ int PROCESSOR::SMP_SPLIT_DEPTH = 4;
 #ifdef CLUSTER
 LOCK  lock_mpi;
 MPI_Status PROCESSOR::mpi_status;
+int PROCESSOR::MESSAGE_POLL_NODES = 200;
 int PROCESSOR::CLUSTER_SPLIT_DEPTH = 8;
 int PROCESSOR::n_hosts;
 int PROCESSOR::host_id;
@@ -472,6 +473,10 @@ bool parse_commands(char** commands) {
 		} else if(!strcmp(command, "cluster_depth")) {
 			CLUSTER_CODE(PROCESSOR::CLUSTER_SPLIT_DEPTH = atoi(commands[command_num]));
 			CLUSTER_CODE(print("CLUSTER_SPLIT_DEPTH = %d\n",PROCESSOR::CLUSTER_SPLIT_DEPTH));
+			command_num++;
+		} else if(!strcmp(command, "message_poll_nodes")) {
+			CLUSTER_CODE(PROCESSOR::MESSAGE_POLL_NODES = atoi(commands[command_num]));
+			CLUSTER_CODE(print("MESSAGE_POLL_NODES = %d\n",PROCESSOR::MESSAGE_POLL_NODES));
 			command_num++;
 		} else if(!strcmp(command,"mt") || !strcmp(command,"cores") ) {
 #ifdef PARALLEL

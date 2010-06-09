@@ -136,7 +136,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 	/*check for messages from other hosts*/
 	if(processor_id == 0 && nodes > message_check) {
 		processors[processor_id].idle_loop();
-		message_check += 500;
+		message_check += PROCESSOR::MESSAGE_POLL_NODES;
 	}
 #endif     
 	/*probe hash table*/
