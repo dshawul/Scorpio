@@ -56,8 +56,9 @@ void PROCESSOR::idle_loop() {
 
 	/*
 	* Only processor 0 checks the messages.
-	* This makes the polling code a non-critical section
-	* however lock_mpi is still used.
+	* This makes the message polling code non-critical section
+	* and also simplifies it a lot. However we still use lock_mpi 
+	* because other thread could invoke MPI calls during splits or fail highs.
 	*/
 	if(this != processors) {
 		while(state == WAIT);
@@ -72,7 +73,6 @@ void PROCESSOR::idle_loop() {
 	do {
 		/* 
 		* Polling. MPI_Iprobe<->MPI_Recv is not thread safe.
-		* But we don't have locks for that.
 		*/
 		l_lock(lock_mpi);
 		MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD,&flag,&mpi_status);
@@ -114,12 +114,16 @@ void PROCESSOR::idle_loop() {
 				l_unlock(lock_mpi);
 
 				/*setup board by undoing old moves and making new ones*/
-				register int i,score,move;
-				while(psb->ply > 0) {
+				register int i,score,move,using_pvs;
+				for(i = 0;i < message.pv_length && i < psb->ply;i++) {
+					if(message.pv[i] != psb->hstack[psb->hply - psb->ply + i].move) 
+						break;
+				}
+				while(psb->ply > i) {
 					if(psb->hstack[psb->hply - 1].move) psb->POP_MOVE();
 					else psb->POP_NULL();
 				}
-				for(i = 0;i < message.pv_length;i++) {
+				for(;i < message.pv_length;i++) {
 					if(message.pv[i]) psb->PUSH_MOVE(message.pv[i]);
 					else psb->PUSH_NULL();
 				}
@@ -147,11 +151,11 @@ void PROCESSOR::idle_loop() {
 				psb->egbb_probes = 0;
 
 				/*
-				search
-				*/
-				int using_pvs = false;
+				 * Search
+				 */
 				processors[0].state = GO;
 
+				using_pvs = false;
 				psb->pstack->extension = message.extension;
 				psb->pstack->reduction = message.reduction;
 				psb->pstack->depth = message.depth;
@@ -213,8 +217,12 @@ REDO:
 				processors[0].state = WAIT;
 
 				/*
-				send back result
-				*/
+				 * Cancel all unused helper hosts
+				 */
+				PROCESSOR::cancel_idle_hosts();
+				/*
+				 * Send back result
+				 */
 				MERGE_MESSAGE merge;
 				merge.nodes = psb->nodes;
 				merge.qnodes = psb->qnodes;
@@ -237,17 +245,10 @@ REDO:
 						((psb->pstack + 1)->pv_length - psb->ply ) * sizeof(MOVE));
 					merge.pv_length = (psb->pstack + 1)->pv_length;
 				}
-
-				
-				//print("nodes = "FMT64" qnodes = "FMT64" \n",psb->nodes,psb->qnodes,move);
-
-                /*send it*/
+				/*send it*/
 				l_lock(lock_mpi);
 				MPI_Send(&merge,1,MERGE_Datatype,source,MERGE,MPI_COMM_WORLD);
 				l_unlock(lock_mpi);
-
-				/*cancel all unused hosts*/
-				PROCESSOR::cancel_idle_hosts();
 
 			} else if(message_id == MERGE) {
 				MERGE_MESSAGE merge;
@@ -292,8 +293,8 @@ REDO:
 				l_unlock(master->lock);
 
 				/* Now that result is fully backed up to master, add the
-				 * host to the list of available hosts. MERGE acts like an implicit HELP offer.
-				 */
+				* host to the list of available hosts. MERGE acts like an implicit HELP offer.
+				*/
 				SPLIT_MESSAGE split;
 				if(master->get_cluster_move(&split)) {
 					l_lock(lock_mpi);
@@ -357,24 +358,30 @@ REDO:
 		} else {
 			l_unlock(lock_mpi);
 
-			/*Check if this host is idle and send "HELP" message to a randomly picked host*/
-			if(state == WAIT && n_idle_processors == n_processors && !help_messages && n_hosts > 1) {
-				l_lock(lock_smp);
+			/* Check if this host is idle and 
+			* send "HELP" message to a randomly picked host
+			*/
+			if(state == WAIT 
+				&& n_idle_processors == n_processors 
+				&& !help_messages 
+				&& n_hosts > 1
+				) {
+					register int i, count = 0,dest;
 
-				int count = 0,dest;
-				for(int i = 0;i < n_processors;i++) {
-					if(processors[i].state == WAIT) 
-						count++;
-				}
-				if(count == n_processors && !help_messages && n_hosts > 1) {
-					while((dest = (rand() % n_hosts)) == host_id); 
-					l_lock(lock_mpi);
-					MPI_Send(MPI_BOTTOM,0,MPI_INT,dest,HELP,MPI_COMM_WORLD);
-					help_messages++;
-					l_unlock(lock_mpi);
-				}
+					l_lock(lock_smp);
+					for(i = 0;i < n_processors;i++) {
+						if(processors[i].state == WAIT) 
+							count++;
+					}
+					l_unlock(lock_smp);
 
-				l_unlock(lock_smp);
+					if(count == n_processors) {
+						while((dest = (rand() % n_hosts)) == host_id); 
+						l_lock(lock_mpi);
+						MPI_Send(MPI_BOTTOM,0,MPI_INT,dest,HELP,MPI_COMM_WORLD);
+						help_messages++;
+						l_unlock(lock_mpi);
+					}
 			}
 		}
 	} while(state == WAIT || flag);
@@ -401,7 +408,7 @@ TOP:
 	PUSH_MOVE(pstack->current_move);
 
 	/*set next ply's depth and be selective*/			
-	split->depth = (pstack - 1)->depth - UNITDEPTH;
+	pstack->depth = (pstack - 1)->depth - UNITDEPTH;
 	if(be_selective()) {
 		POP_MOVE();
 		goto TOP;
@@ -410,6 +417,7 @@ TOP:
 	split->master = this;
 	split->alpha = -(pstack - 1)->beta;
 	split->beta = -(pstack - 1)->alpha;
+	split->depth = pstack->depth;
 	split->node_type = (pstack - 1)->next_node_type;
 	split->search_state = NULL_MOVE;
 	split->extension = pstack->extension;

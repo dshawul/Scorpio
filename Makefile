@@ -52,13 +52,22 @@ gcc-profile:
 	LXXFLAGS="-pg -lm -lpthread -ldl" \
 	all
 
+cluster-profile:   
+	$(MAKE) \
+	CXX=mpiCC \
+	DEFINES+=-DCLUSTER \
+	CXXFLAGS="-pg -O3 -msse -Wall" \
+	LXXFLAGS="-pg -lm -lpthread -ldl" \
+	all
+
 all: $(EXE)
 	
 help:
 	@echo ""
-	@echo "make                  --> gcc compiler"            
-	@echo "make gcc-profile      --> gcc profile with -pg switch on"
+	@echo "make gcc              --> gcc compiler"            
+	@echo "make gcc-profile      --> profile with gcc"
 	@echo "make cluster          --> compile cluster version"     
+	@echo "make cluster-profile  --> profile cluster version"     
 	@echo "make strip            --> remove debug information."
 	@echo "make clean            --> remove intermediate files"
 	@echo ""

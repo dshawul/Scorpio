@@ -1,0 +1,30 @@
+#!/bin/sh
+#$ -S /bin/sh
+#$ -V
+#$ -N cluster
+#$ -cwd
+#$ -j y
+#$ -pe orte 4
+
+##############################
+#  processors
+##############################
+echo "Got $NSLOTS processors."
+network="--mca btl_tcp_if_include eth1"
+
+#############
+# Controls
+#############
+TYPE=1
+ST=120
+
+#############
+# Run
+#############
+if [ "$TYPE" -eq "0" ]; then
+	mpirun $network -np $NSLOTS scorpio st $ST go quit
+else
+	mpirun $network -pernode scorpio st $ST go quit	
+fi
+
+

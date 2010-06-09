@@ -134,9 +134,9 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 	}
 #ifdef CLUSTER
 	/*check for messages from other hosts*/
-	if(nodes > message_check) {
+	if(processor_id == 0 && nodes > message_check) {
 		processors[processor_id].idle_loop();
-		message_check += (poll_nodes >> 2);
+		message_check += 500;
 	}
 #endif     
 	/*probe hash table*/
@@ -1159,7 +1159,6 @@ MOVE SEARCHER::find_best() {
 		l_unlock(lock_mpi);
 	}
 #endif
-
 
 	/*wakeup processors*/
 #ifdef PARALLEL
