@@ -1140,9 +1140,9 @@ MOVE SEARCHER::find_best() {
 	/*undo to last fifty move*/       
 	len = fifty + 1;
 	for(i = 0;i < len && hply > 0;i++) {
-		undo_move();
+		if(hstack[hply - 1].move) undo_move();
+		else undo_null();
 	}
-
 	get_fen(message.fen);
 
 	/*redo moves*/
@@ -1151,7 +1151,8 @@ MOVE SEARCHER::find_best() {
 	for(i = 0;i < len;i++) {
 		move = hstack[hply].move;
 		message.pv[message.pv_length++] = move;
-		do_move(move);
+		if(move) do_move(move);
+		else do_null();
 	}
 
 	/*send message*/

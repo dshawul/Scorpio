@@ -324,8 +324,10 @@ REDO:
 				psb->set_board(message.fen);
 				/*make moves*/
 				register int i;
-				for(i = 0;i < message.pv_length;i++)
-					psb->do_move(message.pv[i]);			
+				for(i = 0;i < message.pv_length;i++) {
+					if(message.pv[i]) psb->do_move(message.pv[i]);	
+					else psb->do_null();
+				}
 #ifdef PARALLEL
 				/*wakeup processors*/
 				for(i = 1;i < n_processors;i++)
