@@ -128,8 +128,10 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 			time_check += poll_nodes;
 			if(!abort_search)
 				check_quit();
-			if(abort_search)
+			if(abort_search) {
+				CLUSTER_CODE(PROCESSOR::quit_hosts());
 				return true;
+			}
 		} 
 	}
 #ifdef CLUSTER
@@ -1316,22 +1318,20 @@ MOVE SEARCHER::find_best() {
 	} while(search_depth < chess_clock.max_sd);
 
 	/*search has ended. display some info*/
-	if(!scorpio_has_quit) {
-		time_used = get_time() - start_time;
-		if(!time_used) time_used = 1;
-		if(pv_print_style == 1) {
-			print(" "FMT64W" %8.2f %10d %8d %8d\n",nodes,float(time_used) / 1000,
-				int(BMP64(nodes) / (time_used / 1000.0f)),splits,bad_splits);
-		} else {
-			print("nodes = "FMT64" <%d qnodes> time = %dms nps = %d\n",nodes,
-				int(BMP64(qnodes) / (BMP64(nodes) / 100.0f)),
-				time_used,int(BMP64(nodes) / (time_used / 1000.0f)));
-			print("lazy_eval = %d splits = %d badsplits = %d egbb_probes = %d\n",
-				int(100 * (lazy_evals/float(full_evals + lazy_evals))),
-				splits,bad_splits,egbb_probes);
-		}
+	time_used = get_time() - start_time;
+	if(!time_used) time_used = 1;
+	if(pv_print_style == 1) {
+		print(" "FMT64W" %8.2f %10d %8d %8d\n",nodes,float(time_used) / 1000,
+			int(BMP64(nodes) / (time_used / 1000.0f)),splits,bad_splits);
+	} else {
+		print("nodes = "FMT64" <%d qnodes> time = %dms nps = %d\n",nodes,
+			int(BMP64(qnodes) / (BMP64(nodes) / 100.0f)),
+			time_used,int(BMP64(nodes) / (time_used / 1000.0f)));
+		print("lazy_eval = %d splits = %d badsplits = %d egbb_probes = %d\n",
+			int(100 * (lazy_evals/float(full_evals + lazy_evals))),
+			splits,bad_splits,egbb_probes);
 	}
-
+	
 #ifdef CLUSTER
 	/*relax hosts*/
 	for(i = 1;i < PROCESSOR::n_hosts;i++) {

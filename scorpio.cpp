@@ -31,7 +31,6 @@ PSQATTACK const sqatt = &temp_sqatt[0x80];
 int pcsq[14][0x80];
 bool book_loaded = false;
 bool log_on = false;
-bool scorpio_has_quit = false;
 int scorpio_start_time;
 
 /*
@@ -396,8 +395,7 @@ bool parse_commands(char** commands) {
 		} else if(!strcmp(command,"quit")) {
 			CLUSTER_CODE(PROCESSOR::abort_hosts());
 			print("Bye Bye\n");
-			scorpio_has_quit = true;
-			return false; 
+			exit(0);
 		} else if (!strcmp(command, "new")) {
 			PROCESSOR::clear_hash_tables();
 			searcher.new_board();
@@ -632,7 +630,6 @@ bool parse_commands(char** commands) {
 					PROCESSOR::clear_hash_tables();
 					main_searcher->COPY(&searcher);
 					main_searcher->find_best();
-					if(scorpio_has_quit) return false;
 					if(SEARCHER::pv_print_style != 1) 
 						print("********** %d ************\n",visited);
 				}
@@ -691,7 +688,6 @@ bool parse_commands(char** commands) {
 				SEARCHER::chess_clock.infinite_mode = true;
 				main_searcher->COPY(&searcher);
 				main_searcher->find_best();
-				if(scorpio_has_quit) return false;
 				SEARCHER::chess_clock.infinite_mode = false;
 				/*search is finished without abort flag -> book moves etc*/
 				if(!SEARCHER::abort_search) {
@@ -714,7 +710,6 @@ REDO1:
 			/*search*/
 			main_searcher->COPY(&searcher);
 			move = main_searcher->find_best();
-			if(scorpio_has_quit) return false;
 REDO2:
 			/*we have a move, make it*/
 			if(SEARCHER::scorpio != searcher.player) continue;
@@ -761,7 +756,6 @@ REDO2:
 						print("Pondering for opponent's move ...\n");
 						main_searcher->COPY(&searcher);
 						move = main_searcher->find_best();
-						if(scorpio_has_quit) return false;
 						/*interrupted*/
 						if(!SEARCHER::chess_clock.pondering)
 							goto REDO1;
@@ -775,7 +769,6 @@ REDO2:
 						main_searcher->COPY(&searcher);
 						main_searcher->do_move(move);
 						move = main_searcher->find_best();
-						if(scorpio_has_quit) return false;
 
 						/*ponder hit*/
 						if(!SEARCHER::chess_clock.infinite_mode)

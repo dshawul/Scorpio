@@ -661,7 +661,9 @@ SEARCHER::SEARCHER() : board(&temp_board[48])
 			board[sq] = elephant;
 	}
 	stop_searcher = 0;
+#if defined(PARALLEL) || defined(CLUSTER)
 	master = 0;
+#endif
 #ifdef PARALLEL
 	l_create(lock);
 	used = false;

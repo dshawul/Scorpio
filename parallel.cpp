@@ -48,6 +48,8 @@ void init_messages() {
 /*
 * IDLE loop of processes and threads
 */
+#if defined(PARALLEL) || defined(CLUSTER)
+
 void PROCESSOR::idle_loop() {
 
 #ifndef CLUSTER
@@ -346,10 +348,8 @@ REDO:
 			} else if(message_id == ABORT) {
 				MPI_Recv(MPI_BOTTOM,0,MPI_INT,source,message_id,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
 				l_unlock(lock_mpi);
-#ifdef PARALLEL
-				for(int i = 0;i < n_processors;i++)
-					processors[i].kill();
-#endif
+
+				exit(0);
 			} else if(message_id == PING) {
 				MPI_Recv(MPI_BOTTOM,0,MPI_INT,source,message_id,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
 				MPI_Send(MPI_BOTTOM,0,MPI_INT,source,PONG,MPI_COMM_WORLD);
@@ -388,6 +388,7 @@ REDO:
 #endif
 
 }
+#endif
 
 #ifdef CLUSTER
 /*
@@ -452,16 +453,28 @@ void PROCESSOR::cancel_idle_hosts() {
 	l_unlock(lock_smp);
 }
 /*
+* Quit hosts 
+*/
+void PROCESSOR::quit_hosts() {
+	for(int i = 0;i < n_hosts;i++) {
+		if(i != host_id) {
+			l_lock(lock_mpi);
+			MPI_Send(MPI_BOTTOM,0,MPI_INT,i,QUIT,MPI_COMM_WORLD);
+			l_unlock(lock_mpi);
+		}
+	}
+}
+/*
 * Abort hosts 
 */
 void PROCESSOR::abort_hosts() {
 	for(int i = 0;i < n_hosts;i++) {
-		l_lock(lock_mpi);
-		MPI_Send(MPI_BOTTOM,0,MPI_INT,i,ABORT,MPI_COMM_WORLD);
-		l_unlock(lock_mpi);
-
-		print("Process [%d/%d] terminated.\n",
-			i,n_hosts);
+		if(i != host_id) {
+			l_lock(lock_mpi);
+			MPI_Send(MPI_BOTTOM,0,MPI_INT,i,ABORT,MPI_COMM_WORLD);
+			l_unlock(lock_mpi);
+		}
+		print("Process [%d/%d] terminated.\n",i,n_hosts);
 	}
 }
 #endif
@@ -734,13 +747,11 @@ void SEARCHER::handle_fail_high() {
 	stop_searcher = 1;
 	bad_splits++;
 }
-#endif
 /*
 * Initialize mt number of threads by creating/deleting 
 * threads from the pool of processors.
 */
 void init_smp(int mt) {
-#ifdef PARALLEL
 	register int i;
 
 	if(PROCESSOR::n_processors < mt) {
@@ -764,5 +775,5 @@ void init_smp(int mt) {
 			}
 		}
 	}
-#endif
 }
+#endif

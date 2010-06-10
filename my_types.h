@@ -147,6 +147,8 @@ Os stuff
 #    endif
 #else
 #    define VOLATILE
+#    define LOCK int
+#    define l_create(x)
 #    define l_lock(x)
 #    define l_unlock(x)
 #endif

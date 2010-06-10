@@ -749,15 +749,18 @@ typedef struct PROCESSOR {
 	static list<int> available_host_workers;
 	static MPI_Status mpi_status;
 	static void cancel_idle_hosts();
+	static void quit_hosts();
 	static void abort_hosts();
 	static int MESSAGE_POLL_NODES;
 	static int CLUSTER_SPLIT_DEPTH;
 #endif
 #ifdef PARALLEL
 	static int SMP_SPLIT_DEPTH;
-	void idle_loop();
 	void create();
 	void kill();
+#endif
+#if defined(PARALLEL) || defined(CLUSTER)
+	void idle_loop();
 #endif
 	PROCESSOR() {
 		state = DEAD;
@@ -789,12 +792,12 @@ typedef struct PROCESSOR {
 
 extern PROCESSOR processors[MAX_CPUS];
 extern SEARCHER searchers[MAX_SEARCHERS];
-void init_smp(int);
 
 /*
 multi processors
 */
 #ifdef PARALLEL
+void init_smp(int);
 extern LOCK  lock_smp;
 extern LOCK  lock_io;
 #endif
@@ -820,7 +823,6 @@ extern int pcsq[14][0x80];
 extern bool book_loaded;
 extern bool log_on;
 extern int scorpio_start_time;
-extern bool scorpio_has_quit;
 /*
 utility functions
 */

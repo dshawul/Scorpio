@@ -8,8 +8,8 @@ HPP = scorpio.h my_types.h
 
 ################################################################
 #
-# Some Options
-#  DHAS_POPCNT  --  Use Intrinsic PopCnt 
+# Some Options : 
+#  DHAS_POPCNT  --  Use Intrinsic PopCnt. Very good to have it! 
 #  DMAX_CPUS=n  --  Compile for maximum of n cpus. Default is 8
 #
 ################################################################
