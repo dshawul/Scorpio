@@ -114,7 +114,13 @@ static void CDECL egbb_thread_proc(void*) {
 	print("loading_time = %ds\n",(end - start) / 1000);
 	egbb_thread_stoped = true;
 }
-
+/*
+exit scorpio 
+*/
+void PROCESSOR::exit_scorpio(int status) {
+	CLUSTER_CODE(MPI_Finalize());
+	exit(status);
+}
 /*
 only winboard protocol support
 */
@@ -126,26 +132,26 @@ int CDECL main(int argc, char* argv[]) {
 	init_game();
 
 	/*
-	Parse scorpio.ini file which contains settings of scorpio. 
-	Search/eval execution commands should not be put there.
-	*/
+	 * Parse scorpio.ini file which contains settings of scorpio. 
+	 * Search/eval execution commands should not be put there.
+	 */
 	if(!load_ini()) 
 		return 0;
 	/* If log is off delete the log file.*/
 	if(!log_on)
 		remove_log_file();
 	/*
-	Start loading egbbs with a separate thread.
-	If there are command line options wait for the egbb to load fully.  
-	*/
+	 * Start loading egbbs with a separate thread.
+	 * If there are command line options wait for the egbb to load fully.  
+	 */
 	pthread_t thread = 0;
 	t_create(egbb_thread_proc,0,thread);
 	if(argc)
 		while(!egbb_thread_stoped) t_sleep(100);
 
 	/*
-	* Initialize MPI
-	*/
+	 * Initialize MPI
+	 */
 #ifdef CLUSTER
 	int namelen,provided;
 	MPI_Init_thread(&argc, &argv,MPI_THREAD_SINGLE,&provided);
@@ -160,8 +166,8 @@ int CDECL main(int argc, char* argv[]) {
 	if(PROCESSOR::host_id == 0) {
 #endif
 		/*
-		Parse commands from the command line
-		*/
+		 * Parse commands from the command line
+		 */
 		strcpy(buffer,"");
 		for(int i = 1;i < argc;i++)	{
 			strcat(buffer," ");
@@ -171,29 +177,26 @@ int CDECL main(int argc, char* argv[]) {
 		commands[tokenize(buffer,commands)] = NULL;
 		if(!parse_commands(commands))
 			goto END;
-
 		/*
 		 * Parse commands from stdin.
 		 */
 		print_log("==============================\n");
 		while(true) {
-			if(!read_line(buffer)) {
-				break;
-			}
+			if(!read_line(buffer))
+				goto END;
 			commands[tokenize(buffer,commands)] = NULL;
-			if(!parse_commands(commands)) {
-				break;
-			}
+			if(!parse_commands(commands))
+				goto END;
 		}
-END:
 #ifdef  CLUSTER
-		MPI_Finalize();
 	} else {
 		processors[0].state = WAIT;
 		search(processors);
-		MPI_Finalize();
 	}
 #endif
+
+END:
+	CLUSTER_CODE(MPI_Finalize());
 	return 0;
 }
 
@@ -395,7 +398,7 @@ bool parse_commands(char** commands) {
 		} else if(!strcmp(command,"quit")) {
 			CLUSTER_CODE(PROCESSOR::abort_hosts());
 			print("Bye Bye\n");
-			exit(0);
+			PROCESSOR::exit_scorpio(EXIT_SUCCESS);
 		} else if (!strcmp(command, "new")) {
 			PROCESSOR::clear_hash_tables();
 			searcher.new_board();
@@ -421,7 +424,6 @@ bool parse_commands(char** commands) {
 					strcat(fen," ");
 				}
 			}
-
 			searcher.set_board(fen);
 			result = R_UNKNOWN;
 		} else if(!strcmp(command,"undo")) {

@@ -349,7 +349,7 @@ REDO:
 				MPI_Recv(MPI_BOTTOM,0,MPI_INT,source,message_id,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
 				l_unlock(lock_mpi);
 
-				exit(0);
+				PROCESSOR::exit_scorpio(EXIT_SUCCESS);
 			} else if(message_id == PING) {
 				MPI_Recv(MPI_BOTTOM,0,MPI_INT,source,message_id,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
 				MPI_Send(MPI_BOTTOM,0,MPI_INT,source,PONG,MPI_COMM_WORLD);

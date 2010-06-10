@@ -762,6 +762,7 @@ typedef struct PROCESSOR {
 #if defined(PARALLEL) || defined(CLUSTER)
 	void idle_loop();
 #endif
+	static void exit_scorpio(int);
 	PROCESSOR() {
 		state = DEAD;
 		searcher = 0;
