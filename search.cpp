@@ -1135,7 +1135,7 @@ MOVE SEARCHER::find_best() {
 
 #ifdef CLUSTER
 	int len,move;
-	INIT_MESSAGE message;
+	INIT_MESSAGE init;
 
 	/*undo to last fifty move*/       
 	len = fifty + 1;
@@ -1143,14 +1143,14 @@ MOVE SEARCHER::find_best() {
 		if(hstack[hply - 1].move) undo_move();
 		else undo_null();
 	}
-	get_fen(message.fen);
+	get_fen(init.fen);
 
 	/*redo moves*/
 	len = i;
-	message.pv_length = 0;
+	init.pv_length = 0;
 	for(i = 0;i < len;i++) {
 		move = hstack[hply].move;
-		message.pv[message.pv_length++] = move;
+		init.pv[init.pv_length++] = move;
 		if(move) do_move(move);
 		else do_null();
 	}
@@ -1158,7 +1158,7 @@ MOVE SEARCHER::find_best() {
 	/*send message*/
 	for(i = 1;i < PROCESSOR::n_hosts;i++) {
 		l_lock(lock_mpi);
-		MPI_Send(&message,1,INIT_Datatype,i,PROCESSOR::INIT,MPI_COMM_WORLD);
+		MPI_Send(&init,1,INIT_Datatype,i,PROCESSOR::INIT,MPI_COMM_WORLD);
 		l_unlock(lock_mpi);
 	}
 #endif
@@ -1335,11 +1335,8 @@ MOVE SEARCHER::find_best() {
 	
 #ifdef CLUSTER
 	/*relax hosts*/
-	for(i = 1;i < PROCESSOR::n_hosts;i++) {
-		l_lock(lock_mpi);
-		MPI_Send(MPI_BOTTOM,0,MPI_INT,i,PROCESSOR::RELAX,MPI_COMM_WORLD);
-		l_unlock(lock_mpi);
-	}
+	for(i = 1;i < PROCESSOR::n_hosts;i++)
+		Non_Blocking_Send(i,PROCESSOR::RELAX);
 #endif
 #ifdef PARALLEL
 	/*freeze processors*/

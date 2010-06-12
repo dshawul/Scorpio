@@ -11,11 +11,14 @@ HPP = scorpio.h my_types.h
 # Some Options : 
 #  DHAS_POPCNT  --  Use Intrinsic PopCnt. Very good to have it! 
 #  DMAX_CPUS=n  --  Compile for maximum of n cpus. Default is 8
+#  DMAX_HOSTS=n --  Compile for maximum of n cpus in a cluster.
+#                   Default value is 128.
 #
 ################################################################
 DEFINES = 
 #DEFINES += -DHAS_POPCNT
 #DEFINES += -DMAX_CPUS=16
+#DEFINES += -DMAX_HOSTS=128
 
 ######################
 # Rules

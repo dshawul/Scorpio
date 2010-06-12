@@ -23,18 +23,20 @@ parallel search options
 */
 #define USE_SPINLOCK
 #ifdef  PARALLEL
-#   if !defined(MAX_CPUS)
+#	if !defined(MAX_CPUS)
 #		define MAX_CPUS          8
-#   endif
+#	endif
+#	define MAX_CPUS_PER_SPLIT    4
 #	define MAX_SEARCHERS (MAX_CPUS * 16)
 #else
-#	define MAX_CPUS				 1
+#	define MAX_CPUS 			 1
 #	define MAX_SEARCHERS		 1
 #endif
 #ifdef  CLUSTER
-#   define MAX_HOSTS            64
+#	if !defined(MAX_HOSTS)
+#		define MAX_HOSTS        128
+#	endif
 #endif
-#define MAX_CPUS_PER_SPLIT       4
 /*
 end
 */
@@ -145,6 +147,7 @@ enum square_names {
 
 #define MAX_STR            256
 #define MAX_FILE_STR      2048
+#define MAX_FEN_STR        128
 #define MAX_MOVES          256
 #define MAX_CAPS            64
 #define MAX_PLY             64
@@ -377,7 +380,7 @@ typedef struct HIST_STACK{
 	HASHKEY pawn_hash_key;
 	BITBOARD pieces_bb[2];
 	BITBOARD pawns_bb[2];
-	static char start_fen[256];
+	static char start_fen[MAX_FEN_STR];
 } *PHIST_STACK;
 
 typedef struct STACK{
@@ -423,45 +426,59 @@ typedef struct STACK{
 struct SEARCHER;
 struct PROCESSOR;
 /*
-MESSAGES
-*/
+ * MESSAGES
+ */
 #ifdef CLUSTER
-struct INIT_MESSAGE {
-	char fen[256];
-	int pv_length;
-	MOVE pv[128];
-};
+/*
+ * Make them of known size so that we avoid
+ * constructing MPI datatypes for them. Simple
+ * transfer sizeof(MESSAGE) MPI_BYTEs should be
+ * more efficient in theory.
+ */
 struct SPLIT_MESSAGE {
-	SEARCHER* master;
-	int  depth;
-	int  alpha;
-	int  beta;
-	int  node_type;
-	int  search_state;
-	int  extension;
-	int  reduction;
-	int  pv_length;
-	MOVE pv[MAX_PLY];
+	BMP64  master;
+	BMP32  depth;
+	BMP32  alpha;
+	BMP32  beta;
+	BMP32  node_type;
+	BMP32  search_state;
+	BMP32  extension;
+	BMP32  reduction;
+	BMP32  pv_length;
+	MOVE   pv[MAX_PLY];
 };
 struct MERGE_MESSAGE {
+	BMP64  master;
 	UBMP64 nodes;
 	UBMP64 qnodes;
 	UBMP64 time_check;
-	unsigned int full_evals;
-	unsigned int lazy_evals;
-	unsigned int splits;
-	unsigned int bad_splits;
-	unsigned int egbb_probes;
-	SEARCHER* master;
-	MOVE best_move;
-	int  best_score;
-	int  pv_length;
-	MOVE pv[MAX_PLY];
+	UBMP32 full_evals;
+	UBMP32 lazy_evals;
+	UBMP32 splits;
+	UBMP32 bad_splits;
+	UBMP32 egbb_probes;
+	MOVE   best_move;
+	BMP32  best_score;
+	BMP32  pv_length;
+	MOVE   pv[MAX_PLY];
+};
+/*
+ * The character fen makes it difficult to use
+ * fixed size struct. So use special datat type for that.
+ */
+struct INIT_MESSAGE {
+	char fen[MAX_FEN_STR];
+	BMP32 pv_length;
+	MOVE  pv[127];
 };
 extern MPI_Datatype INIT_Datatype;
-extern MPI_Datatype SPLIT_Datatype;
-extern MPI_Datatype MERGE_Datatype;
-void init_messages();
+extern void init_messages();
+/*
+ * message sizes vary due to pv
+ */
+#define   SPLIT_MESSAGE_SIZE(x)   (40 + ((x).pv_length << 2))
+#define   MERGE_MESSAGE_SIZE(x)   (64 + ((x).pv_length << 2))
+
 #endif
 /*
 SEARCHER
@@ -571,11 +588,11 @@ typedef struct SEARCHER{
 	UBMP64 qnodes;
 	UBMP64 time_check;
 	UBMP64 message_check;
-	unsigned int full_evals;
-	unsigned int lazy_evals;
-	unsigned int splits;
-	unsigned int bad_splits;
-	unsigned int egbb_probes;
+	UBMP32 full_evals;
+	UBMP32 lazy_evals;
+	UBMP32 splits;
+	UBMP32 bad_splits;
+	UBMP32 egbb_probes;
 	VOLATILE int stop_searcher;
 	/*
 	Parallel search
@@ -617,7 +634,7 @@ typedef struct SEARCHER{
 	static int in_egbb;
 	static int show_full_pv;
 	static int abort_search;
-	static unsigned int poll_nodes;
+	static UBMP32 poll_nodes;
 	static MOVE expected_move;
 	static int resign_value;
 	static int resign_count;
@@ -748,6 +765,7 @@ typedef struct PROCESSOR {
 	static int help_messages;
 	static list<int> available_host_workers;
 	static MPI_Status mpi_status;
+	static MPI_Request mpi_request;
 	static void cancel_idle_hosts();
 	static void quit_hosts();
 	static void abort_hosts();
@@ -805,6 +823,11 @@ extern LOCK  lock_io;
 
 #ifdef CLUSTER
 extern LOCK  lock_mpi;
+FORCEINLINE void Non_Blocking_Send(int dest,int message) {
+	l_lock(lock_mpi);
+	MPI_Isend(MPI_BOTTOM,0,MPI_INT,dest,message,MPI_COMM_WORLD,&PROCESSOR::mpi_request);
+	l_unlock(lock_mpi);
+}
 #endif
 /*
 global data

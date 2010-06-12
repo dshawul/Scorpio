@@ -50,6 +50,7 @@ int PROCESSOR::SMP_SPLIT_DEPTH = 4;
 
 #ifdef CLUSTER
 LOCK  lock_mpi;
+MPI_Request PROCESSOR::mpi_request;
 MPI_Status PROCESSOR::mpi_status;
 int PROCESSOR::MESSAGE_POLL_NODES = 200;
 int PROCESSOR::CLUSTER_SPLIT_DEPTH = 8;
@@ -58,9 +59,6 @@ int PROCESSOR::host_id;
 char PROCESSOR::host_name[256];
 list<int> PROCESSOR::available_host_workers;
 int PROCESSOR::help_messages = 0;
-MPI_Datatype INIT_Datatype;
-MPI_Datatype SPLIT_Datatype;
-MPI_Datatype MERGE_Datatype;
 const char *const PROCESSOR::message_str[] = {
 	"QUIT","INIT","RELAX","HELP","CANCEL","SPLIT","MERGE","PING","PONG","ABORT"
 };
@@ -88,7 +86,7 @@ unsigned int SEARCHER::poll_nodes;
 MOVE SEARCHER::expected_move;
 int SEARCHER::resign_value;
 int SEARCHER::resign_count;
-char HIST_STACK::start_fen[256];
+char HIST_STACK::start_fen[MAX_FEN_STR];
 /*
 static global variables/functions
 */
@@ -137,9 +135,6 @@ int CDECL main(int argc, char* argv[]) {
 	 */
 	if(!load_ini()) 
 		return 0;
-	/* If log is off delete the log file.*/
-	if(!log_on)
-		remove_log_file();
 	/*
 	 * Start loading egbbs with a separate thread.
 	 * If there are command line options wait for the egbb to load fully.  
@@ -177,6 +172,16 @@ int CDECL main(int argc, char* argv[]) {
 		commands[tokenize(buffer,commands)] = NULL;
 		if(!parse_commands(commands))
 			goto END;
+
+		/* 
+		 * If log=off both in ini and from the command line, delete it.
+		 * If log=off in ini and log=on from command line,then we will have only 1 log file.
+		 * If log=on in ini, then each processor will have separate log files.
+		 */
+#ifdef CLUSTER
+		if(!log_on)
+			remove_log_file();
+#endif
 		/*
 		 * Parse commands from stdin.
 		 */
@@ -190,6 +195,10 @@ int CDECL main(int argc, char* argv[]) {
 		}
 #ifdef  CLUSTER
 	} else {
+		/* Delete the log file.*/
+		if(!log_on)
+			remove_log_file();
+		/* goto wait mode */
 		processors[0].state = WAIT;
 		search(processors);
 	}

@@ -816,9 +816,8 @@ TOP:
 		}
 		goto TOP;
 	}
-	if((log_file = fopen(log_name ,"w")) == 0) {
+	if((log_file = fopen(log_name ,"w")) == 0)
 		log_on = false;
-	}
 #endif
 	if(log_file)
 		setbuf(log_file,NULL);
