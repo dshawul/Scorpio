@@ -48,7 +48,11 @@ end
 #include <cctype>
 #include <ctime>
 #include <cmath>
-#include <sys/timeb.h>
+#ifdef _MSC_VER
+#	include <sys/timeb.h>
+#else
+#	include <sys/time.h>
+#endif
 #ifdef CLUSTER
 #  include <list>
 #  include "mpi.h"
@@ -463,7 +467,7 @@ struct MERGE_MESSAGE {
 	MOVE   pv[MAX_PLY];
 };
 /*
- * The character fen makes it difficult to use
+ * The fen string makes it difficult to use
  * fixed size struct. So use special datat type for that.
  */
 struct INIT_MESSAGE {

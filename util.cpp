@@ -777,9 +777,15 @@ void SEARCHER::COPY(SEARCHER* srcSearcher) {
 time
 */
 int get_time() {
-	struct timeb timebuffer;
-	ftime(&timebuffer);
-	return int((timebuffer.time * 1000) + timebuffer.millitm);
+#ifdef _MSC_VER
+	timeb tb;
+	ftime(&tb);
+	return int(tb.time * 1000 + tb.millitm);
+#else
+	timeval tb;
+	gettimeofday(&tb, NULL);
+	return int(tb.tv_sec * 1000 + tb.tv_usec / 1000);
+#endif
 }
 /*
 input/output from pipe/consol

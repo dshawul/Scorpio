@@ -89,7 +89,7 @@ void PROCESSOR::idle_loop() {
 
 				help_messages--;
 			} else if(message_id == SPLIT) {
-				SPLIT_MESSAGE& split = global_split[source];
+				SPLIT_MESSAGE& split = global_split[host_id];
 				MPI_Recv(&split,sizeof(SPLIT_MESSAGE),MPI_BYTE,source,message_id,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
 				l_unlock(lock_mpi);
 
@@ -353,14 +353,12 @@ REDO:
 						if(processors[i].state == WAIT) 
 							count++;
 					}
-					l_unlock(lock_smp);
-
 					if(count == n_processors) {
 						while((dest = (rand() % n_hosts)) == host_id); 
-
 						Non_Blocking_Send(dest,HELP);
 						help_messages++;
 					}
+					l_unlock(lock_smp);
 			}
 		}
 	} while(state == WAIT || flag);
@@ -630,7 +628,7 @@ int SEARCHER::check_split() {
 				&& PROCESSOR::available_host_workers.size() > 0
 				) {
 					int dest;
-					while(!PROCESSOR::available_host_workers.empty()) {
+					while(n_host_workers < MAX_CPUS_PER_SPLIT && !PROCESSOR::available_host_workers.empty()) {
 							dest = *(PROCESSOR::available_host_workers.begin());
 
 							SPLIT_MESSAGE& split = global_split[dest];
@@ -655,13 +653,9 @@ int SEARCHER::check_split() {
 			if(DEPTH(pstack->depth) > PROCESSOR::SMP_SPLIT_DEPTH 
 				&& PROCESSOR::n_idle_processors > 0
 				) {
-					for(i = 0;i < PROCESSOR::n_processors;i++) {
-						if(processors[i].state == WAIT) {
+					for(i = 0;i < PROCESSOR::n_processors && n_workers < MAX_CPUS_PER_SPLIT;i++) {
+						if(processors[i].state == WAIT)
 							attach_processor(i);
-							if(n_workers >= MAX_CPUS_PER_SPLIT) {
-								break;
-							}
-						}
 					}
 			}
 

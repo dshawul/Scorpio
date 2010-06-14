@@ -4,7 +4,7 @@
 #$ -N cluster
 #$ -cwd
 #$ -j y
-#$ -pe orte 4
+#$ -pe orte 8
 
 ##############################
 #  processors
@@ -15,7 +15,7 @@ network="--mca btl_tcp_if_include eth1"
 #############
 # Controls
 #############
-TYPE=0
+TYPE=1
 ST=240
 
 #############
