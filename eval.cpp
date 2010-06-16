@@ -132,12 +132,15 @@ static evaluator
 	return pstack->actual_score;   \
 };
 
+/*max material count is 64 {actually 62}*/
+#define   MAX_MATERIAL    64
+
 int SEARCHER::eval(int lazy) {
 	register SCORE w_score,b_score;
 	register int w_ksq = plist[wking]->sq;
     register int b_ksq = plist[bking]->sq;
 	int w_win_chance = 8,b_win_chance = 8;
-	int phase = min(62,piece_c[white] + piece_c[black]);
+	int phase = min(MAX_MATERIAL,piece_c[white] + piece_c[black]);
 	int temp;
 	
 	/*reset*/
@@ -221,7 +224,6 @@ int SEARCHER::eval(int lazy) {
 	if((board[C8] == bking || board[B8] == bking) && 
 		(board[A8] == brook || board[A7] == brook || board[B8] == brook))
 		b_score.subm(90);
-	
 	/*
 	lazy evaluation - 1
 	*/
@@ -386,7 +388,6 @@ int SEARCHER::eval(int lazy) {
 
 		current = current->next;
 	}
-
 	/*
 	bishops
 	*/
@@ -639,7 +640,7 @@ int SEARCHER::eval(int lazy) {
 
 	if(player == white) {
 		pstack->actual_score = ((w_score.mid - b_score.mid) * (phase) +
-			                   (w_score.end - b_score.end) * (62 - phase)) / 62;
+			                   (w_score.end - b_score.end) * (MAX_MATERIAL - phase)) / MAX_MATERIAL;
 		if(pstack->actual_score > 0) {
 			pstack->actual_score = (pstack->actual_score * w_win_chance) / 8;
 		} else {
@@ -648,7 +649,7 @@ int SEARCHER::eval(int lazy) {
 		record_eval_hash(hash_key,pstack->actual_score, pstack->lazy_score ,pstack->evalrec);
 	} else {
 		pstack->actual_score = ((b_score.mid - w_score.mid) * (phase) +
-			                   (b_score.end - w_score.end) * (62 - phase)) / 62;
+			                   (b_score.end - w_score.end) * (MAX_MATERIAL - phase)) / MAX_MATERIAL;
 		if(pstack->actual_score > 0) {
 			pstack->actual_score = (pstack->actual_score * b_win_chance) / 8;
 		} else {
@@ -1549,7 +1550,7 @@ bool SEARCHER::eval_lazy_exit(int lazy, int lazy_margin,int phase,SCORE& w_score
 	/*adjust lazy score*/
 	if(player == white) {
 		pstack->lazy_score = ((w_score.mid - b_score.mid) * (phase) +
-			                   (w_score.end - b_score.end) * (62 - phase)) / 62;
+			                   (w_score.end - b_score.end) * (MAX_MATERIAL - phase)) / MAX_MATERIAL;
 		if(pstack->lazy_score > 0) {
 			pstack->lazy_score = (pstack->lazy_score * w_win_chance) / 8;
 		} else {
@@ -1557,7 +1558,7 @@ bool SEARCHER::eval_lazy_exit(int lazy, int lazy_margin,int phase,SCORE& w_score
 		}
 	} else {
 		pstack->lazy_score = ((b_score.mid - w_score.mid) * (phase) +
-			                   (b_score.end - w_score.end) * (62 - phase)) / 62;
+			                   (b_score.end - w_score.end) * (MAX_MATERIAL - phase)) / MAX_MATERIAL;
 		if(pstack->lazy_score > 0) {
 			pstack->lazy_score = (pstack->lazy_score * b_win_chance) / 8;
 		} else {

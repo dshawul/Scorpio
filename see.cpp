@@ -2,7 +2,7 @@
 
 #define QUICK_CUT(mcol) {if(col == mcol && temp < 0) return temp;}
 
-#define AddSlider(strt,stp,wrb,brb) {								\
+#define AddSlider(strt,stp,wrb,brb,FLAG) {							\
 	sq = strt + stp;												\
 	while(board[sq] == blank) sq += stp;							\
     if(sq != from) {												\
@@ -11,14 +11,14 @@
 		     w_atkers[w_atks++] = sq;								\
 			 break;                                                 \
          case wrb:													\
-		     QUICK_CUT(black);                                      \
+		     if(FLAG) {QUICK_CUT(black);}                           \
 		     w_atkers[w_atks++] = sq;								\
 		     break;													\
          case bqueen:												\
 		     b_atkers[b_atks++] = sq;								\
 			 break;                                                 \
          case brb:													\
-		     QUICK_CUT(white);                                      \
+		     if(FLAG) {QUICK_CUT(white);}                           \
 		     b_atkers[b_atks++] = sq;								\
 		     break;													\
 	   }															\
@@ -32,13 +32,13 @@
        case DD:														\
        case RR:														\
        case LL:														\
-	      AddSlider(strt,step,wrook,brook);							\
+	      AddSlider(strt,step,wrook,brook,0);						\
 	      break;													\
        case RU:														\
        case RD:														\
        case LU:														\
        case LD:														\
-	      AddSlider(strt,step,wbishop,bbishop);						\
+	      AddSlider(strt,step,wbishop,bbishop,0);					\
 	      break;													\
 	}																\
 }
@@ -59,6 +59,10 @@ int SEARCHER::see(MOVE move) {
 	score = piece_see_v[m_capture(move)];
 	atkd_val = piece_see_v[m_piece(move)];
 	
+	/*king captures*/
+	if(atkd_val > 1000)
+		return score;
+
     /*collect pawn attackers*/
 	temp = score - atkd_val + piece_see_v[pawn];
 
@@ -107,15 +111,15 @@ int SEARCHER::see(MOVE move) {
 	}
 	/*sliders*/
 	temp = score - atkd_val + piece_see_v[bishop];
-	AddSlider(to,RU,wbishop,bbishop);
-	AddSlider(to,LU,wbishop,bbishop);
-	AddSlider(to,RD,wbishop,bbishop);
-	AddSlider(to,LD,wbishop,bbishop);
+	AddSlider(to,RU,wbishop,bbishop,1);
+	AddSlider(to,LU,wbishop,bbishop,1);
+	AddSlider(to,RD,wbishop,bbishop,1);
+	AddSlider(to,LD,wbishop,bbishop,1);
 	temp = score - atkd_val + piece_see_v[rook];
-	AddSlider(to,UU,wrook,brook);
-	AddSlider(to,DD,wrook,brook);
-	AddSlider(to,RR,wrook,brook);
-	AddSlider(to,LL,wrook,brook);
+	AddSlider(to,UU,wrook,brook,1);
+	AddSlider(to,DD,wrook,brook,1);
+	AddSlider(to,RR,wrook,brook,1);
+	AddSlider(to,LL,wrook,brook,1);
 
 	/*king attackers*/
 	sq = plist[wking]->sq;
@@ -195,7 +199,6 @@ int SEARCHER::see(MOVE move) {
 			/*add hidden attacker*/
 			sq = b_atkers[b_count];
 			AddHiddenAttacker(sq);
-
 
 			atkd_val = bv;
 			col = white;

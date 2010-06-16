@@ -10,7 +10,7 @@ FORCEINLINE void SEARCHER::UPDATE_PV(MOVE move)  {
 
 bool SEARCHER::hash_cutoff() { 
 	/*
-	hashtable lookup 
+	. hashtable lookup 
 	*/
 	pstack->hash_flags = PROCESSOR::probe_hash(player,hash_key,DEPTH(pstack->depth),ply,pstack->hash_score,
 		pstack->hash_move,pstack->alpha,pstack->beta,pstack->mate_threat,pstack->hash_depth);
@@ -324,7 +324,7 @@ int SEARCHER::be_selective() {
 	/*
 	late move reduction
 	*/
-	const int lmr_start = (node_t == PV_NODE) ? 8 : 2;
+	const int lmr_start = (node_t == PV_NODE) ? 14 : 2;
 	if(pstack->depth > UNITDEPTH 
 		&& !pstack->extension
 		&& (pstack - 1)->gen_status - 1 == GEN_NONCAPS
