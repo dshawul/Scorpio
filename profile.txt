@@ -3,77 +3,77 @@ Flat profile:
 Each sample counts as 0.01 seconds.
   %   cumulative   self              self     total           
  time   seconds   seconds    calls   s/call   s/call  name    
- 20.43      1.40     1.40  5859869     0.00     0.00  SEARCHER::eval(int)
-  8.05      1.95     0.55  6187424     0.00     0.00  SEARCHER::do_move(unsigned int const&)
-  7.61      2.47     0.52  4625109     0.00     0.00  SEARCHER::get_move()
-  6.44      2.91     0.44  2260642     0.00     0.00  SEARCHER::see(unsigned int)
-  6.30      3.34     0.43      264     0.00     0.03  search(PROCESSOR*)
-  4.10      3.62     0.28  6187417     0.00     0.00  SEARCHER::undo_move()
-  4.10      3.90     0.28  3002298     0.00     0.00  PROCESSOR::probe_hash(int, unsigned long const&, int, int, int&, unsigned int&, int, int, int&, int&)
-  4.10      4.18     0.28  2566661     0.00     0.00  SEARCHER::gen_caps()
-  3.88      4.44     0.27  2618930     0.00     0.00  SEARCHER::qsearch()
-  3.73      4.70     0.26  2019458     0.00     0.00  SEARCHER::eval_pawns(int, int, unsigned char*, unsigned char*)
-  3.29      4.92     0.23  5859869     0.00     0.00  SEARCHER::eval_win_chance(SCORE&, SCORE&, int&, int&)
-  3.00      5.13     0.21  7879327     0.00     0.00  SEARCHER::eval_lazy_exit(int, int, int, SCORE&, SCORE&, int, int)
-  2.93      5.33     0.20  2534116     0.00     0.00  SEARCHER::probe_eval_hash(unsigned long const&, int&, int&, tagEVALREC&)
-  2.64      5.51     0.18  3096343     0.00     0.00  SEARCHER::get_qmove()
-  2.42      5.67     0.17 13321490     0.00     0.00  SEARCHER::pinned_on_king(int, int) const
-  2.05      5.81     0.14   746715     0.00     0.00  SEARCHER::gen_checks()
-  1.68      5.93     0.12  6187424     0.00     0.00  SEARCHER::checks(unsigned int, int&) const
-  1.61      6.04     0.11  2353767     0.00     0.00  SEARCHER::attacks(int, int) const
-  1.54      6.14     0.11  7158818     0.00     0.00  SEARCHER::in_check(unsigned int) const
-  1.32      6.23     0.09  1315377     0.00     0.00  SEARCHER::is_legal_fast(unsigned int) const
-  1.32      6.32     0.09   320958     0.00     0.00  SEARCHER::gen_evasions()
-  1.17      6.40     0.08  4475376     0.00     0.00  SEARCHER::be_selective()
-  1.17      6.48     0.08   952046     0.00     0.00  SEARCHER::eval_pawn_cover(int, int, unsigned char*, unsigned char*)
-  0.88      6.54     0.06  7332637     0.00     0.00  SEARCHER::draw() const
-  0.88      6.60     0.06  2019458     0.00     0.00  SEARCHER::probe_pawn_hash(unsigned long const&, SCORE&, tagPAWNREC&)
-  0.73      6.65     0.05   137605     0.00     0.00  SEARCHER::gen_noncaps()
-  0.44      6.68     0.03  1945696     0.00     0.00  SEARCHER::record_eval_hash(unsigned long const&, int, int, tagEVALREC const&)
-  0.44      6.71     0.03  1049309     0.00     0.00  PROCESSOR::record_hash(int, unsigned long const&, int, int, int, int, unsigned int, int)
-  0.37      6.74     0.03                             frame_dummy
-  0.29      6.76     0.02        2     0.01     0.01  PROCESSOR::reset_pawn_hash_tab(unsigned int)
-  0.22      6.77     0.02    44515     0.00     0.00  SEARCHER::eval_passed_pawns(unsigned char*, unsigned char*, unsigned char&)
-  0.15      6.78     0.01   582586     0.00     0.00  SEARCHER::record_pawn_hash(unsigned long const&, SCORE const&, tagPAWNREC const&)
-  0.15      6.79     0.01   172322     0.00     0.00  SEARCHER::undo_null()
-  0.15      6.80     0.01        3     0.00     0.00  SEARCHER::gen_all()
-  0.15      6.81     0.01        1     0.01     0.01  initmagicmoves()
-  0.15      6.82     0.01                             mov_str(unsigned int&, char*)
-  0.07      6.83     0.01        1     0.01     0.01  global constructors keyed to _ZN8SEARCHER4evalEi
-  0.07      6.83     0.01                             SEARCHER::hash_cutoff()
-  0.00      6.83     0.00  2940229     0.00     0.00  SEARCHER::check_split()
-  0.00      6.83     0.00   172323     0.00     0.00  SEARCHER::do_null()
-  0.00      6.83     0.00      333     0.00     0.00  print(char const*, ...)
-  0.00      6.83     0.00      130     0.00     0.00  bios_key()
-  0.00      6.83     0.00      130     0.00     0.00  SEARCHER::check_quit()
-  0.00      6.83     0.00      129     0.00     0.00  SEARCHER::SEARCHER()
-  0.00      6.83     0.00       45     0.00     0.00  print_log(char const*, ...)
-  0.00      6.83     0.00       36     0.00     0.00  SEARCHER::print_pv(int)
-  0.00      6.83     0.00       20     0.00     0.00  get_time()
-  0.00      6.83     0.00       19     0.00     0.36  SEARCHER::root_search()
-  0.00      6.83     0.00        4     0.00     1.69  parse_commands(char**)
-  0.00      6.83     0.00        4     0.00     0.00  tokenize(char*, char**, char const*)
-  0.00      6.83     0.00        2     0.00     0.00  read_line(char*)
-  0.00      6.83     0.00        2     0.00     0.00  SEARCHER::print_result(bool)
-  0.00      6.83     0.00        2     0.00     0.00  SEARCHER::pre_calculate()
-  0.00      6.83     0.00        2     0.00     0.00  PROCESSOR::reset_hash_tab(unsigned int)
-  0.00      6.83     0.00        2     0.00     0.00  PROCESSOR::reset_eval_hash_tab(unsigned int)
-  0.00      6.83     0.00        1     0.00     0.00  global constructors keyed to pawn_dir
-  0.00      6.83     0.00        1     0.00     0.00  init_sqatt()
-  0.00      6.83     0.00        1     0.00     0.00  LoadEgbbLibrary(char*, int)
-  0.00      6.83     0.00        1     0.00     0.00  __static_initialization_and_destruction_0(int, int)
-  0.00      6.83     0.00        1     0.00     0.00  __static_initialization_and_destruction_0(int, int)
-  0.00      6.83     0.00        1     0.00     0.00  init_io()
-  0.00      6.83     0.00        1     0.00     0.00  init_smp(int)
-  0.00      6.83     0.00        1     0.00     0.00  mov_strx(unsigned int&, char*)
-  0.00      6.83     0.00        1     0.00     0.00  load_book()
-  0.00      6.83     0.00        1     0.00     0.00  CHESS_CLOCK::set_stime(int)
-  0.00      6.83     0.00        1     0.00     0.00  CHESS_CLOCK::CHESS_CLOCK()
-  0.00      6.83     0.00        1     0.00     0.00  SEARCHER::COPY(SEARCHER*)
-  0.00      6.83     0.00        1     0.00     6.75  SEARCHER::find_best()
-  0.00      6.83     0.00        1     0.00     0.00  SEARCHER::init_data()
-  0.00      6.83     0.00        1     0.00     0.00  SEARCHER::new_board()
-  0.00      6.83     0.00        1     0.00     0.00  SEARCHER::set_board(char const*)
+ 19.05      1.31     1.31  6064127     0.00     0.00  SEARCHER::eval(int)
+  8.91      1.92     0.61  6411537     0.00     0.00  SEARCHER::do_move(unsigned int const&)
+  8.76      2.52     0.60  4678952     0.00     0.00  SEARCHER::get_move()
+  5.69      2.91     0.39      264     0.00     0.03  search(PROCESSOR*)
+  5.11      3.26     0.35  2426845     0.00     0.00  SEARCHER::see(unsigned int)
+  4.67      3.58     0.32  2717267     0.00     0.00  SEARCHER::gen_caps()
+  4.38      3.88     0.30  2092802     0.00     0.00  SEARCHER::eval_pawns(int, int, unsigned char*, unsigned char*)
+  4.38      4.18     0.30  2611743     0.00     0.00  SEARCHER::probe_eval_hash(unsigned long const&, int&, int&, tagEVALREC&)
+  3.36      4.41     0.23  3075366     0.00     0.00  PROCESSOR::probe_hash(int, unsigned long const&, int, int, int&, unsigned int&, int, int, int&, int&)
+  3.21      4.63     0.22  2646861     0.00     0.00  SEARCHER::qsearch()
+  3.21      4.85     0.22   760961     0.00     0.00  SEARCHER::gen_checks()
+  3.14      5.06     0.22  7438409     0.00     0.00  SEARCHER::in_check(unsigned int) const
+  3.07      5.27     0.21   342573     0.00     0.00  SEARCHER::gen_evasions()
+  3.07      5.48     0.21  8156929     0.00     0.00  SEARCHER::eval_lazy_exit(int, int, int, SCORE&, SCORE&, int, int)
+  2.92      5.68     0.20  6064127     0.00     0.00  SEARCHER::eval_win_chance(SCORE&, SCORE&, int&, int&)
+  2.70      5.87     0.19  6411537     0.00     0.00  SEARCHER::checks(unsigned int, int&) const
+  2.48      6.04     0.17  3348251     0.00     0.00  SEARCHER::get_qmove()
+  2.19      6.19     0.15 13716400     0.00     0.00  SEARCHER::pinned_on_king(int, int) const
+  2.19      6.34     0.15  6411523     0.00     0.00  SEARCHER::undo_move()
+  1.82      6.46     0.13  2409986     0.00     0.00  SEARCHER::attacks(int, int) const
+  1.53      6.57     0.11  4526487     0.00     0.00  SEARCHER::be_selective()
+  0.58      6.61     0.04  2092802     0.00     0.00  SEARCHER::probe_pawn_hash(unsigned long const&, SCORE&, tagPAWNREC&)
+  0.58      6.65     0.04   138822     0.00     0.00  SEARCHER::gen_noncaps()
+  0.44      6.68     0.03  7606610     0.00     0.00  SEARCHER::draw() const
+  0.44      6.71     0.03   940962     0.00     0.00  SEARCHER::eval_pawn_cover(int, int, unsigned char*, unsigned char*)
+  0.44      6.74     0.03   591559     0.00     0.00  SEARCHER::record_pawn_hash(unsigned long const&, SCORE const&, tagPAWNREC const&)
+  0.29      6.76     0.02  1327870     0.00     0.00  SEARCHER::is_legal_fast(unsigned int) const
+  0.29      6.78     0.02    47357     0.00     0.00  SEARCHER::eval_passed_pawns(unsigned char*, unsigned char*, unsigned char&)
+  0.29      6.80     0.02                             mov_str(unsigned int&, char*)
+  0.22      6.81     0.02                             frame_dummy
+  0.15      6.82     0.01  2020665     0.00     0.00  SEARCHER::record_eval_hash(unsigned long const&, int, int, tagEVALREC const&)
+  0.15      6.83     0.01        2     0.01     0.01  PROCESSOR::reset_pawn_hash_tab(unsigned int)
+  0.15      6.84     0.01        1     0.01     0.01  initmagicmoves()
+  0.07      6.85     0.01        1     0.01     0.01  global constructors keyed to _ZN8SEARCHER4evalEi
+  0.07      6.85     0.01                             SEARCHER::hash_cutoff()
+  0.00      6.85     0.00  2967367     0.00     0.00  SEARCHER::check_split()
+  0.00      6.85     0.00  1067456     0.00     0.00  PROCESSOR::record_hash(int, unsigned long const&, int, int, int, int, unsigned int, int)
+  0.00      6.85     0.00   163757     0.00     0.00  SEARCHER::do_null()
+  0.00      6.85     0.00   163757     0.00     0.00  SEARCHER::undo_null()
+  0.00      6.85     0.00      381     0.00     0.00  print(char const*, ...)
+  0.00      6.85     0.00      131     0.00     0.00  bios_key()
+  0.00      6.85     0.00      131     0.00     0.00  SEARCHER::check_quit()
+  0.00      6.85     0.00      129     0.00     0.00  SEARCHER::SEARCHER()
+  0.00      6.85     0.00       51     0.00     0.00  print_log(char const*, ...)
+  0.00      6.85     0.00       42     0.00     0.00  SEARCHER::print_pv(int)
+  0.00      6.85     0.00       19     0.00     0.00  get_time()
+  0.00      6.85     0.00       19     0.00     0.36  SEARCHER::root_search()
+  0.00      6.85     0.00        4     0.00     1.70  parse_commands(char**)
+  0.00      6.85     0.00        4     0.00     0.00  tokenize(char*, char**, char const*)
+  0.00      6.85     0.00        3     0.00     0.00  SEARCHER::gen_all()
+  0.00      6.85     0.00        2     0.00     0.00  read_line(char*)
+  0.00      6.85     0.00        2     0.00     0.00  SEARCHER::print_result(bool)
+  0.00      6.85     0.00        2     0.00     0.00  SEARCHER::pre_calculate()
+  0.00      6.85     0.00        2     0.00     0.00  PROCESSOR::reset_hash_tab(unsigned int)
+  0.00      6.85     0.00        2     0.00     0.00  PROCESSOR::reset_eval_hash_tab(unsigned int)
+  0.00      6.85     0.00        1     0.00     0.00  global constructors keyed to pawn_dir
+  0.00      6.85     0.00        1     0.00     0.00  init_sqatt()
+  0.00      6.85     0.00        1     0.00     0.00  LoadEgbbLibrary(char*, int)
+  0.00      6.85     0.00        1     0.00     0.00  __static_initialization_and_destruction_0(int, int)
+  0.00      6.85     0.00        1     0.00     0.00  __static_initialization_and_destruction_0(int, int)
+  0.00      6.85     0.00        1     0.00     0.00  init_io()
+  0.00      6.85     0.00        1     0.00     0.00  init_smp(int)
+  0.00      6.85     0.00        1     0.00     0.00  mov_strx(unsigned int&, char*)
+  0.00      6.85     0.00        1     0.00     0.00  load_book()
+  0.00      6.85     0.00        1     0.00     0.00  CHESS_CLOCK::set_stime(int)
+  0.00      6.85     0.00        1     0.00     0.00  CHESS_CLOCK::CHESS_CLOCK()
+  0.00      6.85     0.00        1     0.00     0.00  SEARCHER::COPY(SEARCHER*)
+  0.00      6.85     0.00        1     0.00     6.79  SEARCHER::find_best()
+  0.00      6.85     0.00        1     0.00     0.00  SEARCHER::init_data()
+  0.00      6.85     0.00        1     0.00     0.00  SEARCHER::new_board()
+  0.00      6.85     0.00        1     0.00     0.00  SEARCHER::set_board(char const*)
 
  %         the percentage of the total running time of the
 time       program used by this function.
@@ -105,20 +105,20 @@ name       the name of the function.  This is the minor sort
 		     Call graph (explanation follows)
 
 
-granularity: each sample hit covers 2 byte(s) for 0.15% of 6.83 seconds
+granularity: each sample hit covers 2 byte(s) for 0.15% of 6.85 seconds
 
 index % time    self  children    called     name
                                                  <spontaneous>
-[1]     99.3    0.00    6.79                 main [1]
-                0.00    6.77       4/4           parse_commands(char**) [2]
-                0.01    0.00       1/2           PROCESSOR::reset_pawn_hash_tab(unsigned int) [34]
-                0.01    0.00       1/1           initmagicmoves() [39]
-                0.00    0.00       4/45          print_log(char const*, ...) [57]
+[1]     99.3    0.00    6.81                 main [1]
+                0.00    6.79       4/4           parse_commands(char**) [2]
+                0.01    0.00       1/1           initmagicmoves() [37]
+                0.01    0.00       1/2           PROCESSOR::reset_pawn_hash_tab(unsigned int) [36]
+                0.00    0.00       4/51          print_log(char const*, ...) [57]
                 0.00    0.00       4/4           tokenize(char*, char**, char const*) [59]
                 0.00    0.00       2/2           read_line(char*) [60]
                 0.00    0.00       1/1           init_io() [69]
-                0.00    0.00       1/20          get_time() [58]
-                0.00    0.00       1/333         print(char const*, ...) [53]
+                0.00    0.00       1/19          get_time() [58]
+                0.00    0.00       1/381         print(char const*, ...) [53]
                 0.00    0.00       1/2           PROCESSOR::reset_hash_tab(unsigned int) [62]
                 0.00    0.00       1/2           PROCESSOR::reset_eval_hash_tab(unsigned int) [63]
                 0.00    0.00       1/1           init_sqatt() [65]
@@ -127,309 +127,309 @@ index % time    self  children    called     name
                 0.00    0.00       1/2           SEARCHER::pre_calculate() [61]
                 0.00    0.00       1/1           load_book() [72]
 -----------------------------------------------
-                0.00    6.77       4/4           main [1]
-[2]     99.0    0.00    6.77       4         parse_commands(char**) [2]
-                0.00    6.75       1/1           SEARCHER::find_best() [3]
-                0.01    0.00       1/2           PROCESSOR::reset_pawn_hash_tab(unsigned int) [34]
-                0.00    0.01       2/2           SEARCHER::print_result(bool) [41]
-                0.00    0.00       1/6187424     SEARCHER::do_move(unsigned int const&) [11]
-                0.00    0.00       7/333         print(char const*, ...) [53]
+                0.00    6.79       4/4           main [1]
+[2]     99.1    0.00    6.79       4         parse_commands(char**) [2]
+                0.00    6.79       1/1           SEARCHER::find_best() [3]
+                0.01    0.00       1/2           PROCESSOR::reset_pawn_hash_tab(unsigned int) [36]
+                0.00    0.00       2/2           SEARCHER::print_result(bool) [42]
+                0.00    0.00       1/6411537     SEARCHER::do_move(unsigned int const&) [10]
+                0.00    0.00       7/381         print(char const*, ...) [53]
                 0.00    0.00       1/1           SEARCHER::COPY(SEARCHER*) [75]
-                0.00    0.00       1/20          get_time() [58]
+                0.00    0.00       1/19          get_time() [58]
                 0.00    0.00       1/1           mov_strx(unsigned int&, char*) [71]
-                0.00    0.00       1/45          print_log(char const*, ...) [57]
+                0.00    0.00       1/51          print_log(char const*, ...) [57]
                 0.00    0.00       1/2           PROCESSOR::reset_hash_tab(unsigned int) [62]
                 0.00    0.00       1/2           PROCESSOR::reset_eval_hash_tab(unsigned int) [63]
                 0.00    0.00       1/1           init_smp(int) [70]
 -----------------------------------------------
-                0.00    6.75       1/1           parse_commands(char**) [2]
-[3]     98.8    0.00    6.75       1         SEARCHER::find_best() [3]
-                0.00    6.75      19/19          SEARCHER::root_search() [4]
-                0.00    0.00       1/3           SEARCHER::gen_all() [36]
-                0.00    0.00      20/2618930     SEARCHER::qsearch() [6]
-                0.00    0.00     156/6187424     SEARCHER::do_move(unsigned int const&) [11]
-                0.00    0.00     156/6187417     SEARCHER::undo_move() [14]
-                0.00    0.00     116/1049309     PROCESSOR::record_hash(int, unsigned long const&, int, int, int, int, unsigned int, int) [32]
-                0.00    0.00      20/2353767     SEARCHER::attacks(int, int) const [24]
-                0.00    0.00       1/137605      SEARCHER::gen_noncaps() [30]
-                0.00    0.00      18/130         SEARCHER::check_quit() [55]
-                0.00    0.00      16/20          get_time() [58]
-                0.00    0.00       3/333         print(char const*, ...) [53]
+                0.00    6.79       1/1           parse_commands(char**) [2]
+[3]     99.1    0.00    6.79       1         SEARCHER::find_best() [3]
+                0.00    6.79      19/19          SEARCHER::root_search() [4]
+                0.00    0.00      20/2646861     SEARCHER::qsearch() [6]
+                0.00    0.00     142/6411537     SEARCHER::do_move(unsigned int const&) [10]
+                0.00    0.00     142/6411523     SEARCHER::undo_move() [24]
+                0.00    0.00      20/2409986     SEARCHER::attacks(int, int) const [25]
+                0.00    0.00       1/138822      SEARCHER::gen_noncaps() [26]
+                0.00    0.00       1/3           SEARCHER::gen_all() [43]
+                0.00    0.00     102/1067456     PROCESSOR::record_hash(int, unsigned long const&, int, int, int, int, unsigned int, int) [50]
+                0.00    0.00      18/131         SEARCHER::check_quit() [55]
+                0.00    0.00      15/19          get_time() [58]
+                0.00    0.00       3/381         print(char const*, ...) [53]
                 0.00    0.00       1/2           SEARCHER::pre_calculate() [61]
                 0.00    0.00       1/1           CHESS_CLOCK::set_stime(int) [73]
 -----------------------------------------------
-                0.00    6.75      19/19          SEARCHER::find_best() [3]
-[4]     98.8    0.00    6.75      19         SEARCHER::root_search() [4]
-                0.43    6.32     264/264         search(PROCESSOR*) [5]
-                0.00    0.00      36/36          SEARCHER::print_pv(int) [45]
-                0.00    0.00     258/6187424     SEARCHER::do_move(unsigned int const&) [11]
-                0.00    0.00     257/6187417     SEARCHER::undo_move() [14]
-                0.00    0.00      18/1049309     PROCESSOR::record_hash(int, unsigned long const&, int, int, int, int, unsigned int, int) [32]
+                0.00    6.79      19/19          SEARCHER::find_best() [3]
+[4]     99.1    0.00    6.79      19         SEARCHER::root_search() [4]
+                0.39    6.40     264/264         search(PROCESSOR*) [5]
+                0.00    0.00      42/42          SEARCHER::print_pv(int) [41]
+                0.00    0.00     250/6411537     SEARCHER::do_move(unsigned int const&) [10]
+                0.00    0.00     249/6411523     SEARCHER::undo_move() [24]
+                0.00    0.00      18/1067456     PROCESSOR::record_hash(int, unsigned long const&, int, int, int, int, unsigned int, int) [50]
 -----------------------------------------------
-                0.43    6.32     264/264         SEARCHER::root_search() [4]
-[5]     98.8    0.43    6.32     264         search(PROCESSOR*) [5]
-                0.27    3.19 2618910/2618930     SEARCHER::qsearch() [6]
-                0.52    0.45 4625109/4625109     SEARCHER::get_move() [9]
-                0.08    0.64 4475376/4475376     SEARCHER::be_selective() [10]
-                0.40    0.08 4475376/6187424     SEARCHER::do_move(unsigned int const&) [11]
-                0.28    0.00 3002298/3002298     PROCESSOR::probe_hash(int, unsigned long const&, int, int, int&, unsigned int&, int, int, int&, int&) [15]
-                0.20    0.00 4475371/6187417     SEARCHER::undo_move() [14]
-                0.06    0.05  251388/5859869     SEARCHER::eval(int) [7]
-                0.03    0.00  498686/1315377     SEARCHER::is_legal_fast(unsigned int) const [26]
-                0.03    0.00 1049175/1049309     PROCESSOR::record_hash(int, unsigned long const&, int, int, int, int, unsigned int, int) [32]
-                0.02    0.00 3002324/7332637     SEARCHER::draw() const [28]
-                0.01    0.00  172322/172322      SEARCHER::undo_null() [38]
-                0.00    0.00 2940229/2940229     SEARCHER::check_split() [51]
-                0.00    0.00  172323/172323      SEARCHER::do_null() [52]
-                0.00    0.00     112/130         SEARCHER::check_quit() [55]
+                0.39    6.40     264/264         SEARCHER::root_search() [4]
+[5]     99.0    0.39    6.40     264         search(PROCESSOR*) [5]
+                0.22    3.35 2646841/2646861     SEARCHER::qsearch() [6]
+                0.60    0.49 4678952/4678952     SEARCHER::get_move() [9]
+                0.11    0.62 4526487/4526487     SEARCHER::be_selective() [11]
+                0.43    0.13 4526487/6411537     SEARCHER::do_move(unsigned int const&) [10]
+                0.23    0.00 3075366/3075366     PROCESSOR::probe_hash(int, unsigned long const&, int, int, int&, unsigned int&, int, int, int&, int&) [18]
+                0.11    0.00 4526475/6411523     SEARCHER::undo_move() [24]
+                0.05    0.05  247662/6064127     SEARCHER::eval(int) [7]
+                0.01    0.00 3075378/7606610     SEARCHER::draw() const [29]
+                0.01    0.00  491048/1327870     SEARCHER::is_legal_fast(unsigned int) const [28]
+                0.00    0.00 2967367/2967367     SEARCHER::check_split() [49]
+                0.00    0.00 1067336/1067456     PROCESSOR::record_hash(int, unsigned long const&, int, int, int, int, unsigned int, int) [50]
+                0.00    0.00  163757/163757      SEARCHER::undo_null() [52]
+                0.00    0.00  163757/163757      SEARCHER::do_null() [51]
+                0.00    0.00     113/131         SEARCHER::check_quit() [55]
 -----------------------------------------------
-                0.00    0.00      20/2618930     SEARCHER::find_best() [3]
-                0.27    3.19 2618910/2618930     search(PROCESSOR*) [5]
-[6]     50.6    0.27    3.19 2618930         SEARCHER::qsearch() [6]
-                0.98    0.76 4103583/5859869     SEARCHER::eval(int) [7]
-                0.18    0.98 3096343/3096343     SEARCHER::get_qmove() [8]
-                0.15    0.03 1711383/6187424     SEARCHER::do_move(unsigned int const&) [11]
-                0.08    0.00 1711383/6187417     SEARCHER::undo_move() [14]
-                0.04    0.00 4330313/7332637     SEARCHER::draw() const [28]
+                0.00    0.00      20/2646861     SEARCHER::find_best() [3]
+                0.22    3.35 2646841/2646861     search(PROCESSOR*) [5]
+[6]     52.1    0.22    3.35 2646861         SEARCHER::qsearch() [6]
+                0.92    0.81 4283875/6064127     SEARCHER::eval(int) [7]
+                0.17    1.15 3348251/3348251     SEARCHER::get_qmove() [8]
+                0.18    0.05 1884371/6411537     SEARCHER::do_move(unsigned int const&) [10]
+                0.04    0.00 1884371/6411523     SEARCHER::undo_move() [24]
+                0.02    0.00 4531232/7606610     SEARCHER::draw() const [29]
 -----------------------------------------------
-                0.06    0.05  251388/5859869     search(PROCESSOR*) [5]
-                0.36    0.28 1504898/5859869     SEARCHER::be_selective() [10]
-                0.98    0.76 4103583/5859869     SEARCHER::qsearch() [6]
-[7]     36.2    1.40    1.08 5859869         SEARCHER::eval(int) [7]
-                0.26    0.15 2019458/2019458     SEARCHER::eval_pawns(int, int, unsigned char*, unsigned char*) [13]
-                0.23    0.00 5859869/5859869     SEARCHER::eval_win_chance(SCORE&, SCORE&, int&, int&) [18]
-                0.21    0.00 7879327/7879327     SEARCHER::eval_lazy_exit(int, int, int, SCORE&, SCORE&, int, int) [19]
-                0.20    0.00 2534116/2534116     SEARCHER::probe_eval_hash(unsigned long const&, int&, int&, tagEVALREC&) [20]
-                0.03    0.00 1945696/1945696     SEARCHER::record_eval_hash(unsigned long const&, int, int, tagEVALREC const&) [31]
-                0.02    0.00   44515/44515       SEARCHER::eval_passed_pawns(unsigned char*, unsigned char*, unsigned char&) [35]
+                0.05    0.05  247662/6064127     search(PROCESSOR*) [5]
+                0.33    0.29 1532590/6064127     SEARCHER::be_selective() [11]
+                0.92    0.81 4283875/6064127     SEARCHER::qsearch() [6]
+[7]     35.7    1.31    1.14 6064127         SEARCHER::eval(int) [7]
+                0.30    0.10 2092802/2092802     SEARCHER::eval_pawns(int, int, unsigned char*, unsigned char*) [12]
+                0.30    0.00 2611743/2611743     SEARCHER::probe_eval_hash(unsigned long const&, int&, int&, tagEVALREC&) [17]
+                0.21    0.00 8156929/8156929     SEARCHER::eval_lazy_exit(int, int, int, SCORE&, SCORE&, int, int) [20]
+                0.20    0.00 6064127/6064127     SEARCHER::eval_win_chance(SCORE&, SCORE&, int&, int&) [21]
+                0.02    0.00   47357/47357       SEARCHER::eval_passed_pawns(unsigned char*, unsigned char*, unsigned char&) [32]
+                0.01    0.00 2020665/2020665     SEARCHER::record_eval_hash(unsigned long const&, int, int, tagEVALREC const&) [35]
 -----------------------------------------------
-                0.18    0.98 3096343/3096343     SEARCHER::qsearch() [6]
-[8]     17.0    0.18    0.98 3096343         SEARCHER::get_qmove() [8]
-                0.33    0.00 1703499/2260642     SEARCHER::see(unsigned int) [12]
-                0.14    0.14  746715/746715      SEARCHER::gen_checks() [17]
-                0.20    0.00 1798919/2566661     SEARCHER::gen_caps() [16]
-                0.06    0.07  226675/320958      SEARCHER::gen_evasions() [21]
-                0.04    0.00 2488294/7158818     SEARCHER::in_check(unsigned int) const [25]
-                0.00    0.00   30505/2353767     SEARCHER::attacks(int, int) const [24]
+                0.17    1.15 3348251/3348251     SEARCHER::qsearch() [6]
+[8]     19.3    0.17    1.15 3348251         SEARCHER::get_qmove() [8]
+                0.22    0.12  760961/760961      SEARCHER::gen_checks() [14]
+                0.27    0.00 1846401/2426845     SEARCHER::see(unsigned int) [13]
+                0.15    0.08  247297/342573      SEARCHER::gen_evasions() [15]
+                0.23    0.00 1922442/2717267     SEARCHER::gen_caps() [16]
+                0.08    0.00 2707002/7438409     SEARCHER::in_check(unsigned int) const [19]
+                0.00    0.00   30130/2409986     SEARCHER::attacks(int, int) const [25]
 -----------------------------------------------
-                0.52    0.45 4625109/4625109     search(PROCESSOR*) [5]
-[9]     14.2    0.52    0.45 4625109         SEARCHER::get_move() [9]
-                0.11    0.00  557143/2260642     SEARCHER::see(unsigned int) [12]
-                0.08    0.00  767739/2566661     SEARCHER::gen_caps() [16]
-                0.07    0.00 4670524/7158818     SEARCHER::in_check(unsigned int) const [25]
-                0.06    0.01  816691/1315377     SEARCHER::is_legal_fast(unsigned int) const [26]
-                0.05    0.01  137602/137605      SEARCHER::gen_noncaps() [30]
-                0.03    0.03   94283/320958      SEARCHER::gen_evasions() [21]
-                0.01    0.00  205915/2353767     SEARCHER::attacks(int, int) const [24]
+                0.60    0.49 4678952/4678952     search(PROCESSOR*) [5]
+[9]     15.8    0.60    0.49 4678952         SEARCHER::get_move() [9]
+                0.14    0.00 4731407/7438409     SEARCHER::in_check(unsigned int) const [19]
+                0.09    0.00  794822/2717267     SEARCHER::gen_caps() [16]
+                0.06    0.03   95276/342573      SEARCHER::gen_evasions() [15]
+                0.08    0.00  580444/2426845     SEARCHER::see(unsigned int) [13]
+                0.04    0.01  138819/138822      SEARCHER::gen_noncaps() [26]
+                0.01    0.01  836822/1327870     SEARCHER::is_legal_fast(unsigned int) const [28]
+                0.01    0.00  197930/2409986     SEARCHER::attacks(int, int) const [25]
 -----------------------------------------------
-                0.08    0.64 4475376/4475376     search(PROCESSOR*) [5]
-[10]    10.5    0.08    0.64 4475376         SEARCHER::be_selective() [10]
-                0.36    0.28 1504898/5859869     SEARCHER::eval(int) [7]
+                0.00    0.00       1/6411537     parse_commands(char**) [2]
+                0.00    0.00       2/6411537     SEARCHER::print_result(bool) [42]
+                0.00    0.00     142/6411537     SEARCHER::find_best() [3]
+                0.00    0.00     250/6411537     SEARCHER::root_search() [4]
+                0.00    0.00     284/6411537     SEARCHER::print_pv(int) [41]
+                0.18    0.05 1884371/6411537     SEARCHER::qsearch() [6]
+                0.43    0.13 4526487/6411537     search(PROCESSOR*) [5]
+[10]    11.6    0.61    0.19 6411537         SEARCHER::do_move(unsigned int const&) [10]
+                0.19    0.00 6411537/6411537     SEARCHER::checks(unsigned int, int&) const [22]
 -----------------------------------------------
-                0.00    0.00       1/6187424     parse_commands(char**) [2]
-                0.00    0.00       2/6187424     SEARCHER::print_result(bool) [41]
-                0.00    0.00     156/6187424     SEARCHER::find_best() [3]
-                0.00    0.00     248/6187424     SEARCHER::print_pv(int) [45]
-                0.00    0.00     258/6187424     SEARCHER::root_search() [4]
-                0.15    0.03 1711383/6187424     SEARCHER::qsearch() [6]
-                0.40    0.08 4475376/6187424     search(PROCESSOR*) [5]
-[11]     9.7    0.55    0.12 6187424         SEARCHER::do_move(unsigned int const&) [11]
-                0.12    0.00 6187424/6187424     SEARCHER::checks(unsigned int, int&) const [23]
+                0.11    0.62 4526487/4526487     search(PROCESSOR*) [5]
+[11]    10.6    0.11    0.62 4526487         SEARCHER::be_selective() [11]
+                0.33    0.29 1532590/6064127     SEARCHER::eval(int) [7]
 -----------------------------------------------
-                0.11    0.00  557143/2260642     SEARCHER::get_move() [9]
-                0.33    0.00 1703499/2260642     SEARCHER::get_qmove() [8]
-[12]     6.4    0.44    0.00 2260642         SEARCHER::see(unsigned int) [12]
+                0.30    0.10 2092802/2092802     SEARCHER::eval(int) [7]
+[12]     5.8    0.30    0.10 2092802         SEARCHER::eval_pawns(int, int, unsigned char*, unsigned char*) [12]
+                0.04    0.00 2092802/2092802     SEARCHER::probe_pawn_hash(unsigned long const&, SCORE&, tagPAWNREC&) [27]
+                0.03    0.00  940962/940962      SEARCHER::eval_pawn_cover(int, int, unsigned char*, unsigned char*) [30]
+                0.03    0.00  591559/591559      SEARCHER::record_pawn_hash(unsigned long const&, SCORE const&, tagPAWNREC const&) [31]
 -----------------------------------------------
-                0.26    0.15 2019458/2019458     SEARCHER::eval(int) [7]
-[13]     5.9    0.26    0.15 2019458         SEARCHER::eval_pawns(int, int, unsigned char*, unsigned char*) [13]
-                0.08    0.00  952046/952046      SEARCHER::eval_pawn_cover(int, int, unsigned char*, unsigned char*) [27]
-                0.06    0.00 2019458/2019458     SEARCHER::probe_pawn_hash(unsigned long const&, SCORE&, tagPAWNREC&) [29]
-                0.01    0.00  582586/582586      SEARCHER::record_pawn_hash(unsigned long const&, SCORE const&, tagPAWNREC const&) [37]
+                0.08    0.00  580444/2426845     SEARCHER::get_move() [9]
+                0.27    0.00 1846401/2426845     SEARCHER::get_qmove() [8]
+[13]     5.1    0.35    0.00 2426845         SEARCHER::see(unsigned int) [13]
 -----------------------------------------------
-                0.00    0.00       2/6187417     SEARCHER::print_result(bool) [41]
-                0.00    0.00     156/6187417     SEARCHER::find_best() [3]
-                0.00    0.00     248/6187417     SEARCHER::print_pv(int) [45]
-                0.00    0.00     257/6187417     SEARCHER::root_search() [4]
-                0.08    0.00 1711383/6187417     SEARCHER::qsearch() [6]
-                0.20    0.00 4475371/6187417     search(PROCESSOR*) [5]
-[14]     4.1    0.28    0.00 6187417         SEARCHER::undo_move() [14]
+                0.22    0.12  760961/760961      SEARCHER::get_qmove() [8]
+[14]     5.0    0.22    0.12  760961         SEARCHER::gen_checks() [14]
+                0.12    0.00 11379557/13716400     SEARCHER::pinned_on_king(int, int) const [23]
 -----------------------------------------------
-                0.28    0.00 3002298/3002298     search(PROCESSOR*) [5]
-[15]     4.1    0.28    0.00 3002298         PROCESSOR::probe_hash(int, unsigned long const&, int, int, int&, unsigned int&, int, int, int&, int&) [15]
+                0.06    0.03   95276/342573      SEARCHER::get_move() [9]
+                0.15    0.08  247297/342573      SEARCHER::get_qmove() [8]
+[15]     4.8    0.21    0.12  342573         SEARCHER::gen_evasions() [15]
+                0.09    0.00 1764739/2409986     SEARCHER::attacks(int, int) const [25]
+                0.03    0.00 2336843/13716400     SEARCHER::pinned_on_king(int, int) const [23]
 -----------------------------------------------
-                0.00    0.00       3/2566661     SEARCHER::gen_all() [36]
-                0.08    0.00  767739/2566661     SEARCHER::get_move() [9]
-                0.20    0.00 1798919/2566661     SEARCHER::get_qmove() [8]
-[16]     4.1    0.28    0.00 2566661         SEARCHER::gen_caps() [16]
+                0.00    0.00       3/2717267     SEARCHER::gen_all() [43]
+                0.09    0.00  794822/2717267     SEARCHER::get_move() [9]
+                0.23    0.00 1922442/2717267     SEARCHER::get_qmove() [8]
+[16]     4.7    0.32    0.00 2717267         SEARCHER::gen_caps() [16]
 -----------------------------------------------
-                0.14    0.14  746715/746715      SEARCHER::get_qmove() [8]
-[17]     4.1    0.14    0.14  746715         SEARCHER::gen_checks() [17]
-                0.14    0.00 11157938/13321490     SEARCHER::pinned_on_king(int, int) const [22]
+                0.30    0.00 2611743/2611743     SEARCHER::eval(int) [7]
+[17]     4.4    0.30    0.00 2611743         SEARCHER::probe_eval_hash(unsigned long const&, int&, int&, tagEVALREC&) [17]
 -----------------------------------------------
-                0.23    0.00 5859869/5859869     SEARCHER::eval(int) [7]
-[18]     3.3    0.23    0.00 5859869         SEARCHER::eval_win_chance(SCORE&, SCORE&, int&, int&) [18]
+                0.23    0.00 3075366/3075366     search(PROCESSOR*) [5]
+[18]     3.4    0.23    0.00 3075366         PROCESSOR::probe_hash(int, unsigned long const&, int, int, int&, unsigned int&, int, int, int&, int&) [18]
 -----------------------------------------------
-                0.21    0.00 7879327/7879327     SEARCHER::eval(int) [7]
-[19]     3.0    0.21    0.00 7879327         SEARCHER::eval_lazy_exit(int, int, int, SCORE&, SCORE&, int, int) [19]
+                0.08    0.00 2707002/7438409     SEARCHER::get_qmove() [8]
+                0.14    0.00 4731407/7438409     SEARCHER::get_move() [9]
+[19]     3.1    0.22    0.00 7438409         SEARCHER::in_check(unsigned int) const [19]
 -----------------------------------------------
-                0.20    0.00 2534116/2534116     SEARCHER::eval(int) [7]
-[20]     2.9    0.20    0.00 2534116         SEARCHER::probe_eval_hash(unsigned long const&, int&, int&, tagEVALREC&) [20]
+                0.21    0.00 8156929/8156929     SEARCHER::eval(int) [7]
+[20]     3.1    0.21    0.00 8156929         SEARCHER::eval_lazy_exit(int, int, int, SCORE&, SCORE&, int, int) [20]
 -----------------------------------------------
-                0.03    0.03   94283/320958      SEARCHER::get_move() [9]
-                0.06    0.07  226675/320958      SEARCHER::get_qmove() [8]
-[21]     2.9    0.09    0.11  320958         SEARCHER::gen_evasions() [21]
-                0.08    0.00 1685657/2353767     SEARCHER::attacks(int, int) const [24]
-                0.03    0.00 2163552/13321490     SEARCHER::pinned_on_king(int, int) const [22]
+                0.20    0.00 6064127/6064127     SEARCHER::eval(int) [7]
+[21]     2.9    0.20    0.00 6064127         SEARCHER::eval_win_chance(SCORE&, SCORE&, int&, int&) [21]
 -----------------------------------------------
-                0.03    0.00 2163552/13321490     SEARCHER::gen_evasions() [21]
-                0.14    0.00 11157938/13321490     SEARCHER::gen_checks() [17]
-[22]     2.4    0.17    0.00 13321490         SEARCHER::pinned_on_king(int, int) const [22]
+                0.19    0.00 6411537/6411537     SEARCHER::do_move(unsigned int const&) [10]
+[22]     2.7    0.19    0.00 6411537         SEARCHER::checks(unsigned int, int&) const [22]
 -----------------------------------------------
-                0.12    0.00 6187424/6187424     SEARCHER::do_move(unsigned int const&) [11]
-[23]     1.7    0.12    0.00 6187424         SEARCHER::checks(unsigned int, int&) const [23]
+                0.03    0.00 2336843/13716400     SEARCHER::gen_evasions() [15]
+                0.12    0.00 11379557/13716400     SEARCHER::gen_checks() [14]
+[23]     2.2    0.15    0.00 13716400         SEARCHER::pinned_on_king(int, int) const [23]
 -----------------------------------------------
-                0.00    0.00       2/2353767     SEARCHER::print_result(bool) [41]
-                0.00    0.00      20/2353767     SEARCHER::find_best() [3]
-                0.00    0.00   30505/2353767     SEARCHER::get_qmove() [8]
-                0.01    0.00  188556/2353767     SEARCHER::gen_noncaps() [30]
-                0.01    0.00  205915/2353767     SEARCHER::get_move() [9]
-                0.01    0.00  243112/2353767     SEARCHER::is_legal_fast(unsigned int) const [26]
-                0.08    0.00 1685657/2353767     SEARCHER::gen_evasions() [21]
-[24]     1.6    0.11    0.00 2353767         SEARCHER::attacks(int, int) const [24]
+                0.00    0.00       2/6411523     SEARCHER::print_result(bool) [42]
+                0.00    0.00     142/6411523     SEARCHER::find_best() [3]
+                0.00    0.00     249/6411523     SEARCHER::root_search() [4]
+                0.00    0.00     284/6411523     SEARCHER::print_pv(int) [41]
+                0.04    0.00 1884371/6411523     SEARCHER::qsearch() [6]
+                0.11    0.00 4526475/6411523     search(PROCESSOR*) [5]
+[24]     2.2    0.15    0.00 6411523         SEARCHER::undo_move() [24]
 -----------------------------------------------
-                0.04    0.00 2488294/7158818     SEARCHER::get_qmove() [8]
-                0.07    0.00 4670524/7158818     SEARCHER::get_move() [9]
-[25]     1.5    0.11    0.00 7158818         SEARCHER::in_check(unsigned int) const [25]
+                0.00    0.00       2/2409986     SEARCHER::print_result(bool) [42]
+                0.00    0.00      20/2409986     SEARCHER::find_best() [3]
+                0.00    0.00   30130/2409986     SEARCHER::get_qmove() [8]
+                0.01    0.00  183734/2409986     SEARCHER::gen_noncaps() [26]
+                0.01    0.00  197930/2409986     SEARCHER::get_move() [9]
+                0.01    0.00  233431/2409986     SEARCHER::is_legal_fast(unsigned int) const [28]
+                0.09    0.00 1764739/2409986     SEARCHER::gen_evasions() [15]
+[25]     1.8    0.13    0.00 2409986         SEARCHER::attacks(int, int) const [25]
 -----------------------------------------------
-                0.03    0.00  498686/1315377     search(PROCESSOR*) [5]
-                0.06    0.01  816691/1315377     SEARCHER::get_move() [9]
-[26]     1.5    0.09    0.01 1315377         SEARCHER::is_legal_fast(unsigned int) const [26]
-                0.01    0.00  243112/2353767     SEARCHER::attacks(int, int) const [24]
+                0.00    0.00       1/138822      SEARCHER::find_best() [3]
+                0.00    0.00       2/138822      SEARCHER::print_result(bool) [42]
+                0.04    0.01  138819/138822      SEARCHER::get_move() [9]
+[26]     0.7    0.04    0.01  138822         SEARCHER::gen_noncaps() [26]
+                0.01    0.00  183734/2409986     SEARCHER::attacks(int, int) const [25]
 -----------------------------------------------
-                0.08    0.00  952046/952046      SEARCHER::eval_pawns(int, int, unsigned char*, unsigned char*) [13]
-[27]     1.2    0.08    0.00  952046         SEARCHER::eval_pawn_cover(int, int, unsigned char*, unsigned char*) [27]
+                0.04    0.00 2092802/2092802     SEARCHER::eval_pawns(int, int, unsigned char*, unsigned char*) [12]
+[27]     0.6    0.04    0.00 2092802         SEARCHER::probe_pawn_hash(unsigned long const&, SCORE&, tagPAWNREC&) [27]
 -----------------------------------------------
-                0.02    0.00 3002324/7332637     search(PROCESSOR*) [5]
-                0.04    0.00 4330313/7332637     SEARCHER::qsearch() [6]
-[28]     0.9    0.06    0.00 7332637         SEARCHER::draw() const [28]
+                0.01    0.00  491048/1327870     search(PROCESSOR*) [5]
+                0.01    0.01  836822/1327870     SEARCHER::get_move() [9]
+[28]     0.5    0.02    0.01 1327870         SEARCHER::is_legal_fast(unsigned int) const [28]
+                0.01    0.00  233431/2409986     SEARCHER::attacks(int, int) const [25]
 -----------------------------------------------
-                0.06    0.00 2019458/2019458     SEARCHER::eval_pawns(int, int, unsigned char*, unsigned char*) [13]
-[29]     0.9    0.06    0.00 2019458         SEARCHER::probe_pawn_hash(unsigned long const&, SCORE&, tagPAWNREC&) [29]
+                0.01    0.00 3075378/7606610     search(PROCESSOR*) [5]
+                0.02    0.00 4531232/7606610     SEARCHER::qsearch() [6]
+[29]     0.4    0.03    0.00 7606610         SEARCHER::draw() const [29]
 -----------------------------------------------
-                0.00    0.00       1/137605      SEARCHER::find_best() [3]
-                0.00    0.00       2/137605      SEARCHER::print_result(bool) [41]
-                0.05    0.01  137602/137605      SEARCHER::get_move() [9]
-[30]     0.9    0.05    0.01  137605         SEARCHER::gen_noncaps() [30]
-                0.01    0.00  188556/2353767     SEARCHER::attacks(int, int) const [24]
+                0.03    0.00  940962/940962      SEARCHER::eval_pawns(int, int, unsigned char*, unsigned char*) [12]
+[30]     0.4    0.03    0.00  940962         SEARCHER::eval_pawn_cover(int, int, unsigned char*, unsigned char*) [30]
 -----------------------------------------------
-                0.03    0.00 1945696/1945696     SEARCHER::eval(int) [7]
-[31]     0.4    0.03    0.00 1945696         SEARCHER::record_eval_hash(unsigned long const&, int, int, tagEVALREC const&) [31]
+                0.03    0.00  591559/591559      SEARCHER::eval_pawns(int, int, unsigned char*, unsigned char*) [12]
+[31]     0.4    0.03    0.00  591559         SEARCHER::record_pawn_hash(unsigned long const&, SCORE const&, tagPAWNREC const&) [31]
 -----------------------------------------------
-                0.00    0.00      18/1049309     SEARCHER::root_search() [4]
-                0.00    0.00     116/1049309     SEARCHER::find_best() [3]
-                0.03    0.00 1049175/1049309     search(PROCESSOR*) [5]
-[32]     0.4    0.03    0.00 1049309         PROCESSOR::record_hash(int, unsigned long const&, int, int, int, int, unsigned int, int) [32]
+                0.02    0.00   47357/47357       SEARCHER::eval(int) [7]
+[32]     0.3    0.02    0.00   47357         SEARCHER::eval_passed_pawns(unsigned char*, unsigned char*, unsigned char&) [32]
 -----------------------------------------------
                                                  <spontaneous>
-[33]     0.4    0.03    0.00                 frame_dummy [33]
+[33]     0.3    0.02    0.00                 mov_str(unsigned int&, char*) [33]
+-----------------------------------------------
+                                                 <spontaneous>
+[34]     0.2    0.02    0.00                 frame_dummy [34]
+-----------------------------------------------
+                0.01    0.00 2020665/2020665     SEARCHER::eval(int) [7]
+[35]     0.1    0.01    0.00 2020665         SEARCHER::record_eval_hash(unsigned long const&, int, int, tagEVALREC const&) [35]
 -----------------------------------------------
                 0.01    0.00       1/2           parse_commands(char**) [2]
                 0.01    0.00       1/2           main [1]
-[34]     0.3    0.02    0.00       2         PROCESSOR::reset_pawn_hash_tab(unsigned int) [34]
------------------------------------------------
-                0.02    0.00   44515/44515       SEARCHER::eval(int) [7]
-[35]     0.2    0.02    0.00   44515         SEARCHER::eval_passed_pawns(unsigned char*, unsigned char*, unsigned char&) [35]
------------------------------------------------
-                0.00    0.00       1/3           SEARCHER::find_best() [3]
-                0.01    0.00       2/3           SEARCHER::print_result(bool) [41]
-[36]     0.1    0.01    0.00       3         SEARCHER::gen_all() [36]
-                0.00    0.00       3/2566661     SEARCHER::gen_caps() [16]
------------------------------------------------
-                0.01    0.00  582586/582586      SEARCHER::eval_pawns(int, int, unsigned char*, unsigned char*) [13]
-[37]     0.1    0.01    0.00  582586         SEARCHER::record_pawn_hash(unsigned long const&, SCORE const&, tagPAWNREC const&) [37]
------------------------------------------------
-                0.01    0.00  172322/172322      search(PROCESSOR*) [5]
-[38]     0.1    0.01    0.00  172322         SEARCHER::undo_null() [38]
+[36]     0.1    0.01    0.00       2         PROCESSOR::reset_pawn_hash_tab(unsigned int) [36]
 -----------------------------------------------
                 0.01    0.00       1/1           main [1]
-[39]     0.1    0.01    0.00       1         initmagicmoves() [39]
+[37]     0.1    0.01    0.00       1         initmagicmoves() [37]
+-----------------------------------------------
+                0.01    0.00       1/1           __do_global_ctors_aux [40]
+[38]     0.1    0.01    0.00       1         global constructors keyed to _ZN8SEARCHER4evalEi [38]
 -----------------------------------------------
                                                  <spontaneous>
-[40]     0.1    0.01    0.00                 mov_str(unsigned int&, char*) [40]
------------------------------------------------
-                0.00    0.01       2/2           parse_commands(char**) [2]
-[41]     0.1    0.00    0.01       2         SEARCHER::print_result(bool) [41]
-                0.01    0.00       2/3           SEARCHER::gen_all() [36]
-                0.00    0.00       2/137605      SEARCHER::gen_noncaps() [30]
-                0.00    0.00       2/6187424     SEARCHER::do_move(unsigned int const&) [11]
-                0.00    0.00       2/2353767     SEARCHER::attacks(int, int) const [24]
-                0.00    0.00       2/6187417     SEARCHER::undo_move() [14]
------------------------------------------------
-                0.01    0.00       1/1           __do_global_ctors_aux [44]
-[42]     0.1    0.01    0.00       1         global constructors keyed to _ZN8SEARCHER4evalEi [42]
+[39]     0.1    0.01    0.00                 SEARCHER::hash_cutoff() [39]
 -----------------------------------------------
                                                  <spontaneous>
-[43]     0.1    0.01    0.00                 SEARCHER::hash_cutoff() [43]
------------------------------------------------
-                                                 <spontaneous>
-[44]     0.1    0.00    0.01                 __do_global_ctors_aux [44]
-                0.01    0.00       1/1           global constructors keyed to _ZN8SEARCHER4evalEi [42]
+[40]     0.1    0.00    0.01                 __do_global_ctors_aux [40]
+                0.01    0.00       1/1           global constructors keyed to _ZN8SEARCHER4evalEi [38]
                 0.00    0.00       1/129         SEARCHER::SEARCHER() [56]
                 0.00    0.00       1/1           __static_initialization_and_destruction_0(int, int) [67]
                 0.00    0.00       1/1           global constructors keyed to pawn_dir [64]
                 0.00    0.00       1/1           __static_initialization_and_destruction_0(int, int) [68]
 -----------------------------------------------
-                0.00    0.00      36/36          SEARCHER::root_search() [4]
-[45]     0.0    0.00    0.00      36         SEARCHER::print_pv(int) [45]
-                0.00    0.00     248/6187424     SEARCHER::do_move(unsigned int const&) [11]
-                0.00    0.00     248/6187417     SEARCHER::undo_move() [14]
-                0.00    0.00     320/333         print(char const*, ...) [53]
-                0.00    0.00      36/45          print_log(char const*, ...) [57]
+                0.00    0.00      42/42          SEARCHER::root_search() [4]
+[41]     0.0    0.00    0.00      42         SEARCHER::print_pv(int) [41]
+                0.00    0.00     284/6411537     SEARCHER::do_move(unsigned int const&) [10]
+                0.00    0.00     284/6411523     SEARCHER::undo_move() [24]
+                0.00    0.00     368/381         print(char const*, ...) [53]
+                0.00    0.00      42/51          print_log(char const*, ...) [57]
 -----------------------------------------------
-                0.00    0.00 2940229/2940229     search(PROCESSOR*) [5]
-[51]     0.0    0.00    0.00 2940229         SEARCHER::check_split() [51]
+                0.00    0.00       2/2           parse_commands(char**) [2]
+[42]     0.0    0.00    0.00       2         SEARCHER::print_result(bool) [42]
+                0.00    0.00       2/138822      SEARCHER::gen_noncaps() [26]
+                0.00    0.00       2/6411537     SEARCHER::do_move(unsigned int const&) [10]
+                0.00    0.00       2/3           SEARCHER::gen_all() [43]
+                0.00    0.00       2/2409986     SEARCHER::attacks(int, int) const [25]
+                0.00    0.00       2/6411523     SEARCHER::undo_move() [24]
 -----------------------------------------------
-                0.00    0.00  172323/172323      search(PROCESSOR*) [5]
-[52]     0.0    0.00    0.00  172323         SEARCHER::do_null() [52]
+                0.00    0.00       1/3           SEARCHER::find_best() [3]
+                0.00    0.00       2/3           SEARCHER::print_result(bool) [42]
+[43]     0.0    0.00    0.00       3         SEARCHER::gen_all() [43]
+                0.00    0.00       3/2717267     SEARCHER::gen_caps() [16]
 -----------------------------------------------
-                0.00    0.00       1/333         egbb_thread_proc(void*) [85]
-                0.00    0.00       1/333         main [1]
-                0.00    0.00       1/333         LoadEgbbLibrary(char*, int) [66]
-                0.00    0.00       3/333         SEARCHER::find_best() [3]
-                0.00    0.00       7/333         parse_commands(char**) [2]
-                0.00    0.00     320/333         SEARCHER::print_pv(int) [45]
-[53]     0.0    0.00    0.00     333         print(char const*, ...) [53]
+                0.00    0.00 2967367/2967367     search(PROCESSOR*) [5]
+[49]     0.0    0.00    0.00 2967367         SEARCHER::check_split() [49]
 -----------------------------------------------
-                0.00    0.00     130/130         SEARCHER::check_quit() [55]
-[54]     0.0    0.00    0.00     130         bios_key() [54]
+                0.00    0.00      18/1067456     SEARCHER::root_search() [4]
+                0.00    0.00     102/1067456     SEARCHER::find_best() [3]
+                0.00    0.00 1067336/1067456     search(PROCESSOR*) [5]
+[50]     0.0    0.00    0.00 1067456         PROCESSOR::record_hash(int, unsigned long const&, int, int, int, int, unsigned int, int) [50]
 -----------------------------------------------
-                0.00    0.00      18/130         SEARCHER::find_best() [3]
-                0.00    0.00     112/130         search(PROCESSOR*) [5]
-[55]     0.0    0.00    0.00     130         SEARCHER::check_quit() [55]
-                0.00    0.00     130/130         bios_key() [54]
+                0.00    0.00  163757/163757      search(PROCESSOR*) [5]
+[51]     0.0    0.00    0.00  163757         SEARCHER::do_null() [51]
 -----------------------------------------------
-                0.00    0.00       1/129         __do_global_ctors_aux [44]
+                0.00    0.00  163757/163757      search(PROCESSOR*) [5]
+[52]     0.0    0.00    0.00  163757         SEARCHER::undo_null() [52]
+-----------------------------------------------
+                0.00    0.00       1/381         egbb_thread_proc(void*) [85]
+                0.00    0.00       1/381         main [1]
+                0.00    0.00       1/381         LoadEgbbLibrary(char*, int) [66]
+                0.00    0.00       3/381         SEARCHER::find_best() [3]
+                0.00    0.00       7/381         parse_commands(char**) [2]
+                0.00    0.00     368/381         SEARCHER::print_pv(int) [41]
+[53]     0.0    0.00    0.00     381         print(char const*, ...) [53]
+-----------------------------------------------
+                0.00    0.00     131/131         SEARCHER::check_quit() [55]
+[54]     0.0    0.00    0.00     131         bios_key() [54]
+-----------------------------------------------
+                0.00    0.00      18/131         SEARCHER::find_best() [3]
+                0.00    0.00     113/131         search(PROCESSOR*) [5]
+[55]     0.0    0.00    0.00     131         SEARCHER::check_quit() [55]
+                0.00    0.00     131/131         bios_key() [54]
+-----------------------------------------------
+                0.00    0.00       1/129         __do_global_ctors_aux [40]
                 0.00    0.00     128/129         __static_initialization_and_destruction_0(int, int) [67]
 [56]     0.0    0.00    0.00     129         SEARCHER::SEARCHER() [56]
 -----------------------------------------------
-                0.00    0.00       1/45          parse_commands(char**) [2]
-                0.00    0.00       4/45          main [1]
-                0.00    0.00       4/45          read_line(char*) [60]
-                0.00    0.00      36/45          SEARCHER::print_pv(int) [45]
-[57]     0.0    0.00    0.00      45         print_log(char const*, ...) [57]
+                0.00    0.00       1/51          parse_commands(char**) [2]
+                0.00    0.00       4/51          main [1]
+                0.00    0.00       4/51          read_line(char*) [60]
+                0.00    0.00      42/51          SEARCHER::print_pv(int) [41]
+[57]     0.0    0.00    0.00      51         print_log(char const*, ...) [57]
 -----------------------------------------------
-                0.00    0.00       1/20          parse_commands(char**) [2]
-                0.00    0.00       1/20          main [1]
-                0.00    0.00       2/20          egbb_thread_proc(void*) [85]
-                0.00    0.00      16/20          SEARCHER::find_best() [3]
-[58]     0.0    0.00    0.00      20         get_time() [58]
+                0.00    0.00       1/19          parse_commands(char**) [2]
+                0.00    0.00       1/19          main [1]
+                0.00    0.00       2/19          egbb_thread_proc(void*) [85]
+                0.00    0.00      15/19          SEARCHER::find_best() [3]
+[58]     0.0    0.00    0.00      19         get_time() [58]
 -----------------------------------------------
                 0.00    0.00       4/4           main [1]
 [59]     0.0    0.00    0.00       4         tokenize(char*, char**, char const*) [59]
 -----------------------------------------------
                 0.00    0.00       2/2           main [1]
 [60]     0.0    0.00    0.00       2         read_line(char*) [60]
-                0.00    0.00       4/45          print_log(char const*, ...) [57]
+                0.00    0.00       4/51          print_log(char const*, ...) [57]
 -----------------------------------------------
                 0.00    0.00       1/2           main [1]
                 0.00    0.00       1/2           SEARCHER::find_best() [3]
@@ -443,7 +443,7 @@ index % time    self  children    called     name
                 0.00    0.00       1/2           main [1]
 [63]     0.0    0.00    0.00       2         PROCESSOR::reset_eval_hash_tab(unsigned int) [63]
 -----------------------------------------------
-                0.00    0.00       1/1           __do_global_ctors_aux [44]
+                0.00    0.00       1/1           __do_global_ctors_aux [40]
 [64]     0.0    0.00    0.00       1         global constructors keyed to pawn_dir [64]
 -----------------------------------------------
                 0.00    0.00       1/1           main [1]
@@ -451,14 +451,14 @@ index % time    self  children    called     name
 -----------------------------------------------
                 0.00    0.00       1/1           egbb_thread_proc(void*) [85]
 [66]     0.0    0.00    0.00       1         LoadEgbbLibrary(char*, int) [66]
-                0.00    0.00       1/333         print(char const*, ...) [53]
+                0.00    0.00       1/381         print(char const*, ...) [53]
 -----------------------------------------------
-                0.00    0.00       1/1           __do_global_ctors_aux [44]
+                0.00    0.00       1/1           __do_global_ctors_aux [40]
 [67]     0.0    0.00    0.00       1         __static_initialization_and_destruction_0(int, int) [67]
                 0.00    0.00     128/129         SEARCHER::SEARCHER() [56]
                 0.00    0.00       1/1           CHESS_CLOCK::CHESS_CLOCK() [74]
 -----------------------------------------------
-                0.00    0.00       1/1           __do_global_ctors_aux [44]
+                0.00    0.00       1/1           __do_global_ctors_aux [40]
 [68]     0.0    0.00    0.00       1         __static_initialization_and_destruction_0(int, int) [68]
 -----------------------------------------------
                 0.00    0.00       1/1           main [1]
@@ -578,27 +578,27 @@ index % time    self  children    called     name
 
 Index by function name
 
-  [42] global constructors keyed to _ZN8SEARCHER4evalEi [17] SEARCHER::gen_checks() [16] SEARCHER::gen_caps()
-  [64] global constructors keyed to pawn_dir [51] SEARCHER::check_split() [9] SEARCHER::get_move()
-  [65] init_sqatt()           [30] SEARCHER::gen_noncaps() [45] SEARCHER::print_pv(int)
-  [39] initmagicmoves()       [43] SEARCHER::hash_cutoff() [3] SEARCHER::find_best()
+  [38] global constructors keyed to _ZN8SEARCHER4evalEi [14] SEARCHER::gen_checks() [16] SEARCHER::gen_caps()
+  [64] global constructors keyed to pawn_dir [49] SEARCHER::check_split() [9] SEARCHER::get_move()
+  [65] init_sqatt()           [26] SEARCHER::gen_noncaps() [41] SEARCHER::print_pv(int)
+  [37] initmagicmoves()       [39] SEARCHER::hash_cutoff() [3] SEARCHER::find_best()
    [2] parse_commands(char**)  [4] SEARCHER::root_search() [8] SEARCHER::get_qmove()
-  [66] LoadEgbbLibrary(char*, int) [10] SEARCHER::be_selective() [76] SEARCHER::init_data()
-  [67] __static_initialization_and_destruction_0(int, int) [21] SEARCHER::gen_evasions() [77] SEARCHER::new_board()
-  [68] __static_initialization_and_destruction_0(int, int) [41] SEARCHER::print_result(bool) [78] SEARCHER::set_board(char const*)
-  [53] print(char const*, ...) [61] SEARCHER::pre_calculate() [14] SEARCHER::undo_move()
-   [5] search(PROCESSOR*)     [19] SEARCHER::eval_lazy_exit(int, int, int, SCORE&, SCORE&, int, int) [38] SEARCHER::undo_null()
-  [69] init_io()              [27] SEARCHER::eval_pawn_cover(int, int, unsigned char*, unsigned char*) [56] SEARCHER::SEARCHER()
-  [40] mov_str(unsigned int&, char*) [18] SEARCHER::eval_win_chance(SCORE&, SCORE&, int&, int&) [15] PROCESSOR::probe_hash(int, unsigned long const&, int, int, int&, unsigned int&, int, int, int&, int&)
-  [54] bios_key()             [20] SEARCHER::probe_eval_hash(unsigned long const&, int&, int&, tagEVALREC&) [32] PROCESSOR::record_hash(int, unsigned long const&, int, int, int, int, unsigned int, int)
-  [58] get_time()             [29] SEARCHER::probe_pawn_hash(unsigned long const&, SCORE&, tagPAWNREC&) [62] PROCESSOR::reset_hash_tab(unsigned int)
-  [70] init_smp(int)          [31] SEARCHER::record_eval_hash(unsigned long const&, int, int, tagEVALREC const&) [63] PROCESSOR::reset_eval_hash_tab(unsigned int)
-  [71] mov_strx(unsigned int&, char*) [37] SEARCHER::record_pawn_hash(unsigned long const&, SCORE const&, tagPAWNREC const&) [34] PROCESSOR::reset_pawn_hash_tab(unsigned int)
-  [59] tokenize(char*, char**, char const*) [35] SEARCHER::eval_passed_pawns(unsigned char*, unsigned char*, unsigned char&) [26] SEARCHER::is_legal_fast(unsigned int) const
-  [72] load_book()            [12] SEARCHER::see(unsigned int) [22] SEARCHER::pinned_on_king(int, int) const
-  [57] print_log(char const*, ...) [75] SEARCHER::COPY(SEARCHER*) [28] SEARCHER::draw() const
-  [60] read_line(char*)        [7] SEARCHER::eval(int)    [23] SEARCHER::checks(unsigned int, int&) const
-  [73] CHESS_CLOCK::set_stime(int) [11] SEARCHER::do_move(unsigned int const&) [24] SEARCHER::attacks(int, int) const
-  [74] CHESS_CLOCK::CHESS_CLOCK() [52] SEARCHER::do_null() [25] SEARCHER::in_check(unsigned int) const
-  [55] SEARCHER::check_quit() [36] SEARCHER::gen_all()    [33] frame_dummy
-  [13] SEARCHER::eval_pawns(int, int, unsigned char*, unsigned char*) [6] SEARCHER::qsearch()
+  [66] LoadEgbbLibrary(char*, int) [11] SEARCHER::be_selective() [76] SEARCHER::init_data()
+  [67] __static_initialization_and_destruction_0(int, int) [15] SEARCHER::gen_evasions() [77] SEARCHER::new_board()
+  [68] __static_initialization_and_destruction_0(int, int) [42] SEARCHER::print_result(bool) [78] SEARCHER::set_board(char const*)
+  [53] print(char const*, ...) [61] SEARCHER::pre_calculate() [24] SEARCHER::undo_move()
+   [5] search(PROCESSOR*)     [20] SEARCHER::eval_lazy_exit(int, int, int, SCORE&, SCORE&, int, int) [52] SEARCHER::undo_null()
+  [69] init_io()              [30] SEARCHER::eval_pawn_cover(int, int, unsigned char*, unsigned char*) [56] SEARCHER::SEARCHER()
+  [33] mov_str(unsigned int&, char*) [21] SEARCHER::eval_win_chance(SCORE&, SCORE&, int&, int&) [18] PROCESSOR::probe_hash(int, unsigned long const&, int, int, int&, unsigned int&, int, int, int&, int&)
+  [54] bios_key()             [17] SEARCHER::probe_eval_hash(unsigned long const&, int&, int&, tagEVALREC&) [50] PROCESSOR::record_hash(int, unsigned long const&, int, int, int, int, unsigned int, int)
+  [58] get_time()             [27] SEARCHER::probe_pawn_hash(unsigned long const&, SCORE&, tagPAWNREC&) [62] PROCESSOR::reset_hash_tab(unsigned int)
+  [70] init_smp(int)          [35] SEARCHER::record_eval_hash(unsigned long const&, int, int, tagEVALREC const&) [63] PROCESSOR::reset_eval_hash_tab(unsigned int)
+  [71] mov_strx(unsigned int&, char*) [31] SEARCHER::record_pawn_hash(unsigned long const&, SCORE const&, tagPAWNREC const&) [36] PROCESSOR::reset_pawn_hash_tab(unsigned int)
+  [59] tokenize(char*, char**, char const*) [32] SEARCHER::eval_passed_pawns(unsigned char*, unsigned char*, unsigned char&) [28] SEARCHER::is_legal_fast(unsigned int) const
+  [72] load_book()            [13] SEARCHER::see(unsigned int) [23] SEARCHER::pinned_on_king(int, int) const
+  [57] print_log(char const*, ...) [75] SEARCHER::COPY(SEARCHER*) [29] SEARCHER::draw() const
+  [60] read_line(char*)        [7] SEARCHER::eval(int)    [22] SEARCHER::checks(unsigned int, int&) const
+  [73] CHESS_CLOCK::set_stime(int) [10] SEARCHER::do_move(unsigned int const&) [25] SEARCHER::attacks(int, int) const
+  [74] CHESS_CLOCK::CHESS_CLOCK() [51] SEARCHER::do_null() [19] SEARCHER::in_check(unsigned int) const
+  [55] SEARCHER::check_quit() [43] SEARCHER::gen_all()    [34] frame_dummy
+  [12] SEARCHER::eval_pawns(int, int, unsigned char*, unsigned char*) [6] SEARCHER::qsearch()

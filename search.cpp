@@ -276,6 +276,9 @@ int SEARCHER::be_selective() {
 			extend(0);
 		}
 	}
+	if((pstack - 1)->mate_threat) {
+		extend(0);
+	}
 	if(m_capture(move)
 		&& pc == 0
 		&& PIECE(m_capture(move)) != pawn
@@ -302,11 +305,11 @@ int SEARCHER::be_selective() {
 			int margin = 0;
 			if(depth <= 5) {
 				score = -eval(DO_LAZY);
-				if(nmoves >= prune_start || (depth <= 3 && PIECE(m_piece(move)) == pawn)) margin = 50;
-				else if(depth <= 2) margin = 150;
+				if(depth <= 3 && nmoves >= prune_start) return true;
+				if(depth <= 2) margin = 150;
 				else if(depth <= 4) margin = 300;
 				else margin = 400;
-			} else if(depth <= 7 && nmoves > 7 && !(pstack - 1)->mate_threat) {
+			} else if(depth <= 7 && nmoves > 7) {
 				score = -eval(DO_LAZY);
 				if(nmoves >= prune_start) margin = 400;
 				else margin = 800;
@@ -348,6 +351,9 @@ int SEARCHER::be_selective() {
 					pstack->depth -= UNITDEPTH;
 					pstack->reduction++;
 				}
+			} else if((pstack - 1)->legal_moves >= 28 && pstack->depth >= 4 * UNITDEPTH) {
+				pstack->depth -= UNITDEPTH;
+				pstack->reduction++;
 			}
 	}
 	/*

@@ -1,6 +1,6 @@
 #include "scorpio.h"
 
-#define VERSION "2.5.2"
+#define VERSION "2.5.3"
 
 /*
 all external variables declared here
@@ -178,10 +178,8 @@ int CDECL main(int argc, char* argv[]) {
 		 * If log=off in ini and log=on from command line,then we will have only 1 log file.
 		 * If log=on in ini, then each processor will have separate log files.
 		 */
-#ifdef CLUSTER
 		if(!log_on)
 			remove_log_file();
-#endif
 		/*
 		 * Parse commands from stdin.
 		 */
