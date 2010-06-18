@@ -304,8 +304,9 @@ int SEARCHER::be_selective() {
 		) {
 			int margin = 0;
 			if(depth <= 5) {
+				if(depth <= 3 && nmoves >= prune_start) 
+					return true;
 				score = -eval(DO_LAZY);
-				if(depth <= 3 && nmoves >= prune_start) return true;
 				if(depth <= 2) margin = 150;
 				else if(depth <= 4) margin = 300;
 				else margin = 400;
@@ -917,10 +918,8 @@ void SEARCHER::root_search() {
 	int& i = pstack->current_index;
 
 	for(i = 0; i < pstack->count;i++) {
-
 		pstack->current_move = move = pstack->move_st[i];
 		pstack->legal_moves++;
-
 		PUSH_MOVE(move);
 
 		start_nodes = nodes;
@@ -987,14 +986,14 @@ void SEARCHER::root_search() {
 			print_pv(pstack->best_score);
 
 			/*root score*/
-			if(!chess_clock.infinite_mode && !chess_clock.pondering) {
+			if(!chess_clock.infinite_mode && !chess_clock.pondering)
 				root_score = score;
-				if(score <= pstack->alpha) {
-					root_failed_low = 2;
-					goto END;
-				}
+
+			/*fail low*/
+			if(score <= pstack->alpha) {
+				root_failed_low = 2;
+				goto END;
 			}
-			/*end*/
 		}
 		if(score > pstack->alpha) {
 			if(score >= pstack->beta) {
@@ -1302,11 +1301,11 @@ MOVE SEARCHER::find_best() {
 			alpha = -MAX_SCORE;
 			beta = MAX_SCORE;
 		} else if(score <= alpha) {
-			WINDOW *= 4;
+			WINDOW = min(200, 4 * WINDOW);
 			alpha = max(-MAX_SCORE,score - WINDOW);
 			search_depth--;
 		} else if (score >= beta){
-			WINDOW *= 4;
+			WINDOW = min(200, 4 * WINDOW);
 			beta = min(MAX_SCORE,score + WINDOW);
 			search_depth--;
 		} else {
