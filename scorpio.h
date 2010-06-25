@@ -869,7 +869,7 @@ void  sq_str(const int& ,char*);
 void  mov_strx(MOVE& ,char*);
 void  mov_str(MOVE& ,char*);
 void  str_mov(MOVE& ,char*);
-int   tokenize(char* , char** , const char* str2 = " \n\r\t");
+int   tokenize(char* , char** , const char* str2 = " =\n\r\t");
 bool  read_line(char*);
 void  load_book();
 bool  parse_commands(char**);

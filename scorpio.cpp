@@ -327,8 +327,16 @@ bool parse_commands(char** commands) {
 		do_search = false;
 
 		if (!strcmp(command, "protover")) {
-			print("feature sigint=0 sigterm=0 setboard=1 draw=0 "
-				"colors=0 name=1 myname=\"Scorpio_%s\"\n",VERSION);
+			print("feature name=1 myname=\"Scorpio_%s\"\n",VERSION);
+			print("feature sigint=0 sigterm=0\n");
+			print("feature setboard=1 draw=0 colors=0\n");
+			print("feature smp=1 memory=0 egt=\"scorpio\"\n");
+			print("feature option=\"log -check 0\"\n");
+			print("feature option=\"clear_hash -button\"\n");
+			print("feature option=\"resign -spin 800 100 30000\"\n");
+			print("feature option=\"smp_depth -spin 4 1 10\"\n");
+			print("feature option=\"cluster_depth -spin 1 8 16\"\n");
+			print("feature option=\"message_poll_nodes -spin 200 10 20000\"\n");
 			while(!egbb_thread_stoped) t_sleep(100);
 			print("feature done=1\n");
 
@@ -338,6 +346,7 @@ bool parse_commands(char** commands) {
 			|| !strcmp(command, "post")
 			|| !strcmp(command, "nopost")
 			|| !strcmp(command, "random")
+			|| !strcmp(command, "option")
 			) {
 		} else if (!strcmp(command, "?")) {
 			SEARCHER::abort_search = 1;
@@ -406,6 +415,8 @@ bool parse_commands(char** commands) {
 			CLUSTER_CODE(PROCESSOR::abort_hosts());
 			print("Bye Bye\n");
 			PROCESSOR::exit_scorpio(EXIT_SUCCESS);
+		} else if (!strcmp(command, "clear_hash")) {
+			PROCESSOR::clear_hash_tables();
 		} else if (!strcmp(command, "new")) {
 			PROCESSOR::clear_hash_tables();
 			searcher.new_board();
@@ -504,6 +515,10 @@ bool parse_commands(char** commands) {
 		} else if(!strcmp(command, "egbb_path")) {
 			strcpy(egbb_path,commands[command_num]);
 			command_num++;
+		} else if(!strcmp(command, "egtpath")) {
+			command_num++;
+			strcpy(egbb_path,commands[command_num]);
+			command_num++;
 		} else if(!strcmp(command, "egbb_cache_size")) {
 			egbb_cache_size = atoi(commands[command_num]);
 			command_num++;
@@ -545,9 +560,10 @@ bool parse_commands(char** commands) {
 #endif
 #ifdef LOG_FILE
 		} else if (!strcmp(command, "log")) {
-			if(!strcmp(commands[command_num],"on"))
+			if(!strcmp(commands[command_num],"on") ||
+				!strcmp(commands[command_num],"1"))
 				log_on = true;
-			else if(!strcmp(commands[command_num],"off"))
+			else
 				log_on = false;
 			command_num++;
 #endif
