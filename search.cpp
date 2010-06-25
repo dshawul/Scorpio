@@ -299,7 +299,7 @@ int SEARCHER::be_selective() {
 		) {
 			if(depth <= 3 && nmoves >= 24) 
 				return true;
-			int margin = 150 * depth;
+			int margin = 125 * depth;
 			margin = max(margin / 4, margin - 10 * nmoves);
 			score = -eval(DO_LAZY);
 			if(score + margin < (pstack - 1)->alpha) {
@@ -912,7 +912,7 @@ void SEARCHER::root_search() {
 
 		/*set next ply's depth*/	
 		pstack->depth = (pstack - 1)->depth - UNITDEPTH;
-		if(i > 3
+		if(i > 2
 			&& !hstack[hply - 1].checks
 			&& !m_capture(move)
 			&& !is_passed(move,HALFR)) {
