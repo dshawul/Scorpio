@@ -1,39 +1,30 @@
-Scorpio 2.5
+Scorpio 2.6
 -----------
 
 Changes
 -------
-    * Cluster version with YBW parallel search. It doesnt scale well at all
-      and probably have tons of bugs. I just put this up on my website for those
-      who want to help me with testing. 
- 
-      The way it works is like this. Lets say you have 2 quads connected by ethernet,
-      then you start two processes on each computer using "mpirun -pernode" or some other
-      command. Then you set the "mt" option in ini file to "auto" so that it detects the
-      number of processors automatically. You can also opt to start a process for each processor
-      in which case the mt should be set to 1. 8 processes and 0 threads will be started in this case.
+    * Official release of cluster version of scorpio. Many changes have been
+      made since the last beta release. I can not list all of those changes here
+      so I will let those interesed to go look the commit history here http://github.com/dshawul
+      Every change I made to scorpio is recored in there from now on.
+    
+    * The serial version of scorpio is also worked upon so I expect a couple of elo
+      points stronger but not by much. All of my changes are search changes (eval is identical
+      to previous version). I want to see how far I can go with this before I tune/add evaluation 
+      features.
 
-      New Parameters:
-	
-        CLUSTER_SPLIT_DEPTH (default 8) . Recommended value if you have dual core
-        cpus is 12. And if you quads probably larger... Experiment with this to
-        get the correct values for your machines.
+           - Major bug in SEE (have been there since 2.5) fixed.
+           - 0 check extensions in search.
+           - Modified futility pruning
+	    - Double reductions at PV nodes too
+           - Max aspiration window of 200 and probably many other small changes
+             For detailed changes look at the commits ...
 
-	SMP_SPLIT_DEPTH (default 4)  -> plies below which split is not allowed.
+    * Evaluation is untouched but I have set it up well for my next project , which is tuning.
+      Many parameters are modifiable using the new winboard "options feature". Scorpio can be 
+      configured from ini file, command line or the new winboard options window.. 
 
-      The "make cluster" command will compile you a cluster version of scorpio.
-      See the makefile for details and change accordingly. It can be compiled for windows
-      also using MPICH library. Dann Corbit did that already.
-
-      Good luck and prepare yourself for a huge trouble.
-      It probably would have been a wise choice to work on it more before releasing but
-      I want to move on working on something else.
-
-    * The serial version is absolutely same us 2.5 so please do not test it unless
-      you have a cluster. Infact I have taken out most of the changes I made to make
-      it play the same as the old version.
-     
-      
+		
 Thanks
 ------
     Dann Corbit
@@ -64,6 +55,30 @@ BOOK
     Salvo Spitaleri is the book author for scorpio. 
     Thanks also goes to Oliver Deuville for the book which
     earlier version use.
+
+CLUSTER
+-------
+    * Cluster version of scorpio can be compiled with MPI library. A toned down YBW implementation
+      is used for distributing work. The scaling is not that good and probably still have serious bugs.
+      
+      The way it works is like this. Lets say you have 2 quads connected by ethernet,
+      then you start two processes on each computer using "mpirun -pernode" or some other
+      command. Then you set the "mt" option in ini file to "auto" so that it detects the
+      number of processors automatically. You can also opt to start a process for each processor
+      in which case the mt should be set to 1. 8 processes and 0 threads will be started in this case.
+
+      New Parameters:
+	
+        CLUSTER_SPLIT_DEPTH (default 8) . Recommended value if you have dual core
+        cpus is 12. And if you quads probably larger... Experiment with this to
+        get the correct values for your machines.
+
+	 SMP_SPLIT_DEPTH (default 4)  -> plies below which split is not allowed.
+
+      The "make cluster" command will compile you a cluster version of scorpio.
+      See the makefile for details and change accordingly. It can be compiled for windows
+      also using MPICH library. Dann Corbit did that already.
+    
 
 EGBBs
 -----

@@ -6,19 +6,20 @@ RM = rm -rf
 OBJ = attack.o scorpio.o eval.o hash.o moves.o parallel.o probe.o search.o see.o magics.o util.o
 HPP = scorpio.h my_types.h
 
-################################################################
+#########################################################################
 #
 # Some Options : 
-#  DHAS_POPCNT  --  Use Intrinsic PopCnt. Very good to have it! 
+#  DHAS_POPCNT  --  Use Intrinsic PopCnt. [HIGHLY recommeneded] 
 #  DMAX_CPUS=n  --  Compile for maximum of n cpus. Default is 8
 #  DMAX_HOSTS=n --  Compile for maximum of n cpus in a cluster.
 #                   Default value is 128.
-#
-################################################################
+#  DTUNE        --  Compile evaluation tuning code. [NOT recommended]
+#########################################################################
 DEFINES = 
-#DEFINES += -DHAS_POPCNT
+DEFINES += -DHAS_POPCNT
 #DEFINES += -DMAX_CPUS=16
 #DEFINES += -DMAX_HOSTS=128
+#DEFINES += -DTUNE
 
 ######################
 # Rules
