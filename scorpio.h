@@ -18,6 +18,7 @@ Useful to compile minimal scorpio engine.
 #define PARALLEL
 //#define CLUSTER
 //#define HAS_POPCNT
+//#define TUNE
 /*
 parallel search options
 */
@@ -875,6 +876,10 @@ void  load_book();
 bool  parse_commands(char**);
 void  merge_books(char*,char*,char*,double,double);
 int   get_number_of_cpus();
+#ifdef TUNE
+bool  check_eval_params(char**,char*,int&);
+void  print_eval_params();
+#endif
 /*
 Bitbases
 */

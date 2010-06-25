@@ -114,16 +114,46 @@ static const int  queen_tropism[8] = {
 static const int  file_tropism[8] = {
 	25, 25, 10, 5,  0,  0,  0,  0
 };
-static const int ATTACK_WEIGHT = 9;
+/*
+* Tunable parameters
+*/
+#ifdef TUNE
+#	define PARAM
+#else
+#	define PARAM const
+#endif
 
+static PARAM int ATTACK_WEIGHT = 9;
+static PARAM int TROPISM_WEIGHT = 1;
+static PARAM int KNIGHT_MOB = 16;
+static PARAM int BISHOP_MOB = 16;
+static PARAM int ROOK_MOB = 16;
+static PARAM int QUEEN_MOB = 16;
+static PARAM int PASSER_MG = 12;
+static PARAM int PASSER_EG = 16;
+static PARAM int PAWN_STRUCT_MG = 16;
+static PARAM int PAWN_STRUCT_EG = 16;
+static PARAM int ROOK_ON_7TH = 16;
+static PARAM int ROOK_ON_OPEN = 16;
+static PARAM int QUEEN_MG = 1000;
+static PARAM int QUEEN_EG = 1000;
+static PARAM int ROOK_MG = 500;
+static PARAM int ROOK_EG = 500;
+static PARAM int BISHOP_MG = 325;
+static PARAM int BISHOP_EG = 325;
+static PARAM int KNIGHT_MG = 325;
+static PARAM int KNIGHT_EG = 325;
+static PARAM int PAWN_MG = 100;
+static PARAM int PAWN_EG = 100;
+static PARAM int EXCHANGE_BONUS = 50;
 /*
 king safety
 */
 static int KING_ATTACK(int attack,int attackers,int tropism) {
 	if(attackers == 0) return 0;
-	if(attackers == 1) return ((ATTACK_WEIGHT * attack + tropism) >> 2);
+	if(attackers == 1) return ((ATTACK_WEIGHT * attack + TROPISM_WEIGHT * tropism) >> 2);
 	int geometric = 2 << (attackers - 2);
-	return ((ATTACK_WEIGHT * attack + tropism) * (geometric - 1)) / geometric;
+	return ((ATTACK_WEIGHT * attack + TROPISM_WEIGHT * tropism) * (geometric - 1)) / geometric;
 }
 /*
 static evaluator
@@ -260,7 +290,7 @@ int SEARCHER::eval(int lazy) {
 	/*passed pawns*/
 	if(pawnrec.w_passed | pawnrec.b_passed) {
 		temp = eval_passed_pawns(wf_pawns,bf_pawns,all_pawn_f);
-		w_score.add(3 * temp / 4,temp); 
+		w_score.add((PASSER_MG * temp) / 16,(PASSER_EG * temp) / 16); 
 	}
 
 	/*king attack/defence*/
@@ -314,8 +344,8 @@ int SEARCHER::eval(int lazy) {
 		sq = SQ64(r,f);
 		bb = knight_attacks(sq);
 
-		mob = popcnt(bb & noccupancyw) - 4;
-		w_score.add(4 * mob);
+		mob = (4 * KNIGHT_MOB * (popcnt(bb & noccupancyw) - 4)) / 16;
+		w_score.add(mob);
 
 		/*attack*/
         if(eval_w_attack) {
@@ -357,8 +387,8 @@ int SEARCHER::eval(int lazy) {
 		sq = SQ64(r,f);
 		bb =  knight_attacks(sq);
 
-		mob = popcnt(bb & noccupancyb) - 4;
-		b_score.add(4 * mob);
+		mob = (4 * KNIGHT_MOB * (popcnt(bb & noccupancyb) - 4)) / 16;
+		b_score.add(mob);
 
 		/*attack*/
 		if(eval_b_attack) {
@@ -401,8 +431,8 @@ int SEARCHER::eval(int lazy) {
 		sq = SQ64(r,f);
 		bb =  bishop_attacks(sq,occupancy);
 
-		mob = popcnt(bb & noccupancyw) - 6;
-		w_score.add(5 * mob);
+		mob = (5 * BISHOP_MOB * (popcnt(bb & noccupancyw) - 6)) / 16;
+		w_score.add(mob);
 
 		/*attack*/
 		if(eval_w_attack) {
@@ -427,8 +457,8 @@ int SEARCHER::eval(int lazy) {
 		sq = SQ64(r,f);
 		bb =  bishop_attacks(sq,occupancy);
 
-		mob = popcnt(bb & noccupancyb) - 6;
-		b_score.add(5 * mob);
+		mob = (5 * BISHOP_MOB * (popcnt(bb & noccupancyb) - 6)) / 16;
+		b_score.add(mob);
 
 		/*attack*/
 		if(eval_b_attack) {
@@ -457,8 +487,8 @@ int SEARCHER::eval(int lazy) {
 		sq = SQ64(r,f);
 		bb =  rook_attacks(sq,occupancy);
 
-		mob = popcnt(bb & noccupancyw) - 7;
-		w_score.add(3 * mob);
+		mob = (3 * ROOK_MOB * (popcnt(bb & noccupancyw) - 7)) / 16;
+		w_score.add(mob);
 
 		/*attack*/
 		if(eval_w_attack) {
@@ -509,8 +539,8 @@ int SEARCHER::eval(int lazy) {
 		sq = SQ64(r,f);
 		bb =  rook_attacks(sq,occupancy);
 
-		mob = popcnt(bb & noccupancyb) - 7;
-		b_score.add(3 * mob);
+		mob = (3 * ROOK_MOB * (popcnt(bb & noccupancyb) - 7)) / 16;
+		b_score.add(mob);
 
 		/*attack*/
 		if(eval_b_attack) {
@@ -564,7 +594,7 @@ int SEARCHER::eval(int lazy) {
 		sq = SQ64(r,f);
 	    bb =  queen_attacks(sq,occupancy);
 
-		mob = popcnt(bb & noccupancyw) - 13;
+		mob = (QUEEN_MOB * (popcnt(bb & noccupancyw) - 13)) / 16;
 		w_score.add(mob);
 
 		/*attack*/
@@ -593,7 +623,7 @@ int SEARCHER::eval(int lazy) {
 		sq = SQ64(r,f);
 		bb =  queen_attacks(sq,occupancy);
 
-		mob = popcnt(bb & noccupancyb) - 13;
+		mob = (QUEEN_MOB * (popcnt(bb & noccupancyb) - 13)) / 16;
 		b_score.add(mob);
 
 		/*attack*/
@@ -614,11 +644,9 @@ int SEARCHER::eval(int lazy) {
 		current = current->next;
 	}
 
-	/*score*/
-	w_score.add(qr_on_7thrank[w_on7th]);
-    b_score.add(qr_on_7thrank[b_on7th]);
-	w_score.add(rook_on_hopen[wr_onhopen]);
-	b_score.add(rook_on_hopen[br_onhopen]);
+	/*score QR placement*/
+	w_score.add(ROOK_ON_7TH * (qr_on_7thrank[w_on7th] - qr_on_7thrank[b_on7th]) / 16);
+	w_score.add(ROOK_ON_OPEN * (rook_on_hopen[wr_onhopen] - rook_on_hopen[br_onhopen]) / 16);
 
 	/*
 	king eval
@@ -724,8 +752,8 @@ static int  pawn_pcsq[0x80] = {
   0,  0,  0,  0,  0,  0,  0,  0,          0,  0,  0,  0,  0,  0,  0,  0,
 };
 static const int piece_value[] = {
-	0,0,1000,500,325,325,100,0,1000,500,325,325,100,0,
-	0,0,1000,500,325,325,100,0,1000,500,325,325,100,0,
+	0,0,QUEEN_MG,ROOK_MG,BISHOP_MG,KNIGHT_MG,PAWN_MG,0,QUEEN_MG,ROOK_MG,BISHOP_MG,KNIGHT_MG,PAWN_MG,0,
+	0,0,QUEEN_EG,ROOK_EG,BISHOP_EG,KNIGHT_EG,PAWN_EG,0,QUEEN_EG,ROOK_EG,BISHOP_EG,KNIGHT_EG,PAWN_EG,0,
 };
 void SEARCHER::pre_calculate() {
 	int pic,sq;
@@ -1138,6 +1166,10 @@ SCORE SEARCHER::eval_pawns(int eval_w_attack,int eval_b_attack,
 			eval_pawn_cover(eval_w_attack,eval_b_attack,wf_pawns,bf_pawns);
 		}
 		
+		/*scale*/
+		score.mid = (score.mid * PAWN_STRUCT_MG) / 16;
+		score.end = (score.end * PAWN_STRUCT_EG) / 16;
+
         /*store in hash table*/
 		record_pawn_hash(pawn_hash_key,score,pawnrec);
 	}
@@ -1316,7 +1348,6 @@ void SEARCHER::eval_win_chance(SCORE& w_score,SCORE& b_score,int& w_win_chance,i
 	/*
 	imbalance
 	*/
-	const int EXCHANGE_BONUS = 50;
 	temp = w_piece_value_c - b_piece_value_c;
 	temp1 = w_minors - b_minors;
 
@@ -1622,4 +1653,86 @@ CUT:
 	pstack->evalrec.indicator |= AVOID_LAZY;
 	return true;
 }
+/*
+* Modify eval parameters
+*/
+#ifdef TUNE
+bool check_eval_params(char** commands,char* command,int& command_num) {
+	if(!strcmp(command, "ATTACK_WEIGHT")) {
+		ATTACK_WEIGHT = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "TROPISM_WEIGHT")) {
+		TROPISM_WEIGHT = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "KNIGHT_MOB")) {
+		KNIGHT_MOB = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "BISHOP_MOB")) {
+		BISHOP_MOB = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "ROOK_MOB")) {
+		ROOK_MOB = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "QUEEN_MOB")) {
+		QUEEN_MOB = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "PASSER_MG")) {
+		PASSER_MG = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "PASSER_EG")) {
+		PASSER_EG = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "PAWN_STRUCT_MG")) {
+		PAWN_STRUCT_MG = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "PAWN_STRUCT_EG")) {
+		PAWN_STRUCT_EG = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "ROOK_ON_7TH")) {
+		ROOK_ON_7TH = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "ROOK_ON_OPEN")) {
+		ROOK_ON_OPEN = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "QUEEN_MG")) {
+		QUEEN_MG = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "QUEEN_EG")) {
+		QUEEN_EG = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "ROOK_MG")) {
+		ROOK_MG = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "ROOK_EG")) {
+		ROOK_EG = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "BISHOP_MG")) {
+		BISHOP_MG = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "BISHOP_EG")) {
+		BISHOP_EG = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "KNIGHT_MG")) {
+		KNIGHT_MG = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "KNIGHT_EG")) {
+		KNIGHT_EG = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "PAWN_MG")) {
+		PAWN_MG = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "PAWN_EG")) {
+		PAWN_EG = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "EXCHANGE_BONUS")) {
+		EXCHANGE_BONUS = atoi(commands[command_num++]);
+	} else {
+		return false;
+	}
+	return true;
+}
+void print_eval_params() {
+	print("feature option=\"ATTACK_WEIGHT -spin 9 0 20\"\n");
+	print("feature option=\"TROPISM_WEIGHT -spin 1 0 5\"\n");
+	print("feature option=\"KNIGHT_MOB -spin 16 0 32\"\n");
+	print("feature option=\"BISHOP_MOB -spin 16 0 32\"\n");
+	print("feature option=\"ROOK_MOB -spin 16 0 32\"\n");
+	print("feature option=\"QUEEN_MOB -spin 16 0 32\"\n");
+	print("feature option=\"PASSER_MG -spin 16 0 32\"\n");
+	print("feature option=\"PASSER_EG -spin 16 0 32\"\n");
+	print("feature option=\"PAWN_STRUCT_MG -spin 16 0 32\"\n");
+	print("feature option=\"PAWN_STRUCT_EG -spin 16 0 32\"\n");
+	print("feature option=\"ROOK_ON_7TH -spin 16 0 32\"\n");
+	print("feature option=\"ROOK_ON_OPEN -spin 16 0 32\"\n");
+	print("feature option=\"QUEEN_MG -spin 1000 0 2000\"\n");
+	print("feature option=\"QUEEN_EG -spin 1000 0 2000\"\n");
+	print("feature option=\"ROOK_MG -spin 500 0 2000\"\n");
+	print("feature option=\"ROOK_EG -spin 500 0 2000\"\n");
+	print("feature option=\"BISHOP_MG -spin 325 0 2000\"\n");
+	print("feature option=\"BISHOP_EG -spin 325 0 2000\"\n");
+	print("feature option=\"KNIGHT_MG -spin 325 0 2000\"\n");
+	print("feature option=\"KNIGHT_EG -spin 325 0 2000\"\n");
+	print("feature option=\"PAWN_MG -spin 100 0 2000\"\n");
+	print("feature option=\"PAWN_EG -spin 100 0 2000\"\n");
+	print("feature option=\"EXCHANGE_BONUS -spin 50 0 200\"\n");
+}
 
+#endif
