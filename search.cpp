@@ -234,7 +234,6 @@ int SEARCHER::be_selective() {
 	register MOVE move = (pstack - 1)->current_move; 
 	register int extension = 0,score,depth = DEPTH((pstack - 1)->depth);
 	register int node_t = (pstack - 1)->node_type,nmoves = (pstack - 1)->legal_moves;
-	int pc = piece_c[white] + piece_c[black];
 
 	pstack->extension = 0;
 	pstack->reduction = 0;
@@ -268,7 +267,7 @@ int SEARCHER::be_selective() {
 		}
 	} else {
 		if(hstack[hply - 1].checks) {
-			extend(UNITDEPTH);
+			extend(0);
 		}
 		if(depth >= 6 && 
 			is_passed(move,HALFR)
@@ -280,7 +279,7 @@ int SEARCHER::be_selective() {
 		extend(0);
 	}
 	if(m_capture(move)
-		&& pc == 0
+		&& piece_c[white] + piece_c[black] == 0
 		&& PIECE(m_capture(move)) != pawn
 		) {
 			extend(UNITDEPTH);
@@ -293,47 +292,32 @@ int SEARCHER::be_selective() {
 	/*
 	pruning
 	*/
-	const int prune_start = 24;
 	if(depth <= 7
-		&& depth >= 2
 		&& !pstack->extension
 		&& (pstack - 1)->gen_status - 1 == GEN_NONCAPS
 		&& node_t != PV_NODE
-		&& all_man_c > 5
-		&& pc > 6
 		) {
-			int margin = 0;
-			if(depth <= 5) {
-				if(depth <= 3 && nmoves >= prune_start) 
-					return true;
-				score = -eval(DO_LAZY);
-				if(depth <= 2) margin = 150;
-				else if(depth <= 4) margin = 300;
-				else margin = 400;
-			} else if(depth <= 7 && nmoves > 7) {
-				score = -eval(DO_LAZY);
-				if(nmoves >= prune_start) margin = 400;
-				else margin = 800;
-			} 
-			if(margin) {
-				if(score + margin < (pstack - 1)->alpha) {
-					if(score > (pstack - 1)->best_score) {
-						(pstack - 1)->best_score = score;
-						(pstack - 1)->best_move = move;
-					}
-					return true;
+			if(depth <= 3 && nmoves >= 24) 
+				return true;
+			int margin = 150 * depth;
+			margin = max(margin / 4, margin - 10 * nmoves);
+			score = -eval(DO_LAZY);
+			if(score + margin < (pstack - 1)->alpha) {
+				if(score > (pstack - 1)->best_score) {
+					(pstack - 1)->best_score = score;
+					(pstack - 1)->best_move = move;
 				}
+				return true;
 			}
 	}
 	/*
 	late move reduction
 	*/
-	const int lmr_start = (node_t == PV_NODE) ? 14 : 2;
+	const int lmr_start = (node_t == PV_NODE) ? 8 : 2;
 	if(pstack->depth > UNITDEPTH 
 		&& !pstack->extension
 		&& (pstack - 1)->gen_status - 1 == GEN_NONCAPS
 		&& nmoves >= lmr_start
-		&& all_man_c > 5
 		) {
 			pstack->depth -= UNITDEPTH;
 			pstack->reduction++;
@@ -346,6 +330,7 @@ int SEARCHER::be_selective() {
 						pstack->reduction++;
 						if((pstack - 1)->legal_moves >= 32 && pstack->depth >= 4 * UNITDEPTH) {
 							pstack->depth -= UNITDEPTH;
+							pstack->reduction++;
 						}
 					}
 				} else if((pstack - 1)->legal_moves > 16 && pstack->depth > UNITDEPTH) {
@@ -443,7 +428,6 @@ void search(SEARCHER* const sb) {
 							&& sb->pstack->depth >= 2 * UNITDEPTH
 							&& sb->pstack->node_type != PV_NODE
 							&& sb->piece_c[sb->player]
-						&& sb->all_man_c > 5
 							&& (score = sb->eval()) >= sb->pstack->beta
 							) {
 								sb->PUSH_NULL();
