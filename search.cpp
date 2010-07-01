@@ -269,9 +269,7 @@ int SEARCHER::be_selective() {
 		if(hstack[hply - 1].checks) {
 			extend(0);
 		}
-		if(depth >= 6 && 
-			is_passed(move,HALFR)
-			) { 
+		if(depth >= 6 && is_passed(move,HALFR)) { 
 			extend(0);
 		}
 	}

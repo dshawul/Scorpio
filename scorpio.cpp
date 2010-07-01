@@ -168,6 +168,7 @@ int CDECL main(int argc, char* argv[]) {
 			strcat(buffer," ");
 			strcat(buffer,argv[i]);
 		}
+		print_log("<COMMAND LINE>%s\n",buffer);
 
 		commands[tokenize(buffer,commands)] = NULL;
 		if(!parse_commands(commands))
