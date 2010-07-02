@@ -176,7 +176,7 @@ REDO:
 					if(psb->pstack->reduction
 						&& score >= -split.alpha
 						) {
-							psb->pstack->depth += psb->pstack->reduction * UNITDEPTH;
+							psb->pstack->depth += psb->pstack->reduction;
 							psb->pstack->reduction = 0;
 
 							psb->pstack->alpha = split.alpha;

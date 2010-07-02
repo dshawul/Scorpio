@@ -311,33 +311,33 @@ int SEARCHER::be_selective() {
 	/*
 	late move reduction
 	*/
-	const int lmr_start = (node_t == PV_NODE) ? 8 : 2;
+	const int lmr_start = ((node_t == PV_NODE) ? 8 : 2);
 	if(pstack->depth > UNITDEPTH 
 		&& !pstack->extension
 		&& (pstack - 1)->gen_status - 1 == GEN_NONCAPS
 		&& nmoves >= lmr_start
 		) {
 			pstack->depth -= UNITDEPTH;
-			pstack->reduction++;
+			pstack->reduction += UNITDEPTH;
 			if(node_t != PV_NODE) {
 				if((pstack - 1)->legal_moves >= 8 && pstack->depth >= 4 * UNITDEPTH) {
 					pstack->depth -= UNITDEPTH;
-					pstack->reduction++;
+					pstack->reduction += UNITDEPTH;
 					if((pstack - 1)->legal_moves >= 24 && pstack->depth >= 4 * UNITDEPTH) {
 						pstack->depth -= UNITDEPTH;
-						pstack->reduction++;
+						pstack->reduction += UNITDEPTH;
 						if((pstack - 1)->legal_moves >= 32 && pstack->depth >= 4 * UNITDEPTH) {
 							pstack->depth -= UNITDEPTH;
-							pstack->reduction++;
+							pstack->reduction += UNITDEPTH;
 						}
 					}
 				} else if((pstack - 1)->legal_moves > 16 && pstack->depth > UNITDEPTH) {
 					pstack->depth -= UNITDEPTH;
-					pstack->reduction++;
+					pstack->reduction += UNITDEPTH;
 				}
 			} else if((pstack - 1)->legal_moves >= 28 && pstack->depth >= 4 * UNITDEPTH) {
 				pstack->depth -= UNITDEPTH;
-				pstack->reduction++;
+				pstack->reduction += UNITDEPTH;
 			}
 	}
 	/*
@@ -687,7 +687,7 @@ IDLE_START:
 				if(sb->pstack->reduction
 					&& score >= (sb->pstack - 1)->beta 
 					) {
-						sb->pstack->depth += sb->pstack->reduction * UNITDEPTH;
+						sb->pstack->depth += sb->pstack->reduction;
 						sb->pstack->reduction = 0;
 
 						sb->pstack->alpha = -(sb->pstack - 1)->beta;
