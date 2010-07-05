@@ -87,7 +87,7 @@ enum files {
 	FILEA,FILEB,FILEC,FILED,FILEE,FILEF,FILEG,FILEH
 };
 enum hash_types {
-	UNKNOWN,AVOID_NULL,HASH_HIT,EXACT,UPPER,LOWER,CRAP
+	UNKNOWN,AVOID_NULL,HASH_HIT,HASH_GOOD,EXACT,UPPER,LOWER,CRAP
 };
 enum results {
 	R_UNKNOWN,R_WWIN,R_BWIN,R_DRAW
@@ -158,7 +158,6 @@ enum square_names {
 #define MAX_PLY             64
 #define MAX_HSTACK        1024
 #define MATE_SCORE       20000
-#define MAX_SCORE        30000
 #define WIN_SCORE         3000
 #define WIN_PLY             40
 #define MAX_NUMBER    16777216
@@ -182,11 +181,10 @@ enum square_names {
 #define BSLC_FLAG     12
 #define WBC_FLAG      15
 /*
-Depths 
+Depth
 */
-#define UNITDEPTH             8
-#define CHECK_DEPTH           (UNITDEPTH)
-#define DEPTH(x)              ((x) >> 3)
+#define UNITDEPTH             4
+#define DEPTH(x)              ((x) >> 2)
 /*
 Scorpio moves are 32bit long
 */
@@ -405,6 +403,7 @@ typedef struct STACK{
 	int extension;
 	int reduction;
 	int mate_threat;
+	int singular;
 	int legal_moves;
 	int alpha;
 	int beta;
@@ -863,12 +862,13 @@ void  print(const char* format,...);
 void  print_log(const char* format,...);
 void  print_std(const char* format,...);
 void  print_move(const MOVE&);
+void  print_move_full(const MOVE&);
 void  print_sq(const int&);
 void  print_pc(const int&);
 void  print_bitboard(BITBOARD);
 void  sq_str(const int& ,char*);
-void  mov_strx(MOVE& ,char*);
-void  mov_str(MOVE& ,char*);
+void  mov_strx(const MOVE& ,char*);
+void  mov_str(const MOVE& ,char*);
 void  str_mov(MOVE& ,char*);
 int   tokenize(char* , char** , const char* str2 = " =\n\r\t");
 bool  read_line(char*);
@@ -876,6 +876,8 @@ void  load_book();
 bool  parse_commands(char**);
 void  merge_books(char*,char*,char*,double,double);
 int   get_number_of_cpus();
+bool  check_search_params(char**,char*,int&);
+void  print_search_params();
 #ifdef TUNE
 bool  check_eval_params(char**,char*,int&);
 void  print_eval_params();

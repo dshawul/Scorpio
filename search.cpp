@@ -1,4 +1,10 @@
 #include "scorpio.h"
+
+const int CHECK_DEPTH  = UNITDEPTH;
+int use_iid = 1;
+int use_singular = 0;
+int singular_margin = 30;
+
 /*
 * Update pv
 */
@@ -12,7 +18,7 @@ bool SEARCHER::hash_cutoff() {
 	/*
 	. hashtable lookup 
 	*/
-	pstack->hash_flags = PROCESSOR::probe_hash(player,hash_key,DEPTH(pstack->depth),ply,pstack->hash_score,
+	pstack->hash_flags = PROCESSOR::probe_hash(player,hash_key,pstack->depth,ply,pstack->hash_score,
 		pstack->hash_move,pstack->alpha,pstack->beta,pstack->mate_threat,pstack->hash_depth);
 	if(pstack->hash_move && !is_legal_fast(pstack->hash_move))
 		pstack->hash_move = 0;
@@ -91,9 +97,10 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 	pstack->pv_length = ply;
 	pstack->legal_moves = 0;
 	pstack->hash_move = 0;
-	pstack->best_score = -MAX_SCORE;
+	pstack->best_score = -MATE_SCORE;
 	pstack->best_move = 0;
 	pstack->mate_threat = 0;
+	pstack->singular = 0;
 	pstack->evalrec.indicator = AVOID_LAZY;
 
 	if(pstack->node_type == PV_NODE) {
@@ -161,7 +168,7 @@ FORCEINLINE int SEARCHER::on_qnode_entry() {
 
 	pstack->gen_status = GEN_START;
 	pstack->pv_length = ply;
-	pstack->best_score = -MAX_SCORE;
+	pstack->best_score = -MATE_SCORE;
 	pstack->best_move = 0;
 	pstack->legal_moves = 0;
 	pstack->evalrec.indicator = AVOID_LAZY;
@@ -282,6 +289,10 @@ int SEARCHER::be_selective() {
 		) {
 			extend(UNITDEPTH);
 	}
+	if((pstack - 1)->legal_moves == 1
+		&& (pstack - 1)->singular) {
+			extend(UNITDEPTH);
+	}
 	if(extension > UNITDEPTH)
 		extension = UNITDEPTH;
 
@@ -349,14 +360,13 @@ int SEARCHER::be_selective() {
 Back up to previous ply
 */
 #define GOBACK(save) {																							\
-	if(save) {     																								\
-		PROCESSOR::record_hash(sb->player,sb->hash_key,DEPTH(sb->pstack->depth),sb->ply,sb->pstack->flag,		\
+	if(save && ((sb->pstack->search_state & ~MOVE_MASK) != SINGULAR_SEARCH)) {     	                            \
+		PROCESSOR::record_hash(sb->player,sb->hash_key,sb->pstack->depth,sb->ply,sb->pstack->flag,		        \
 		sb->pstack->best_score,sb->pstack->best_move,sb->pstack->mate_threat);									\
 	}																											\
 	if(sb->pstack->search_state & ~MOVE_MASK) goto SPECIAL;                                                     \
 	goto POP;                                                                                                   \
 };
-
 /*
 Iterative search.
 */
@@ -394,25 +404,50 @@ void search(SEARCHER* const sb) {
 			*/
 			while(true) {
 				SMP_CODE (START:);
+				/*
+				* IID and Singular search. These two are related in a way because
+				* we do IID at every node to get a move to be tested for singularity later.
+				* Try both at every node other than _ALL_ nodes. Use moderate reduction for IID
+				* so that we have a good enough move. In the test for singularity reduce the depth
+				* further by 2 plies.
+				*/
 				switch(sb->pstack->search_state) {
 					case IID_SEARCH:
-						if(!sb->pstack->hash_move 
-							&& ((sb->pstack->node_type == PV_NODE && sb->pstack->depth >= 4 * UNITDEPTH)
-							||
-							(sb->pstack->node_type != PV_NODE && sb->pstack->depth >= 8 * UNITDEPTH))
+						if(use_iid
+							&& !sb->pstack->hash_move
+							&& sb->pstack->node_type != ALL_NODE
+							&& sb->pstack->depth >= 6 * UNITDEPTH
 							) {
 								sb->pstack->o_alpha = sb->pstack->alpha;
 								sb->pstack->o_beta = sb->pstack->beta;
 								sb->pstack->o_depth = sb->pstack->depth;
-								if(sb->pstack->node_type == PV_NODE) sb->pstack->depth -= 2 * UNITDEPTH;
-								else sb->pstack->depth /= 2;
+								if(sb->pstack->node_type == PV_NODE) 
+									sb->pstack->depth -= 2 * UNITDEPTH;
+								else 
+									sb->pstack->depth -= 4 * UNITDEPTH;
 								sb->pstack->search_state |= NORMAL_MOVE; 
 						} else {
 							sb->pstack->search_state = SINGULAR_SEARCH;
 						}
 						break;
 					case SINGULAR_SEARCH:
-						sb->pstack->search_state = NORMAL_MOVE;
+						if(use_singular 
+							&& sb->pstack->hash_move 
+							&& sb->pstack->node_type != ALL_NODE
+							&& sb->pstack->depth >= 8 * UNITDEPTH
+							&& sb->pstack->hash_flags == HASH_GOOD
+							&& !m_capture(sb->pstack->hash_move)
+							) {
+								sb->pstack->o_alpha = sb->pstack->alpha;
+								sb->pstack->o_beta = sb->pstack->beta;
+								sb->pstack->o_depth = sb->pstack->depth;
+								sb->pstack->alpha = sb->pstack->hash_score - singular_margin;
+								sb->pstack->beta = sb->pstack->alpha + 1;
+								sb->pstack->depth = sb->pstack->hash_depth - 2 * UNITDEPTH;
+								sb->pstack->search_state |= NORMAL_MOVE; 
+						} else {
+							sb->pstack->search_state = NORMAL_MOVE;
+						}
 						break;
 				}
 				/*
@@ -484,6 +519,13 @@ void search(SEARCHER* const sb) {
 								}
 
 								sb->pstack->legal_moves++;
+							}
+							/*
+							singular search?
+							*/
+							if(sb->pstack->legal_moves == 1
+								&& (sb->pstack->search_state & ~MOVE_MASK) == SINGULAR_SEARCH) {
+									continue;
 							}
 							/*
 							* play the move
@@ -732,7 +774,7 @@ IDLE_START:
 							if(!is_cap_prom(move)) {
 
 								/*history*/
-								temp = DEPTH(sb->pstack->depth);
+								temp = (sb->pstack->depth);
 								temp = (sb->history[sb->player][MV8866(move)] += (temp * temp));
 								if(temp >= MAX_HIST) {
 									for(int i = 0;i < 4096;i++) {
@@ -780,11 +822,15 @@ SPECIAL:
 				case IID_SEARCH:
 					sb->pstack->hash_move  = sb->pstack->best_move;
 					sb->pstack->hash_score = sb->pstack->best_score;
-					sb->pstack->hash_flags = sb->pstack->flag;
+					if(sb->pstack->flag == EXACT || sb->pstack->flag == LOWER)
+						sb->pstack->hash_flags = HASH_GOOD;
 					sb->pstack->hash_depth = sb->pstack->depth;
 					sb->pstack->search_state = SINGULAR_SEARCH;
 					break;
 				case SINGULAR_SEARCH:
+					if(sb->pstack->flag == UPPER) {
+						sb->pstack->singular = 1;
+					}
 					sb->pstack->search_state = NORMAL_MOVE;
 					break;
 			} 
@@ -794,7 +840,7 @@ SPECIAL:
 			sb->pstack->gen_status = GEN_START;
 			sb->pstack->flag = UPPER;
 			sb->pstack->legal_moves = 0;
-			sb->pstack->best_score = -MAX_SCORE;
+			sb->pstack->best_score = -MATE_SCORE;
 			sb->pstack->best_move = 0;
 			sb->pstack->pv_length = sb->ply;
 			/*
@@ -883,7 +929,7 @@ void SEARCHER::root_search() {
 	MOVE move;
 	int score;
 
-	pstack->best_score = -MAX_SCORE;
+	pstack->best_score = -MATE_SCORE;
 	pstack->best_move = 0;
 	pstack->flag = UPPER;
 	pstack->hash_move = 0;
@@ -988,7 +1034,7 @@ void SEARCHER::root_search() {
 	}
 	print_pv(pstack->best_score);
 END:
-	PROCESSOR::record_hash(player,hash_key,DEPTH(pstack->depth),ply,pstack->flag,
+	PROCESSOR::record_hash(player,hash_key,pstack->depth,ply,pstack->flag,
 		pstack->best_score,pstack->best_move,0);
 }
 
@@ -1165,8 +1211,8 @@ MOVE SEARCHER::find_best() {
 		for(i = 0;i < pstack->count; i++) {
 			pstack->current_move = pstack->move_st[i];
 			PUSH_MOVE(pstack->current_move);
-			pstack->alpha = -MAX_SCORE;
-			pstack->beta = MAX_SCORE;
+			pstack->alpha = -MATE_SCORE;
+			pstack->beta = MATE_SCORE;
 			pstack->depth = 0;
 			pstack->qcheck_depth = CHECK_DEPTH;	
 			qsearch();
@@ -1280,15 +1326,15 @@ MOVE SEARCHER::find_best() {
 
 		/*aspiration search*/
 		if(in_egbb || abs(score) >= 1000 || search_depth <= 3) {
-			alpha = -MAX_SCORE;
-			beta = MAX_SCORE;
+			alpha = -MATE_SCORE;
+			beta = MATE_SCORE;
 		} else if(score <= alpha) {
 			WINDOW = min(200, 4 * WINDOW);
-			alpha = max(-MAX_SCORE,score - WINDOW);
+			alpha = max(-MATE_SCORE,score - WINDOW);
 			search_depth--;
 		} else if (score >= beta){
 			WINDOW = min(200, 4 * WINDOW);
-			beta = min(MAX_SCORE,score + WINDOW);
+			beta = min(MATE_SCORE,score + WINDOW);
 			search_depth--;
 		} else {
 			WINDOW = 10;
@@ -1340,3 +1386,23 @@ MOVE SEARCHER::find_best() {
 	return stack[0].pv[0];
 }
 
+/*
+* Search parameters
+*/
+bool check_search_params(char** commands,char* command,int& command_num) {
+	if(!strcmp(command, "use_iid")) {
+		use_iid = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "use_iid")) {
+		use_singular = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "singular_margin")) {
+		singular_margin = atoi(commands[command_num++]);
+	} else {
+		return false;
+	}
+	return true;
+}
+void print_search_params() {
+	print("feature option=\"use_iid -check 1\"\n");
+    print("feature option=\"use_singular -check 0\"\n");
+	print("feature option=\"singular_margin -spin 30 0 1000\"\n");
+}

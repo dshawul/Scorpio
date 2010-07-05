@@ -19,7 +19,7 @@ DEFINES =
 #DEFINES += -DHAS_POPCNT
 #DEFINES += -DMAX_CPUS=16
 #DEFINES += -DMAX_HOSTS=128
-DEFINES += -DTUNE
+#DEFINES += -DTUNE
 
 ######################
 # Rules

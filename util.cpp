@@ -80,7 +80,7 @@ void sq_str(const int& sq,char* s) {
 void str_sq(const char* s,int& sq) {
 	sq = SQ(s[1]-'1', s[0]-'a');
 }
-void mov_strx(MOVE& move,char* s) {
+void mov_strx(const MOVE& move,char* s) {
 	*s++ = file_name[file(m_from(move))];
 	*s++ = rank_name[rank(m_from(move))];
 	*s++ = file_name[file(m_to(move))];
@@ -90,7 +90,7 @@ void mov_strx(MOVE& move,char* s) {
 	}
 	*s = 0;
 }
-void mov_str(MOVE& move,char* s) {
+void mov_str(const MOVE& move,char* s) {
 	if(PIECE(m_piece(move)) != pawn) 
 		*s++ = piece_name[PIECE(m_piece(move))];
 	*s++ = file_name[file(m_from(move))];
@@ -138,13 +138,17 @@ void print_pc(const int& pc) {
 	print("%c",piece_name[pc]);
 }
 void print_move(const MOVE& move) {
+	char str[12];
+	mov_str(move,str);
+	print(str);
+}
+void print_move_full(const MOVE& move) {
 	char f[6],t[6];
 	sq_str(m_from(move),f);
 	sq_str(m_to(move),t);
 	print("%s %s %c %c %c ep = %d cst=%d",f,t,piece_name[m_piece(move)],
 		piece_name[m_capture(move)],piece_name[m_promote(move)],is_ep(move),is_castle(move));
 }
-
 void print_bitboard(BITBOARD b){
 	char hh[256];
 	strcpy(hh,""); 
@@ -756,6 +760,7 @@ void SEARCHER::COPY(SEARCHER* srcSearcher) {
 		dstack->extension = sstack->extension;
 		dstack->reduction = sstack->reduction;
 		dstack->mate_threat = sstack->mate_threat;
+		dstack->singular = sstack->singular;
 		dstack->best_move = sstack->best_move;
 		dstack->best_score = sstack->best_score;
 		dstack->flag = sstack->flag;

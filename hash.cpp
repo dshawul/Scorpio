@@ -57,15 +57,14 @@ void PROCESSOR::record_hash(
 				 int flags,int score,MOVE move,int mate_threat
 				 ) {
 	register UBMP32 key = UBMP32(hash_key & hash_tab_mask);
-	register PHASHREC pslot,pr_slot;
+	register PHASHREC pslot,pr_slot = 0;
 	int sc,max_sc = MAX_NUMBER;
 
 	if(col == white) pslot = PHASHREC(white_hash_tab + key);
 	else pslot = PHASHREC(black_hash_tab + key);
 
 	for(int i = 0; i < 4; i++) {
-		if(pslot->hash_key == hash_key) {
-			/*fake pv storage*/
+		if(!pslot->hash_key || pslot->hash_key == hash_key) {
 			if(flags == CRAP && pslot->move == move)
 				return;
 
@@ -74,28 +73,32 @@ void PROCESSOR::record_hash(
 			else if(score < -WIN_SCORE) 
 				score -= WIN_PLY * (ply + 1);
 			
-			if(move)
-				pslot->move = BMP32(move);
+			if(move) 
+				pslot->move = UBMP32(move);
 			pslot->score = BMP16(score);
-			pslot->depth = BMP8(depth);
-			pslot->flags = BMP8((flags - EXACT) | (age << 3));
-			if(mate_threat)
-				pslot->flags |= BMP8((mate_threat << 2));
+			pslot->depth = UBMP8(depth);
+			if(mate_threat || (pslot->flags & 4)) 
+				pslot->flags = UBMP8((flags - EXACT) | (age << 3) | (4));
+			else 
+				pslot->flags = UBMP8((flags - EXACT) | (age << 3));
 			pslot->hash_key = hash_key;
 			return;
 		} else {
-			sc = (pslot->flags & AGE_MASK)             //age << 3
-				+  pslot->depth                        //depth 
-				+ (pslot->flags & 3) ? 0 : (4 << 3);   //exact score 4 ages up!
-            if(sc < max_sc) pr_slot = pslot;
+			sc = (pslot->flags & ~7)                     //8 * age   {larger weight}
+				+  DEPTH(pslot->depth)                   //depth     {non-fractional depth}
+				+ ((pslot->flags & 3) ? 0 : (4 << 3));   //8 * 4     {EXACT score goes 4 ages up}
+			if(sc < max_sc) {
+				pr_slot = pslot;
+				max_sc = sc;
+			}
 		}
 		pslot++;
 	}
 
-	pr_slot->move = BMP32(move);
+	pr_slot->move = UBMP32(move);
 	pr_slot->score = BMP16(score);
-	pr_slot->depth = BMP8(depth);
-	pr_slot->flags = BMP8((flags - EXACT) | (mate_threat << 2) | (age << 3));
+	pr_slot->depth = UBMP8(depth);
+	pr_slot->flags = UBMP8((flags - EXACT) | (mate_threat << 2) | (age << 3));
 	pr_slot->hash_key = hash_key;
 }
 
@@ -104,8 +107,8 @@ int PROCESSOR::probe_hash(
 			   MOVE& move,int alpha,int beta,int& mate_threat,int& h_depth
 			   ) {
 	register UBMP32 key = UBMP32(hash_key & hash_tab_mask);
-    register int flags, avd_null = 0, hash_hit = 0;
 	register PHASHREC pslot;
+    register int flags;
 	
 	if(col == white) pslot = PHASHREC(white_hash_tab + key);
 	else pslot = PHASHREC(black_hash_tab + key);
@@ -125,7 +128,7 @@ int PROCESSOR::probe_hash(
 			flags = (pslot->flags & 3) + EXACT;
 			h_depth = pslot->depth;
 			
-			if(pslot->depth >= depth) {
+			if(h_depth >= depth) {
 				if(flags == EXACT) {
 					return EXACT;
 				} else if(flags == LOWER) {
@@ -136,25 +139,23 @@ int PROCESSOR::probe_hash(
 						return UPPER;
 				}
 			} 
-			
-			if(depth - 3 - 1 <= h_depth 
-				&& score < beta 
-				&& flags == UPPER)
-				avd_null = 1;
-			hash_hit = 1;
 
-			break;
+			if(depth - 4 * UNITDEPTH <= h_depth 
+				&& (flags == UPPER && score < beta))
+				return AVOID_NULL;
+
+			if(depth - 4 * UNITDEPTH <= h_depth
+				&& (flags == EXACT && score > alpha) 
+				|| (flags == LOWER && score >= beta))
+				return HASH_GOOD;
+
+			return HASH_HIT;
 		}
 		
 		pslot++;
 	}
-	
-	if(avd_null)
-		return AVOID_NULL;
-	else if(hash_hit)
-		return HASH_HIT;
-	else
-		return UNKNOWN;
+
+	return UNKNOWN;
 }
 /*
 Pawn hash tables

@@ -1,6 +1,6 @@
 #include "scorpio.h"
 
-#define VERSION "2.6"
+#define VERSION "2.6.2"
 
 /*
 all external variables declared here
@@ -338,6 +338,7 @@ bool parse_commands(char** commands) {
 			print("feature option=\"smp_depth -spin 4 1 10\"\n");
 			print("feature option=\"cluster_depth -spin 1 8 16\"\n");
 			print("feature option=\"message_poll_nodes -spin 200 10 20000\"\n");
+			print_search_params();
 #ifdef TUNE
 			print_eval_params();
 #endif
@@ -571,6 +572,7 @@ bool parse_commands(char** commands) {
 				log_on = false;
 			command_num++;
 #endif
+		} else if(check_search_params(commands,command,command_num)) {
 #ifdef TUNE
 		} else if(check_eval_params(commands,command,command_num)) {
 #endif
