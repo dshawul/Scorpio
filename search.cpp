@@ -772,7 +772,6 @@ IDLE_START:
 							sb->pstack->flag = LOWER;
 
 							if(!is_cap_prom(move)) {
-
 								/*history*/
 								temp = (sb->pstack->depth);
 								temp = (sb->history[sb->player][MV8866(move)] += (temp * temp));
@@ -782,7 +781,6 @@ IDLE_START:
 										sb->history[black][i] >>= 1;
 									}
 								}
-
 								/*killer moves*/
 								if(move != sb->pstack->killer[0]) {
 									sb->pstack->killer[1] = sb->pstack->killer[0];
@@ -1396,12 +1394,24 @@ bool check_search_params(char** commands,char* command,int& command_num) {
 		use_singular = atoi(commands[command_num++]);
 	} else if(!strcmp(command, "singular_margin")) {
 		singular_margin = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "smp_depth")) {
+		SMP_CODE(PROCESSOR::SMP_SPLIT_DEPTH = atoi(commands[command_num]));
+		command_num++;
+	} else if(!strcmp(command, "cluster_depth")) {
+		CLUSTER_CODE(PROCESSOR::CLUSTER_SPLIT_DEPTH = atoi(commands[command_num]));
+		command_num++;
+	} else if(!strcmp(command, "message_poll_nodes")) {
+		CLUSTER_CODE(PROCESSOR::MESSAGE_POLL_NODES = atoi(commands[command_num]));
+		command_num++;
 	} else {
 		return false;
 	}
 	return true;
 }
 void print_search_params() {
+	print("feature option=\"smp_depth -spin 4 1 10\"\n");
+	print("feature option=\"cluster_depth -spin 1 8 16\"\n");
+	print("feature option=\"message_poll_nodes -spin 200 10 20000\"\n");
 	print("feature option=\"use_iid -check 1\"\n");
     print("feature option=\"use_singular -check 0\"\n");
 	print("feature option=\"singular_margin -spin 30 0 1000\"\n");

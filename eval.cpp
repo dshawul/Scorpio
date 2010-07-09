@@ -147,7 +147,7 @@ static PARAM int KNIGHT_MG = 325;
 static PARAM int KNIGHT_EG = 325;
 static PARAM int PAWN_MG = 80;
 static PARAM int PAWN_EG = 100;
-static PARAM int BISHOP_PAIR_MG = 10;
+static PARAM int BISHOP_PAIR_MG = 16;
 static PARAM int BISHOP_PAIR_EG = 16;
 static PARAM int EXCHANGE_BONUS = 45;
 /*
@@ -1781,7 +1781,7 @@ void print_eval_params() {
 	print("feature option=\"KNIGHT_EG -spin 325 0 2000\"\n");
 	print("feature option=\"PAWN_MG -spin 80 0 2000\"\n");
 	print("feature option=\"PAWN_EG -spin 100 0 2000\"\n");
-	print("feature option=\"BISHOP_PAIR_MG -spin 10 0 64\"\n");
+	print("feature option=\"BISHOP_PAIR_MG -spin 16 0 64\"\n");
 	print("feature option=\"BISHOP_PAIR_EG -spin 16 0 64\"\n");
 	print("feature option=\"EXCHANGE_BONUS -spin 45 0 200\"\n");
 }

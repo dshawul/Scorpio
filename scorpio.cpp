@@ -1,6 +1,6 @@
 #include "scorpio.h"
 
-#define VERSION "2.6.2"
+#define VERSION "2.6.3"
 
 /*
 all external variables declared here
@@ -331,13 +331,10 @@ bool parse_commands(char** commands) {
 			print("feature name=1 myname=\"Scorpio_%s\"\n",VERSION);
 			print("feature sigint=0 sigterm=0\n");
 			print("feature setboard=1 draw=0 colors=0\n");
-			print("feature smp=1 memory=0 egt=\"scorpio\"\n");
+			print("feature smp=0 memory=0 egt=\"scorpio\"\n");
 			print("feature option=\"log -check 0\"\n");
 			print("feature option=\"clear_hash -button\"\n");
 			print("feature option=\"resign -spin 800 100 30000\"\n");
-			print("feature option=\"smp_depth -spin 4 1 10\"\n");
-			print("feature option=\"cluster_depth -spin 1 8 16\"\n");
-			print("feature option=\"message_poll_nodes -spin 200 10 20000\"\n");
 			print_search_params();
 #ifdef TUNE
 			print_eval_params();
@@ -489,18 +486,6 @@ bool parse_commands(char** commands) {
 			/*
 			parallel search
 			*/
-		} else if(!strcmp(command, "smp_depth")) {
-			SMP_CODE(PROCESSOR::SMP_SPLIT_DEPTH = atoi(commands[command_num]));
-			SMP_CODE(print("SMP_SPLIT_DEPTH = %d\n",PROCESSOR::SMP_SPLIT_DEPTH));
-			command_num++;
-		} else if(!strcmp(command, "cluster_depth")) {
-			CLUSTER_CODE(PROCESSOR::CLUSTER_SPLIT_DEPTH = atoi(commands[command_num]));
-			CLUSTER_CODE(print("CLUSTER_SPLIT_DEPTH = %d\n",PROCESSOR::CLUSTER_SPLIT_DEPTH));
-			command_num++;
-		} else if(!strcmp(command, "message_poll_nodes")) {
-			CLUSTER_CODE(PROCESSOR::MESSAGE_POLL_NODES = atoi(commands[command_num]));
-			CLUSTER_CODE(print("MESSAGE_POLL_NODES = %d\n",PROCESSOR::MESSAGE_POLL_NODES));
-			command_num++;
 		} else if(!strcmp(command,"mt") || !strcmp(command,"cores") ) {
 #ifdef PARALLEL
 			int mt;
