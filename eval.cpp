@@ -123,8 +123,11 @@ static const int  file_tropism[8] = {
 #	define PARAM const
 #endif
 
+static PARAM int LAZY_MARGIN_MIN = 150;
+static PARAM int LAZY_MARGIN_MAX = 300;
 static PARAM int ATTACK_WEIGHT = 16;
 static PARAM int TROPISM_WEIGHT = 8;
+static PARAM int PAWN_GUARD = 16;
 static PARAM int KNIGHT_OUTPOST = 16;
 static PARAM int BISHOP_OUTPOST = 12;
 static PARAM int KNIGHT_MOB = 16;
@@ -262,7 +265,7 @@ int SEARCHER::eval(int lazy) {
 	/*
 	lazy evaluation - 1
 	*/
-	if(eval_lazy_exit(lazy,300,phase,
+	if(eval_lazy_exit(lazy,LAZY_MARGIN_MAX,phase,
 		w_score,b_score,w_win_chance,b_win_chance)) {
 		RETURN();
 	}
@@ -300,15 +303,15 @@ int SEARCHER::eval(int lazy) {
 
 	/*king attack/defence*/
 	if(eval_b_attack) {
-		b_score.addm(pawnrec.b_s_attack);
+		b_score.addm((PAWN_GUARD * pawnrec.b_s_attack) / 16);
 	}
 	if(eval_w_attack) {
-		w_score.addm(pawnrec.w_s_attack);
+		w_score.addm((PAWN_GUARD * pawnrec.w_s_attack) / 16);
 	}
 	/*
 	lazy evaluation - 2
 	*/
-	if(eval_lazy_exit(lazy,150,phase,
+	if(eval_lazy_exit(lazy,LAZY_MARGIN_MIN,phase,
 		w_score,b_score,w_win_chance,b_win_chance)) {
 		RETURN();
 	}
@@ -1653,11 +1656,9 @@ bool SEARCHER::eval_lazy_exit(int lazy, int lazy_margin,int phase,SCORE& w_score
 
 		/*lazy eval*/
 		if(lazy == TRY_LAZY) {
-			MOVE move = hstack[hply - 1].move;
 			int LAZY_MARGIN;
-
-			if(PIECE(m_capture(move)) == queen)
-				LAZY_MARGIN = max(300,lazy_margin);
+			if(PIECE(m_capture(hstack[hply - 1].move)) == queen)
+				LAZY_MARGIN = LAZY_MARGIN_MAX;
 			else
 				LAZY_MARGIN = lazy_margin;
 			
@@ -1672,13 +1673,12 @@ bool SEARCHER::eval_lazy_exit(int lazy, int lazy_margin,int phase,SCORE& w_score
 
 	/*lazy evaluation - 2*/
 	if(lazy) {
-		int LAZY_MARGIN = max(lazy_margin,300);
 		pstack->actual_score = pstack->lazy_score;
 		if(lazy == DO_LAZY)
 			goto CUT;
 		if(lazy == TRY_LAZY) {
-			if(pstack->actual_score - LAZY_MARGIN > pstack->beta ||
-			   pstack->actual_score + LAZY_MARGIN < pstack->alpha)
+			if(pstack->actual_score - LAZY_MARGIN_MAX > pstack->beta ||
+			   pstack->actual_score + LAZY_MARGIN_MAX < pstack->alpha)
 			   goto CUT;
 		}
 	}
@@ -1697,10 +1697,10 @@ CUT:
 */
 #ifdef TUNE
 bool check_eval_params(char** commands,char* command,int& command_num) {
-	if(!strcmp(command, "ATTACK_WEIGHT")) {
-		ATTACK_WEIGHT = atoi(commands[command_num++]);
-	} else if(!strcmp(command, "TROPISM_WEIGHT")) {
-		TROPISM_WEIGHT = atoi(commands[command_num++]);
+	if(!strcmp(command, "LAZY_MARGIN_MIN")) {
+		LAZY_MARGIN_MIN = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "LAZY_MARGIN_MAX")) {
+		LAZY_MARGIN_MAX = atoi(commands[command_num++]);
 	} else if(!strcmp(command, "KNIGHT_OUTPOST")) {
 		KNIGHT_OUTPOST = atoi(commands[command_num++]);
 	} else if(!strcmp(command, "BISHOP_OUTPOST")) {
@@ -1751,14 +1751,20 @@ bool check_eval_params(char** commands,char* command,int& command_num) {
 		BISHOP_PAIR_EG = atoi(commands[command_num++]);
 	} else if(!strcmp(command, "EXCHANGE_BONUS")) {
 		EXCHANGE_BONUS = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "ATTACK_WEIGHT")) {
+		ATTACK_WEIGHT = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "TROPISM_WEIGHT")) {
+		TROPISM_WEIGHT = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "PAWN_GUARD")) {
+		PAWN_GUARD = atoi(commands[command_num++]);
 	} else {
 		return false;
 	}
 	return true;
 }
 void print_eval_params() {
-	print("feature option=\"ATTACK_WEIGHT -spin 16 0 64\"\n");
-	print("feature option=\"TROPISM_WEIGHT -spin 8 0 64\"\n");
+	print("feature option=\"LAZY_MARGIN_MIN -spin 150 0 2000\"\n");
+	print("feature option=\"LAZY_MARGIN_MAX -spin 300 0 2000\"\n");
 	print("feature option=\"KNIGHT_OUTPOST -spin 16 0 64\"\n");
     print("feature option=\"BISHOP_OUTPOST -spin 12 0 64\"\n");
 	print("feature option=\"KNIGHT_MOB -spin 16 0 64\"\n");
@@ -1784,6 +1790,9 @@ void print_eval_params() {
 	print("feature option=\"BISHOP_PAIR_MG -spin 16 0 64\"\n");
 	print("feature option=\"BISHOP_PAIR_EG -spin 16 0 64\"\n");
 	print("feature option=\"EXCHANGE_BONUS -spin 45 0 200\"\n");
+	print("feature option=\"PAWN_GUARD -spin 16 0 64\"\n");
+	print("feature option=\"ATTACK_WEIGHT -spin 16 0 64\"\n");
+	print("feature option=\"TROPISM_WEIGHT -spin 8 0 64\"\n");
 }
 
 #endif

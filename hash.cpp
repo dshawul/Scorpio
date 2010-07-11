@@ -145,8 +145,8 @@ int PROCESSOR::probe_hash(
 				return AVOID_NULL;
 
 			if(depth - 4 * UNITDEPTH <= h_depth
-				&& (flags == EXACT && score > alpha) 
-				|| (flags == LOWER && score >= beta))
+				&& ( (flags == EXACT && score > alpha) 
+				  || (flags == LOWER && score >= beta)))
 				return HASH_GOOD;
 
 			return HASH_HIT;

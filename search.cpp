@@ -1,9 +1,9 @@
 #include "scorpio.h"
 
-const int CHECK_DEPTH  = UNITDEPTH;
+const int CHECK_DEPTH = UNITDEPTH;
 int use_iid = 1;
 int use_singular = 0;
-int singular_margin = 30;
+int singular_margin = 40;
 
 /*
 * Update pv
@@ -74,7 +74,7 @@ bool SEARCHER::bitbase_cutoff() {
 	}
 #endif
 	/*
-	no cutoff
+	. no cutoff
 	*/
 	return false;
 }
@@ -268,7 +268,7 @@ int SEARCHER::be_selective() {
 			&& m_capture(hstack[hply - 2].move)
 			&& m_to(move) == m_to(hstack[hply - 2].move)
 			&& piece_cv[m_capture(move)] == piece_cv[m_capture(hstack[hply - 2].move)]
-		&& (pstack - 1)->score_st[(pstack - 1)->current_index - 1] > 0
+			&& (pstack - 1)->score_st[(pstack - 1)->current_index - 1] > 0
 			) {
 			extend(UNITDEPTH);
 		}
@@ -297,7 +297,6 @@ int SEARCHER::be_selective() {
 		extension = UNITDEPTH;
 
 	pstack->depth += extension; 
-
 	/*
 	pruning
 	*/
@@ -306,7 +305,7 @@ int SEARCHER::be_selective() {
 		&& (pstack - 1)->gen_status - 1 == GEN_NONCAPS
 		&& node_t != PV_NODE
 		) {
-			if(depth <= 3 && nmoves >= 24) 
+			if(depth <= 3 && nmoves >= 24)
 				return true;
 			int margin = 125 * depth;
 			margin = max(margin / 4, margin - 10 * nmoves);
@@ -335,11 +334,11 @@ int SEARCHER::be_selective() {
 					pstack->depth -= UNITDEPTH;
 					pstack->reduction += UNITDEPTH;
 					if((pstack - 1)->legal_moves >= 24 && pstack->depth >= 4 * UNITDEPTH) {
-						pstack->depth -= UNITDEPTH;
-						pstack->reduction += UNITDEPTH;
+						pstack->depth -= 2 * UNITDEPTH;
+						pstack->reduction += 2 * UNITDEPTH;
 						if((pstack - 1)->legal_moves >= 32 && pstack->depth >= 4 * UNITDEPTH) {
-							pstack->depth -= UNITDEPTH;
-							pstack->reduction += UNITDEPTH;
+							pstack->depth -= 2 * UNITDEPTH;
+							pstack->reduction += 2 * UNITDEPTH;
 						}
 					}
 				} else if((pstack - 1)->legal_moves > 16 && pstack->depth > UNITDEPTH) {
@@ -476,9 +475,10 @@ void search(SEARCHER* const sb) {
 								*/
 								if((sb->pstack - 1)->depth <= 5 * UNITDEPTH)
 									sb->pstack->depth = (sb->pstack - 1)->depth - 3 * UNITDEPTH;
-								else
+								else 
 									sb->pstack->depth = (sb->pstack - 1)->depth - 4 * UNITDEPTH;
 								sb->pstack->depth -= (min(3 , (score - (sb->pstack - 1)->beta) / 32) * (UNITDEPTH / 2));
+
 								/* Try double NULL MOVE in late endgames to avoid some bad
 								* play of KB(N)*K* endings. Idea from Vincent Diepeeven.
 								*/
@@ -521,7 +521,7 @@ void search(SEARCHER* const sb) {
 								sb->pstack->legal_moves++;
 							}
 							/*
-							singular search?
+							* singular search?
 							*/
 							if(sb->pstack->legal_moves == 1
 								&& (sb->pstack->search_state & ~MOVE_MASK) == SINGULAR_SEARCH) {
@@ -826,9 +826,8 @@ SPECIAL:
 					sb->pstack->search_state = SINGULAR_SEARCH;
 					break;
 				case SINGULAR_SEARCH:
-					if(sb->pstack->flag == UPPER) {
+					if(sb->pstack->flag == UPPER)
 						sb->pstack->singular = 1;
-					}
 					sb->pstack->search_state = NORMAL_MOVE;
 					break;
 			} 
