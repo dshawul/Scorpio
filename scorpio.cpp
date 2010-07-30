@@ -1,6 +1,6 @@
 #include "scorpio.h"
 
-#define VERSION "2.6.3"
+#define VERSION __TIME__
 
 /*
 all external variables declared here
@@ -67,7 +67,7 @@ const char *const PROCESSOR::message_str[] = {
 static global variables of SEARCHER
 */
 UBMP64 SEARCHER::root_score_st[MAX_MOVES];
-unsigned int SEARCHER::history[2][4096];
+unsigned int SEARCHER::history[14][64];
 CHESS_CLOCK SEARCHER::chess_clock;
 int SEARCHER::search_depth;
 int SEARCHER::start_time;

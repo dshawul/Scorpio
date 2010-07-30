@@ -1,9 +1,11 @@
 #include "scorpio.h"
 
 const int CHECK_DEPTH = UNITDEPTH;
+
 int use_iid = 1;
 int use_singular = 0;
-int singular_margin = 40;
+int singular_margin = 30;
+int null_move_margin = 0;
 
 /*
 * Update pv
@@ -330,26 +332,27 @@ int SEARCHER::be_selective() {
 			pstack->depth -= UNITDEPTH;
 			pstack->reduction += UNITDEPTH;
 			if(node_t != PV_NODE) {
-				if((pstack - 1)->legal_moves >= 8 && pstack->depth >= 4 * UNITDEPTH) {
+				if(nmoves >= 8 && pstack->depth >= 4 * UNITDEPTH) {
 					pstack->depth -= UNITDEPTH;
 					pstack->reduction += UNITDEPTH;
-					if((pstack - 1)->legal_moves >= 24 && pstack->depth >= 4 * UNITDEPTH) {
+					if(nmoves >= 24 && pstack->depth >= 4 * UNITDEPTH) {
 						pstack->depth -= 2 * UNITDEPTH;
 						pstack->reduction += 2 * UNITDEPTH;
-						if((pstack - 1)->legal_moves >= 32 && pstack->depth >= 4 * UNITDEPTH) {
+						if(nmoves >= 32 && pstack->depth >= 4 * UNITDEPTH) {
 							pstack->depth -= 2 * UNITDEPTH;
 							pstack->reduction += 2 * UNITDEPTH;
 						}
 					}
-				} else if((pstack - 1)->legal_moves > 16 && pstack->depth > UNITDEPTH) {
+				} else if(nmoves > 16 && pstack->depth > UNITDEPTH) {
 					pstack->depth -= UNITDEPTH;
 					pstack->reduction += UNITDEPTH;
 				}
-			} else if((pstack - 1)->legal_moves >= 28 && pstack->depth >= 4 * UNITDEPTH) {
+			} else if(nmoves >= 28 && pstack->depth >= 4 * UNITDEPTH) {
 				pstack->depth -= UNITDEPTH;
 				pstack->reduction += UNITDEPTH;
 			}
 	}
+
 	/*
 	end
 	*/
@@ -376,7 +379,7 @@ void search(SEARCHER* const sb) {
 #endif
 
 	register MOVE move;
-	register int score = 0,temp;
+	register int score = 0;
 #ifdef PARALLEL
 	register PSEARCHER sb = proc->searcher;
 	register int active_workers;
@@ -435,7 +438,6 @@ void search(SEARCHER* const sb) {
 							&& sb->pstack->node_type != ALL_NODE
 							&& sb->pstack->depth >= 8 * UNITDEPTH
 							&& sb->pstack->hash_flags == HASH_GOOD
-							&& !m_capture(sb->pstack->hash_move)
 							) {
 								sb->pstack->o_alpha = sb->pstack->alpha;
 								sb->pstack->o_beta = sb->pstack->beta;
@@ -460,7 +462,7 @@ void search(SEARCHER* const sb) {
 							&& sb->pstack->depth >= 2 * UNITDEPTH
 							&& sb->pstack->node_type != PV_NODE
 							&& sb->piece_c[sb->player]
-							&& (score = sb->eval()) >= sb->pstack->beta
+							&& (score = sb->eval()) >= sb->pstack->beta + null_move_margin
 							) {
 								sb->PUSH_NULL();
 								sb->pstack->extension = 0;
@@ -477,7 +479,8 @@ void search(SEARCHER* const sb) {
 									sb->pstack->depth = (sb->pstack - 1)->depth - 3 * UNITDEPTH;
 								else 
 									sb->pstack->depth = (sb->pstack - 1)->depth - 4 * UNITDEPTH;
-								sb->pstack->depth -= (min(3 , (score - (sb->pstack - 1)->beta) / 32) * (UNITDEPTH / 2));
+								if(score >= (sb->pstack - 1)->beta)
+									sb->pstack->depth -= (min(3 , (score - (sb->pstack - 1)->beta) / 32) * (UNITDEPTH / 2));
 
 								/* Try double NULL MOVE in late endgames to avoid some bad
 								* play of KB(N)*K* endings. Idea from Vincent Diepeeven.
@@ -767,26 +770,9 @@ IDLE_START:
 					}
 					if(score > sb->pstack->alpha) {
 						if(score >= sb->pstack->beta) {
-
-							/*killers and history*/
 							sb->pstack->flag = LOWER;
-
-							if(!is_cap_prom(move)) {
-								/*history*/
-								temp = (sb->pstack->depth);
-								temp = (sb->history[sb->player][MV8866(move)] += (temp * temp));
-								if(temp >= MAX_HIST) {
-									for(int i = 0;i < 4096;i++) {
-										sb->history[white][i] >>= 1;
-										sb->history[black][i] >>= 1;
-									}
-								}
-								/*killer moves*/
-								if(move != sb->pstack->killer[0]) {
-									sb->pstack->killer[1] = sb->pstack->killer[0];
-									sb->pstack->killer[0] = move;
-								}
-							}
+							if(!is_cap_prom(move))
+								sb->update_history(move);
 #ifdef PARALLEL		
 							/* stop workers*/
 							if(sb->master && sb->stop_ply == sb->ply)
@@ -1064,16 +1050,8 @@ MOVE SEARCHER::find_best() {
 	in_egbb = (egbb_is_loaded && all_man_c <= 5);
 	show_full_pv = false;
 	pre_calculate();
+	clear_history();
 
-	/*clear killers/history*/
-	for(i = 0;i < MAX_PLY;i++){
-		stack[i].killer[0] = stack[i].killer[1] = 0;
-		stack[i].hash_move = stack[i].best_move = 0;
-	}
-	for(i = 0;i < 4096;i++) {
-		history[white][i] = 0;
-		history[black][i] = 0;
-	}
 	/*generate root moves here*/
 	if(in_egbb) {
 		if(probe_bitbases(scorer));
@@ -1393,6 +1371,8 @@ bool check_search_params(char** commands,char* command,int& command_num) {
 		use_singular = atoi(commands[command_num++]);
 	} else if(!strcmp(command, "singular_margin")) {
 		singular_margin = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "null_move_margin")) {
+		null_move_margin = atoi(commands[command_num++]);
 	} else if(!strcmp(command, "smp_depth")) {
 		SMP_CODE(PROCESSOR::SMP_SPLIT_DEPTH = atoi(commands[command_num]));
 		command_num++;
@@ -1414,4 +1394,5 @@ void print_search_params() {
 	print("feature option=\"use_iid -check 1\"\n");
     print("feature option=\"use_singular -check 0\"\n");
 	print("feature option=\"singular_margin -spin 30 0 1000\"\n");
+	print("feature option=\"null_move_margin -spin 0 -1000 1000\"\n");
 }

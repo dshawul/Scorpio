@@ -587,6 +587,8 @@ typedef struct SEARCHER{
 	int   probe_eval_hash(const HASHKEY&,int&,int&,EVALREC&);
 	bool  san_mov(MOVE& move,char* s);
 	bool  build_book(char*,char*,int,int,int);
+	void  update_history(MOVE);
+	void  clear_history();
 	/*counts*/
 	UBMP64 nodes;
 	UBMP64 qnodes;
@@ -644,7 +646,7 @@ typedef struct SEARCHER{
 	static int resign_count;
 	static CHESS_CLOCK chess_clock;
 	static UBMP64 root_score_st[MAX_MOVES];
-	static CACHE_ALIGN unsigned int history[2][4096];
+	static CACHE_ALIGN unsigned int history[14][64];
 	/*
 	Bitbases
 	*/
@@ -1002,6 +1004,9 @@ extern const BITBOARD rank_mask[8];
 extern const BITBOARD file_mask[8];
 extern BITBOARD __unit_bb[0x80];
 extern BITBOARD in_between[64][64];
+extern const UBMP8 first_bit[0x100];
+extern const UBMP8 last_bit[0x100];
+extern const UBMP8 center_bit[0x100];
 /*
 Pradu's magic tables
 */

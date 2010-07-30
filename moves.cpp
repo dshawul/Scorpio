@@ -1370,6 +1370,9 @@ void SEARCHER::gen_checks(){
 /*
 incremental move generator
 */
+
+#define HISTORY(move) (history[m_piece(move)][SQ8864(m_to(move))])
+
 MOVE SEARCHER::get_move() {
 	register MOVE move;
 	register int i,start;
@@ -1405,7 +1408,7 @@ DO_AGAIN:
 						*pscore = see(move);
 						if(*pscore < 0) *pscore -= MAX_HIST;
 					} else {
-						*pscore = history[player][MV8866(move)] - MAX_HIST;
+						*pscore = HISTORY(move) - MAX_HIST;
 					}
 				}
 				pstack->gen_status = GEN_END;
@@ -1463,7 +1466,7 @@ DO_AGAIN:
 					if(is_castle(move)) {
 						pstack->score_st[i] = 1000;
 					} else {
-						pstack->score_st[i] = history[player][MV8866(move)] - MAX_HIST + 
+						pstack->score_st[i] = HISTORY(move) - MAX_HIST + 
 							400 + 2 * (pcsq[m_piece(move)][m_to(move)] - pcsq[m_piece(move)][m_from(move)]);
 					}
 				}
@@ -1548,7 +1551,7 @@ DO_AGAIN:
 						*pscore = see(move);
 						if(*pscore < 0) *pscore -= MAX_HIST;
 					} else {
-						*pscore = history[player][MV8866(move)] - MAX_HIST;
+						*pscore = HISTORY(move) - MAX_HIST;
 					}
 				}
 				pstack->gen_status = GEN_END;
@@ -1599,3 +1602,31 @@ DO_AGAIN:
 	pstack->current_index++;
 	return pstack->current_move;
 }
+/*
+* History and killers
+*/
+void SEARCHER::update_history(MOVE move) {
+	register int i,j,temp;
+	temp = (pstack->depth);
+	temp = (HISTORY(move) += (temp * temp));
+	if(temp >= MAX_HIST) {
+		for(i = 0;i < 14;i++)
+			for(j = 0;j < 64;j++)
+				history[i][j] >>= 1;
+	}
+	if(move != pstack->killer[0]) {
+		pstack->killer[1] = pstack->killer[0];
+		pstack->killer[0] = move;
+	}
+}
+void SEARCHER::clear_history() {
+	register int i,j;
+	for(i = 0;i < 14;i++)
+		for(j = 0;j < 64;j++)
+			history[i][j] = 0;
+	for(i = 0;i < MAX_PLY;i++){
+		stack[i].killer[0] = stack[i].killer[1] = 0;
+	}
+}
+
+#undef HISTORY
