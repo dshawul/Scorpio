@@ -129,9 +129,9 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 	}
 
 	/*
-	 * Processor 0 of host 0 does polling for input
-	 * from keypress or time limit.
-	 */
+	* Processor 0 of host 0 does polling for input
+	* from keypress or time limit.
+	*/
 	if(processor_id == 0 CLUSTER_CODE(&& PROCESSOR::host_id == 0)) {
 		if(nodes > time_check) {
 			time_check += poll_nodes;
@@ -258,20 +258,7 @@ int SEARCHER::be_selective() {
 		if(hstack[hply - 1].checks) {
 			extend(UNITDEPTH);
 		}
-		if((pstack - 1)->count == 1
-			&& hstack[hply - 2].checks
-			) {
-			extend(UNITDEPTH);
-		}
 		if(is_passed(move,HALFR)) { 
-			extend(UNITDEPTH);
-		}
-		if(m_capture(move)
-			&& m_capture(hstack[hply - 2].move)
-			&& m_to(move) == m_to(hstack[hply - 2].move)
-			&& piece_cv[m_capture(move)] == piece_cv[m_capture(hstack[hply - 2].move)]
-			&& (pstack - 1)->score_st[(pstack - 1)->current_index - 1] > 0
-			) {
 			extend(UNITDEPTH);
 		}
 	} else {
@@ -284,6 +271,19 @@ int SEARCHER::be_selective() {
 	}
 	if((pstack - 1)->mate_threat) {
 		extend(0);
+	}
+	if((pstack - 1)->count == 1
+		&& hstack[hply - 2].checks
+		) {
+			extend(UNITDEPTH / 2);
+	}
+	if(m_capture(move)
+		&& m_capture(hstack[hply - 2].move)
+		&& m_to(move) == m_to(hstack[hply - 2].move)
+		&& piece_cv[m_capture(move)] == piece_cv[m_capture(hstack[hply - 2].move)]
+	&& (pstack - 1)->score_st[(pstack - 1)->current_index - 1] > 0
+		) {
+			extend(UNITDEPTH);
 	}
 	if(m_capture(move)
 		&& piece_c[white] + piece_c[black] == 0
@@ -462,7 +462,7 @@ void search(SEARCHER* const sb) {
 							&& sb->pstack->depth >= 2 * UNITDEPTH
 							&& sb->pstack->node_type != PV_NODE
 							&& sb->piece_c[sb->player]
-							&& (score = sb->eval()) >= sb->pstack->beta + null_move_margin
+						&& (score = sb->eval()) >= sb->pstack->beta + null_move_margin
 							) {
 								sb->PUSH_NULL();
 								sb->pstack->extension = 0;
@@ -471,14 +471,9 @@ void search(SEARCHER* const sb) {
 								sb->pstack->beta = -(sb->pstack - 1)->beta + 1;
 								sb->pstack->node_type = (sb->pstack - 1)->next_node_type;
 								/*
-								* [ Smooth scaling from Dann Corbit ]
-								* Idea : Use null move reduction factor based  on search depth and deviation 
-								* of current evaluation score from beta. 
+								* Smooth scaling from Dann Corbit 
 								*/
-								if((sb->pstack - 1)->depth <= 5 * UNITDEPTH)
-									sb->pstack->depth = (sb->pstack - 1)->depth - 3 * UNITDEPTH;
-								else 
-									sb->pstack->depth = (sb->pstack - 1)->depth - 4 * UNITDEPTH;
+								sb->pstack->depth = (sb->pstack - 1)->depth - 3 * UNITDEPTH;
 								if(score >= (sb->pstack - 1)->beta)
 									sb->pstack->depth -= (min(3 , (score - (sb->pstack - 1)->beta) / 32) * (UNITDEPTH / 2));
 
@@ -1340,7 +1335,7 @@ MOVE SEARCHER::find_best() {
 			int(100 * (lazy_evals/float(full_evals + lazy_evals))),
 			splits,bad_splits,egbb_probes);
 	}
-	
+
 #ifdef CLUSTER
 	/*relax hosts*/
 	for(i = 1;i < PROCESSOR::n_hosts;i++)
@@ -1392,7 +1387,7 @@ void print_search_params() {
 	print("feature option=\"cluster_depth -spin 1 8 16\"\n");
 	print("feature option=\"message_poll_nodes -spin 200 10 20000\"\n");
 	print("feature option=\"use_iid -check 1\"\n");
-    print("feature option=\"use_singular -check 0\"\n");
+	print("feature option=\"use_singular -check 0\"\n");
 	print("feature option=\"singular_margin -spin 30 0 1000\"\n");
 	print("feature option=\"null_move_margin -spin 0 -1000 1000\"\n");
 }
