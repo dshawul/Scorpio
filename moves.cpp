@@ -271,7 +271,7 @@ Generate captures
 			*pmove++ = tmove | (to<<8) | (board[to]<<20);               \
 			bb &= ~BB(to);                                              \
 		}                                                               \
-};
+}
 
 void SEARCHER::gen_caps() {
 	register BITBOARD bb;
@@ -471,14 +471,14 @@ Generate non captures
 		to = from + dir;										\
 		if(board[to] == blank)									\
 			*pmove++ = tmove | (to<<8);							\
-};
+}
 #define BRQ_NONCAP(dir) {										\
 	    to = from + dir;										\
 		while(board[to] == blank) {								\
 			*pmove++ = tmove | (to<<8);							\
 			to += dir;											\
 		}														\
-};
+}
 
 void SEARCHER::gen_noncaps() {
 	MOVE* pmove = &pstack->move_st[pstack->count],*spmove = pmove,tmove;
@@ -714,7 +714,7 @@ Generate check evastions
 		 	else if(PCOLOR(board[to]) == opponent)														\
 				*pmove++ = tmove | (to<<8) | (board[to]<<20);											\
 		}																								\
-};
+}
 
 void SEARCHER::gen_evasions() {
 	MOVE* pmove = &pstack->move_st[pstack->count],*spmove = pmove,tmove;
@@ -1100,14 +1100,14 @@ Generate check moves
             if(board[to] == blank)														\
 			    *pmove++ = tmove | (to<<8);												\
 		}																				\
-};
+}
 #define K_CHK(dir) {																	\
 		if(abs(pinned) != abs(dir)) {													\
 			to = from + dir;															\
             if(board[to] == blank)														\
 			    *pmove++ = tmove | (to<<8);												\
 		}																				\
-};
+}
 #define BRQ_CHK(moving,dir) {															\
 	    to = from + dir;																\
         while(board[to] == blank) {														\
@@ -1116,7 +1116,7 @@ Generate check moves
 			   *pmove++ = tmove | (to<<8);												\
             to += dir;																	\
 		}																				\
-};
+}
 
 void SEARCHER::gen_checks(){
 	MOVE* pmove = &pstack->move_st[pstack->count],*spmove = pmove,tmove;

@@ -106,7 +106,7 @@ int SEARCHER::probe_bitbases(int& score) {
 		  current = current->next;				\
 		  count++;								\
 	   }										\
-	};
+	}
 	
 	ADD_PIECE(plist[wpawn],_WPAWN);
 	ADD_PIECE(plist[wknight],_WKNIGHT);

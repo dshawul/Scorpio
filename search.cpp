@@ -3,9 +3,19 @@
 const int CHECK_DEPTH = UNITDEPTH;
 
 int use_iid = 1;
+int futility_margin = 125;
 int use_singular = 0;
 int singular_margin = 30;
-int null_move_margin = 0;
+
+#define extend(value) {                      \
+	extension += value;                      \
+	pstack->extension = 1;                   \
+}
+
+#define reduce(value) {                      \
+	pstack->depth -= value;                  \
+	pstack->reduction += value;              \
+}
 
 /*
 * Update pv
@@ -90,8 +100,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 		qsearch();
 		return true;
 	}
-
-	/*initialize node*/
+    /*initialize node*/
 	nodes++;
 
 	pstack->gen_status = GEN_START;
@@ -249,11 +258,6 @@ int SEARCHER::be_selective() {
 	/*
 	extend
 	*/
-#define extend(ext) {                      \
-	extension += ext;                      \
-	pstack->extension = 1;                 \
-};
-
 	if(node_t == PV_NODE) {
 		if(hstack[hply - 1].checks) {
 			extend(UNITDEPTH);
@@ -275,15 +279,14 @@ int SEARCHER::be_selective() {
 	if((pstack - 1)->count == 1
 		&& hstack[hply - 2].checks
 		) {
-			extend(UNITDEPTH / 2);
+		extend(UNITDEPTH / 2);
 	}
 	if(m_capture(move)
 		&& m_capture(hstack[hply - 2].move)
 		&& m_to(move) == m_to(hstack[hply - 2].move)
 		&& piece_cv[m_capture(move)] == piece_cv[m_capture(hstack[hply - 2].move)]
-	&& (pstack - 1)->score_st[(pstack - 1)->current_index - 1] > 0
-		) {
-			extend(UNITDEPTH);
+	) {
+		extend(UNITDEPTH);
 	}
 	if(m_capture(move)
 		&& piece_c[white] + piece_c[black] == 0
@@ -291,9 +294,8 @@ int SEARCHER::be_selective() {
 		) {
 			extend(UNITDEPTH);
 	}
-	if((pstack - 1)->legal_moves == 1
-		&& (pstack - 1)->singular) {
-			extend(UNITDEPTH);
+	if(nmoves == 1 && (pstack - 1)->singular) {
+		extend(UNITDEPTH);
 	}
 	if(extension > UNITDEPTH)
 		extension = UNITDEPTH;
@@ -307,9 +309,9 @@ int SEARCHER::be_selective() {
 		&& (pstack - 1)->gen_status - 1 == GEN_NONCAPS
 		&& node_t != PV_NODE
 		) {
-			if(depth <= 3 && nmoves >= 24)
+			if(depth <= 2 && nmoves >= 8)
 				return true;
-			int margin = 125 * depth;
+			int margin = futility_margin * depth;
 			margin = max(margin / 4, margin - 10 * nmoves);
 			score = -eval(DO_LAZY);
 			if(score + margin < (pstack - 1)->alpha) {
@@ -323,33 +325,23 @@ int SEARCHER::be_selective() {
 	/*
 	late move reduction
 	*/
-	const int lmr_start = ((node_t == PV_NODE) ? 8 : 2);
 	if(pstack->depth > UNITDEPTH 
 		&& !pstack->extension
 		&& (pstack - 1)->gen_status - 1 == GEN_NONCAPS
-		&& nmoves >= lmr_start
+		&& nmoves >= 2
 		) {
-			pstack->depth -= UNITDEPTH;
-			pstack->reduction += UNITDEPTH;
-			if(node_t != PV_NODE) {
-				if(nmoves >= 8 && pstack->depth >= 4 * UNITDEPTH) {
-					pstack->depth -= UNITDEPTH;
-					pstack->reduction += UNITDEPTH;
+			reduce(UNITDEPTH);
+			if(nmoves >= 4 && pstack->depth > UNITDEPTH) {
+				reduce(UNITDEPTH);
+				if(nmoves >= 16 && pstack->depth >= 4 * UNITDEPTH) {
+					reduce(UNITDEPTH);
 					if(nmoves >= 24 && pstack->depth >= 4 * UNITDEPTH) {
-						pstack->depth -= 2 * UNITDEPTH;
-						pstack->reduction += 2 * UNITDEPTH;
+						reduce(2 * UNITDEPTH);
 						if(nmoves >= 32 && pstack->depth >= 4 * UNITDEPTH) {
-							pstack->depth -= 2 * UNITDEPTH;
-							pstack->reduction += 2 * UNITDEPTH;
+							reduce(2 * UNITDEPTH);
 						}
 					}
-				} else if(nmoves > 16 && pstack->depth > UNITDEPTH) {
-					pstack->depth -= UNITDEPTH;
-					pstack->reduction += UNITDEPTH;
 				}
-			} else if(nmoves >= 28 && pstack->depth >= 4 * UNITDEPTH) {
-				pstack->depth -= UNITDEPTH;
-				pstack->reduction += UNITDEPTH;
 			}
 	}
 
@@ -462,7 +454,7 @@ void search(SEARCHER* const sb) {
 							&& sb->pstack->depth >= 2 * UNITDEPTH
 							&& sb->pstack->node_type != PV_NODE
 							&& sb->piece_c[sb->player]
-						&& (score = sb->eval()) >= sb->pstack->beta + null_move_margin
+						&& (score = sb->eval()) >= sb->pstack->beta
 							) {
 								sb->PUSH_NULL();
 								sb->pstack->extension = 0;
@@ -473,7 +465,7 @@ void search(SEARCHER* const sb) {
 								/*
 								* Smooth scaling from Dann Corbit 
 								*/
-								sb->pstack->depth = (sb->pstack - 1)->depth - 3 * UNITDEPTH;
+								sb->pstack->depth = (sb->pstack - 1)->depth - 4 * UNITDEPTH;
 								if(score >= (sb->pstack - 1)->beta)
 									sb->pstack->depth -= (min(3 , (score - (sb->pstack - 1)->beta) / 32) * (UNITDEPTH / 2));
 
@@ -724,12 +716,11 @@ IDLE_START:
 						goto NEW_NODE;
 				}
 				/*research with full depth*/
-				if(sb->pstack->reduction
-					&& score >= (sb->pstack - 1)->beta 
+				if(sb->pstack->reduction > 0
+					&& score > (sb->pstack - 1)->alpha
 					) {
-						sb->pstack->depth += sb->pstack->reduction;
-						sb->pstack->reduction = 0;
-
+						sb->pstack->depth += UNITDEPTH;
+						sb->pstack->reduction -= UNITDEPTH;
 						sb->pstack->alpha = -(sb->pstack - 1)->beta;
 						sb->pstack->beta = -(sb->pstack - 1)->alpha;
 						sb->pstack->node_type = (sb->pstack - 1)->next_node_type;
@@ -934,44 +925,49 @@ void SEARCHER::root_search() {
 
 		/*set next ply's depth*/	
 		pstack->depth = (pstack - 1)->depth - UNITDEPTH;
-		if(i > 2
+		if(i >= 3
 			&& !hstack[hply - 1].checks
 			&& !m_capture(move)
-			&& !is_passed(move,HALFR)) {
-				pstack->depth -= UNITDEPTH;
+			&& !is_passed(move,HALFR)
+			) {
+				reduce(UNITDEPTH);
 		}
 
-		/*set search window and do search*/
+		/*search call*/
+#define SEARCH(type) {                                     \
+	if(type == PV_NODE) {                                  \
+		pstack->alpha = -(pstack - 1)->beta;               \
+		pstack->beta = -(pstack - 1)->alpha;               \
+	} else {                                               \
+		pstack->alpha = -(pstack - 1)->alpha - 1;          \
+		pstack->beta = -(pstack - 1)->alpha;               \
+	}                                                      \
+	pstack->node_type = type;                              \
+	pstack->search_state = NULL_MOVE;                      \
+	search();                                              \
+	if(abort_search) return;                               \
+	score = -pstack->best_score;                           \
+}
 		if(i == 0) {
-			pstack->alpha = -(pstack - 1)->beta;
-			pstack->beta = -(pstack - 1)->alpha;
-			pstack->node_type = PV_NODE;
-			pstack->search_state = NULL_MOVE;
-			search();
-			if(abort_search) return;
-			score = -pstack->best_score;
+			SEARCH(PV_NODE);
 		} else {
-			pstack->alpha = -(pstack - 1)->alpha - 1;
-			pstack->beta = -(pstack - 1)->alpha;
-			pstack->node_type = CUT_NODE;
-			pstack->search_state = NULL_MOVE;
-			search();
-			if(abort_search) return;
-			score = -pstack->best_score;
+			SEARCH(CUT_NODE);
+			/*research with full depth*/
+			while(pstack->reduction > 0
+				&& score > (pstack - 1)->alpha
+				) {
+					reduce(-UNITDEPTH);
+					SEARCH(CUT_NODE);
+			}
 			/*research*/
 			if(score > (pstack - 1)->alpha 
 				&& score < (pstack - 1)->beta
 				) {
-					pstack->alpha = -(pstack - 1)->beta;
-					pstack->beta = -(pstack - 1)->alpha;
-					pstack->node_type = PV_NODE;
-					pstack->search_state = NULL_MOVE;
-					search();
-					if(abort_search) return;
-					score = -pstack->best_score;
+					SEARCH(PV_NODE);
 			}
 		}
 
+		/*undo move*/
 		POP_MOVE();
 
 		root_score_st[i] += (nodes - start_nodes);
@@ -1362,12 +1358,12 @@ MOVE SEARCHER::find_best() {
 bool check_search_params(char** commands,char* command,int& command_num) {
 	if(!strcmp(command, "use_iid")) {
 		use_iid = atoi(commands[command_num++]);
-	} else if(!strcmp(command, "use_iid")) {
+	} else if(!strcmp(command, "futility_margin")) {
+		futility_margin = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "use_singular")) {
 		use_singular = atoi(commands[command_num++]);
 	} else if(!strcmp(command, "singular_margin")) {
 		singular_margin = atoi(commands[command_num++]);
-	} else if(!strcmp(command, "null_move_margin")) {
-		null_move_margin = atoi(commands[command_num++]);
 	} else if(!strcmp(command, "smp_depth")) {
 		SMP_CODE(PROCESSOR::SMP_SPLIT_DEPTH = atoi(commands[command_num]));
 		command_num++;
@@ -1389,5 +1385,5 @@ void print_search_params() {
 	print("feature option=\"use_iid -check 1\"\n");
 	print("feature option=\"use_singular -check 0\"\n");
 	print("feature option=\"singular_margin -spin 30 0 1000\"\n");
-	print("feature option=\"null_move_margin -spin 0 -1000 1000\"\n");
+	print("feature option=\"futility_margin -spin 125 0 1000\"\n");
 }

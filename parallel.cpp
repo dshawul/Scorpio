@@ -457,7 +457,7 @@ void PROCESSOR::abort_hosts() {
 	ps1->flag       = ps2->flag;          \
 	ps1->alpha      = ps2->alpha;         \
 	ps1->beta       = ps2->beta;          \
-};
+}
 
 /*
 * Get SMP split move
@@ -662,7 +662,7 @@ int SEARCHER::check_split() {
 			/*send them off to work*/
 			if(n_workers CLUSTER_CODE(|| n_host_workers)) {
 				splits++;
-#ifdef _DEBUG
+#if defined(_DEBUG) && defined(CLUSTER)
 				print("[%d : %d] Split %d at [%d %d]\n",PROCESSOR::host_id,
 					processor_id,splits,ply,pstack->depth);
 #endif

@@ -114,7 +114,7 @@ static evaluator
 */
 #define RETURN() {                 \
 	return pstack->actual_score;   \
-};
+}
 
 /*max material count is 64 {actually 62}*/
 #define   MAX_MATERIAL    64
@@ -212,9 +212,8 @@ int SEARCHER::eval(int lazy) {
 	lazy evaluation - 1
 	*/
 	if(eval_lazy_exit(lazy,LAZY_MARGIN_MAX,phase,
-		w_score,b_score,w_win_chance,b_win_chance)) {
+		w_score,b_score,w_win_chance,b_win_chance))
 		RETURN();
-	}
 	/*
 	check_eval hash table
 	*/
@@ -258,9 +257,8 @@ int SEARCHER::eval(int lazy) {
 	lazy evaluation - 2
 	*/
 	if(eval_lazy_exit(lazy,LAZY_MARGIN_MIN,phase,
-		w_score,b_score,w_win_chance,b_win_chance)) {
+		w_score,b_score,w_win_chance,b_win_chance))
 		RETURN();
-	}
 	/*
 	pieces
 	*/

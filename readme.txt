@@ -1,29 +1,13 @@
-Scorpio 2.6
+Scorpio 2.7
 -----------
 
 Changes
 -------
-    * Official release of cluster version of scorpio. Many changes have been
-      made since the last beta release. I can not list all of those changes here
-      so I will let those interesed to go look the commit history here http://github.com/dshawul
-      Every change I made to scorpio is recored in there from now on.
-    
-    * The serial version of scorpio is also worked upon so I expect a couple of elo
-      points stronger but not by much. All of my changes are search changes (eval is identical
-      to previous version). I want to see how far I can go with this before I tune/add evaluation 
-      features.
-
-           - Major bug in SEE (have been there since 2.5) fixed.
-           - 0 check extensions in search.
-           - Modified futility pruning
-	    - Double reductions at PV nodes too
-           - Max aspiration window of 200 and probably many other small changes
-             For detailed changes look at the commits ...
-
-    * Evaluation is untouched but I have set it up well for my next project , which is tuning.
-      Many parameters are modifiable using the new winboard "options feature". Scorpio can be 
-      configured from ini file, command line or the new winboard options window.. 
-
+    * All changes recored at http://github.com/dshawul/scorpio.
+      Last minute changes include aggressive futility & lmr. Cluster time
+      is very hard to get nowadays so this is untested. The changes I made in August
+      were positive but the prunings could wash it all up. Fingers crossed. 
+      
 		
 Thanks
 ------
