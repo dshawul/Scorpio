@@ -7,6 +7,7 @@ Changes
       Last minute changes include aggressive futility & lmr. Cluster time
       is very hard to get nowadays so this is untested. The changes I made in August
       were positive but the prunings could wash it all up. Fingers crossed. 
+    * Failed singular extension tests
       
 		
 Thanks
