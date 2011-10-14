@@ -16,7 +16,7 @@ Useful to compile minimal scorpio engine.
 #define BOOK_CREATE
 #define EGBB
 #define PARALLEL
-//#define CLUSTER
+#define CLUSTER
 //#define HAS_POPCNT
 //#define TUNE
 /*
@@ -231,7 +231,6 @@ Squares are of 0x88 type
 /*
 piece and color
 */
-#define COLOR(x)         (col_tab[x])
 #define PCOLOR(x)        ((x) > 6)
 #define PIECE(x)         (pic_tab[x]) 
 #define COMBINE(c,x)     ((x) + (c) * 6) 
@@ -239,18 +238,22 @@ piece and color
 /*
 others
 */
-#undef max
-#undef min
-#define max(a, b)        (((a) > (b)) ? (a) : (b))
-#define min(a, b)        (((a) < (b)) ? (a) : (b))
+#define MAX(a, b)        (((a) > (b)) ? (a) : (b))
+#define MIN(a, b)        (((a) < (b)) ? (a) : (b))
+#define ABS(a)           abs(a)
+FORCEINLINE int DISTANCE(int f1,int r1,int f2,int r2) { 
+	return MAX(ABS(f1 - f2),ABS(r1 - r2)); 
+}
+#define f_distance(x,y)  ABS(file(x)-file(y))
+#define r_distance(x,y)  ABS(rank(x)-rank(y))
+#define distance(x,y)    MAX(f_distance(x,y),r_distance(x,y))
+#define is_light(x)      ((file(x)+rank(x)) & 1)
+#define is_light64(x)    ((file64(x)+rank64(x)) & 1)
+
+/*hash keys*/
 #define PC_HKEY(p,sq)    (piece_hkey[p][SQ8864(sq)])
 #define EP_HKEY(ep)      (ep_hkey[file(ep)])
 #define CAST_HKEY(c)     (cast_hkey[c])
-#define f_distance(x,y)  abs(file(x)-file(y))
-#define r_distance(x,y)  abs(rank(x)-rank(y))
-#define distance(x,y)    max(f_distance(x,y),r_distance(x,y))
-#define is_light(x)      ((file(x)+rank(x)) & 1)
-#define is_light64(x)    ((file64(x)+rank64(x)) & 1)
 /*
 type definitions
 */
@@ -468,7 +471,7 @@ struct MERGE_MESSAGE {
 };
 /*
  * The fen string makes it difficult to use
- * fixed size struct. So use special datat type for that.
+ * fixed size struct. So use special data type for that.
  */
 struct INIT_MESSAGE {
 	char fen[MAX_FEN_STR];
@@ -511,7 +514,7 @@ typedef struct SEARCHER{
 	HASHKEY hash_key;
 	HASHKEY pawn_hash_key;
 	SCORE pcsq_score[2];
-	int temp_board[224];
+	int temp_board[192];
 	PLIST list[128];
 	PLIST plist[15];
 	HIST_STACK hstack[MAX_HSTACK];
@@ -843,7 +846,6 @@ extern HASHKEY ep_hkey[8];
 extern HASHKEY cast_hkey[16];
 extern const int piece_cv[14];
 extern const int piece_see_v[14];
-extern const int col_tab[14];
 extern const int pic_tab[14];
 extern const int pawn_dir[2];
 extern SQATTACK  temp_sqatt[0x101];

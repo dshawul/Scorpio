@@ -121,11 +121,14 @@ static evaluator
 
 int SEARCHER::eval(int lazy) {
 	register SCORE w_score,b_score;
-	register int w_ksq = plist[wking]->sq;
-    register int b_ksq = plist[bking]->sq;
-	int w_win_chance = 8,b_win_chance = 8;
-	int phase = min(MAX_MATERIAL,piece_c[white] + piece_c[black]);
-	int temp;
+	int w_ksq = plist[wking]->sq;
+    int b_ksq = plist[bking]->sq;
+	int fw_ksq = file(w_ksq), rw_ksq = rank(w_ksq);
+	int fb_ksq = file(b_ksq), rb_ksq = rank(b_ksq);
+	int w_win_chance = 8,b_win_chance = 8,temp;
+	int phase = piece_c[white] + piece_c[black];
+
+	phase = MIN(phase,MAX_MATERIAL);
 	
 	/*reset*/
 	memset(&pstack->evalrec,0,sizeof(pstack->evalrec));
@@ -301,7 +304,7 @@ int SEARCHER::eval(int lazy) {
 
 		/*attack*/
         if(eval_w_attack) {
-			w_tropism += piece_tropism[distance(c_sq, b_ksq)];
+			w_tropism += piece_tropism[DISTANCE(f,r,fb_ksq,rb_ksq)];
 			bb &= bk_bb;
 			if(bb) {
 				w_attack += popcnt_sparse(bb);
@@ -344,7 +347,7 @@ int SEARCHER::eval(int lazy) {
 
 		/*attack*/
 		if(eval_b_attack) {
-			b_tropism += piece_tropism[distance(c_sq, w_ksq)];
+			b_tropism += piece_tropism[DISTANCE(f,r,fw_ksq,rw_ksq)];
 			bb &= wk_bb;
 			if(bb) {
 				b_attack += popcnt_sparse(bb);
@@ -388,7 +391,7 @@ int SEARCHER::eval(int lazy) {
 
 		/*attack*/
 		if(eval_w_attack) {
-			w_tropism += piece_tropism[distance(c_sq, b_ksq)];
+			w_tropism += piece_tropism[DISTANCE(f,r,fb_ksq,rb_ksq)];
 			bb &= bk_bb;
 			if(bb) {
 				w_attack += popcnt_sparse(bb);
@@ -430,7 +433,7 @@ int SEARCHER::eval(int lazy) {
 
 		/*attack*/
 		if(eval_b_attack) {
-			b_tropism += piece_tropism[distance(c_sq, w_ksq)];
+			b_tropism += piece_tropism[DISTANCE(f,r,fw_ksq,rw_ksq)];
 			bb &= wk_bb;
 			if(bb) {
 				b_attack += popcnt_sparse(bb);
@@ -476,7 +479,7 @@ int SEARCHER::eval(int lazy) {
 
 		/*attack*/
 		if(eval_w_attack) {
-			w_tropism += piece_tropism[distance(c_sq, b_ksq)];
+			w_tropism += piece_tropism[DISTANCE(f,r,fb_ksq,rb_ksq)];
 			bb &= bk_bb;
 			if(bb) {
 				w_attack += (popcnt_sparse(bb) * 2);
@@ -528,7 +531,7 @@ int SEARCHER::eval(int lazy) {
 
 		/*attack*/
 		if(eval_b_attack) {
-			b_tropism += piece_tropism[distance(c_sq, w_ksq)];
+			b_tropism += piece_tropism[DISTANCE(f,r,fw_ksq,rw_ksq)];
 			bb &= wk_bb;
 			if(bb) {
 				b_attack += (popcnt_sparse(bb) * 2);
@@ -583,7 +586,7 @@ int SEARCHER::eval(int lazy) {
 
 		/*attack*/
 		if(eval_w_attack) {
-			w_tropism += queen_tropism[distance(c_sq, b_ksq)];
+			w_tropism += queen_tropism[DISTANCE(f,r,fb_ksq,rb_ksq)];
 			bb &= bk_bb;
 			if(bb) {
 				w_attack += (popcnt_sparse(bb) * 4);
@@ -612,7 +615,7 @@ int SEARCHER::eval(int lazy) {
 
 		/*attack*/
 		if(eval_b_attack) {
-			b_tropism += queen_tropism[distance(c_sq, w_ksq)]; 
+			b_tropism += queen_tropism[DISTANCE(f,r,fw_ksq,rw_ksq)]; 
 			bb &= wk_bb;
 			if(bb) {
 				b_attack += (popcnt_sparse(bb) * 4);
@@ -849,7 +852,7 @@ void SEARCHER::eval_pawn_cover(int eval_w_attack,int eval_b_attack,
 		pawnrec.b_s_attack -= (10 * defence); 
 		
 		/*pawn storm on white king*/
-		if(abs(file(w_ksq) - file(b_ksq)) > 2)  {
+		if(ABS(file(w_ksq) - file(b_ksq)) > 2)  {
 			register int r1,r2,r3;
 			if(((r1 = first_bit[bf_pawns[f]]) == 8) || (r1 <= r + 1)) r1 = RANK8;
 			if(((r2 = (f == FILEA ? 8 : first_bit[bf_pawns[f - 1]])) == 8) || (r2 <= r + 1)) r2 = RANK8;
@@ -937,7 +940,7 @@ void SEARCHER::eval_pawn_cover(int eval_w_attack,int eval_b_attack,
 		pawnrec.w_s_attack -= (10 * defence);
 		
 		/*pawn storm on black king*/
-		if(abs(file(w_ksq) - file(b_ksq)) > 2)  {
+		if(ABS(file(w_ksq) - file(b_ksq)) > 2)  {
 			register int r1,r2,r3;
 			if(((r1 = last_bit[wf_pawns[f]]) == 8) || (r1 >= r - 1)) r1 = RANK1;
 			if(((r2 = (f == FILEA ? 8 : last_bit[wf_pawns[f - 1]])) == 8) || (r2 >= r - 1)) r2 = RANK1;
@@ -1196,10 +1199,10 @@ int SEARCHER::eval_passed_pawns(UBMP8* wf_pawns,UBMP8* bf_pawns,UBMP8& all_pawn_
         
 		if(piece_c[black] < 9) {
 			passed_score += (rank_score * f_distance(b_ksq,sq)) / 8;
-		    passed_score += (rank_score * (9 - distance(w_ksq,sq))) / 12;
+		    passed_score += (rank_score * (9 - distance(sq,w_ksq))) / 12;
 		} else {
 			passed_score += (rank_score * f_distance(b_ksq,sq)) / 12;
-            passed_score += (rank_score * (9 - distance(w_ksq,sq))) / 16;
+            passed_score += (rank_score * (9 - distance(sq,w_ksq))) / 16;
 		}
 		
 		/*opponent has no pieces*/
@@ -1212,7 +1215,7 @@ int SEARCHER::eval_passed_pawns(UBMP8* wf_pawns,UBMP8* bf_pawns,UBMP8& all_pawn_
 			if(r == RANK2 && board[sq + UU] == blank && board[sq + UUU] == blank) 
 				qdist--;
 			if(qdist < distance(b_ksq,A8 + f)) {
-				w_best_qdist = min(qdist,w_best_qdist);
+				w_best_qdist = MIN(qdist,w_best_qdist);
 			}
 			pstack->evalrec.indicator |= AVOID_LAZY;
 		}
@@ -1257,7 +1260,7 @@ int SEARCHER::eval_passed_pawns(UBMP8* wf_pawns,UBMP8* bf_pawns,UBMP8& all_pawn_
 			if(r == RANK7 && board[sq + DD] == blank && board[sq + DDD] == blank) 
 				qdist--;
 			if(qdist < distance(w_ksq,A1 + f)) {
-				b_best_qdist = min(qdist,b_best_qdist);
+				b_best_qdist = MIN(qdist,b_best_qdist);
 			}
 			pstack->evalrec.indicator |= AVOID_LAZY;
 		}
@@ -1275,8 +1278,8 @@ int SEARCHER::eval_passed_pawns(UBMP8* wf_pawns,UBMP8* bf_pawns,UBMP8& all_pawn_
 	}
     /*king close to pawn center*/
 	if(!piece_c[white] || !piece_c[black]) {
-		int wclos = (7 - abs(center_bit[all_pawn_f] - file(w_ksq)));
-		int bclos = (7 - abs(center_bit[all_pawn_f] - file(b_ksq)));
+		int wclos = (7 - ABS(center_bit[all_pawn_f] - file(w_ksq)));
+		int bclos = (7 - ABS(center_bit[all_pawn_f] - file(b_ksq)));
 		if(wclos > bclos) w_score += king_to_pawns[wclos - bclos];
 		else b_score += king_to_pawns[bclos - wclos];
 	}
@@ -1544,7 +1547,7 @@ void SEARCHER::eval_win_chance(SCORE& w_score,SCORE& b_score,int& w_win_chance,i
 		&& w_bishop_c == 1 
 		&& b_bishop_c == 1 
 		&& is_light(plist[wbishop]->sq) != is_light(plist[bbishop]->sq)
-		&& abs(w_pawn_c - b_pawn_c) <= 2
+		&& ABS(w_pawn_c - b_pawn_c) <= 2
 		) {
 		if(w_piece_value_c + b_piece_value_c == 6) {
 			if(w_pawn_c >= b_pawn_c)

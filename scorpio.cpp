@@ -1,16 +1,12 @@
 #include "scorpio.h"
 
-#define VERSION 2.7
+#define VERSION __TIME__
 
 /*
 all external variables declared here
 */
 const int pawn_dir[2] = {
 	UU,DD
-};
-const int col_tab[14] = {
-	neutral,white,white,white,white,white,white,
-	black,black,black,black,black,black,neutral
 };
 const int pic_tab[14] = {
 	blank,king,queen,rook,bishop,knight,pawn,
@@ -376,9 +372,9 @@ bool parse_commands(char** commands) {
 		} else if(!strcmp(command,"level")) {
 			SEARCHER::chess_clock.mps = atoi(commands[command_num++]);
 			if(strstr(commands[command_num],":")) {
-				int min,sec;
-				sscanf(commands[command_num],"%d:%d",&min,&sec);
-				SEARCHER::chess_clock.p_time = 60000 * min + 1000 * sec;
+				int mn,sec;
+				sscanf(commands[command_num],"%d:%d",&mn,&sec);
+				SEARCHER::chess_clock.p_time = 60000 * mn + 1000 * sec;
 				command_num++;
 			} else {
 				SEARCHER::chess_clock.p_time = 60000 * atoi(commands[command_num++]);
@@ -493,7 +489,7 @@ bool parse_commands(char** commands) {
 				mt = get_number_of_cpus();
 			else
 				mt = atoi(commands[command_num]);
-			mt = min(mt, MAX_CPUS);
+			mt = MIN(mt, MAX_CPUS);
 			init_smp(mt);
 			print("processors [%d]\n",PROCESSOR::n_processors);
 #endif

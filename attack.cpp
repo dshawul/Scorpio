@@ -136,7 +136,7 @@ int SEARCHER::checks(MOVE move,int& rev_check) const {
 	/*revealed check*/
 	step = sqatt[from - ksq].step;
 	mvstep = sqatt[to - from].step;
-	if(step && abs(step) != abs(mvstep)) {
+	if(step && ABS(step) != ABS(mvstep)) {
 		if(blocked(ksq,from) == 0) {
 			sq = from + step;
 			while(board[sq] == blank) sq += step;
@@ -171,9 +171,9 @@ int SEARCHER::checks(MOVE move,int& rev_check) const {
 	} else if(is_ep(move)) {
 		int epsq = to + ((to > from) ? DD:UU);
 		step = sqatt[epsq - ksq].step;
-		if(step && abs(step) != UU) {
+		if(step && ABS(step) != UU) {
 			int nsq,fsq;
-			if(abs(step) == RR){
+			if(ABS(step) == RR){
 				if(distance(from,ksq) < distance(epsq,ksq)) {
 					nsq = from;
 					fsq = epsq;
@@ -219,7 +219,7 @@ int SEARCHER::in_check(MOVE move) const {
 	/*revealed check*/
 	step = sqatt[from - ksq].step;
 	mvstep = sqatt[to - from].step;
-	if(step && abs(step) != abs(mvstep)) {
+	if(step && ABS(step) != ABS(mvstep)) {
 		if(blocked(ksq,from) == 0) {
 			sq = from + step;
 			while(board[sq] == blank) sq += step;
@@ -236,9 +236,9 @@ int SEARCHER::in_check(MOVE move) const {
 	if(is_ep(move)) {
 		int epsq = to + ((to > from) ? DD:UU);
 		step = sqatt[epsq - ksq].step;
-		if(step && abs(step) != UU) {
+		if(step && ABS(step) != UU) {
 			int nsq,fsq;
-			if(abs(step) == RR){
+			if(ABS(step) == RR){
 				if(distance(from,ksq) < distance(epsq,ksq)) {
 					nsq = from;
 					fsq = epsq;

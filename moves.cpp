@@ -488,7 +488,7 @@ void SEARCHER::gen_noncaps() {
 	if(player == white) {
 
 		/*castling*/
-		if(!attacks(black,E1)) {
+		if((castle & WSLC_FLAG) && !attacks(black,E1)) {
 			if(castle & WSC_FLAG &&
 				board[F1] == blank &&
 				board[G1] == blank &&
@@ -594,7 +594,7 @@ void SEARCHER::gen_noncaps() {
 	} else {
 
 		/*castling*/
-		if(!attacks(white,E8)) {
+		if((castle & BSLC_FLAG) && !attacks(white,E8)) {
 			if(castle & BSC_FLAG &&
 				board[F8] == blank &&
 				board[G8] == blank &&
@@ -1102,7 +1102,7 @@ Generate check moves
 		}																				\
 }
 #define K_CHK(dir) {																	\
-		if(abs(pinned) != abs(dir)) {													\
+		if(ABS(pinned) != ABS(dir)) {													\
 			to = from + dir;															\
             if(board[to] == blank)														\
 			    *pmove++ = tmove | (to<<8);												\

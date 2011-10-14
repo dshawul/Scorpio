@@ -90,7 +90,6 @@ bool SEARCHER::bitbase_cutoff() {
 	*/
 	return false;
 }
-
 FORCEINLINE int SEARCHER::on_node_entry() {
 
 	/*qsearch?*/
@@ -99,6 +98,25 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 		else pstack->qcheck_depth = CHECK_DEPTH;
 		qsearch();
 		return true;
+	}
+	/*razoring & static pruning*/
+	if(pstack->depth <= 3 * UNITDEPTH
+		&& (pstack - 1)->search_state != NULL_MOVE
+		&& !pstack->extension
+		&& pstack->node_type != PV_NODE
+		) {
+			int score = eval();
+			int margin = futility_margin + 50 * (DEPTH(pstack->depth) - 1);
+			if(score + margin < pstack->alpha) {
+				pstack->qcheck_depth = UNITDEPTH;
+				qsearch();
+				score = pstack->best_score;
+				if(score + margin < pstack->alpha)
+					return true;
+			} else if(score - margin >= pstack->beta) {
+				pstack->best_score = pstack->beta;
+				return true;
+			}
 	}
     /*initialize node*/
 	nodes++;
@@ -312,7 +330,7 @@ int SEARCHER::be_selective() {
 			if(depth <= 2 && nmoves >= 8)
 				return true;
 			int margin = futility_margin * depth;
-			margin = max(margin / 4, margin - 10 * nmoves);
+			margin = MAX(margin / 4, margin - 10 * nmoves);
 			score = -eval(DO_LAZY);
 			if(score + margin < (pstack - 1)->alpha) {
 				if(score > (pstack - 1)->best_score) {
@@ -325,26 +343,25 @@ int SEARCHER::be_selective() {
 	/*
 	late move reduction
 	*/
-	if(pstack->depth > UNITDEPTH 
-		&& !pstack->extension
+	if(!pstack->extension
 		&& (pstack - 1)->gen_status - 1 == GEN_NONCAPS
-		&& nmoves >= 2
 		) {
-			reduce(UNITDEPTH);
-			if(nmoves >= 4 && pstack->depth > UNITDEPTH) {
+			if(nmoves >= 2 && pstack->depth > UNITDEPTH) {
 				reduce(UNITDEPTH);
-				if(nmoves >= 16 && pstack->depth >= 4 * UNITDEPTH) {
+				if(nmoves >= ((node_t == PV_NODE) ? 8 : 4) && pstack->depth > UNITDEPTH) {
 					reduce(UNITDEPTH);
-					if(nmoves >= 24 && pstack->depth >= 4 * UNITDEPTH) {
-						reduce(2 * UNITDEPTH);
-						if(nmoves >= 32 && pstack->depth >= 4 * UNITDEPTH) {
+					if(nmoves >= 16 && pstack->depth >= 4 * UNITDEPTH) {
+						reduce(UNITDEPTH);
+						if(nmoves >= 24 && pstack->depth >= 4 * UNITDEPTH) {
 							reduce(2 * UNITDEPTH);
+							if(nmoves >= 32 && pstack->depth >= 4 * UNITDEPTH) {
+								reduce(2 * UNITDEPTH);
+							}
 						}
 					}
 				}
 			}
 	}
-
 	/*
 	end
 	*/
@@ -462,13 +479,10 @@ void search(SEARCHER* const sb) {
 								sb->pstack->alpha = -(sb->pstack - 1)->beta;
 								sb->pstack->beta = -(sb->pstack - 1)->beta + 1;
 								sb->pstack->node_type = (sb->pstack - 1)->next_node_type;
-								/*
-								* Smooth scaling from Dann Corbit 
-								*/
+								/* Smooth scaling from Dann Corbit */
 								sb->pstack->depth = (sb->pstack - 1)->depth - 4 * UNITDEPTH;
 								if(score >= (sb->pstack - 1)->beta)
-									sb->pstack->depth -= (min(3 , (score - (sb->pstack - 1)->beta) / 32) * (UNITDEPTH / 2));
-
+									sb->pstack->depth -= (MIN(3 , (score - (sb->pstack - 1)->beta) / 32) * (UNITDEPTH / 2));
 								/* Try double NULL MOVE in late endgames to avoid some bad
 								* play of KB(N)*K* endings. Idea from Vincent Diepeeven.
 								*/
@@ -537,7 +551,10 @@ void search(SEARCHER* const sb) {
 							} else {
 								sb->pstack->alpha = -(sb->pstack - 1)->beta;
 								sb->pstack->beta = -(sb->pstack - 1)->alpha;
-								sb->pstack->node_type = (sb->pstack - 1)->next_node_type;
+								if((sb->pstack - 1)->legal_moves > 3)
+									sb->pstack->node_type = CUT_NODE;
+								else
+									sb->pstack->node_type = (sb->pstack - 1)->next_node_type;
 								sb->pstack->search_state = NULL_MOVE;
 							}
 							/*go to new node*/
@@ -703,24 +720,24 @@ IDLE_START:
 				sb->POP_NULL();
 				break;
 			case NORMAL_MOVE:
-				/*research with full window*/
-				if((sb->pstack - 1)->node_type == PV_NODE 
-					&& sb->pstack->node_type == CUT_NODE
-					&& score > (sb->pstack - 1)->alpha
-					&& score < (sb->pstack - 1)->beta
-					) {
-						sb->pstack->alpha = -(sb->pstack - 1)->beta;
-						sb->pstack->beta = -(sb->pstack - 1)->alpha;
-						sb->pstack->node_type = (sb->pstack - 1)->next_node_type;
-						sb->pstack->search_state = NULL_MOVE;
-						goto NEW_NODE;
-				}
 				/*research with full depth*/
 				if(sb->pstack->reduction > 0
 					&& score > (sb->pstack - 1)->alpha
 					) {
 						sb->pstack->depth += UNITDEPTH;
 						sb->pstack->reduction -= UNITDEPTH;
+						sb->pstack->alpha = -(sb->pstack - 1)->alpha - 1;
+						sb->pstack->beta = -(sb->pstack - 1)->alpha;
+						sb->pstack->node_type = CUT_NODE;
+						sb->pstack->search_state = NULL_MOVE;
+						goto NEW_NODE;
+				}
+				/*research with full window*/
+				if((sb->pstack - 1)->node_type == PV_NODE 
+					&& sb->pstack->node_type == CUT_NODE
+					&& score > (sb->pstack - 1)->alpha
+					&& score < (sb->pstack - 1)->beta
+					) {
 						sb->pstack->alpha = -(sb->pstack - 1)->beta;
 						sb->pstack->beta = -(sb->pstack - 1)->alpha;
 						sb->pstack->node_type = (sb->pstack - 1)->next_node_type;
@@ -1042,7 +1059,7 @@ MOVE SEARCHER::find_best() {
 	show_full_pv = false;
 	pre_calculate();
 	clear_history();
-
+	
 	/*generate root moves here*/
 	if(in_egbb) {
 		if(probe_bitbases(scorer));
@@ -1190,7 +1207,6 @@ MOVE SEARCHER::find_best() {
 		}
 	}
 
-
 	/*easy move*/
 	if(pstack->score_st[0] > pstack->score_st[1] + 175
 		&& !chess_clock.infinite_mode
@@ -1208,7 +1224,6 @@ MOVE SEARCHER::find_best() {
 	alpha = pstack->score_st[0] - 4 * WINDOW;
 	beta = pstack->score_st[0] + 4 * WINDOW;
 	root_failed_low = 0;
-
 	do {
 
 		/*search with the current depth*/
@@ -1291,16 +1306,16 @@ MOVE SEARCHER::find_best() {
 		}
 
 		/*aspiration search*/
-		if(in_egbb || abs(score) >= 1000 || search_depth <= 3) {
+		if(in_egbb || ABS(score) >= 1000 || search_depth <= 3) {
 			alpha = -MATE_SCORE;
 			beta = MATE_SCORE;
 		} else if(score <= alpha) {
-			WINDOW = min(200, 4 * WINDOW);
-			alpha = max(-MATE_SCORE,score - WINDOW);
+			WINDOW = MIN(200, 4 * WINDOW);
+			alpha = MAX(-MATE_SCORE,score - WINDOW);
 			search_depth--;
 		} else if (score >= beta){
-			WINDOW = min(200, 4 * WINDOW);
-			beta = min(MATE_SCORE,score + WINDOW);
+			WINDOW = MIN(200, 4 * WINDOW);
+			beta = MIN(MATE_SCORE,score + WINDOW);
 			search_depth--;
 		} else {
 			WINDOW = 10;
@@ -1331,7 +1346,6 @@ MOVE SEARCHER::find_best() {
 			int(100 * (lazy_evals/float(full_evals + lazy_evals))),
 			splits,bad_splits,egbb_probes);
 	}
-
 #ifdef CLUSTER
 	/*relax hosts*/
 	for(i = 1;i < PROCESSOR::n_hosts;i++)
@@ -1380,7 +1394,7 @@ bool check_search_params(char** commands,char* command,int& command_num) {
 }
 void print_search_params() {
 	print("feature option=\"smp_depth -spin 4 1 10\"\n");
-	print("feature option=\"cluster_depth -spin 1 8 16\"\n");
+	print("feature option=\"cluster_depth -spin 8 1 16\"\n");
 	print("feature option=\"message_poll_nodes -spin 200 10 20000\"\n");
 	print("feature option=\"use_iid -check 1\"\n");
 	print("feature option=\"use_singular -check 0\"\n");

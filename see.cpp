@@ -207,7 +207,7 @@ int SEARCHER::see(MOVE move) {
 	}
 
 	while(--n)
-        list[n-1] = min(-list[n], list[n-1]);
+        list[n-1] = MIN(-list[n], list[n-1]);
 
 	score = list[0];
 

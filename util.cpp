@@ -650,15 +650,15 @@ void SEARCHER::mirror() {
 /*
 SEARCHER constructor 
 */
-SEARCHER::SEARCHER() : board(&temp_board[48])
+SEARCHER::SEARCHER() : board(&temp_board[36])
 {
 	int sq;
 	for (sq = 0;sq < 128; sq++) {
 		list[sq] = new LIST;
 	}
-	for(sq = 0;sq < 48;sq++)
+	for(sq = 0;sq < 36;sq++)
 		temp_board[sq] = elephant;
-	for(sq = 176;sq < 224;sq++)
+	for(sq = 164;sq < 192;sq++)
 		temp_board[sq] = elephant;
 	for(sq = A1;sq < A1 + 128;sq++) {
 		if(sq & 0x88)
@@ -725,8 +725,6 @@ void SEARCHER::COPY(SEARCHER* srcSearcher) {
 	pieces_bb[black] = srcSearcher->pieces_bb[black];
 	pawns_bb[white] = srcSearcher->pawns_bb[white];
 	pawns_bb[black] = srcSearcher->pawns_bb[black];
-	pcsq_score[white] = srcSearcher->pcsq_score[white];
-	pcsq_score[black] = srcSearcher->pcsq_score[black];
 	pawn_c[white] = srcSearcher->pawn_c[white];
 	pawn_c[black] = srcSearcher->pawn_c[black];
 	piece_c[white] = srcSearcher->piece_c[white];
@@ -1002,8 +1000,8 @@ void SEARCHER::check_quit() {
 #ifdef PARALLEL
 		poll_nodes /= PROCESSOR::n_processors;
 #endif
-		poll_nodes = max(poll_nodes, 5000);
-		poll_nodes = min(poll_nodes, 100000);
+		poll_nodes = MAX(poll_nodes, 5000);
+		poll_nodes = MIN(poll_nodes, 100000);
 	}
 
 	/*
