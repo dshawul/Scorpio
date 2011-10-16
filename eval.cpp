@@ -1710,36 +1710,36 @@ bool check_eval_params(char** commands,char* command,int& command_num) {
 	return true;
 }
 void print_eval_params() {
-	print("feature option=\"LAZY_MARGIN_MIN -spin 150 0 2000\"\n");
-	print("feature option=\"LAZY_MARGIN_MAX -spin 300 0 2000\"\n");
-	print("feature option=\"KNIGHT_OUTPOST -spin 16 0 64\"\n");
-    print("feature option=\"BISHOP_OUTPOST -spin 12 0 64\"\n");
-	print("feature option=\"KNIGHT_MOB -spin 16 0 64\"\n");
-	print("feature option=\"BISHOP_MOB -spin 16 0 64\"\n");
-	print("feature option=\"ROOK_MOB -spin 16 0 64\"\n");
-	print("feature option=\"QUEEN_MOB -spin 16 0 64\"\n");
-	print("feature option=\"PASSER_MG -spin 12 0 64\"\n");
-	print("feature option=\"PASSER_EG -spin 16 0 64\"\n");
-	print("feature option=\"PAWN_STRUCT_MG -spin 12 0 64\"\n");
-	print("feature option=\"PAWN_STRUCT_EG -spin 16 0 64\"\n");
-	print("feature option=\"ROOK_ON_7TH -spin 12 0 64\"\n");
-	print("feature option=\"ROOK_ON_OPEN -spin 16 0 64\"\n");
-	print("feature option=\"QUEEN_MG -spin 1050 0 2000\"\n");
-	print("feature option=\"QUEEN_EG -spin 1050 0 2000\"\n");
-	print("feature option=\"ROOK_MG -spin 500 0 2000\"\n");
-	print("feature option=\"ROOK_EG -spin 500 0 2000\"\n");
-	print("feature option=\"BISHOP_MG -spin 325 0 2000\"\n");
-	print("feature option=\"BISHOP_EG -spin 325 0 2000\"\n");
-	print("feature option=\"KNIGHT_MG -spin 325 0 2000\"\n");
-	print("feature option=\"KNIGHT_EG -spin 325 0 2000\"\n");
-	print("feature option=\"PAWN_MG -spin 80 0 2000\"\n");
-	print("feature option=\"PAWN_EG -spin 100 0 2000\"\n");
-	print("feature option=\"BISHOP_PAIR_MG -spin 16 0 64\"\n");
-	print("feature option=\"BISHOP_PAIR_EG -spin 16 0 64\"\n");
-	print("feature option=\"EXCHANGE_BONUS -spin 45 0 200\"\n");
-	print("feature option=\"PAWN_GUARD -spin 16 0 64\"\n");
-	print("feature option=\"ATTACK_WEIGHT -spin 16 0 64\"\n");
-	print("feature option=\"TROPISM_WEIGHT -spin 8 0 64\"\n");
+	print("feature option=\"LAZY_MARGIN_MIN -spin %d 0 2000\"\n",LAZY_MARGIN_MIN);
+	print("feature option=\"LAZY_MARGIN_MAX -spin %d 0 2000\"\n",LAZY_MARGIN_MAX);
+	print("feature option=\"KNIGHT_OUTPOST -spin %d 0 64\"\n",KNIGHT_OUTPOST);
+    print("feature option=\"BISHOP_OUTPOST -spin %d 0 64\"\n",BISHOP_OUTPOST);
+	print("feature option=\"KNIGHT_MOB -spin %d 0 64\"\n",KNIGHT_MOB);
+	print("feature option=\"BISHOP_MOB -spin %d 0 64\"\n",BISHOP_MOB);
+	print("feature option=\"ROOK_MOB -spin %d 0 64\"\n",ROOK_MOB);
+	print("feature option=\"QUEEN_MOB -spin %d 0 64\"\n",QUEEN_MOB);
+	print("feature option=\"PASSER_MG -spin %d 0 64\"\n",PASSER_MG);
+	print("feature option=\"PASSER_EG -spin %d 0 64\"\n",PASSER_EG);
+	print("feature option=\"PAWN_STRUCT_MG -spin %d 0 64\"\n",PAWN_STRUCT_MG);
+	print("feature option=\"PAWN_STRUCT_EG -spin %d 0 64\"\n",PAWN_STRUCT_EG);
+	print("feature option=\"ROOK_ON_7TH -spin %d 0 64\"\n",ROOK_ON_7TH);
+	print("feature option=\"ROOK_ON_OPEN -spin %d 0 64\"\n",ROOK_ON_OPEN);
+	print("feature option=\"QUEEN_MG -spin %d 0 2000\"\n",QUEEN_MG);
+	print("feature option=\"QUEEN_EG -spin %d 0 2000\"\n",QUEEN_EG);
+	print("feature option=\"ROOK_MG -spin %d 0 2000\"\n",ROOK_MG);
+	print("feature option=\"ROOK_EG -spin %d 0 2000\"\n",ROOK_EG);
+	print("feature option=\"BISHOP_MG -spin %d 0 2000\"\n",BISHOP_MG);
+	print("feature option=\"BISHOP_EG -spin %d 0 2000\"\n",BISHOP_EG);
+	print("feature option=\"KNIGHT_MG -spin %d 0 2000\"\n",KNIGHT_MG);
+	print("feature option=\"KNIGHT_EG -spin %d 0 2000\"\n",KNIGHT_EG);
+	print("feature option=\"PAWN_MG -spin %d 0 2000\"\n",PAWN_MG);
+	print("feature option=\"PAWN_EG -spin %d 0 2000\"\n",PAWN_EG);
+	print("feature option=\"BISHOP_PAIR_MG -spin %d 0 64\"\n",BISHOP_PAIR_MG);
+	print("feature option=\"BISHOP_PAIR_EG -spin %d 0 64\"\n",BISHOP_PAIR_EG);
+	print("feature option=\"EXCHANGE_BONUS -spin %d 0 200\"\n",EXCHANGE_BONUS);
+	print("feature option=\"PAWN_GUARD -spin %d 0 64\"\n",PAWN_GUARD);
+	print("feature option=\"ATTACK_WEIGHT -spin %d 0 64\"\n",ATTACK_WEIGHT);
+	print("feature option=\"TROPISM_WEIGHT -spin %d 0 64\"\n",TROPISM_WEIGHT);
 }
 
 #endif

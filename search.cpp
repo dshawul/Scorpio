@@ -740,7 +740,7 @@ IDLE_START:
 					) {
 						sb->pstack->alpha = -(sb->pstack - 1)->beta;
 						sb->pstack->beta = -(sb->pstack - 1)->alpha;
-						sb->pstack->node_type = (sb->pstack - 1)->next_node_type;
+						sb->pstack->node_type = PV_NODE;
 						sb->pstack->search_state = NULL_MOVE;
 						goto NEW_NODE;
 				}

@@ -828,14 +828,14 @@ void SEARCHER::gen_evasions() {
 		//ep captures
 		if(epsquare){
 			from = epsquare - RU;
-			sq = epsquare + ((epsquare > from)? DD:UU );
+			sq = epsquare + DD;
 			if(board[from] == wpawn &&
 				(sq == att_sq || (sqatt[epsquare - king_sq].step != 0 && sqatt[epsquare - king_sq].step == -sqatt[epsquare-att_sq].step)) &&
 				!pinned_on_king(sq,white) && !pinned_on_king(from,white))
 				  *pmove++ = from | (epsquare<<8) | (wpawn<<16) | (bpawn<<20) | EP_FLAG;
 			
 			from = epsquare - LU;
-			sq = epsquare + ((epsquare > from)? DD:UU );
+			sq = epsquare + DD;
 			if(board[from] == wpawn &&
 				(sq == att_sq || (sqatt[epsquare - king_sq].step != 0 && sqatt[epsquare - king_sq].step == -sqatt[epsquare-att_sq].step)) &&
 				!pinned_on_king(sq,white) && !pinned_on_king(from,white))
@@ -991,14 +991,14 @@ void SEARCHER::gen_evasions() {
 		//ep captures
 		if(epsquare){
 			from = epsquare - LD;
-			sq = epsquare + ((epsquare > from)? DD:UU );
+			sq = epsquare + UU;
 			if(board[from] == bpawn &&
 				(sq == att_sq || (sqatt[epsquare - king_sq].step != 0 && sqatt[epsquare - king_sq].step == -sqatt[epsquare - att_sq].step)) &&
 				!pinned_on_king(sq,black) && !pinned_on_king(from,black))
 				*pmove++ = from | (epsquare<<8) | (bpawn<<16) | (wpawn<<20) | EP_FLAG;
 			
 			from = epsquare - RD;
-			sq = epsquare + ((epsquare > from)? DD:UU );
+			sq = epsquare + UU;
 			if(board[from] == bpawn &&
 				(sq == att_sq || (sqatt[epsquare - king_sq].step != 0 && sqatt[epsquare - king_sq].step == -sqatt[epsquare - att_sq].step)) &&
 				!pinned_on_king(sq,black) && !pinned_on_king(from,black))

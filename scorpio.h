@@ -16,9 +16,9 @@ Useful to compile minimal scorpio engine.
 #define BOOK_CREATE
 #define EGBB
 #define PARALLEL
-#define CLUSTER
+//#define CLUSTER
 //#define HAS_POPCNT
-//#define TUNE
+#define TUNE
 /*
 parallel search options
 */
