@@ -12,7 +12,7 @@ Allocate tables
 	-Main hasht table is shared.
 	-The rest is allocated for each thread.
 */
-void PROCESSOR::reset_hash_tab(UBMP32 size) {
+void PROCESSOR::reset_hash_tab(int id,UBMP32 size) {
 	if(size) hash_tab_mask = size - 1;
 	else size = hash_tab_mask + 1;
 	aligned_reserve<HASH>(white_hash_tab,size);

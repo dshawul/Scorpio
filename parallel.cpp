@@ -507,7 +507,17 @@ void CDECL thread_proc(void* id) {
 	t_started = true;
 	search((PPROCESSOR)proc);
 }
-
+void PROCESSOR::set_main() {
+	PPROCESSOR proc = new PROCESSOR();
+	proc->searcher = &proc->searchers[0];
+	proc->searcher->used = true;
+	proc->searcher->processor_id = 0;
+	proc->state = GO;
+	proc->reset_hash_tab(0,0);
+	proc->reset_eval_hash_tab();
+	proc->reset_pawn_hash_tab();
+	processors[0] = proc;
+}
 void PROCESSOR::create(int id) {
 	long tid = id;
 	t_started = false;

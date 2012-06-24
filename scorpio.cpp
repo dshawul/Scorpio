@@ -218,15 +218,8 @@ void init_game() {
 	print("feature done=0\n");
 	scorpio_start_time = get_time();
 	PROCESSOR::n_idle_processors = 0;
-	PROCESSOR::reset_hash_tab();
 	PROCESSOR::n_processors = 1;
-	processors[0] = new PROCESSOR();
-	processors[0]->reset_eval_hash_tab();
-	processors[0]->reset_pawn_hash_tab();
-	processors[0]->searchers[0].used = true;
-	processors[0]->searchers[0].processor_id = 0;
-	processors[0]->searcher = &processors[0]->searchers[0];
-	processors[0]->state = GO;
+	PROCESSOR::set_main();
 	main_searcher = processors[0]->searcher;
 	SEARCHER::egbb_is_loaded = false;
 	init_sqatt();
@@ -460,7 +453,7 @@ bool parse_commands(char** commands) {
 			UBMP32 size = 1,size_max = (atoi(commands[command_num++]) * 1024 * 1024) / 2;
 			while(size < size_max) size *= 2;
 			size /= sizeof(HASH);
-			PROCESSOR::reset_hash_tab(size);
+			PROCESSOR::reset_hash_tab(0,size);
 			print("ht %d X %d = %dMB\n",2 * size,sizeof(HASH),(2 * size * sizeof(HASH)) / (1024 * 1024));
 		} else if(!strcmp(command,"pht")) {
 			UBMP32 size = 1,size_max = (atoi(commands[command_num++]) * 1024 * 1024);

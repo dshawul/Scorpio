@@ -2,10 +2,10 @@
 
 const int CHECK_DEPTH = UNITDEPTH;
 
-int use_iid = 1;
-int futility_margin = 125;
-int use_singular = 0;
-int singular_margin = 30;
+static int use_iid = 1;
+static int futility_margin = 125;
+static int use_singular = 0;
+static int singular_margin = 30;
 
 #define extend(value) {                      \
 	extension += value;                      \

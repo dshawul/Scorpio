@@ -1,10 +1,11 @@
 ############################
 # Target executable and files
 ############################
-EXE = Scorpio
+EXE = scorpio
 RM = rm -rf
 OBJ = attack.o scorpio.o eval.o hash.o moves.o parallel.o probe.o search.o see.o magics.o util.o
 HPP = scorpio.h my_types.h
+ICPC_WARN = -wd128 -wd981 -wd869 -wd2259 -wd383 -wd1418
 
 #########################################################################
 #
@@ -14,12 +15,14 @@ HPP = scorpio.h my_types.h
 #  DMAX_HOSTS=n --  Compile for maximum of n cpus in a cluster.
 #                   Default value is 128.
 #  DTUNE        --  Compile evaluation tuning code. [NOT recommended]
+#  DTT_TYPE=n   --  Transposition table type for NUMA (0 - global, 1 - distributed, 2 - local)
 #########################################################################
 DEFINES = 
 #DEFINES += -DHAS_POPCNT
-#DEFINES += -DMAX_CPUS=16
+DEFINES += -DMAX_CPUS=32
 #DEFINES += -DMAX_HOSTS=128
 #DEFINES += -DTUNE
+DEFINES += -DTT_TYPE=1
 
 ######################
 # Rules
@@ -40,22 +43,15 @@ arm-strip:
 gcc:   
 	$(MAKE) \
 	CXX=g++ \
-	CXXFLAGS="-O3 -msse -Wall -fomit-frame-pointer -fstrict-aliasing -fno-exceptions -fno-rtti" \
-	LXXFLAGS="-lm -lpthread -ldl" \
-	all
-
-arm:   
-	$(MAKE) \
-	CXX=arm-linux-androideabi-g++ \
 	CXXFLAGS="-O3 -Wall -fomit-frame-pointer -fstrict-aliasing -fno-exceptions -fno-rtti" \
-	LXXFLAGS="-lm -ldl" \
+	LXXFLAGS="-lm -lpthread -ldl" \
 	all
 
 cluster:   
 	$(MAKE) \
 	CXX=mpiCC \
-	DEFINES+=-DCLUSTER \
-	CXXFLAGS="-O3 -msse -Wall -fomit-frame-pointer -fstrict-aliasing -fno-exceptions -fno-rtti" \
+	DEFINES="$(DEFINES) -DCLUSTER " \
+	CXXFLAGS="-O3 -Wall -fomit-frame-pointer -fstrict-aliasing -fno-exceptions -fno-rtti $(ICPC_WARN) " \
 	LXXFLAGS="-lm -lpthread -ldl" \
 	all
 
@@ -69,9 +65,16 @@ gcc-profile:
 cluster-profile:   
 	$(MAKE) \
 	CXX=mpiCC \
-	DEFINES+=-DCLUSTER \
-	CXXFLAGS="-pg -O3 -msse -Wall" \
+	DEFINES="$(DEFINES) -DCLUSTER " \
+	CXXFLAGS="-pg -O3 -Wall $(ICPC_WARN) " \
 	LXXFLAGS="-pg -lm -lpthread -ldl" \
+	all
+
+arm:   
+	$(MAKE) \
+	CXX=arm-linux-androideabi-g++ \
+	CXXFLAGS="-O3 -Wall -fomit-frame-pointer -fstrict-aliasing -fno-exceptions -fno-rtti" \
+	LXXFLAGS="-lm -ldl" \
 	all
 
 all: $(EXE)

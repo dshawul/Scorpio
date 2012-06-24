@@ -796,6 +796,7 @@ typedef struct PROCESSOR {
 	static int SMP_SPLIT_DEPTH;
 	static void create(int id);
 	static void kill(int id);
+	static void set_main();
 #endif
 #if defined(PARALLEL) || defined(CLUSTER)
 	void idle_loop();
@@ -821,7 +822,7 @@ typedef struct PROCESSOR {
 	static void  record_hash(int,const HASHKEY&,int,int,int,int,MOVE,int);
 	static int   probe_hash(int,const HASHKEY&,int,int,int&,MOVE&,int,int,int&,int&);
 	static void  clear_hash_tables();
-	static void  reset_hash_tab(UBMP32 = 0);
+	static void  reset_hash_tab(int,UBMP32);
 	void  reset_pawn_hash_tab(UBMP32 = 0);
 	void  reset_eval_hash_tab(UBMP32 = 0);
 } *PPROCESSOR;
@@ -848,9 +849,9 @@ FORCEINLINE void Non_Blocking_Send(int dest,int message) {
 /*
 global data
 */
-extern HASHKEY piece_hkey[14][64];
-extern HASHKEY ep_hkey[8];
-extern HASHKEY cast_hkey[16];
+extern const HASHKEY piece_hkey[14][64];
+extern const HASHKEY ep_hkey[8];
+extern const HASHKEY cast_hkey[16];
 extern const int piece_cv[14];
 extern const int piece_see_v[14];
 extern const int pic_tab[14];
