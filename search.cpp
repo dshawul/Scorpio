@@ -99,6 +99,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 		qsearch();
 		return true;
 	}
+
 	/*razoring & static pruning*/
 	if(pstack->depth <= 3 * UNITDEPTH
 		&& (pstack - 1)->search_state != NULL_MOVE
@@ -108,7 +109,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 			int score = eval();
 			int margin = futility_margin + 50 * (DEPTH(pstack->depth) - 1);
 			if(score + margin < pstack->alpha) {
-				pstack->qcheck_depth = UNITDEPTH;
+				pstack->qcheck_depth = CHECK_DEPTH;
 				qsearch();
 				score = pstack->best_score;
 				if(score + margin < pstack->alpha)
@@ -118,6 +119,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 				return true;
 			}
 	}
+
     /*initialize node*/
 	nodes++;
 
@@ -173,7 +175,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 #ifdef CLUSTER
 	/*check for messages from other hosts*/
 	if(processor_id == 0 && nodes > message_check) {
-		processors[processor_id].idle_loop();
+		processors[processor_id]->idle_loop();
 		message_check += PROCESSOR::MESSAGE_POLL_NODES;
 	}
 #endif     
@@ -657,8 +659,6 @@ IDLE_START:
 							*/
 							while(true) {
 								switch(proc->state) {
-							case CREATE:
-								proc->state = PARK;
 							case PARK:
 								while(proc->state == PARK) t_sleep(1);
 								break;
@@ -677,8 +677,6 @@ IDLE_START:
 							case GO: 
 								sb = proc->searcher;
 								goto START;
-							case DEAD:
-								return;
 							case KILL:
 								proc->state = GO;
 								return;
@@ -690,7 +688,7 @@ IDLE_START:
 						* If some other processor reached here first switch to processor[0] and return.
 						*/
 					} else {
-						if(proc == processors) {
+						if(proc == processors[0]) {
 							return;
 						} else {
 							/* Switch to processor[0] and send
@@ -698,8 +696,8 @@ IDLE_START:
 							*/
 							l_lock(lock_smp);
 							sb->processor_id = 0;
-							processors[0].searcher = sb;
-							processors[0].state = KILL;
+							processors[0]->searcher = sb;
+							processors[0]->state = KILL;
 							proc->searcher = NULL;
 							proc->state = WAIT;
 							l_unlock(lock_smp);
@@ -734,7 +732,7 @@ IDLE_START:
 				}
 				/*research with full window*/
 				if((sb->pstack - 1)->node_type == PV_NODE 
-					&& sb->pstack->node_type == CUT_NODE
+					&& sb->pstack->node_type != PV_NODE
 					&& score > (sb->pstack - 1)->alpha
 					&& score < (sb->pstack - 1)->beta
 					) {
@@ -840,7 +838,7 @@ searcher's search function
 */
 void SEARCHER::search() {
 #ifdef PARALLEL
-	::search(&processors[0]);
+	::search(processors[0]);
 #else
 	::search(this);
 #endif
@@ -1002,7 +1000,9 @@ void SEARCHER::root_search() {
 				pstack->flag = LOWER;
 			}
 
-			print_pv(pstack->best_score);
+			/*print pv*/
+			if(search_depth >= 5)
+				print_pv(pstack->best_score);
 
 			/*root score*/
 			if(!chess_clock.infinite_mode && !chess_clock.pondering)
@@ -1182,7 +1182,7 @@ MOVE SEARCHER::find_best() {
 	/*wakeup processors*/
 #ifdef PARALLEL
 	for(i = 1;i < PROCESSOR::n_processors;i++) {
-		processors[i].state = WAIT;
+		processors[i]->state = WAIT;
 	}
 	while(PROCESSOR::n_idle_processors != PROCESSOR::n_processors - 1)
 		t_sleep(1);
@@ -1292,7 +1292,7 @@ MOVE SEARCHER::find_best() {
 
 		/*Is there enough time to search the first move?*/
 		if(!root_failed_low && !chess_clock.infinite_mode) {
-			int time_used = get_time() - start_time;
+			time_used = get_time() - start_time;
 			if(time_used >= 0.75 * chess_clock.search_time) {
 				abort_search = 1;
 				break;
@@ -1354,7 +1354,7 @@ MOVE SEARCHER::find_best() {
 #ifdef PARALLEL
 	/*freeze processors*/
 	for(i = 1;i < PROCESSOR::n_processors;i++) {
-		processors[i].state = PARK;
+		processors[i]->state = PARK;
 	}
 #endif
 
@@ -1393,11 +1393,11 @@ bool check_search_params(char** commands,char* command,int& command_num) {
 	return true;
 }
 void print_search_params() {
-	print("feature option=\"smp_depth -spin 4 1 10\"\n");
-	print("feature option=\"cluster_depth -spin 8 1 16\"\n");
-	print("feature option=\"message_poll_nodes -spin 200 10 20000\"\n");
-	print("feature option=\"use_iid -check 1\"\n");
-	print("feature option=\"use_singular -check 0\"\n");
-	print("feature option=\"singular_margin -spin 30 0 1000\"\n");
-	print("feature option=\"futility_margin -spin 125 0 1000\"\n");
+	SMP_CODE(print("feature option=\"smp_depth -spin %d 1 10\"\n",PROCESSOR::SMP_SPLIT_DEPTH));
+	CLUSTER_CODE(print("feature option=\"cluster_depth -spin %d 1 16\"\n",PROCESSOR::CLUSTER_SPLIT_DEPTH));
+	CLUSTER_CODE(print("feature option=\"message_poll_nodes -spin %d 10 20000\"\n",PROCESSOR::MESSAGE_POLL_NODES));
+	print("feature option=\"use_iid -check %d\"\n",use_iid);
+	print("feature option=\"use_singular -check %d\"\n",use_singular);
+	print("feature option=\"singular_margin -spin %d 0 1000\"\n",singular_margin);
+	print("feature option=\"futility_margin -spin %d 0 1000\"\n",futility_margin);
 }

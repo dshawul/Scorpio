@@ -15,28 +15,20 @@ Allocate tables
 void PROCESSOR::reset_hash_tab(UBMP32 size) {
 	if(size) hash_tab_mask = size - 1;
 	else size = hash_tab_mask + 1;
-	if(white_hash_tab) delete[] white_hash_tab;
-	if(black_hash_tab) delete[] black_hash_tab;
-    white_hash_tab = new HASH[size];
-	black_hash_tab = new HASH[size];
-	memset(white_hash_tab,0,size * sizeof(HASH));
-	memset(black_hash_tab,0,size * sizeof(HASH));
+	aligned_reserve<HASH>(white_hash_tab,size);
+	aligned_reserve<HASH>(black_hash_tab,size);
 }
 
 void PROCESSOR::reset_pawn_hash_tab(UBMP32 size) {
     if(size) pawn_hash_tab_mask = size - 1;
 	else size = pawn_hash_tab_mask + 1;
-	if(pawn_hash_tab) delete[] pawn_hash_tab;
-	pawn_hash_tab = new PAWNHASH[size];
-	memset(pawn_hash_tab,0,size * sizeof(PAWNHASH));
+	aligned_reserve<PAWNHASH>(pawn_hash_tab,size);
 }
 
 void PROCESSOR::reset_eval_hash_tab(UBMP32 size) {
 	if(size) eval_hash_tab_mask = size - 1;
 	else size = eval_hash_tab_mask + 1;
-	if(eval_hash_tab) delete[] eval_hash_tab;
-	eval_hash_tab = new EVALHASH[size];
-	memset(eval_hash_tab,0,size * sizeof(EVALHASH));
+	aligned_reserve<EVALHASH>(eval_hash_tab,size);
 }
 
 void PROCESSOR::clear_hash_tables() {
@@ -44,7 +36,7 @@ void PROCESSOR::clear_hash_tables() {
 	memset(white_hash_tab,0,(hash_tab_mask + 1) * sizeof(HASH));
 	memset(black_hash_tab,0,(hash_tab_mask + 1) * sizeof(HASH));
 	for(int i = 0;i < n_processors;i++) {
-		proc = &processors[i];
+		proc = processors[i];
 		memset(proc->pawn_hash_tab,0,(pawn_hash_tab_mask + 1) * sizeof(PAWNHASH));
 		memset(proc->eval_hash_tab,0,(eval_hash_tab_mask + 1) * sizeof(EVALHASH));
 	}
@@ -161,7 +153,7 @@ int PROCESSOR::probe_hash(
 Pawn hash tables
 */
 void SEARCHER::record_pawn_hash(const HASHKEY& hash_key,const SCORE& score,const PAWNREC& pawnrec) {
-	register PPROCESSOR proc = processors + processor_id;
+	register PPROCESSOR proc = processors[processor_id];
 	register UBMP32 key = UBMP32(hash_key & PROCESSOR::pawn_hash_tab_mask);
 	register PPAWNHASH pawn_hash = proc->pawn_hash_tab + key; 
 	
@@ -170,7 +162,7 @@ void SEARCHER::record_pawn_hash(const HASHKEY& hash_key,const SCORE& score,const
 	pawn_hash->pawnrec = pawnrec;
 }
 int SEARCHER::probe_pawn_hash(const HASHKEY& hash_key,SCORE& score,PAWNREC& pawnrec) {
-	register PPROCESSOR proc = processors + processor_id;
+	register PPROCESSOR proc = processors[processor_id];
 	register UBMP32 key = UBMP32(hash_key & PROCESSOR::pawn_hash_tab_mask);
 	register PPAWNHASH pawn_hash = proc->pawn_hash_tab + key; 
 	
@@ -185,7 +177,7 @@ int SEARCHER::probe_pawn_hash(const HASHKEY& hash_key,SCORE& score,PAWNREC& pawn
 Eval hash tables
 */
 void SEARCHER::record_eval_hash(const HASHKEY& hash_key,int score,int lazy_score,const EVALREC& evalrec) {
-    register PPROCESSOR proc = processors + processor_id;
+    register PPROCESSOR proc = processors[processor_id];
 	register UBMP32 key = UBMP32(hash_key & PROCESSOR::eval_hash_tab_mask);
 	register PEVALHASH eval_hash = proc->eval_hash_tab + key; 
 	
@@ -195,7 +187,7 @@ void SEARCHER::record_eval_hash(const HASHKEY& hash_key,int score,int lazy_score
 	eval_hash->evalrec = evalrec;
 }
 int SEARCHER::probe_eval_hash(const HASHKEY& hash_key,int& score,int& lazy_score,EVALREC& evalrec) {
-	register PPROCESSOR proc = processors + processor_id;
+	register PPROCESSOR proc = processors[processor_id];
 	register UBMP32 key = UBMP32(hash_key & PROCESSOR::eval_hash_tab_mask);
 	register PEVALHASH eval_hash = proc->eval_hash_tab + key; 
 	

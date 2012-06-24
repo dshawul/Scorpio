@@ -35,15 +35,6 @@ typedef int64_t BMP64;
 typedef uint64_t UBMP64;
 
 /*
-cache line memory alignment (64 bytes)
-*/
-#if defined (__GNUC__)
-#	define CACHE_ALIGN  __attribute__ ((aligned(64)))
-#else
-#	define CACHE_ALIGN __declspec(align(64))
-#endif
-
-/*
 Intrinsic popcnt
 */
 #if defined(HAS_POPCNT) && defined(ARC_64BIT)
@@ -94,6 +85,32 @@ Os stuff
 #    define FORCEINLINE __inline
 #	 define GETPID()  getpid()
 #endif
+
+/*
+cache line memory alignment (64 bytes)
+*/
+#define CACHE_LINE_SIZE  64
+
+#if defined (__GNUC__)
+#	define CACHE_ALIGN  __attribute__ ((aligned(CACHE_LINE_SIZE)))
+#else
+#	define CACHE_ALIGN __declspec(align(CACHE_LINE_SIZE))
+#endif
+
+template<typename T>
+void aligned_reserve(T*& mem,const size_t& size) {
+	if((sizeof(T) & (sizeof(T) - 1)) == 0) {
+#ifdef _MSC_VER
+		mem = (T*)_aligned_realloc(mem,size * sizeof(T),CACHE_LINE_SIZE);
+#else
+		if(mem) free(mem);
+		posix_memalign((void**)&mem,CACHE_LINE_SIZE,size * sizeof(T));
+#endif
+	} else {
+		if(mem) free(mem);
+		mem = (T*) malloc(size * sizeof(T));
+	}
+}
 
 /*threads*/
 #    ifdef _MSC_VER

@@ -32,10 +32,9 @@ int scorpio_start_time;
 /*
 parallel search
 */
-PROCESSOR processors[MAX_CPUS];
+PPROCESSOR processors[MAX_CPUS] = {0};
 int PROCESSOR::n_processors;
 VOLATILE int PROCESSOR::n_idle_processors;
-SEARCHER searchers[MAX_SEARCHERS];
 
 #ifdef PARALLEL
 LOCK  lock_smp;
@@ -194,8 +193,8 @@ int CDECL main(int argc, char* argv[]) {
 		if(!log_on)
 			remove_log_file();
 		/* goto wait mode */
-		processors[0].state = WAIT;
-		search(processors);
+		processors[0]->state = WAIT;
+		search(processors[0]);
 	}
 #endif
 
@@ -221,13 +220,14 @@ void init_game() {
 	PROCESSOR::n_idle_processors = 0;
 	PROCESSOR::reset_hash_tab();
 	PROCESSOR::n_processors = 1;
-	processors[0].reset_eval_hash_tab();
-	processors[0].reset_pawn_hash_tab();
-	searchers[0].used = true;
-	searchers[0].processor_id = 0;
-	processors[0].searcher = &searchers[0];
-	processors[0].state = GO;
-	main_searcher = &searchers[0];
+	processors[0] = new PROCESSOR();
+	processors[0]->reset_eval_hash_tab();
+	processors[0]->reset_pawn_hash_tab();
+	processors[0]->searchers[0].used = true;
+	processors[0]->searchers[0].processor_id = 0;
+	processors[0]->searcher = &processors[0]->searchers[0];
+	processors[0]->state = GO;
+	main_searcher = processors[0]->searcher;
 	SEARCHER::egbb_is_loaded = false;
 	init_sqatt();
 	initmagicmoves();
@@ -328,9 +328,9 @@ bool parse_commands(char** commands) {
 			print("feature sigint=0 sigterm=0\n");
 			print("feature setboard=1 draw=0 colors=0\n");
 			print("feature smp=0 memory=0 egt=\"scorpio\"\n");
-			print("feature option=\"log -check 0\"\n");
+			print("feature option=\"log -check %d\"\n",log_on);
 			print("feature option=\"clear_hash -button\"\n");
-			print("feature option=\"resign -spin 800 100 30000\"\n");
+			print("feature option=\"resign -spin %d 100 30000\"\n",SEARCHER::resign_value);
 			print_search_params();
 #ifdef TUNE
 			print_eval_params();
@@ -467,14 +467,14 @@ bool parse_commands(char** commands) {
 			while(size < size_max) size *= 2;
 			size /= sizeof(PAWNHASH);
 			for(int i = 0;i < PROCESSOR::n_processors;i++) 
-				processors[i].reset_pawn_hash_tab(size);
+				processors[i]->reset_pawn_hash_tab(size);
 			print("pht %d X %d = %dMB\n",size,sizeof(PAWNHASH),(size * sizeof(PAWNHASH)) / (1024 * 1024));
 		} else if(!strcmp(command,"eht")) {
 			UBMP32 size = 1,size_max = (atoi(commands[command_num++]) * 1024 * 1024);
 			while(size < size_max) size *= 2;
 			size /= sizeof(EVALHASH);
 			for(int i = 0;i < PROCESSOR::n_processors;i++) 
-				processors[i].reset_eval_hash_tab(size);
+				processors[i]->reset_eval_hash_tab(size);
 			print("eht %d X %d = %dMB\n",size,sizeof(EVALHASH),(size * sizeof(EVALHASH)) / (1024 * 1024));
 		} else if(!strcmp(command, "resign")) {
 			SEARCHER::resign_value = atoi(commands[command_num]);
@@ -598,7 +598,7 @@ bool parse_commands(char** commands) {
 
 			char input[MAX_STR],fen[MAX_STR];
 			char* words[100];
-			int nwrd,sc = 0,visited = 0;
+			int sc = 0,visited = 0;
 			bool eval_test = !strcmp(command,"runeval");
 
 			FILE *fd;
@@ -618,7 +618,7 @@ bool parse_commands(char** commands) {
 
 			while(fgets(input,MAX_STR,fd)) {
 				input[strlen(input) - 1] = 0;
-				nwrd = tokenize(input,words);
+				tokenize(input,words);
 				strcpy(fen,words[0]);
 				strcat(fen," ");
 				strcat(fen,words[1]);

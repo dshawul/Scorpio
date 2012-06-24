@@ -5,7 +5,7 @@
 *    Scorpio uses a decentralized approach (p2p) where neither memory nor
 *    jobs are centrialized. Each host could have multiple processors in which case
 *    shared memory search (centralized search with threads) will be used.
-*    One processor per node will be started by mpirun, then each process 
+*    One process per node will be started by mpirun, then each process 
 *    at each node will create enough threads to engage all its processors.
 */
 
@@ -44,7 +44,7 @@ void PROCESSOR::idle_loop() {
 	* and also simplifies it a lot. However we still use lock_mpi 
 	* because other thread could invoke MPI calls during splits or fail highs.
 	*/
-	if(this != processors || n_hosts == 1) {
+	if(this != processors[0] || n_hosts == 1) {
 		while(state == WAIT);
 		return;
 	}
@@ -62,7 +62,7 @@ void PROCESSOR::idle_loop() {
 
 		/*Message recieved?*/
 		if(flag) {
-			const PSEARCHER psb = processors[0].searcher;
+			const PSEARCHER psb = processors[0]->searcher;
 			int message_id = mpi_status.MPI_TAG;
 			int source = mpi_status.MPI_SOURCE;
 #ifdef _DEBUG
@@ -133,7 +133,7 @@ void PROCESSOR::idle_loop() {
 				/*
 				 * Search
 				 */
-				processors[0].state = GO;
+				processors[0]->state = GO;
 
 				using_pvs = false;
 				psb->pstack->extension = split.extension;
@@ -194,7 +194,7 @@ REDO:
 					else psb->POP_NULL();
 				}
 
-				processors[0].state = WAIT;
+				processors[0]->state = WAIT;
 
 				/*
 				 * Cancel all unused helper hosts
@@ -309,7 +309,7 @@ REDO:
 #ifdef PARALLEL
 				/*wakeup processors*/
 				for(i = 1;i < n_processors;i++)
-					processors[i].state = WAIT;
+					processors[i]->state = WAIT;
 				while(n_idle_processors != n_processors)
 					t_sleep(1);
 #endif
@@ -323,7 +323,7 @@ REDO:
 				l_unlock(lock_mpi);
 #ifdef PARALLEL
 				for(int i = 1;i < n_processors;i++)
-					processors[i].state = PARK;
+					processors[i]->state = PARK;
 #endif
 			} else if(message_id == ABORT) {
 				MPI_Recv(MPI_BOTTOM,0,MPI_INT,source,message_id,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
@@ -350,7 +350,7 @@ REDO:
 
 					l_lock(lock_smp);
 					for(i = 0;i < n_processors;i++) {
-						if(processors[i].state == WAIT) 
+						if(processors[i]->state == WAIT) 
 							count++;
 					}
 					if(count == n_processors) {
@@ -495,25 +495,33 @@ int SEARCHER::get_smp_move() {
 /*
 * Create/kill search thread
 */
-void CDECL thread_proc(void* processor) {
-	search((PPROCESSOR)processor);
+static volatile bool t_started;
+
+void CDECL thread_proc(void* id) {
+	PPROCESSOR proc = new PROCESSOR();
+	proc->searcher = NULL;
+	proc->state = PARK;
+	proc->reset_eval_hash_tab();
+	proc->reset_pawn_hash_tab();
+	processors[(long)id] = proc;
+	t_started = true;
+	search((PPROCESSOR)proc);
 }
 
-void PROCESSOR::create() {
+void PROCESSOR::create(int id) {
+	long tid = id;
+	t_started = false;
 	pthread_t thread = 0;
-	state = CREATE;
-	searcher = NULL;
-	t_create(thread_proc,this,thread);
-	reset_eval_hash_tab();
-	reset_pawn_hash_tab();
-	while(state == CREATE);
+	t_create(thread_proc,tid,thread);
+	while(t_started == false);
 }
 
-void PROCESSOR::kill() {
-	searcher = NULL;
-	delete[] eval_hash_tab;
-	delete[] pawn_hash_tab;
-	state = DEAD;
+void PROCESSOR::kill(int id) {
+	PPROCESSOR proc = processors[id];
+	delete[] proc->eval_hash_tab;
+	delete[] proc->pawn_hash_tab;
+	delete proc;
+	processors[id] = 0;
 }
 /*
 * Attach processor to help at the split node.
@@ -522,10 +530,10 @@ void PROCESSOR::kill() {
 void SEARCHER::attach_processor(int new_proc_id) {
 
 	register int i,j = 0;
-	for(j = 0; j < MAX_SEARCHERS && searchers[j].used; j++);
-	if(j < MAX_SEARCHERS) {
+	for(j = 0; j < MAX_SEARCHERS_PER_CPU && processors[new_proc_id]->searchers[j].used; j++);
+	if(j < MAX_SEARCHERS_PER_CPU) {
 
-		PSEARCHER psearcher = &searchers[j];
+		PSEARCHER psearcher = &processors[new_proc_id]->searchers[j];
 		psearcher->COPY(this);
 		psearcher->master = this;
 		psearcher->stop_searcher = 0;
@@ -553,7 +561,7 @@ void SEARCHER::attach_processor(int new_proc_id) {
 		psearcher->egbb_probes = 0;
 		/*end*/
 
-		processors[new_proc_id].searcher = psearcher;
+		processors[new_proc_id]->searcher = psearcher;
 		workers[new_proc_id] = psearcher;
 		n_workers++;
 	}
@@ -654,7 +662,7 @@ int SEARCHER::check_split() {
 				&& PROCESSOR::n_idle_processors > 0
 				) {
 					for(i = 0;i < PROCESSOR::n_processors && n_workers < MAX_CPUS_PER_SPLIT;i++) {
-						if(processors[i].state == WAIT)
+						if(processors[i]->state == WAIT)
 							attach_processor(i);
 					}
 			}
@@ -669,7 +677,7 @@ int SEARCHER::check_split() {
 				attach_processor(processor_id);
 				for(i = 0; i < PROCESSOR::n_processors; i++) {
 					if(workers[i]) {
-						processors[i].state = GO;
+						processors[i]->state = GO;
 					}
 				}
 				l_unlock(lock_smp);
@@ -730,8 +738,8 @@ void init_smp(int mt) {
 	if(PROCESSOR::n_processors < mt) {
 		for(i = 1; i < MAX_CPUS;i++) {
 			if(PROCESSOR::n_processors < mt) {
-				if(processors[i].state == DEAD) {
-					processors[i].create();
+				if(processors[i] == 0) {
+					PROCESSOR::create(i);
 					PROCESSOR::n_processors++;
 					print("+ Thread %d started.\n",i);
 				}
@@ -740,8 +748,8 @@ void init_smp(int mt) {
 	} else if(PROCESSOR::n_processors > mt) {
 		for(i = MAX_CPUS - 1; i >= 1;i--) {
 			if(PROCESSOR::n_processors > mt) {
-				if(processors[i].state != DEAD) {
-					processors[i].kill();
+				if(processors[i] != 0) {
+					PROCESSOR::kill(i);
 					PROCESSOR::n_processors--;
 					print("- Thread %d terminated.\n",i);
 				}

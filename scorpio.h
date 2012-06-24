@@ -18,24 +18,24 @@ Useful to compile minimal scorpio engine.
 #define PARALLEL
 //#define CLUSTER
 //#define HAS_POPCNT
-#define TUNE
+//#define TUNE
 /*
 parallel search options
 */
 #define USE_SPINLOCK
 #ifdef  PARALLEL
 #	if !defined(MAX_CPUS)
-#		define MAX_CPUS          8
+#		define MAX_CPUS               8
 #	endif
-#	define MAX_CPUS_PER_SPLIT    4
-#	define MAX_SEARCHERS (MAX_CPUS * 16)
+#	define MAX_SEARCHERS_PER_CPU     16
+#	define MAX_CPUS_PER_SPLIT         8
 #else
-#	define MAX_CPUS 			 1
-#	define MAX_SEARCHERS		 1
+#	define MAX_CPUS 			      1
+#	define MAX_SEARCHERS_PER_CPU      1
 #endif
 #ifdef  CLUSTER
 #	if !defined(MAX_HOSTS)
-#		define MAX_HOSTS        128
+#		define MAX_HOSTS            128
 #	endif
 #endif
 /*
@@ -758,11 +758,19 @@ FORCEINLINE void STACK::sort(const int start,const int end) {
 PROCESSOR
 */
 enum thread_states {
-	CREATE,PARK,WAIT,GO,DEAD,KILL
+	PARK,WAIT,GO,KILL
 };
 typedef struct PROCESSOR {
+	/*searchers*/
 	PSEARCHER searcher;
+	SEARCHER searchers[MAX_SEARCHERS_PER_CPU];
 	VOLATILE int state;
+
+	/*processor count*/
+	static int n_processors;
+	static VOLATILE int n_idle_processors;
+
+	/*cluster*/
 #ifdef CLUSTER
 	enum processor_states {
 		QUIT = 0,INIT,RELAX,HELP,CANCEL,SPLIT,MERGE,PING,PONG,ABORT
@@ -781,34 +789,34 @@ typedef struct PROCESSOR {
 	static int MESSAGE_POLL_NODES;
 	static int CLUSTER_SPLIT_DEPTH;
 #endif
+
+	/*functions*/
+	static void exit_scorpio(int);
 #ifdef PARALLEL
 	static int SMP_SPLIT_DEPTH;
-	void create();
-	void kill();
+	static void create(int id);
+	static void kill(int id);
 #endif
 #if defined(PARALLEL) || defined(CLUSTER)
 	void idle_loop();
 #endif
-	static void exit_scorpio(int);
+	
+	/*constructor*/
 	PROCESSOR() {
-		state = DEAD;
 		searcher = 0;
 		eval_hash_tab = 0;
 		pawn_hash_tab = 0;
 	}
-	/*processor count*/
-	static int n_processors;
-	static VOLATILE int n_idle_processors;
-	static int age;
 
-	/*tables*/
+	/*hash tables*/
 	static PHASH white_hash_tab;
 	static PHASH black_hash_tab;
-	PPAWNHASH pawn_hash_tab;
-	PEVALHASH eval_hash_tab;
 	static UBMP32 hash_tab_mask;
+	PPAWNHASH pawn_hash_tab;
 	static UBMP32 pawn_hash_tab_mask;
+	PEVALHASH eval_hash_tab;
 	static UBMP32 eval_hash_tab_mask;
+	static int age;
 
 	static void  record_hash(int,const HASHKEY&,int,int,int,int,MOVE,int);
 	static int   probe_hash(int,const HASHKEY&,int,int,int&,MOVE&,int,int,int&,int&);
@@ -818,8 +826,7 @@ typedef struct PROCESSOR {
 	void  reset_eval_hash_tab(UBMP32 = 0);
 } *PPROCESSOR;
 
-extern PROCESSOR processors[MAX_CPUS];
-extern SEARCHER searchers[MAX_SEARCHERS];
+extern PPROCESSOR processors[MAX_CPUS];
 
 /*
 multi processors
@@ -934,10 +941,10 @@ FORCEINLINE unsigned int first_one(BITBOARD b) {
 #	else
 
 FORCEINLINE int popcnt(BITBOARD b) {
-	const UBMP32 k1 = UINT64(0x55555555);
-	const UBMP32 k2 = UINT64(0x33333333);
-	const UBMP32 k4 = UINT64(0x0f0f0f0f);
-	const UBMP32 kf = UINT64(0x01010101);
+	const UBMP32 k1 = (0x55555555);
+	const UBMP32 k2 = (0x33333333);
+	const UBMP32 k4 = (0x0f0f0f0f);
+	const UBMP32 kf = (0x01010101);
 	UBMP32 hi = (UBMP32) (b >> 32);
 	UBMP32 lo = (UBMP32) (b);
 	hi =  hi       - ((hi >> 1)  & k1); 
