@@ -498,12 +498,14 @@ int SEARCHER::get_smp_move() {
 static volatile bool t_started;
 
 void CDECL thread_proc(void* id) {
+	long tid = (long)id;
 	PPROCESSOR proc = new PROCESSOR();
 	proc->searcher = NULL;
 	proc->state = PARK;
+	proc->reset_hash_tab(tid,0);
 	proc->reset_eval_hash_tab();
 	proc->reset_pawn_hash_tab();
-	processors[(long)id] = proc;
+	processors[tid] = proc;
 	t_started = true;
 	search((PPROCESSOR)proc);
 }
@@ -528,8 +530,11 @@ void PROCESSOR::create(int id) {
 
 void PROCESSOR::kill(int id) {
 	PPROCESSOR proc = processors[id];
-	delete[] proc->eval_hash_tab;
-	delete[] proc->pawn_hash_tab;
+#define DEL(x) if(x) delete[] x;
+	DEL(proc->white_hash_tab);
+	DEL(proc->black_hash_tab);
+	DEL(proc->eval_hash_tab);
+	DEL(proc->pawn_hash_tab);
 	delete proc;
 	processors[id] = 0;
 }

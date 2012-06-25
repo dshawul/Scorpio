@@ -30,7 +30,7 @@ bool SEARCHER::hash_cutoff() {
 	/*
 	. hashtable lookup 
 	*/
-	pstack->hash_flags = PROCESSOR::probe_hash(player,hash_key,pstack->depth,ply,pstack->hash_score,
+	pstack->hash_flags = probe_hash(player,hash_key,pstack->depth,ply,pstack->hash_score,
 		pstack->hash_move,pstack->alpha,pstack->beta,pstack->mate_threat,pstack->hash_depth);
 	if(pstack->hash_move && !is_legal_fast(pstack->hash_move))
 		pstack->hash_move = 0;
@@ -374,7 +374,7 @@ Back up to previous ply
 */
 #define GOBACK(save) {																							\
 	if(save && ((sb->pstack->search_state & ~MOVE_MASK) != SINGULAR_SEARCH)) {     	                            \
-		PROCESSOR::record_hash(sb->player,sb->hash_key,sb->pstack->depth,sb->ply,sb->pstack->flag,		        \
+		sb->record_hash(sb->player,sb->hash_key,sb->pstack->depth,sb->ply,sb->pstack->flag,							\
 		sb->pstack->best_score,sb->pstack->best_move,sb->pstack->mate_threat);									\
 	}																											\
 	if(sb->pstack->search_state & ~MOVE_MASK) goto SPECIAL;                                                     \
@@ -1025,7 +1025,7 @@ void SEARCHER::root_search() {
 	}
 	print_pv(pstack->best_score);
 END:
-	PROCESSOR::record_hash(player,hash_key,pstack->depth,ply,pstack->flag,
+	record_hash(player,hash_key,pstack->depth,ply,pstack->flag,
 		pstack->best_score,pstack->best_move,0);
 }
 
@@ -1254,7 +1254,7 @@ MOVE SEARCHER::find_best() {
 		first incase it was overwritten*/	
 		if(pstack->pv_length) {
 			for(i = 0;i < stack[0].pv_length;i++) {
-				PROCESSOR::record_hash(player,hash_key,0,0,CRAP,0,stack[0].pv[i],0);
+				record_hash(player,hash_key,0,0,CRAP,0,stack[0].pv[i],0);
 				PUSH_MOVE(stack[0].pv[i]);
 			}
 			for(i = 0;i < stack[0].pv_length;i++)

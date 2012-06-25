@@ -39,6 +39,15 @@ parallel search options
 #	endif
 #endif
 /*
+* Transposition table type
+* 0 - global tt
+* 1 - distributed tt
+* 2 - local tt
+*/
+#if !defined(TT_TYPE)
+#	define TT_TYPE                   0
+#endif
+/*
 end
 */
 #include <cstdarg>
@@ -584,6 +593,8 @@ typedef struct SEARCHER{
 	void  eval_win_chance(SCORE&,SCORE&,int&,int&);
 	bool  eval_lazy_exit(int,int,int,SCORE&,SCORE&,int,int);
 	void  pre_calculate();
+	void  record_hash(int,const HASHKEY&,int,int,int,int,MOVE,int);
+	int   probe_hash(int,const HASHKEY&,int,int,int&,MOVE&,int,int,int&,int&);
 	void  record_pawn_hash(const HASHKEY&,const SCORE&,const PAWNREC&);
 	int   probe_pawn_hash(const HASHKEY&,SCORE&,PAWNREC&);
 	void  record_eval_hash(const HASHKEY&,int,int,const EVALREC&);
@@ -763,8 +774,8 @@ enum thread_states {
 typedef struct PROCESSOR {
 	/*searchers*/
 	PSEARCHER searcher;
-	SEARCHER searchers[MAX_SEARCHERS_PER_CPU];
 	VOLATILE int state;
+	SEARCHER searchers[MAX_SEARCHERS_PER_CPU];
 
 	/*processor count*/
 	static int n_processors;
@@ -801,30 +812,31 @@ typedef struct PROCESSOR {
 #if defined(PARALLEL) || defined(CLUSTER)
 	void idle_loop();
 #endif
-	
-	/*constructor*/
-	PROCESSOR() {
-		searcher = 0;
-		eval_hash_tab = 0;
-		pawn_hash_tab = 0;
-	}
 
 	/*hash tables*/
-	static PHASH white_hash_tab;
-	static PHASH black_hash_tab;
-	static UBMP32 hash_tab_mask;
+	PHASH white_hash_tab;
+	PHASH black_hash_tab;
 	PPAWNHASH pawn_hash_tab;
-	static UBMP32 pawn_hash_tab_mask;
 	PEVALHASH eval_hash_tab;
+	static UBMP32 hash_tab_mask;
+	static UBMP32 pawn_hash_tab_mask;
 	static UBMP32 eval_hash_tab_mask;
 	static int age;
 
-	static void  record_hash(int,const HASHKEY&,int,int,int,int,MOVE,int);
-	static int   probe_hash(int,const HASHKEY&,int,int,int&,MOVE&,int,int,int&,int&);
-	static void  clear_hash_tables();
-	static void  reset_hash_tab(int,UBMP32);
+	void  reset_hash_tab(int id,UBMP32);
 	void  reset_pawn_hash_tab(UBMP32 = 0);
 	void  reset_eval_hash_tab(UBMP32 = 0);
+	static void  clear_hash_tables();
+
+	/*constructor*/
+	PROCESSOR() {
+		state = KILL;
+		searcher = 0;
+		white_hash_tab = 0;
+		black_hash_tab = 0;
+		eval_hash_tab = 0;
+		pawn_hash_tab = 0;
+	}
 } *PPROCESSOR;
 
 extern PPROCESSOR processors[MAX_CPUS];

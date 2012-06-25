@@ -22,7 +22,7 @@ DEFINES =
 DEFINES += -DMAX_CPUS=32
 #DEFINES += -DMAX_HOSTS=128
 #DEFINES += -DTUNE
-DEFINES += -DTT_TYPE=1
+#DEFINES += -DTT_TYPE=1
 
 ######################
 # Rules

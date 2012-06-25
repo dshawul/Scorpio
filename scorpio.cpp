@@ -453,7 +453,8 @@ bool parse_commands(char** commands) {
 			UBMP32 size = 1,size_max = (atoi(commands[command_num++]) * 1024 * 1024) / 2;
 			while(size < size_max) size *= 2;
 			size /= sizeof(HASH);
-			PROCESSOR::reset_hash_tab(0,size);
+			for(int i = 0;i < PROCESSOR::n_processors;i++) 
+				processors[i]->reset_hash_tab(i,size);
 			print("ht %d X %d = %dMB\n",2 * size,sizeof(HASH),(2 * size * sizeof(HASH)) / (1024 * 1024));
 		} else if(!strcmp(command,"pht")) {
 			UBMP32 size = 1,size_max = (atoi(commands[command_num++]) * 1024 * 1024);

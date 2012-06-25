@@ -1,7 +1,5 @@
 #include "scorpio.h"
 
-PHASH PROCESSOR::white_hash_tab = 0;
-PHASH PROCESSOR::black_hash_tab = 0;
 UBMP32 PROCESSOR::hash_tab_mask = (1 << 8) - 1;
 UBMP32 PROCESSOR::eval_hash_tab_mask = (1 << 8) - 1;
 UBMP32 PROCESSOR::pawn_hash_tab_mask = (1 << 8) - 1;
@@ -13,6 +11,9 @@ Allocate tables
 	-The rest is allocated for each thread.
 */
 void PROCESSOR::reset_hash_tab(int id,UBMP32 size) {
+#if TT_TYPE == 0
+	if(id != 0) return;
+#endif
 	if(size) hash_tab_mask = size - 1;
 	else size = hash_tab_mask + 1;
 	aligned_reserve<HASH>(white_hash_tab,size);
@@ -33,10 +34,12 @@ void PROCESSOR::reset_eval_hash_tab(UBMP32 size) {
 
 void PROCESSOR::clear_hash_tables() {
 	PPROCESSOR proc;
-	memset(white_hash_tab,0,(hash_tab_mask + 1) * sizeof(HASH));
-	memset(black_hash_tab,0,(hash_tab_mask + 1) * sizeof(HASH));
 	for(int i = 0;i < n_processors;i++) {
 		proc = processors[i];
+		if(proc->white_hash_tab) {
+			memset(proc->white_hash_tab,0,(hash_tab_mask + 1) * sizeof(HASH));
+			memset(proc->black_hash_tab,0,(hash_tab_mask + 1) * sizeof(HASH));
+		}
 		memset(proc->pawn_hash_tab,0,(pawn_hash_tab_mask + 1) * sizeof(PAWNHASH));
 		memset(proc->eval_hash_tab,0,(eval_hash_tab_mask + 1) * sizeof(EVALHASH));
 	}
@@ -44,16 +47,27 @@ void PROCESSOR::clear_hash_tables() {
 /*
 Main hash table
 */
-void PROCESSOR::record_hash(
+void SEARCHER::record_hash(
 				 int col,const HASHKEY& hash_key,int depth,int ply,
 				 int flags,int score,MOVE move,int mate_threat
 				 ) {
-	register UBMP32 key = UBMP32(hash_key & hash_tab_mask);
+#if TT_TYPE == 0
+	static const PPROCESSOR proc = processors[0];
+	UBMP32 key = UBMP32(hash_key & PROCESSOR::hash_tab_mask);
+#elif TT_TYPE == 1
+	PPROCESSOR proc = processors[(hash_key % PROCESSOR::n_processors)];
+	UBMP32 key = UBMP32((hash_key / PROCESSOR::n_processors) & PROCESSOR::hash_tab_mask);
+#else
+	PPROCESSOR proc = processors[processor_id];
+	UBMP32 key = UBMP32(hash_key & PROCESSOR::hash_tab_mask);
+#endif
 	register PHASHREC pslot,pr_slot = 0;
 	int sc,max_sc = MAX_NUMBER;
 
-	if(col == white) pslot = PHASHREC(white_hash_tab + key);
-	else pslot = PHASHREC(black_hash_tab + key);
+	if(col == white) 
+		pslot = PHASHREC(proc->white_hash_tab + key);
+	else 
+		pslot = PHASHREC(proc->black_hash_tab + key);
 
 	for(int i = 0; i < 4; i++) {
 		if(!pslot->hash_key || pslot->hash_key == hash_key) {
@@ -70,9 +84,9 @@ void PROCESSOR::record_hash(
 			pslot->score = BMP16(score);
 			pslot->depth = UBMP8(depth);
 			if(mate_threat || (pslot->flags & 4)) 
-				pslot->flags = UBMP8((flags - EXACT) | (age << 3) | (4));
+				pslot->flags = UBMP8((flags - EXACT) | (PROCESSOR::age << 3) | (4));
 			else 
-				pslot->flags = UBMP8((flags - EXACT) | (age << 3));
+				pslot->flags = UBMP8((flags - EXACT) | (PROCESSOR::age << 3));
 			pslot->hash_key = hash_key;
 			return;
 		} else {
@@ -90,20 +104,31 @@ void PROCESSOR::record_hash(
 	pr_slot->move = UBMP32(move);
 	pr_slot->score = BMP16(score);
 	pr_slot->depth = UBMP8(depth);
-	pr_slot->flags = UBMP8((flags - EXACT) | (mate_threat << 2) | (age << 3));
+	pr_slot->flags = UBMP8((flags - EXACT) | (mate_threat << 2) | (PROCESSOR::age << 3));
 	pr_slot->hash_key = hash_key;
 }
 
-int PROCESSOR::probe_hash(
+int SEARCHER::probe_hash(
 			   int col,const HASHKEY& hash_key,int depth,int ply,int& score,
 			   MOVE& move,int alpha,int beta,int& mate_threat,int& h_depth
 			   ) {
-	register UBMP32 key = UBMP32(hash_key & hash_tab_mask);
+#if TT_TYPE == 0
+	static const PPROCESSOR proc = processors[0];
+	UBMP32 key = UBMP32(hash_key & PROCESSOR::hash_tab_mask);
+#elif TT_TYPE == 1
+	PPROCESSOR proc = processors[(hash_key % PROCESSOR::n_processors)];
+	UBMP32 key = UBMP32((hash_key / PROCESSOR::n_processors) & PROCESSOR::hash_tab_mask);
+#else
+	PPROCESSOR proc = processors[processor_id];
+	UBMP32 key = UBMP32(hash_key & PROCESSOR::hash_tab_mask);
+#endif
 	register PHASHREC pslot;
     register int flags;
 	
-	if(col == white) pslot = PHASHREC(white_hash_tab + key);
-	else pslot = PHASHREC(black_hash_tab + key);
+	if(col == white) 
+		pslot = PHASHREC(proc->white_hash_tab + key);
+	else 
+		pslot = PHASHREC(proc->black_hash_tab + key);
 	
 	for(int i = 0; i < 4; i++) {
 		
