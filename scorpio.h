@@ -826,6 +826,7 @@ typedef struct PROCESSOR {
 	void  reset_hash_tab(int id,UBMP32);
 	void  reset_pawn_hash_tab(UBMP32 = 0);
 	void  reset_eval_hash_tab(UBMP32 = 0);
+	void  delete_hash_tables();
 	static void  clear_hash_tables();
 
 	/*constructor*/
@@ -1024,11 +1025,11 @@ Some bitboards
 */
 extern const BITBOARD rank_mask[8];
 extern const BITBOARD file_mask[8];
-extern BITBOARD __unit_bb[0x80];
-extern BITBOARD in_between[64][64];
+extern const BITBOARD __unit_bb[0x80];
 extern const UBMP8 first_bit[0x100];
 extern const UBMP8 last_bit[0x100];
 extern const UBMP8 center_bit[0x100];
+extern BITBOARD in_between[64][64];
 /*
 Pradu's magic tables
 */
@@ -1044,6 +1045,7 @@ extern const BITBOARD* magicmoves_b_indices[64];
 extern const BITBOARD* magicmoves_r_indices[64];
 
 #define BB(sq)                  (__unit_bb[sq])
+#define NBB(sq)                 (__unit_bb[sq + 8])
 #define blocked(from,to)        (in_between[SQ8864(from)][SQ8864(to)] & all_bb)
 #define king_attacks(sq)        (king_magics[sq])
 #define knight_attacks(sq)      (knight_magics[sq])

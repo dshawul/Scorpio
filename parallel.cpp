@@ -527,14 +527,9 @@ void PROCESSOR::create(int id) {
 	t_create(thread_proc,tid,thread);
 	while(t_started == false);
 }
-
 void PROCESSOR::kill(int id) {
 	PPROCESSOR proc = processors[id];
-#define DEL(x) if(x) delete[] x;
-	DEL(proc->white_hash_tab);
-	DEL(proc->black_hash_tab);
-	DEL(proc->eval_hash_tab);
-	DEL(proc->pawn_hash_tab);
+	proc->delete_hash_tables();
 	delete proc;
 	processors[id] = 0;
 }

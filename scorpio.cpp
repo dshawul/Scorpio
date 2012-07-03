@@ -39,7 +39,6 @@ VOLATILE int PROCESSOR::n_idle_processors;
 #ifdef PARALLEL
 LOCK  lock_smp;
 LOCK  lock_io;
-int n_searchers;
 int PROCESSOR::SMP_SPLIT_DEPTH = 4;
 #endif
 

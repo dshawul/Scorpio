@@ -269,7 +269,7 @@ Generate captures
 		while(bb) {														\
             to = first_one(bb);                                         \
 			*pmove++ = tmove | (to<<8) | (board[to]<<20);               \
-			bb &= ~BB(to);                                              \
+			bb &= NBB(to);                                              \
 		}                                                               \
 }
 
@@ -297,7 +297,7 @@ void SEARCHER::gen_caps() {
 			} else {
 				*pmove++ = from | (to<<8) | (wpawn<<16) | (board[to]<<20);
 			}
-			bb &= ~BB(to);                                              
+			bb &= NBB(to);                                              
 		}
 		bb = ((pawns_bb[white] & ~file_mask[FILEH]) << 9) & occupancyb;
 		while(bb) {														
@@ -312,14 +312,14 @@ void SEARCHER::gen_caps() {
 			} else {
 				*pmove++ = from | (to<<8) | (wpawn<<16) | (board[to]<<20);
 			}
-			bb &= ~BB(to);                                              
+			bb &= NBB(to);                                              
 		}
 		bb = ((pawns_bb[white] & rank_mask[RANK7]) << 8) & ~occupancy;
 		while(bb) {														
             to = first_one(bb);        
 			from = to + DD;
 			*pmove++ = from | (to<<8) | (wpawn<<16) | (wqueen<<24);
-			bb &= ~BB(to);                                              
+			bb &= NBB(to);                                              
 		}
 		if(epsquare) {
 			from = epsquare + LD;
@@ -386,7 +386,7 @@ void SEARCHER::gen_caps() {
 			} else {
 				*pmove++ = from | (to<<8) | (bpawn<<16) | (board[to]<<20);
 			}
-			bb &= ~BB(to);                                              
+			bb &= NBB(to);                                              
 		}
 		bb = ((pawns_bb[black] & ~file_mask[FILEA]) >> 9) & occupancyw;
 		while(bb) {														
@@ -401,14 +401,14 @@ void SEARCHER::gen_caps() {
 			} else {
 				*pmove++ = from | (to<<8) | (bpawn<<16) | (board[to]<<20);
 			}
-			bb &= ~BB(to);                                              
+			bb &= NBB(to);                                              
 		}
 		bb = ((pawns_bb[black] & rank_mask[RANK2]) >> 8) & ~occupancy;
 		while(bb) {														
             to = first_one(bb);        
 			from = to + UU;
 			*pmove++ = from | (to<<8) | (bpawn<<16) | (bqueen<<24);
-			bb &= ~BB(to);                                              
+			bb &= NBB(to);                                              
 		}
 		if(epsquare) {
 			from = epsquare + RU;

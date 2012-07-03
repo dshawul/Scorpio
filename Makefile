@@ -5,7 +5,6 @@ EXE = scorpio
 RM = rm -rf
 OBJ = attack.o scorpio.o eval.o hash.o moves.o parallel.o probe.o search.o see.o magics.o util.o
 HPP = scorpio.h my_types.h
-ICPC_WARN = -wd128 -wd981 -wd869 -wd2259 -wd383 -wd1418
 
 #########################################################################
 #
@@ -24,77 +23,64 @@ DEFINES += -DMAX_CPUS=32
 #DEFINES += -DTUNE
 #DEFINES += -DTT_TYPE=1
 
+############################
+# Compiler
+#   gcc      --> g++
+#   icpc     --> icpc
+#   arm      --> arm-linux-androideabi
+#   cluster  --> mpiCC
+############################
+
+COMPILER=gcc
+PROFILE=no
+
+ifeq ($(PROFILE),no)
+	CXXFLAGS = -O3 -Wall -fomit-frame-pointer -fstrict-aliasing -fno-exceptions -fno-rtti
+	LXXFLAGS = -lm -ldl
+else
+	CXXFLAGS = -pg -O3 -Wall
+	LXXFLAGS = -pg -lm -ldl
+endif
+
+STRIP=strip
+
+ifeq ($(COMPILER),gcc)
+	CXX=g++
+	CXXFLAGS += -msse
+	LXXFLAGS += -lpthread
+else ifeq ($(COMPILER),icpc)
+	CXX=icpc
+	CXXFLAGS += -wd128 -wd981 -wd869 -wd2259 -wd383 -wd1418 -vec_report0
+	LXXFLAGS += -lpthread
+else ifeq ($(COMPILER),arm)
+	CXX=arm-linux-androideabi-g++
+	STRIP=arm-linux-androideabi-strip 
+else ifeq ($(COMPILER),cluster)
+	CXX="mpiCC"
+	CXXFLAGS += -wd128 -wd981 -wd869 -wd2259 -wd383 -wd1418
+	LXXFLAGS += -lpthread
+	DEFINES += -DCLUSTER
+endif
+
 ######################
 # Rules
 ######################
 
 default:
-	$(MAKE) gcc
+	$(MAKE) $(EXE) strip
 
 clean:
 	$(RM) $(OBJ) $(EXE) core.* cluster.*
 
 strip:
-	strip $(EXE)
-
-arm-strip:
-	arm-linux-androideabi-strip $(EXE)
-
-gcc:   
-	$(MAKE) \
-	CXX=g++ \
-	CXXFLAGS="-O3 -Wall -fomit-frame-pointer -fstrict-aliasing -fno-exceptions -fno-rtti" \
-	LXXFLAGS="-lm -lpthread -ldl" \
-	all
-
-cluster:   
-	$(MAKE) \
-	CXX=mpiCC \
-	DEFINES="$(DEFINES) -DCLUSTER " \
-	CXXFLAGS="-O3 -Wall -fomit-frame-pointer -fstrict-aliasing -fno-exceptions -fno-rtti $(ICPC_WARN) " \
-	LXXFLAGS="-lm -lpthread -ldl" \
-	all
-
-gcc-profile:
-	$(MAKE) \
-	CXX=g++ \
-	CXXFLAGS="-pg -O3 -msse -Wall" \
-	LXXFLAGS="-pg -lm -lpthread -ldl" \
-	all
-
-cluster-profile:   
-	$(MAKE) \
-	CXX=mpiCC \
-	DEFINES="$(DEFINES) -DCLUSTER " \
-	CXXFLAGS="-pg -O3 -Wall $(ICPC_WARN) " \
-	LXXFLAGS="-pg -lm -lpthread -ldl" \
-	all
-
-arm:   
-	$(MAKE) \
-	CXX=arm-linux-androideabi-g++ \
-	CXXFLAGS="-O3 -Wall -fomit-frame-pointer -fstrict-aliasing -fno-exceptions -fno-rtti" \
-	LXXFLAGS="-lm -ldl" \
-	all
-
-all: $(EXE)
-	
-help:
-	@echo ""
-	@echo "make gcc              --> gcc compiler"            
-	@echo "make gcc-profile      --> profile with gcc"
-	@echo "make cluster          --> compile cluster version"     
-	@echo "make cluster-profile  --> profile cluster version"     
-	@echo "make strip            --> remove debug information."
-	@echo "make clean            --> remove intermediate files"
-	@echo ""
+	$(STRIP) $(EXE)
 
 ##############
 # Dependencies
 ############## 
 
 $(EXE): $(OBJ)
-	$(CXX) $(LXXFLAGS) $(DEFINES) -o $@ $(OBJ)
+	$(CXX) $(LXXFLAGS) -o $@ $(OBJ)
 
 %.o: %.cpp $(HPP)
 	$(CXX) $(CXXFLAGS) $(DEFINES) -c -o $@ $<

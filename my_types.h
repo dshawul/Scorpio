@@ -101,7 +101,8 @@ template<typename T>
 void aligned_reserve(T*& mem,const size_t& size) {
 	if((sizeof(T) & (sizeof(T) - 1)) == 0) {
 #ifdef _MSC_VER
-		mem = (T*)_aligned_realloc(mem,size * sizeof(T),CACHE_LINE_SIZE);
+		if(mem) _aligned_free(mem);
+		mem = (T*)_aligned_malloc(size * sizeof(T),CACHE_LINE_SIZE);
 #else
 		if(mem) free(mem);
 		posix_memalign((void**)&mem,CACHE_LINE_SIZE,size * sizeof(T));
@@ -112,7 +113,22 @@ void aligned_reserve(T*& mem,const size_t& size) {
 	}
 }
 
-/*threads*/
+template<typename T>
+void aligned_free(T*& mem) {
+	if((sizeof(T) & (sizeof(T) - 1)) == 0) {
+#ifdef _MSC_VER
+		if(mem) _aligned_free(mem);
+#else
+		if(mem) free(mem);
+#endif
+	} else {
+		if(mem) free(mem);
+	}
+	mem = 0;
+}
+/*
+* Threads
+*/
 #    ifdef _MSC_VER
 #        include <process.h>
 #        define pthread_t HANDLE
@@ -168,6 +184,24 @@ void aligned_reserve(T*& mem,const size_t& size) {
 #    define l_create(x)
 #    define l_lock(x)
 #    define l_unlock(x)
+#endif
+/*
+* Performance counters
+*/
+#ifdef _MSC_VER
+typedef LARGE_INTEGER TIMER;
+#define get_perf(x)  QueryPerformanceCounter(&x)
+inline double get_diff(TIMER s,TIMER e) {
+	TIMER freq; 
+	QueryPerformanceFrequency( &freq );  
+	return (e.QuadPart - s.QuadPart)/(double(freq.QuadPart) / 1e9);
+}
+#else
+typedef struct timespec TIMER;
+#define get_perf(x)  clock_gettime(CLOCK_MONOTONIC,&x)
+inline double get_diff(TIMER s,TIMER e) {
+	return (e.tv_sec - s.tv_sec) * 1e9 + (e.tv_nsec - s.tv_nsec);
+}
 #endif
 /*
 end

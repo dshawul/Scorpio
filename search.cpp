@@ -1,6 +1,6 @@
 #include "scorpio.h"
 
-const int CHECK_DEPTH = UNITDEPTH;
+static const int CHECK_DEPTH = UNITDEPTH;
 
 static int use_iid = 1;
 static int futility_margin = 125;
@@ -374,7 +374,7 @@ Back up to previous ply
 */
 #define GOBACK(save) {																							\
 	if(save && ((sb->pstack->search_state & ~MOVE_MASK) != SINGULAR_SEARCH)) {     	                            \
-		sb->record_hash(sb->player,sb->hash_key,sb->pstack->depth,sb->ply,sb->pstack->flag,							\
+		sb->record_hash(sb->player,sb->hash_key,sb->pstack->depth,sb->ply,sb->pstack->flag,						\
 		sb->pstack->best_score,sb->pstack->best_move,sb->pstack->mate_threat);									\
 	}																											\
 	if(sb->pstack->search_state & ~MOVE_MASK) goto SPECIAL;                                                     \

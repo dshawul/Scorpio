@@ -7,7 +7,7 @@ int PROCESSOR::age;
 
 /*
 Allocate tables 
-	-Main hasht table is shared.
+	-Main hash table is shared.
 	-The rest is allocated for each thread.
 */
 void PROCESSOR::reset_hash_tab(int id,UBMP32 size) {
@@ -43,6 +43,12 @@ void PROCESSOR::clear_hash_tables() {
 		memset(proc->pawn_hash_tab,0,(pawn_hash_tab_mask + 1) * sizeof(PAWNHASH));
 		memset(proc->eval_hash_tab,0,(eval_hash_tab_mask + 1) * sizeof(EVALHASH));
 	}
+}
+void PROCESSOR::delete_hash_tables() {
+	aligned_free<HASH>(white_hash_tab);
+	aligned_free<HASH>(black_hash_tab);
+	aligned_free<PAWNHASH>(pawn_hash_tab);
+	aligned_free<EVALHASH>(eval_hash_tab);
 }
 /*
 Main hash table
