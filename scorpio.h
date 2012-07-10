@@ -18,6 +18,7 @@ Useful to compile minimal scorpio engine.
 #define PARALLEL
 //#define CLUSTER
 //#define HAS_POPCNT
+//#define HAS_PREFETCH
 //#define TUNE
 /*
 parallel search options
@@ -281,11 +282,6 @@ typedef struct CHESS_CLOCK {
 	void set_stime(int);
 }*PCHESS_CLOCK;
 
-typedef struct SQATTACK {
-	int   step;
-	int   pieces;
-}*PSQATTACK;
-
 typedef struct LIST{
 	int   sq;
 	LIST* prev;
@@ -352,9 +348,9 @@ typedef struct tagPAWNREC {
 } PAWNREC,*PPAWNREC;
 
 typedef struct tagPAWNHASH {
-	HASHKEY checksum;
-	PAWNREC pawnrec;
+	HASHKEY hash_key;
 	SCORE   score;
+	PAWNREC pawnrec;
 } PAWNHASH, *PPAWNHASH;
 
 typedef struct tagEVALREC {
@@ -372,7 +368,7 @@ typedef struct tagEVALREC {
 #define BAD_BKING          4
 
 typedef struct tagEVALHASH {
-	HASHKEY checksum;
+	HASHKEY hash_key;
 	BMP16   score;
 	BMP16   lazy_score;
 	EVALREC evalrec;
@@ -599,6 +595,8 @@ typedef struct SEARCHER{
 	int   probe_pawn_hash(const HASHKEY&,SCORE&,PAWNREC&);
 	void  record_eval_hash(const HASHKEY&,int,int,const EVALREC&);
 	int   probe_eval_hash(const HASHKEY&,int&,int&,EVALREC&);
+	void  prefetch_tt();
+	void  prefetch_qtt();
 	bool  san_mov(MOVE& move,char* s);
 	bool  build_book(char*,char*,int,int,int);
 	void  update_history(MOVE);
@@ -869,8 +867,6 @@ extern const int piece_cv[14];
 extern const int piece_see_v[14];
 extern const int pic_tab[14];
 extern const int pawn_dir[2];
-extern SQATTACK  temp_sqatt[0x101];
-extern PSQATTACK const sqatt;
 extern const int piece_mask[14];
 extern int pcsq[14][0x80];
 extern bool book_loaded;
@@ -880,7 +876,6 @@ extern int scorpio_start_time;
 utility functions
 */
 int   get_time();
-void  init_sqatt();
 void  init_io();
 void  remove_log_file();
 void  print(const char* format,...);
@@ -1029,6 +1024,8 @@ extern const BITBOARD __unit_bb[0x80];
 extern const UBMP8 first_bit[0x100];
 extern const UBMP8 last_bit[0x100];
 extern const UBMP8 center_bit[0x100];
+extern const UBMP8* const _sqatt_pieces;
+extern const BMP8* const _sqatt_step;
 extern BITBOARD in_between[64][64];
 /*
 Pradu's magic tables
@@ -1046,6 +1043,8 @@ extern const BITBOARD* magicmoves_r_indices[64];
 
 #define BB(sq)                  (__unit_bb[sq])
 #define NBB(sq)                 (__unit_bb[sq + 8])
+#define sqatt_pieces(sq)        _sqatt_pieces[sq]
+#define sqatt_step(sq)          _sqatt_step[sq]
 #define blocked(from,to)        (in_between[SQ8864(from)][SQ8864(to)] & all_bb)
 #define king_attacks(sq)        (king_magics[sq])
 #define knight_attacks(sq)      (knight_magics[sq])

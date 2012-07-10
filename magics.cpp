@@ -314,7 +314,7 @@ void initmagicmoves(void) {
 			in_between[i][j] = 0;
 			from = SQ6488(i);
 			to = SQ6488(j);
-			step = sqatt[to - from].step;
+			step = sqatt_step(to - from);
 			if(step) {
 				from += step;
 				while(from != to) {

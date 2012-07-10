@@ -9,19 +9,19 @@ void SEARCHER::do_move(const MOVE& move) {
 	/*save state*/
 	PHIST_STACK phstack = hstack + hply;
 	phstack->move = move;
-	phstack->epsquare = epsquare;
 	phstack->castle = castle;
+	phstack->epsquare = epsquare;
 	phstack->fifty = fifty;
+	phstack->checks = checks(move,phstack->rev_check);
 	phstack->pcsq_score[white] = pcsq_score[white];
 	phstack->pcsq_score[black] = pcsq_score[black];
 	phstack->all_bb = all_bb;
+	phstack->hash_key = hash_key;
+    phstack->pawn_hash_key = pawn_hash_key;
 	phstack->pieces_bb[white] = pieces_bb[white];
 	phstack->pieces_bb[black] = pieces_bb[black];
 	phstack->pawns_bb[white] = pawns_bb[white];
 	phstack->pawns_bb[black] = pawns_bb[black];
-	phstack->hash_key = hash_key;
-    phstack->pawn_hash_key = pawn_hash_key;
-	phstack->checks = checks(move,phstack->rev_check);
 
 	/*remove captured piece*/
 	if((pic = m_capture(move)) != 0) {
@@ -162,20 +162,20 @@ void SEARCHER::undo_move() {
 
 	/*retrieve state*/
 	PHIST_STACK phstack = &hstack[hply];
-	epsquare = phstack->epsquare;
-	castle = phstack->castle;
-	fifty = phstack->fifty;
 	move = phstack->move;
+	castle = phstack->castle;
+	epsquare = phstack->epsquare;
+	fifty = phstack->fifty;
 	pcsq_score[white] = phstack->pcsq_score[white];
 	pcsq_score[black] = phstack->pcsq_score[black];
 	all_bb = phstack->all_bb;
+	hash_key = phstack->hash_key;
+    pawn_hash_key = phstack->pawn_hash_key;
 	pieces_bb[white] = phstack->pieces_bb[white];
 	pieces_bb[black] = phstack->pieces_bb[black];
 	pawns_bb[white] = phstack->pawns_bb[white];
 	pawns_bb[black] = phstack->pawns_bb[black];
-	hash_key = phstack->hash_key;
-    pawn_hash_key = phstack->pawn_hash_key;
-
+	
 	to = m_to(move);
 	from = m_from(move);
 
@@ -235,8 +235,8 @@ void SEARCHER::do_null() {
 	phstack->move = 0;
 	phstack->epsquare = epsquare;
 	phstack->fifty = fifty;
-	phstack->hash_key = hash_key;
 	phstack->checks = 0;
+	phstack->hash_key = hash_key;
 
 	if(epsquare)
 	    hash_key ^= EP_HKEY(epsquare);
@@ -737,22 +737,22 @@ void SEARCHER::gen_evasions() {
 		n_attackers = 1;
 		att_sq = m_to(hstack[hply - 1].move);
 		if(piece_mask[board[att_sq]] & QRBM)
-			check_dir1 = sqatt[king_sq - att_sq].step;
+			check_dir1 = sqatt_step(king_sq - att_sq);
 	} else if(hstack[hply - 1].checks == 2) {
 		n_attackers = 1;
 		att_sq = hstack[hply - 1].rev_check;
-		check_dir1 = sqatt[king_sq - att_sq].step;
+		check_dir1 = sqatt_step(king_sq - att_sq);
 	} else {
 		n_attackers = 2;
 		if(hstack[hply - 1].checks == 3) {
 			att_sq = m_to(hstack[hply - 1].move);
 			if(piece_mask[board[att_sq]] & QRBM)
-				check_dir1 = sqatt[king_sq - att_sq].step;
-			check_dir2 = sqatt[king_sq - hstack[hply - 1].rev_check].step;
+				check_dir1 = sqatt_step(king_sq - att_sq);
+			check_dir2 = sqatt_step(king_sq - hstack[hply - 1].rev_check);
 		} else {
 			att_sq = m_from(hstack[hply - 1].move);
-			check_dir1 = sqatt[king_sq - att_sq].step;
-			check_dir2 = sqatt[king_sq - hstack[hply - 1].rev_check].step;
+			check_dir1 = sqatt_step(king_sq - att_sq);
+			check_dir2 = sqatt_step(king_sq - hstack[hply - 1].rev_check);
 		}
 	}
 
@@ -830,14 +830,14 @@ void SEARCHER::gen_evasions() {
 			from = epsquare - RU;
 			sq = epsquare + DD;
 			if(board[from] == wpawn &&
-				(sq == att_sq || (sqatt[epsquare - king_sq].step != 0 && sqatt[epsquare - king_sq].step == -sqatt[epsquare-att_sq].step)) &&
+				(sq == att_sq || (sqatt_step(epsquare - king_sq) != 0 && sqatt_step(epsquare - king_sq) == -sqatt_step(epsquare-att_sq))) &&
 				!pinned_on_king(sq,white) && !pinned_on_king(from,white))
 				  *pmove++ = from | (epsquare<<8) | (wpawn<<16) | (bpawn<<20) | EP_FLAG;
 			
 			from = epsquare - LU;
 			sq = epsquare + DD;
 			if(board[from] == wpawn &&
-				(sq == att_sq || (sqatt[epsquare - king_sq].step != 0 && sqatt[epsquare - king_sq].step == -sqatt[epsquare-att_sq].step)) &&
+				(sq == att_sq || (sqatt_step(epsquare - king_sq) != 0 && sqatt_step(epsquare - king_sq) == -sqatt_step(epsquare-att_sq))) &&
 				!pinned_on_king(sq,white) && !pinned_on_king(from,white))
 				  *pmove++ = from | (epsquare<<8) | (wpawn<<16) | (bpawn<<20) | EP_FLAG;
 		}
@@ -849,12 +849,12 @@ void SEARCHER::gen_evasions() {
 			if(!pinned_on_king(from,white)){
 				if(check_dir1!=-2) {
 					for(to = king_sq - check_dir1;to != att_sq;to -= check_dir1) {
-						if(sqatt[from - to].pieces & NM)
+						if(sqatt_pieces(from - to) & NM)
 							*pmove++ = from | (to<<8) | (wknight<<16);
 					}
 				}
 				
-				if(sqatt[from - att_sq].pieces & NM)
+				if(sqatt_pieces(from - att_sq) & NM)
 					*pmove++ = from | (to<<8) | (wknight<<16) | (board[to]<<20);
 			}
 			current = current->next;
@@ -867,14 +867,14 @@ void SEARCHER::gen_evasions() {
 			if(!pinned_on_king(from,white)){
 				if(check_dir1!=-2) {
 					for(to = king_sq - check_dir1;to != att_sq;to -= check_dir1) {
-						if(sqatt[from - to].pieces & BM)
-							if(blocked(from,to)==0)
+						if(sqatt_pieces(from - to) & BM)
+							if(!blocked(from,to))
 								*pmove++ = from | (to<<8) | (wbishop<<16);
 					}
 				}
 				
-				if(sqatt[from - att_sq].pieces & BM)
-					if(blocked(from,att_sq)==0)
+				if(sqatt_pieces(from - att_sq) & BM)
+					if(!blocked(from,att_sq))
 						*pmove++ = from | (to<<8) | (wbishop<<16) | (board[to]<<20);
 			}
 			current = current->next;
@@ -887,14 +887,14 @@ void SEARCHER::gen_evasions() {
 			if(!pinned_on_king(from,white)){
 				if(check_dir1!=-2) {
 					for(to = king_sq - check_dir1;to != att_sq;to -= check_dir1) {
-						if(sqatt[from - to].pieces & RM)
-							if(blocked(from,to)==0)
+						if(sqatt_pieces(from - to) & RM)
+							if(!blocked(from,to))
 								*pmove++ = from | (to<<8) | (wrook<<16);
 					}
 				}
 				
-				if(sqatt[from - att_sq].pieces & RM)
-					if(blocked(from,att_sq)==0)
+				if(sqatt_pieces(from - att_sq) & RM)
+					if(!blocked(from,att_sq))
 						*pmove++ = from | (to<<8) | (wrook<<16) | (board[to]<<20);
 			}
 			current = current->next;
@@ -907,14 +907,14 @@ void SEARCHER::gen_evasions() {
 			if(!pinned_on_king(from,white)){
 				if(check_dir1!=-2) {
 					for(to = king_sq - check_dir1;to != att_sq;to -= check_dir1) {
-						if(sqatt[from - to].pieces & QM)
-							if(blocked(from,to)==0)
+						if(sqatt_pieces(from - to) & QM)
+							if(!blocked(from,to))
 								*pmove++ = from | (to<<8) | (wqueen<<16);
 					}
 				}
 				
-				if(sqatt[from - att_sq].pieces & QM)
-					if(blocked(from,att_sq)==0)
+				if(sqatt_pieces(from - att_sq) & QM)
+					if(!blocked(from,att_sq))
 						*pmove++ = from | (to<<8) | (wqueen<<16) | (board[to]<<20);
 			}
 			current = current->next;
@@ -993,14 +993,14 @@ void SEARCHER::gen_evasions() {
 			from = epsquare - LD;
 			sq = epsquare + UU;
 			if(board[from] == bpawn &&
-				(sq == att_sq || (sqatt[epsquare - king_sq].step != 0 && sqatt[epsquare - king_sq].step == -sqatt[epsquare - att_sq].step)) &&
+				(sq == att_sq || (sqatt_step(epsquare - king_sq) != 0 && sqatt_step(epsquare - king_sq) == -sqatt_step(epsquare - att_sq))) &&
 				!pinned_on_king(sq,black) && !pinned_on_king(from,black))
 				*pmove++ = from | (epsquare<<8) | (bpawn<<16) | (wpawn<<20) | EP_FLAG;
 			
 			from = epsquare - RD;
 			sq = epsquare + UU;
 			if(board[from] == bpawn &&
-				(sq == att_sq || (sqatt[epsquare - king_sq].step != 0 && sqatt[epsquare - king_sq].step == -sqatt[epsquare - att_sq].step)) &&
+				(sq == att_sq || (sqatt_step(epsquare - king_sq) != 0 && sqatt_step(epsquare - king_sq) == -sqatt_step(epsquare - att_sq))) &&
 				!pinned_on_king(sq,black) && !pinned_on_king(from,black))
 				*pmove++ = from | (epsquare<<8) | (bpawn<<16) | (wpawn<<20) | EP_FLAG;
 		}
@@ -1012,12 +1012,12 @@ void SEARCHER::gen_evasions() {
 			if(!pinned_on_king(from,black)){
 				if(check_dir1!=-2) {
 					for(to = king_sq - check_dir1;to != att_sq;to -= check_dir1) {
-						if(sqatt[from - to].pieces & NM)
+						if(sqatt_pieces(from - to) & NM)
 							*pmove++ = from | (to<<8) | (bknight<<16);
 					}
 				}
 				
-				if(sqatt[from - att_sq].pieces & NM)
+				if(sqatt_pieces(from - att_sq) & NM)
 					*pmove++ = from | (to<<8) | (bknight<<16) | (board[to]<<20);
 			}
 			current = current->next;
@@ -1030,14 +1030,14 @@ void SEARCHER::gen_evasions() {
 			if(!pinned_on_king(from,black)){
 				if(check_dir1!=-2) {
 					for(to = king_sq - check_dir1;to != att_sq;to -= check_dir1) {
-						if(sqatt[from - to].pieces & BM)
-							if(blocked(from,to) == 0)
+						if(sqatt_pieces(from - to) & BM)
+							if(!blocked(from,to))
 								*pmove++ = from | (to<<8) | (bbishop<<16);
 					}
 				}
 				
-				if(sqatt[from - att_sq].pieces & BM)
-					if(blocked(from,att_sq) == 0)
+				if(sqatt_pieces(from - att_sq) & BM)
+					if(!blocked(from,att_sq))
 						*pmove++ = from | (to<<8) | (bbishop<<16) | (board[to]<<20);
 			}
 			current = current->next;
@@ -1050,14 +1050,14 @@ void SEARCHER::gen_evasions() {
 			if(!pinned_on_king(from,black)){
 				if(check_dir1!=-2) {
 					for(to = king_sq - check_dir1;to != att_sq;to -= check_dir1) {
-						if(sqatt[from - to].pieces & RM)
-							if(blocked(from,to) == 0)
+						if(sqatt_pieces(from - to) & RM)
+							if(!blocked(from,to))
 								*pmove++ = from | (to<<8) | (brook<<16);
 					}
 				}
 				
-				if(sqatt[from - att_sq].pieces & RM)
-					if(blocked(from,att_sq) == 0)
+				if(sqatt_pieces(from - att_sq) & RM)
+					if(!blocked(from,att_sq))
 						*pmove++ = from | (to<<8) | (brook<<16) | (board[to]<<20);
 			}
 			current = current->next;
@@ -1070,14 +1070,14 @@ void SEARCHER::gen_evasions() {
 			if(!pinned_on_king(from,black)){
 				if(check_dir1!=-2) {
 					for(to = king_sq - check_dir1;to != att_sq;to -= check_dir1) {
-						if(sqatt[from - to].pieces & QM)
-							if(blocked(from,to) == 0)
+						if(sqatt_pieces(from - to) & QM)
+							if(!blocked(from,to))
 								*pmove++ = from | (to<<8) | (bqueen<<16);
 					}
 				}
 				
-				if(sqatt[from - att_sq].pieces & QM)
-					if(blocked(from,att_sq) == 0)
+				if(sqatt_pieces(from - att_sq) & QM)
+					if(!blocked(from,att_sq))
 						*pmove++ = from | (to<<8) | (bqueen<<16) | (board[to]<<20);
 			}
 			current = current->next;
@@ -1096,7 +1096,7 @@ Generate check moves
 */
 #define N_CHK(dir) {																	\
 	    to = from + dir;																\
-		if(pinned || (sqatt[to - oking_sq].pieces & NM)) {								\
+		if(pinned || (sqatt_pieces(to - oking_sq) & NM)) {								\
             if(board[to] == blank)														\
 			    *pmove++ = tmove | (to<<8);												\
 		}																				\
@@ -1111,8 +1111,8 @@ Generate check moves
 #define BRQ_CHK(moving,dir) {															\
 	    to = from + dir;																\
         while(board[to] == blank) {														\
-			if(pinned || ((sqatt[to - oking_sq].pieces & piece_mask[moving])			\
-							&& blocked(to,oking_sq) == 0))								\
+			if(pinned || ((sqatt_pieces(to - oking_sq) & piece_mask[moving])			\
+							&& !blocked(to,oking_sq)))									\
 			   *pmove++ = tmove | (to<<8);												\
             to += dir;																	\
 		}																				\
@@ -1158,7 +1158,7 @@ void SEARCHER::gen_checks(){
 				to = from + UU;
 				if(board[to] == blank) {
 					if(rank(to) != RANK8 && rank(to) != RANK1) {
-						if(pinned || (sqatt[to - oking_sq].pieces & WPM))
+						if(pinned || (sqatt_pieces(to - oking_sq) & WPM))
 							*pmove++ = from | (to<<8) | (wpawn<<16);
 						if(rank(from)==RANK2) {
 							to += UU;
@@ -1276,7 +1276,7 @@ void SEARCHER::gen_checks(){
 				to = from + DD;
 				if(board[to] == blank) {
 					if(rank(to) != RANK1 && rank(to) != RANK8) {
-						if(pinned || (sqatt[to - oking_sq].pieces & BPM))
+						if(pinned || (sqatt_pieces(to - oking_sq) & BPM))
 							*pmove++ = from | (to<<8) | (bpawn<<16);
 						if(rank(from) == RANK7) {
 							to += DD;

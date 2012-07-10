@@ -22,8 +22,6 @@ const int piece_mask[14] = {
 	0,KM,QM,RM,BM,NM,WPM,KM,QM,RM,BM,NM,BPM,0
 };
 
-SQATTACK  temp_sqatt[0x101];
-PSQATTACK const sqatt = &temp_sqatt[0x80];
 int pcsq[14][0x80];
 bool book_loaded = false;
 bool log_on = false;
@@ -221,7 +219,6 @@ void init_game() {
 	PROCESSOR::set_main();
 	main_searcher = processors[0]->searcher;
 	SEARCHER::egbb_is_loaded = false;
-	init_sqatt();
 	initmagicmoves();
 	searcher.pre_calculate();
 	searcher.new_board();

@@ -94,20 +94,23 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 
 	/*qsearch?*/
 	if(pstack->depth <= 0) {
+		prefetch_qtt();
 		if(pstack->node_type == PV_NODE) pstack->qcheck_depth = 2 * CHECK_DEPTH;	
 		else pstack->qcheck_depth = CHECK_DEPTH;
 		qsearch();
 		return true;
 	}
+	prefetch_tt();
 
 	/*razoring & static pruning*/
-	if(pstack->depth <= 3 * UNITDEPTH
+	if(pstack->depth <= 7 * UNITDEPTH
 		&& (pstack - 1)->search_state != NULL_MOVE
 		&& !pstack->extension
 		&& pstack->node_type != PV_NODE
 		) {
 			int score = eval();
-			int margin = futility_margin + 50 * (DEPTH(pstack->depth) - 1);
+			int margin = futility_margin + 
+				50 * (DEPTH(pstack->depth) - 1) * (DEPTH(pstack->depth) - 1);
 			if(score + margin < pstack->alpha) {
 				pstack->qcheck_depth = CHECK_DEPTH;
 				qsearch();

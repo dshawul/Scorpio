@@ -188,7 +188,7 @@ void SEARCHER::record_pawn_hash(const HASHKEY& hash_key,const SCORE& score,const
 	register UBMP32 key = UBMP32(hash_key & PROCESSOR::pawn_hash_tab_mask);
 	register PPAWNHASH pawn_hash = proc->pawn_hash_tab + key; 
 	
-	pawn_hash->checksum = hash_key;
+	pawn_hash->hash_key = hash_key;
 	pawn_hash->score = score;
 	pawn_hash->pawnrec = pawnrec;
 }
@@ -197,7 +197,7 @@ int SEARCHER::probe_pawn_hash(const HASHKEY& hash_key,SCORE& score,PAWNREC& pawn
 	register UBMP32 key = UBMP32(hash_key & PROCESSOR::pawn_hash_tab_mask);
 	register PPAWNHASH pawn_hash = proc->pawn_hash_tab + key; 
 	
-	if(pawn_hash->checksum == hash_key) {
+	if(pawn_hash->hash_key == hash_key) {
 		score = pawn_hash->score;
 		pawnrec = pawn_hash->pawnrec;
 		return 1;
@@ -212,7 +212,7 @@ void SEARCHER::record_eval_hash(const HASHKEY& hash_key,int score,int lazy_score
 	register UBMP32 key = UBMP32(hash_key & PROCESSOR::eval_hash_tab_mask);
 	register PEVALHASH eval_hash = proc->eval_hash_tab + key; 
 	
-	eval_hash->checksum = hash_key;
+	eval_hash->hash_key = hash_key;
 	eval_hash->score = (BMP16)score;
     eval_hash->lazy_score = (BMP16)lazy_score;
 	eval_hash->evalrec = evalrec;
@@ -222,11 +222,46 @@ int SEARCHER::probe_eval_hash(const HASHKEY& hash_key,int& score,int& lazy_score
 	register UBMP32 key = UBMP32(hash_key & PROCESSOR::eval_hash_tab_mask);
 	register PEVALHASH eval_hash = proc->eval_hash_tab + key; 
 	
-	if(eval_hash->checksum == hash_key) {
+	if(eval_hash->hash_key == hash_key) {
 		score = eval_hash->score;
 		lazy_score = eval_hash->lazy_score;
 		evalrec = eval_hash->evalrec;
 		return 1;
 	}
 	return 0;
+}
+/*
+prefetch tt
+*/
+void SEARCHER::prefetch_tt() {
+#ifdef HAS_PREFETCH
+#if TT_TYPE == 0
+	static const PPROCESSOR proc = processors[0];
+	UBMP32 key = UBMP32(hash_key & PROCESSOR::hash_tab_mask);
+#elif TT_TYPE == 1
+	PPROCESSOR proc = processors[(hash_key % PROCESSOR::n_processors)];
+	UBMP32 key = UBMP32((hash_key / PROCESSOR::n_processors) & PROCESSOR::hash_tab_mask);
+#else
+	PPROCESSOR proc = processors[processor_id];
+	UBMP32 key = UBMP32(hash_key & PROCESSOR::hash_tab_mask);
+#endif	
+	/*Two prefetches give measurable speedup for no apparent reason*/
+	if(player == white) {
+		PREFETCH_T0(proc->white_hash_tab + key);
+		PREFETCH_T0(proc->white_hash_tab + key + CACHE_LINE_SIZE);
+	} else { 
+		PREFETCH_T0(proc->black_hash_tab + key);
+		PREFETCH_T0(proc->black_hash_tab + key + CACHE_LINE_SIZE);
+	}
+#endif
+}
+void SEARCHER::prefetch_qtt() {
+#ifdef HAS_PREFETCH
+	/*single prefetches are good enough here*/
+	PPROCESSOR proc = processors[processor_id];
+	UBMP32 key = UBMP32(hash_key & PROCESSOR::eval_hash_tab_mask);
+	PREFETCH_T0(proc->eval_hash_tab + key); 
+	key = UBMP32(pawn_hash_key & PROCESSOR::pawn_hash_tab_mask);
+	PREFETCH_T0(proc->pawn_hash_tab + key); 
+#endif
 }

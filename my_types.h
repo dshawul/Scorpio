@@ -35,27 +35,6 @@ typedef int64_t BMP64;
 typedef uint64_t UBMP64;
 
 /*
-Intrinsic popcnt
-*/
-#if defined(HAS_POPCNT) && defined(ARC_64BIT)
-#   if defined (__GNUC__)
-#       define popcnt(x)								\
-	({													\
-	typeof(x) __ret;									\
-	__asm__("popcnt %1, %0" : "=r" (__ret) : "r" (x));	\
-	__ret;							                    \
-})
-#   elif defined (_MSC_VER)
-#       include<intrin.h>
-#       define popcnt(b) __popcnt64(b)
-#   else
-#       include <nmmintrin.h>
-#       define popcnt(b) _mm_popcnt_u64(b)
-#   endif
-#   define popcnt_sparse(b) popcnt(b)
-#endif
-
-/*
 Os stuff
 */
 #ifdef _MSC_VER
@@ -85,6 +64,27 @@ Os stuff
 #    define FORCEINLINE __inline
 #	 define GETPID()  getpid()
 #endif
+
+/*
+Intrinsic popcnt
+*/
+#if defined(HAS_POPCNT) && defined(ARC_64BIT)
+#   if defined (__GNUC__)
+#       define popcnt(x)								\
+	({													\
+	typeof(x) __ret;									\
+	__asm__("popcnt %1, %0" : "=r" (__ret) : "r" (x));	\
+	__ret;							                    \
+})
+#   elif defined (_MSC_VER)
+#       include<intrin.h>
+#       define popcnt(b) __popcnt64(b)
+#   else
+#       include <nmmintrin.h>
+#       define popcnt(b) _mm_popcnt_u64(b)
+#   endif
+#   define popcnt_sparse(b) popcnt(b)
+#endif 
 
 /*
 cache line memory alignment (64 bytes)
@@ -126,6 +126,16 @@ void aligned_free(T*& mem) {
 	}
 	mem = 0;
 }
+
+/*
+Prefetch
+*/
+#if defined(HAS_PREFETCH)
+#	include <xmmintrin.h>
+#	define PREFETCH_T0(addr) _mm_prefetch(((char *)(addr)),_MM_HINT_T0);
+#else
+#	define PREFETCH_T0(addr)
+#endif
 /*
 * Threads
 */

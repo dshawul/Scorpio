@@ -26,7 +26,7 @@
 }
 
 #define AddHiddenAttacker(strt) {									\
-    step = sqatt[strt - to].step;									\
+    step = sqatt_step(strt - to);									\
     switch(step) {													\
        case UU:														\
        case DD:														\
@@ -89,7 +89,7 @@ int SEARCHER::see(MOVE move) {
 	current = plist[wknight];
 	while (current) {
 		sq = current->sq;
-		if (sqatt[to - sq].pieces & NM) {
+		if (sqatt_pieces(to - sq) & NM) {
 			if(sq != from) {
 				QUICK_CUT(black);
 				w_atkers[w_atks++] = sq;
@@ -101,7 +101,7 @@ int SEARCHER::see(MOVE move) {
 	current = plist[bknight];
 	while (current) {
 		sq = current->sq;
-		if (sqatt[to - sq].pieces & NM) {
+		if (sqatt_pieces(to - sq) & NM) {
 			if(sq != from) {
 				QUICK_CUT(white);
 				b_atkers[b_atks++] = sq;
@@ -123,11 +123,11 @@ int SEARCHER::see(MOVE move) {
 
 	/*king attackers*/
 	sq = plist[wking]->sq;
-	if (sq != from && (sqatt[to - sq].pieces & KM)) {
+	if (sq != from && (sqatt_pieces(to - sq) & KM)) {
 		w_atkers[w_atks++] = sq;
 	}
 	sq = plist[bking]->sq;
-	if (sq != from && (sqatt[to - sq].pieces & KM)) {
+	if (sq != from && (sqatt_pieces(to - sq) & KM)) {
 		b_atkers[b_atks++] = sq;
 	}
 

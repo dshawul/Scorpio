@@ -9,16 +9,18 @@ HPP = scorpio.h my_types.h
 #########################################################################
 #
 # Some Options : 
-#  DHAS_POPCNT  --  Use Intrinsic PopCnt. [HIGHLY recommeneded] 
-#  DMAX_CPUS=n  --  Compile for maximum of n cpus. Default is 8
-#  DMAX_HOSTS=n --  Compile for maximum of n cpus in a cluster.
-#                   Default value is 128.
-#  DTUNE        --  Compile evaluation tuning code. [NOT recommended]
-#  DTT_TYPE=n   --  Transposition table type for NUMA (0 - global, 1 - distributed, 2 - local)
+#  DHAS_POPCNT   --  Use Intrinsic PopCnt. [HIGHLY recommeneded] 
+#  DHAS_PREFETCH --  Prefetch hash table entries [Recommeneded] 
+#  DMAX_CPUS=n   --  Compile for maximum of n cpus. Default is 8
+#  DMAX_HOSTS=n  --  Compile for maximum of n cpus in a cluster.
+#                    Default value is 128.
+#  DTUNE         --  Compile evaluation tuning code. [NOT recommended]
+#  DTT_TYPE=n    --  Transposition table type for NUMA (0 - global, 1 - distributed, 2 - local)
 #########################################################################
 DEFINES = 
-#DEFINES += -DHAS_POPCNT
-DEFINES += -DMAX_CPUS=32
+DEFINES += -DHAS_POPCNT
+DEFINES += -DHAS_PREFETCH
+#DEFINES += -DMAX_CPUS=32
 #DEFINES += -DMAX_HOSTS=128
 #DEFINES += -DTUNE
 #DEFINES += -DTT_TYPE=1
@@ -29,17 +31,28 @@ DEFINES += -DMAX_CPUS=32
 #   icpc     --> icpc
 #   arm      --> arm-linux-androideabi
 #   cluster  --> mpiCC
+# Debug
+#   0        --> none
+#   1        --> -g
+#   2        --> -pg
 ############################
 
 COMPILER=gcc
-PROFILE=no
+DEBUG=0
 
-ifeq ($(PROFILE),no)
-	CXXFLAGS = -O3 -Wall -fomit-frame-pointer -fstrict-aliasing -fno-exceptions -fno-rtti
-	LXXFLAGS = -lm -ldl
+CXXFLAGS = -O3 -Wall -fstrict-aliasing -fno-exceptions -fno-rtti
+LXXFLAGS = -lm -ldl
+
+ifeq ($(DEBUG),0)
+	CXXFLAGS += -fomit-frame-pointer 
 else
-	CXXFLAGS = -pg -O3 -Wall
-	LXXFLAGS = -pg -lm -ldl
+	ifeq ($(DEBUG),1)
+		CXXFLAGS += -g
+		LXXFLAGS += -g
+	else
+		CXXFLAGS += -g -pg
+		LXXFLAGS += -g -pg
+	endif
 endif
 
 STRIP=strip
@@ -62,6 +75,11 @@ else ifeq ($(COMPILER),cluster)
 	DEFINES += -DCLUSTER
 endif
 
+STRIP += $(EXE)
+
+ifneq ($(DEBUG),0)
+	STRIP=
+endif
 ######################
 # Rules
 ######################
@@ -73,7 +91,7 @@ clean:
 	$(RM) $(OBJ) $(EXE) core.* cluster.*
 
 strip:
-	$(STRIP) $(EXE)
+	$(STRIP)
 
 ##############
 # Dependencies
