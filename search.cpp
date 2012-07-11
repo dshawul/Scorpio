@@ -103,7 +103,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 	prefetch_tt();
 
 	/*razoring & static pruning*/
-	if(pstack->depth <= 7 * UNITDEPTH
+	if(pstack->depth <= 4 * UNITDEPTH
 		&& (pstack - 1)->search_state != NULL_MOVE
 		&& !pstack->extension
 		&& pstack->node_type != PV_NODE
