@@ -329,22 +329,12 @@ typedef struct tagPAWNREC {
 	UBMP8  b_pawn_f;
 	UBMP8  w_ksq;
 	UBMP8  b_ksq;
+	BMP8   w_evaled;
+	BMP8   b_evaled;
 	UBMP8  w_attack;
 	UBMP8  b_attack;
 	BMP8   w_s_attack;
 	BMP8   b_s_attack;
-	BMP8  w_evaled;
-	BMP8  b_evaled;
-	tagPAWNREC() {
-		w_ksq = 0;
-		b_ksq = 0;
-		w_evaled = 0;
-		b_evaled = 0;
-		w_attack = 0;
-		b_attack = 0;
-		w_s_attack = 0;
-		b_s_attack = 0;
-	}
 } PAWNREC,*PPAWNREC;
 
 typedef struct tagPAWNHASH {

@@ -776,7 +776,7 @@ void SEARCHER::eval_pawn_cover(int eval_w_attack,int eval_b_attack,
 	int w_ksq = plist[wking]->sq;
     int b_ksq = plist[bking]->sq;
 	UBMP8 all_pawn_f = pawnrec.w_pawn_f | pawnrec.b_pawn_f;
-    
+
 	pawnrec.w_ksq = w_ksq;
 	pawnrec.b_ksq = b_ksq;
 
@@ -874,7 +874,7 @@ void SEARCHER::eval_pawn_cover(int eval_w_attack,int eval_b_attack,
 	white attack
     */
 	if(eval_w_attack) {
-		
+
 		pawnrec.w_evaled = 1;
 		pawnrec.w_s_attack = 0;
 		defence = 0;
@@ -977,6 +977,9 @@ SCORE SEARCHER::eval_pawns(int eval_w_attack,int eval_b_attack,
 						 UBMP8* wf_pawns,UBMP8* bf_pawns) {
 	register SCORE score;
 	register PLIST pawnl;
+
+	pawnrec.w_evaled = 0;
+	pawnrec.b_evaled = 0;
 
 	if(probe_pawn_hash(pawn_hash_key,score,pawnrec)) {
 		/*evaluate pawn cover*/
@@ -1160,7 +1163,6 @@ SCORE SEARCHER::eval_pawns(int eval_w_attack,int eval_b_attack,
         /*store in hash table*/
 		record_pawn_hash(pawn_hash_key,score,pawnrec);
 	}
-	
 	return score;
 }
 
