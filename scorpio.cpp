@@ -420,11 +420,11 @@ bool parse_commands(char** commands) {
 			strcat(fen," ");
 			strcat(fen,commands[command_num++]);
 			strcat(fen," ");
-			if(commands[command_num]) {
+			if(commands[command_num] && isdigit(commands[command_num][0])) {
 				strcat(fen,commands[command_num++]);
 				strcat(fen," ");
 
-				if(commands[command_num]) {
+				if(commands[command_num] && isdigit(commands[command_num][0])) {
 					strcat(fen,commands[command_num++]);
 					strcat(fen," ");
 				}
@@ -443,29 +443,26 @@ bool parse_commands(char** commands) {
 			SEARCHER::analysis_mode = true;
 			do_search = true;
 			/*
-			others
+			hash tables
 			*/
 		} else if(!strcmp(command,"ht")) {
 			UBMP32 size = 1,size_max = (atoi(commands[command_num++]) * 1024 * 1024) / (2 * sizeof(HASH));
 			while(2 * size <= size_max) size *= 2;
 			for(int i = 0;i < PROCESSOR::n_processors;i++) 
 				processors[i]->reset_hash_tab(i,size);
-			print("ht %d X %d = %dMB\n",2 * size,sizeof(HASH),(2 * size * sizeof(HASH)) / (1024 * 1024));
+			print("ht %d X %d = %.1f MB\n",2 * size,sizeof(HASH),(2 * size * sizeof(HASH)) / double(1024 * 1024));
 		} else if(!strcmp(command,"pht")) {
 			UBMP32 size = 1,size_max = (atoi(commands[command_num++]) * 1024 * 1024) / (sizeof(PAWNHASH));
 			while(2 * size <= size_max) size *= 2;
 			for(int i = 0;i < PROCESSOR::n_processors;i++) 
 				processors[i]->reset_pawn_hash_tab(size);
-			print("pht %d X %d = %dMB\n",size,sizeof(PAWNHASH),(size * sizeof(PAWNHASH)) / (1024 * 1024));
+			print("pht %d X %d = %.1f MB\n",size,sizeof(PAWNHASH),(size * sizeof(PAWNHASH)) / double(1024 * 1024));
 		} else if(!strcmp(command,"eht")) {
-			UBMP32 size = 1,size_max = (atoi(commands[command_num++]) * 1024 * 1024) / sizeof(EVALHASH);
+			UBMP32 size = 1,size_max = (atoi(commands[command_num++]) * 1024 * 1024) / (sizeof(EVALHASH));
 			while(2 * size <= size_max) size *= 2;
 			for(int i = 0;i < PROCESSOR::n_processors;i++) 
 				processors[i]->reset_eval_hash_tab(size);
-			print("eht %d X %d = %dMB\n",size,sizeof(EVALHASH),(size * sizeof(EVALHASH)) / (1024 * 1024));
-		} else if(!strcmp(command, "resign")) {
-			SEARCHER::resign_value = atoi(commands[command_num]);
-			command_num++;
+			print("eht %d X %d = %.1f MB\n",size,sizeof(EVALHASH),(size * sizeof(EVALHASH)) / double(1024 * 1024));
 			/*
 			parallel search
 			*/
@@ -544,6 +541,9 @@ bool parse_commands(char** commands) {
 #ifdef TUNE
 		} else if(check_eval_params(commands,command,command_num)) {
 #endif
+		} else if(!strcmp(command, "resign")) {
+			SEARCHER::resign_value = atoi(commands[command_num]);
+			command_num++;
 		} else if(!strcmp(command, "help")) {
 			size_t index = 0;
 			while (commands_recognized[index]) {

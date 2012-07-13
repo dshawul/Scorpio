@@ -245,19 +245,15 @@ void SEARCHER::prefetch_tt() {
 	PPROCESSOR proc = processors[processor_id];
 	UBMP32 key = UBMP32(hash_key & PROCESSOR::hash_tab_mask);
 #endif	
-	/*Two prefetches give measurable speedup for no apparent reason*/
 	if(player == white) {
 		PREFETCH_T0(proc->white_hash_tab + key);
-		PREFETCH_T0(proc->white_hash_tab + key + CACHE_LINE_SIZE);
 	} else { 
 		PREFETCH_T0(proc->black_hash_tab + key);
-		PREFETCH_T0(proc->black_hash_tab + key + CACHE_LINE_SIZE);
 	}
 #endif
 }
 void SEARCHER::prefetch_qtt() {
 #ifdef HAS_PREFETCH
-	/*single prefetches are good enough here*/
 	PPROCESSOR proc = processors[processor_id];
 	UBMP32 key = UBMP32(hash_key & PROCESSOR::eval_hash_tab_mask);
 	PREFETCH_T0(proc->eval_hash_tab + key); 

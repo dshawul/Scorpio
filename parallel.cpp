@@ -538,9 +538,8 @@ void PROCESSOR::kill(int id) {
 * Copy board and other relevant data..
 */
 void SEARCHER::attach_processor(int new_proc_id) {
-
 	register int i,j = 0;
-	for(j = 0; j < MAX_SEARCHERS_PER_CPU && processors[new_proc_id]->searchers[j].used; j++);
+	for(j = 0; (j < MAX_SEARCHERS_PER_CPU) && processors[new_proc_id]->searchers[j].used; j++);
 	if(j < MAX_SEARCHERS_PER_CPU) {
 
 		PSEARCHER psearcher = &processors[new_proc_id]->searchers[j];
@@ -576,7 +575,13 @@ void SEARCHER::attach_processor(int new_proc_id) {
 		n_workers++;
 	}
 }
-
+bool PROCESSOR::has_block() {
+	for(int j = 0;j < MAX_SEARCHERS_PER_CPU; j++) {
+		if(!searchers[j].used)
+			return true;
+	}
+	return false;
+}
 /*
 * Copy local search result of this thread back to the master. 
 * We have been updating search bounds whenever we got a new move.
@@ -637,6 +642,7 @@ int SEARCHER::check_split() {
 		&& !stop_searcher
 		&& stop_ply != ply
 		&& pstack->gen_status < GEN_END
+		&& processors[processor_id]->has_block()
 		) {
 			l_lock(lock_smp);
 

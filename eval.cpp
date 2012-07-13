@@ -852,7 +852,7 @@ void SEARCHER::eval_pawn_cover(int eval_w_attack,int eval_b_attack,
 		pawnrec.b_s_attack -= (10 * defence); 
 		
 		/*pawn storm on white king*/
-		if(ABS(file(w_ksq) - file(b_ksq)) > 2)  {
+		if(f_distance(w_ksq,b_ksq) > 2)  {
 			register int r1,r2,r3;
 			if(((r1 = first_bit[bf_pawns[f]]) == 8) || (r1 <= r + 1)) r1 = RANK8;
 			if(((r2 = (f == FILEA ? 8 : first_bit[bf_pawns[f - 1]])) == 8) || (r2 <= r + 1)) r2 = RANK8;
@@ -940,7 +940,7 @@ void SEARCHER::eval_pawn_cover(int eval_w_attack,int eval_b_attack,
 		pawnrec.w_s_attack -= (10 * defence);
 		
 		/*pawn storm on black king*/
-		if(ABS(file(w_ksq) - file(b_ksq)) > 2)  {
+		if(f_distance(w_ksq,b_ksq) > 2)  {
 			register int r1,r2,r3;
 			if(((r1 = last_bit[wf_pawns[f]]) == 8) || (r1 >= r - 1)) r1 = RANK1;
 			if(((r2 = (f == FILEA ? 8 : last_bit[wf_pawns[f - 1]])) == 8) || (r2 >= r - 1)) r2 = RANK1;

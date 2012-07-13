@@ -237,6 +237,8 @@ Squares are of 0x88 type
 #define MIRRORR64(sq)    ((sq) ^ 070)
 #define MIRRORD64(sq)    SQ64(file64(sq),rank64(sq))
 #define MV8866(x)        (SQ8864(m_from(x)) | (SQ8864(m_to(x)) << 6))
+#define is_light(x)      ((file(x)+rank(x)) & 1)
+#define is_light64(x)    ((file64(x)+rank64(x)) & 1)
 
 /*
 piece and color
@@ -246,26 +248,23 @@ piece and color
 #define COMBINE(c,x)     ((x) + (c) * 6) 
 #define invert(x)        (!(x))
 /*
-others
+distances
 */
 #define MAX(a, b)        (((a) > (b)) ? (a) : (b))
 #define MIN(a, b)        (((a) < (b)) ? (a) : (b))
 #define ABS(a)           abs(a)
-FORCEINLINE int DISTANCE(int f1,int r1,int f2,int r2) { 
-	return MAX(ABS(f1 - f2),ABS(r1 - r2)); 
-}
 #define f_distance(x,y)  ABS(file(x)-file(y))
 #define r_distance(x,y)  ABS(rank(x)-rank(y))
-#define distance(x,y)    MAX(f_distance(x,y),r_distance(x,y))
-#define is_light(x)      ((file(x)+rank(x)) & 1)
-#define is_light64(x)    ((file64(x)+rank64(x)) & 1)
-
-/*hash keys*/
+#define distance(x,y)			 MAX(f_distance(x,y),r_distance(x,y))
+#define DISTANCE(f1,r1,f2,r2)    MAX(ABS((f1) - (f2)),ABS((r1) - (r2)))
+/*
+hash keys
+*/
 #define PC_HKEY(p,sq)    (piece_hkey[p][SQ8864(sq)])
 #define EP_HKEY(ep)      (ep_hkey[file(ep)])
 #define CAST_HKEY(c)     (cast_hkey[c])
 /*
-type definitions
+chess clock
 */
 typedef struct CHESS_CLOCK {
 	int mps;
@@ -281,7 +280,9 @@ typedef struct CHESS_CLOCK {
 	CHESS_CLOCK();
 	void set_stime(int);
 }*PCHESS_CLOCK;
-
+/*
+piece list
+*/
 typedef struct LIST{
 	int   sq;
 	LIST* prev;
@@ -485,7 +486,7 @@ extern void init_messages();
 /*
 SEARCHER
 */
-typedef struct SEARCHER{
+typedef CACHE_ALIGN struct SEARCHER{
 	/*
 	data that needs to be copied by COPY fn below
 	*/
@@ -761,9 +762,9 @@ enum thread_states {
 };
 typedef struct PROCESSOR {
 	/*searchers*/
+	SEARCHER searchers[MAX_SEARCHERS_PER_CPU];
 	PSEARCHER searcher;
 	VOLATILE int state;
-	SEARCHER searchers[MAX_SEARCHERS_PER_CPU];
 
 	/*processor count*/
 	static int n_processors;
@@ -798,6 +799,7 @@ typedef struct PROCESSOR {
 	static void set_main();
 #endif
 #if defined(PARALLEL) || defined(CLUSTER)
+	bool has_block();
 	void idle_loop();
 #endif
 

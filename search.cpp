@@ -649,11 +649,10 @@ POP:
 							* make processor idle
 							*/ 
 							l_lock(lock_smp);
+							sb->used = false;
 							if(proc->state == GO) {
-								sb->used = false;
 								proc->searcher = NULL;
 								proc->state = WAIT;
-
 							}
 							l_unlock(lock_smp);
 IDLE_START:	
