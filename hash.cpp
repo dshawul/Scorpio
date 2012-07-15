@@ -207,25 +207,21 @@ int SEARCHER::probe_pawn_hash(const HASHKEY& hash_key,SCORE& score,PAWNREC& pawn
 /*
 Eval hash tables
 */
-void SEARCHER::record_eval_hash(const HASHKEY& hash_key,int score,int lazy_score,const EVALREC& evalrec) {
+void SEARCHER::record_eval_hash(const HASHKEY& hash_key,int score) {
     register PPROCESSOR proc = processors[processor_id];
 	register UBMP32 key = UBMP32(hash_key & PROCESSOR::eval_hash_tab_mask);
 	register PEVALHASH eval_hash = proc->eval_hash_tab + key; 
 	
 	eval_hash->hash_key = hash_key;
 	eval_hash->score = (BMP16)score;
-    eval_hash->lazy_score = (BMP16)lazy_score;
-	eval_hash->evalrec = evalrec;
 }
-int SEARCHER::probe_eval_hash(const HASHKEY& hash_key,int& score,int& lazy_score,EVALREC& evalrec) {
+int SEARCHER::probe_eval_hash(const HASHKEY& hash_key,int& score) {
 	register PPROCESSOR proc = processors[processor_id];
 	register UBMP32 key = UBMP32(hash_key & PROCESSOR::eval_hash_tab_mask);
 	register PEVALHASH eval_hash = proc->eval_hash_tab + key; 
 	
 	if(eval_hash->hash_key == hash_key) {
 		score = eval_hash->score;
-		lazy_score = eval_hash->lazy_score;
-		evalrec = eval_hash->evalrec;
 		return 1;
 	}
 	return 0;

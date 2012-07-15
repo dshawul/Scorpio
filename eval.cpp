@@ -119,7 +119,20 @@ static evaluator
 /*max material count is 64 {actually 62}*/
 #define   MAX_MATERIAL    64
 
-int SEARCHER::eval(int lazy) {
+int SEARCHER::eval() {
+	/*
+	check_eval hash table
+	*/
+	if(probe_eval_hash(hash_key,pstack->actual_score)) {
+	    full_evals++;
+		if(player == black) {
+			pstack->actual_score = -pstack->actual_score;
+		}
+		RETURN();
+	}
+	/*
+	evaluate
+	*/
 	register SCORE w_score,b_score;
 	int w_ksq = plist[wking]->sq;
     int b_ksq = plist[bking]->sq;
@@ -129,10 +142,7 @@ int SEARCHER::eval(int lazy) {
 	int phase = piece_c[white] + piece_c[black];
 
 	phase = MIN(phase,MAX_MATERIAL);
-	
-	/*reset*/
-	memset(&pstack->evalrec,0,sizeof(pstack->evalrec));
-  
+
 	/*
 	evaluate winning chances for some endgames.
 	*/
@@ -212,24 +222,6 @@ int SEARCHER::eval(int lazy) {
 		(board[A8] == brook || board[A7] == brook || board[B8] == brook))
 		b_score.subm(90);
 	/*
-	lazy evaluation - 1
-	*/
-	if(eval_lazy_exit(lazy,LAZY_MARGIN_MAX,phase,
-		w_score,b_score,w_win_chance,b_win_chance))
-		RETURN();
-	/*
-	check_eval hash table
-	*/
-	if(probe_eval_hash(hash_key,pstack->actual_score,
-	                   pstack->lazy_score,pstack->evalrec)) {
-	    full_evals++;
-		if(player == black) {
-			pstack->actual_score = -pstack->actual_score;
-			pstack->lazy_score = -pstack->lazy_score;
-		}
-		RETURN();
-	}
-	/*
 	pawns
 	*/
 	UBMP8 all_pawn_f;
@@ -256,12 +248,6 @@ int SEARCHER::eval(int lazy) {
 	if(eval_w_attack) {
 		w_score.addm((PAWN_GUARD * pawnrec.w_s_attack) / 16);
 	}
-	/*
-	lazy evaluation - 2
-	*/
-	if(eval_lazy_exit(lazy,LAZY_MARGIN_MIN,phase,
-		w_score,b_score,w_win_chance,b_win_chance))
-		RETURN();
 	/*
 	pieces
 	*/
@@ -640,12 +626,10 @@ int SEARCHER::eval(int lazy) {
 	*/
 	if(eval_b_attack) {
 		b_attack += pawnrec.b_attack;
-		if(b_attack >= 18) pstack->evalrec.indicator |= BAD_WKING;
 		b_score.addm(KING_ATTACK(b_attack,b_attackers,b_tropism));
 	}
 	if(eval_w_attack) {
 		w_attack += pawnrec.w_attack;
-		if(w_attack >= 18) pstack->evalrec.indicator |= BAD_BKING;
 		w_score.addm(KING_ATTACK(w_attack,w_attackers,w_tropism));
 	}
 	/*
@@ -661,7 +645,7 @@ int SEARCHER::eval(int lazy) {
 		} else {
 			pstack->actual_score = (pstack->actual_score * b_win_chance) / 8;
 		}
-		record_eval_hash(hash_key,pstack->actual_score, pstack->lazy_score ,pstack->evalrec);
+		record_eval_hash(hash_key,pstack->actual_score);
 	} else {
 		pstack->actual_score = ((b_score.mid - w_score.mid) * (phase) +
 			                   (b_score.end - w_score.end) * (MAX_MATERIAL - phase)) / MAX_MATERIAL;
@@ -670,7 +654,7 @@ int SEARCHER::eval(int lazy) {
 		} else {
 			pstack->actual_score = (pstack->actual_score * w_win_chance) / 8;
 		}
-		record_eval_hash(hash_key,-pstack->actual_score,-pstack->lazy_score ,pstack->evalrec);
+		record_eval_hash(hash_key,-pstack->actual_score);
 	}
     
 	RETURN();
@@ -1219,7 +1203,6 @@ int SEARCHER::eval_passed_pawns(UBMP8* wf_pawns,UBMP8* bf_pawns,UBMP8& all_pawn_
 			if(qdist < distance(b_ksq,A8 + f)) {
 				w_best_qdist = MIN(qdist,w_best_qdist);
 			}
-			pstack->evalrec.indicator |= AVOID_LAZY;
 		}
         /*end*/
 		w_score += passed_score;
@@ -1264,7 +1247,6 @@ int SEARCHER::eval_passed_pawns(UBMP8* wf_pawns,UBMP8* bf_pawns,UBMP8& all_pawn_
 			if(qdist < distance(w_ksq,A1 + f)) {
 				b_best_qdist = MIN(qdist,b_best_qdist);
 			}
-			pstack->evalrec.indicator |= AVOID_LAZY;
 		}
 		/*end*/
 	 	b_score += passed_score;
@@ -1563,83 +1545,6 @@ void SEARCHER::eval_win_chance(SCORE& w_score,SCORE& b_score,int& w_win_chance,i
 				b_win_chance = (3 * b_win_chance) / 4; 
 		}
 	}
-}
-/*
-Lazy exit
-*/
-bool SEARCHER::eval_lazy_exit(int lazy, int lazy_margin,int phase,SCORE& w_score,SCORE& b_score,
-							  int w_win_chance,int b_win_chance) {
-	/*adjust lazy score*/
-	if(player == white) {
-		pstack->lazy_score = ((w_score.mid - b_score.mid) * (phase) +
-			                   (w_score.end - b_score.end) * (MAX_MATERIAL - phase)) / MAX_MATERIAL;
-		if(pstack->lazy_score > 0) {
-			pstack->lazy_score = (pstack->lazy_score * w_win_chance) / 8;
-		} else {
-			pstack->lazy_score = (pstack->lazy_score * b_win_chance) / 8;
-		}
-	} else {
-		pstack->lazy_score = ((b_score.mid - w_score.mid) * (phase) +
-			                   (b_score.end - w_score.end) * (MAX_MATERIAL - phase)) / MAX_MATERIAL;
-		if(pstack->lazy_score > 0) {
-			pstack->lazy_score = (pstack->lazy_score * b_win_chance) / 8;
-		} else {
-			pstack->lazy_score = (pstack->lazy_score * w_win_chance) / 8;
-		}
-	}
-
-	/*lazy evaluation - 1*/
-	if(lazy
-		&& !hstack[hply - 2].checks
-		&& !hstack[hply - 1].checks
-		&& !((pstack - 1)->evalrec.indicator & AVOID_LAZY)
-		) {
-		int positional_delta;
-		
-		/*do forced lazy eval*/
-		if(lazy == DO_LAZY) {
-			positional_delta = (pstack - 1)->lazy_score - (pstack - 1)->actual_score;
-			pstack->actual_score = pstack->lazy_score + positional_delta;
-			goto CUT;
-		}
-
-		/*lazy eval*/
-		if(lazy == TRY_LAZY) {
-			int LAZY_MARGIN;
-			if(PIECE(m_capture(hstack[hply - 1].move)) == queen)
-				LAZY_MARGIN = LAZY_MARGIN_MAX;
-			else
-				LAZY_MARGIN = lazy_margin;
-			
-			positional_delta = (pstack - 1)->lazy_score - (pstack - 1)->actual_score;
-			pstack->actual_score = pstack->lazy_score + positional_delta;
-			
-			if(pstack->actual_score - LAZY_MARGIN > pstack->beta ||
-			   pstack->actual_score + LAZY_MARGIN < pstack->alpha)
-			   goto CUT;
-		}
-	}
-
-	/*lazy evaluation - 2*/
-	if(lazy) {
-		pstack->actual_score = pstack->lazy_score;
-		if(lazy == DO_LAZY)
-			goto CUT;
-		if(lazy == TRY_LAZY) {
-			if(pstack->actual_score - LAZY_MARGIN_MAX > pstack->beta ||
-			   pstack->actual_score + LAZY_MARGIN_MAX < pstack->alpha)
-			   goto CUT;
-		}
-	}
-
-	/*failure*/
-	return false;
-    
-CUT:
-	/*success*/
-	lazy_evals++;
-	pstack->evalrec.indicator |= AVOID_LAZY;
-	return true;
 }
 /*
 * Modify eval parameters

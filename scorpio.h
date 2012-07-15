@@ -105,9 +105,6 @@ enum results {
 enum node_types {
 	PV_NODE,CUT_NODE,ALL_NODE
 };
-enum lazy_types {
-	NO_LAZY,TRY_LAZY,DO_LAZY
-};
 enum passed_rank {
 	LASTR, HALFR, ALLR
 };
@@ -279,6 +276,7 @@ typedef struct CHESS_CLOCK {
 	int pondering;
 	CHESS_CLOCK();
 	void set_stime(int);
+	bool is_timed();
 }*PCHESS_CLOCK;
 /*
 piece list
@@ -344,25 +342,9 @@ typedef struct tagPAWNHASH {
 	PAWNREC pawnrec;
 } PAWNHASH, *PPAWNHASH;
 
-typedef struct tagEVALREC {
-	UBMP16   indicator;
-	/*
-	indicator:
-	bit 1 = avoid lazy eval
-	bit 2 = bad white king safety
-	bit 3 = bad black king safety
-	*/
-} EVALREC,*PEVALREC;
-
-#define AVOID_LAZY         1
-#define BAD_WKING          2
-#define BAD_BKING          4
-
 typedef struct tagEVALHASH {
 	HASHKEY hash_key;
 	BMP16   score;
-	BMP16   lazy_score;
-	EVALREC evalrec;
 } EVALHASH,*PEVALHASH;
 /*
 stacks
@@ -418,8 +400,6 @@ typedef struct STACK{
 	MOVE killer[2];
 	int qcheck_depth;
 	int actual_score;
-	int lazy_score;
-	EVALREC evalrec;
 	MOVE move_st[MAX_MOVES];
 	int score_st[MAX_MOVES];
 	MOVE bad_st[MAX_CAPS];
@@ -573,7 +553,7 @@ typedef CACHE_ALIGN struct SEARCHER{
 	void  print_pv(int);
 	int   print_result(bool);
 	void  check_quit();
-	int   eval(int = NO_LAZY);
+	int   eval();
 	void  eval_pawn_cover(int,int,UBMP8*,UBMP8*);
 	SCORE eval_pawns(int,int,UBMP8*,UBMP8*);
 	int   eval_passed_pawns(UBMP8*,UBMP8*,UBMP8&);
@@ -584,8 +564,8 @@ typedef CACHE_ALIGN struct SEARCHER{
 	int   probe_hash(int,const HASHKEY&,int,int,int&,MOVE&,int,int,int&,int&);
 	void  record_pawn_hash(const HASHKEY&,const SCORE&,const PAWNREC&);
 	int   probe_pawn_hash(const HASHKEY&,SCORE&,PAWNREC&);
-	void  record_eval_hash(const HASHKEY&,int,int,const EVALREC&);
-	int   probe_eval_hash(const HASHKEY&,int&,int&,EVALREC&);
+	void  record_eval_hash(const HASHKEY&,int);
+	int   probe_eval_hash(const HASHKEY&,int&);
 	void  prefetch_tt();
 	void  prefetch_qtt();
 	bool  san_mov(MOVE& move,char* s);

@@ -135,7 +135,6 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 	pstack->best_move = 0;
 	pstack->mate_threat = 0;
 	pstack->singular = 0;
-	pstack->evalrec.indicator = AVOID_LAZY;
 
 	if(pstack->node_type == PV_NODE) {
 		pstack->next_node_type = PV_NODE;
@@ -205,7 +204,6 @@ FORCEINLINE int SEARCHER::on_qnode_entry() {
 	pstack->best_score = -MATE_SCORE;
 	pstack->best_move = 0;
 	pstack->legal_moves = 0;
-	pstack->evalrec.indicator = AVOID_LAZY;
 
 	if(pstack->alpha > MATE_SCORE - WIN_PLY * ply) {
 		pstack->best_score = pstack->alpha;
@@ -226,14 +224,9 @@ FORCEINLINE int SEARCHER::on_qnode_entry() {
 	if(bitbase_cutoff())
 		return true;
 
+	/*stand pat*/
 	if(!hstack[hply - 1].checks) {
-
-		/*stand pat*/
-		if(pstack->alpha + 1 == pstack->beta)
-			score = eval(TRY_LAZY);
-		else
-			score = eval();
-
+		score = eval();
 		pstack->best_score = score;
 		if(score > pstack->alpha) {
 			if(score >= pstack->beta)
@@ -334,9 +327,14 @@ int SEARCHER::be_selective() {
 		) {
 			if(depth <= 2 && nmoves >= 8)
 				return true;
+
 			int margin = futility_margin * depth;
 			margin = MAX(margin / 4, margin - 10 * nmoves);
-			score = -eval(DO_LAZY);
+			if(pstack->depth <= 0) 
+				margin = 0;
+
+			score = -eval();
+			
 			if(score + margin < (pstack - 1)->alpha) {
 				if(score > (pstack - 1)->best_score) {
 					(pstack - 1)->best_score = score;
@@ -430,8 +428,8 @@ void search(SEARCHER* const sb) {
 				switch(sb->pstack->search_state) {
 					case IID_SEARCH:
 						if(use_iid
-							&& !sb->pstack->hash_move
 							&& sb->pstack->node_type != ALL_NODE
+							&& !sb->pstack->hash_move
 							&& sb->pstack->depth >= 6 * UNITDEPTH
 							) {
 								sb->pstack->o_alpha = sb->pstack->alpha;
@@ -448,9 +446,9 @@ void search(SEARCHER* const sb) {
 						break;
 					case SINGULAR_SEARCH:
 						if(use_singular 
-							&& sb->pstack->hash_move 
 							&& sb->pstack->node_type != ALL_NODE
-							&& sb->pstack->depth >= 8 * UNITDEPTH
+							&& sb->pstack->hash_move 
+							&& sb->pstack->hash_depth >= 6 * UNITDEPTH
 							&& sb->pstack->hash_flags == HASH_GOOD
 							) {
 								sb->pstack->o_alpha = sb->pstack->alpha;
@@ -809,9 +807,10 @@ SPECIAL:
 				case IID_SEARCH:
 					sb->pstack->hash_move  = sb->pstack->best_move;
 					sb->pstack->hash_score = sb->pstack->best_score;
+					sb->pstack->hash_depth = sb->pstack->depth;
+					sb->pstack->hash_flags = sb->pstack->flag;
 					if(sb->pstack->flag == EXACT || sb->pstack->flag == LOWER)
 						sb->pstack->hash_flags = HASH_GOOD;
-					sb->pstack->hash_depth = sb->pstack->depth;
 					sb->pstack->search_state = SINGULAR_SEARCH;
 					break;
 				case SINGULAR_SEARCH:
@@ -923,7 +922,6 @@ void SEARCHER::root_search() {
 	pstack->legal_moves = 0;
 	pstack->node_type = PV_NODE;
 	pstack->next_node_type = PV_NODE;
-	pstack->evalrec.indicator = AVOID_LAZY;
 	pstack->extension = 0;
 	pstack->reduction = 0;
 
@@ -1211,7 +1209,7 @@ MOVE SEARCHER::find_best() {
 
 	/*easy move*/
 	if(pstack->score_st[0] > pstack->score_st[1] + 175
-		&& !chess_clock.infinite_mode
+		&& chess_clock.is_timed()
 		) {
 			easy = true;
 			easy_move = pstack->move_st[0];
@@ -1293,7 +1291,7 @@ MOVE SEARCHER::find_best() {
 		}
 
 		/*Is there enough time to search the first move?*/
-		if(!root_failed_low && !chess_clock.infinite_mode) {
+		if(!root_failed_low && chess_clock.is_timed()) {
 			time_used = get_time() - start_time;
 			if(time_used >= 0.75 * chess_clock.search_time) {
 				abort_search = 1;

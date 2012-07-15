@@ -769,11 +769,9 @@ void SEARCHER::COPY(SEARCHER* srcSearcher) {
 		dstack->node_type = sstack->node_type;
 		dstack->next_node_type = sstack->next_node_type;
 		dstack->actual_score = sstack->actual_score;
-		dstack->lazy_score = sstack->lazy_score;
 		dstack->o_alpha = sstack->o_alpha;
 		dstack->o_beta = sstack->o_beta;
 		dstack->o_depth = sstack->o_depth;
-		memcpy(&dstack->evalrec,&sstack->evalrec,sizeof(EVALREC));
 	}
 }
 /*
@@ -919,7 +917,9 @@ CHESS_CLOCK::CHESS_CLOCK() {
 	infinite_mode = 0;
 	pondering = 0;
 }
-
+bool CHESS_CLOCK::is_timed() {
+	return !infinite_mode && (max_st == MAX_NUMBER) && (max_sd == MAX_PLY);
+}
 void CHESS_CLOCK::set_stime(int hply) {
 
 	/*fixed time/depth*/
