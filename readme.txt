@@ -1,13 +1,14 @@
-Scorpio 2.7
------------
+Scorpio 2.7.5
+-------------
 
 Changes
 -------
-    * All changes recored at http://github.com/dshawul/scorpio.
-      Last minute changes include aggressive futility & lmr. Cluster time
-      is very hard to get nowadays so this is untested. The changes I made in August
-      were positive but the prunings could wash it all up. Fingers crossed. 
-    * Failed singular extension tests
+    * Many parallel search changes for the NUMA
+    * A bug that made it loose all its split blocks and hence no parallel search after some
+      moves is fixed now.
+    * Fixed three or four bugs with the hash table that were there for a long time! 
+      You know after some time off you will start to see all your bugs. I can't belive
+    * Removed lazy eval just to see what will happen. It doesn't seem to hurt or benefit it ..
       
 		
 Thanks
