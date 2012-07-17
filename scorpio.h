@@ -309,16 +309,12 @@ typedef struct SCORE {
 /*
 hash tables
 */
-typedef struct tagHASHREC {
+typedef struct tagHASH {
 	HASHKEY hash_key;
 	UBMP32  move;
 	BMP16   score;
 	UBMP8   depth;
 	UBMP8   flags;
-}HASHREC,*PHASHREC;
-
-typedef struct tagHASH {
-	HASHREC record[4];
 }HASH,*PHASH;
 
 typedef struct tagPAWNREC {
@@ -343,8 +339,9 @@ typedef struct tagPAWNHASH {
 } PAWNHASH, *PPAWNHASH;
 
 typedef struct tagEVALHASH {
-	HASHKEY hash_key;
+	UBMP32  check_sum;
 	BMP16   score;
+	BMP16   age;
 } EVALHASH,*PEVALHASH;
 /*
 stacks

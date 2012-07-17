@@ -44,6 +44,7 @@ void PROCESSOR::clear_hash_tables() {
 		memset(proc->eval_hash_tab,0,(eval_hash_tab_mask + 1) * sizeof(EVALHASH));
 	}
 }
+
 void PROCESSOR::delete_hash_tables() {
 	aligned_free<HASH>(white_hash_tab);
 	aligned_free<HASH>(black_hash_tab);
@@ -53,6 +54,8 @@ void PROCESSOR::delete_hash_tables() {
 /*
 Main hash table
 */
+#define HPROBES 4
+
 void SEARCHER::record_hash(
 				 int col,const HASHKEY& hash_key,int depth,int ply,
 				 int flags,int score,MOVE move,int mate_threat
@@ -67,15 +70,17 @@ void SEARCHER::record_hash(
 	PPROCESSOR proc = processors[processor_id];
 	UBMP32 key = UBMP32(hash_key & PROCESSOR::hash_tab_mask);
 #endif
-	register PHASHREC pslot,pr_slot = 0;
+	register PHASH addr,pslot,pr_slot = 0;
 	int sc,max_sc = MAX_NUMBER;
 
 	if(col == white) 
-		pslot = PHASHREC(proc->white_hash_tab + key);
+		addr = proc->white_hash_tab;
 	else 
-		pslot = PHASHREC(proc->black_hash_tab + key);
+		addr = proc->black_hash_tab;
 
-	for(int i = 0; i < 4; i++) {
+	for(int i = 0; i < HPROBES; i++) {
+		pslot = addr + (key ^ i);    //H.G trick to follow most probable path
+
 		if(!pslot->hash_key || pslot->hash_key == hash_key) {
 			if(flags == CRAP && pslot->move == move)
 				return;
@@ -104,7 +109,6 @@ void SEARCHER::record_hash(
 				max_sc = sc;
 			}
 		}
-		pslot++;
 	}
 
 	pr_slot->move = UBMP32(move);
@@ -128,18 +132,18 @@ int SEARCHER::probe_hash(
 	PPROCESSOR proc = processors[processor_id];
 	UBMP32 key = UBMP32(hash_key & PROCESSOR::hash_tab_mask);
 #endif
-	register PHASHREC pslot;
+	register PHASH addr,pslot;
     register int flags;
 	
 	if(col == white) 
-		pslot = PHASHREC(proc->white_hash_tab + key);
+		addr = proc->white_hash_tab;
 	else 
-		pslot = PHASHREC(proc->black_hash_tab + key);
+		addr = proc->black_hash_tab;
 	
-	for(int i = 0; i < 4; i++) {
-		
+	for(int i = 0; i < HPROBES; i++) {
+		pslot = addr + (key ^ i);
+
 		if(pslot->hash_key == hash_key) {
-			
 			score = pslot->score;
 			if(score > WIN_SCORE) 
 				score -= WIN_PLY * (ply + 1);
@@ -174,8 +178,6 @@ int SEARCHER::probe_hash(
 
 			return HASH_HIT;
 		}
-		
-		pslot++;
 	}
 
 	return UNKNOWN;
@@ -208,20 +210,20 @@ int SEARCHER::probe_pawn_hash(const HASHKEY& hash_key,SCORE& score,PAWNREC& pawn
 Eval hash tables
 */
 void SEARCHER::record_eval_hash(const HASHKEY& hash_key,int score) {
-    register PPROCESSOR proc = processors[processor_id];
+	register PPROCESSOR proc = processors[processor_id];
 	register UBMP32 key = UBMP32(hash_key & PROCESSOR::eval_hash_tab_mask);
-	register PEVALHASH eval_hash = proc->eval_hash_tab + key; 
-	
-	eval_hash->hash_key = hash_key;
-	eval_hash->score = (BMP16)score;
+	register PEVALHASH pslot = proc->eval_hash_tab + key; 
+
+	pslot->check_sum = (UBMP32)(hash_key >> 32);
+	pslot->score = (BMP16)score;
 }
 int SEARCHER::probe_eval_hash(const HASHKEY& hash_key,int& score) {
 	register PPROCESSOR proc = processors[processor_id];
 	register UBMP32 key = UBMP32(hash_key & PROCESSOR::eval_hash_tab_mask);
-	register PEVALHASH eval_hash = proc->eval_hash_tab + key; 
-	
-	if(eval_hash->hash_key == hash_key) {
-		score = eval_hash->score;
+	register PEVALHASH pslot = proc->eval_hash_tab + key; 
+
+	if(pslot->check_sum == (UBMP32)(hash_key >> 32)) {
+		score = pslot->score;
 		return 1;
 	}
 	return 0;
@@ -251,9 +253,10 @@ void SEARCHER::prefetch_tt() {
 void SEARCHER::prefetch_qtt() {
 #ifdef HAS_PREFETCH
 	PPROCESSOR proc = processors[processor_id];
-	UBMP32 key = UBMP32(hash_key & PROCESSOR::eval_hash_tab_mask);
-	PREFETCH_T0(proc->eval_hash_tab + key); 
+	UBMP32 key;
 	key = UBMP32(pawn_hash_key & PROCESSOR::pawn_hash_tab_mask);
-	PREFETCH_T0(proc->pawn_hash_tab + key); 
+	PREFETCH_T0(proc->pawn_hash_tab + key);
+	key = UBMP32(hash_key & PROCESSOR::eval_hash_tab_mask);
+	PREFETCH_T0(proc->eval_hash_tab + key); 
 #endif
 }
