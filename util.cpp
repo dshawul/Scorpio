@@ -1326,7 +1326,7 @@ bool SEARCHER::build_book(char* path,char* book,int BOOK_SIZE,int BOOK_DEPTH,int
 		if(isspace(buffer[0])) continue;
 
 
-		commands[tokenize(buffer,commands)] = NULL;
+		commands[tokenize(buffer,commands," \n\r\t")] = NULL;
 		command_num = 0;
 		while((command = commands[command_num++]) != 0) {
 			if(strchr(command,'{')) comment++;

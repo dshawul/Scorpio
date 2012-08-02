@@ -69,8 +69,6 @@ static const int  file_tropism[8] = {
 #	define PARAM const
 #endif
 
-static PARAM int LAZY_MARGIN_MIN = 150;
-static PARAM int LAZY_MARGIN_MAX = 300;
 static PARAM int ATTACK_WEIGHT = 16;
 static PARAM int TROPISM_WEIGHT = 8;
 static PARAM int PAWN_GUARD = 16;
@@ -112,9 +110,6 @@ static int KING_ATTACK(int attack,int attackers,int tropism) {
 /*
 static evaluator
 */
-#define RETURN() {                 \
-	return pstack->actual_score;   \
-}
 
 /*max material count is 64 {actually 62}*/
 #define   MAX_MATERIAL    64
@@ -125,10 +120,9 @@ int SEARCHER::eval() {
 	*/
 	if(probe_eval_hash(hash_key,pstack->actual_score)) {
 	    full_evals++;
-		if(player == black) {
+		if(player == black)
 			pstack->actual_score = -pstack->actual_score;
-		}
-		RETURN();
+		return pstack->actual_score;
 	}
 	/*
 	evaluate
@@ -657,7 +651,7 @@ int SEARCHER::eval() {
 		record_eval_hash(hash_key,-pstack->actual_score);
 	}
     
-	RETURN();
+	return pstack->actual_score;
 }
 /*
 piece square tables - middle/endgame 
@@ -1551,11 +1545,7 @@ void SEARCHER::eval_win_chance(SCORE& w_score,SCORE& b_score,int& w_win_chance,i
 */
 #ifdef TUNE
 bool check_eval_params(char** commands,char* command,int& command_num) {
-	if(!strcmp(command, "LAZY_MARGIN_MIN")) {
-		LAZY_MARGIN_MIN = atoi(commands[command_num++]);
-	} else if(!strcmp(command, "LAZY_MARGIN_MAX")) {
-		LAZY_MARGIN_MAX = atoi(commands[command_num++]);
-	} else if(!strcmp(command, "KNIGHT_OUTPOST")) {
+	if(!strcmp(command, "KNIGHT_OUTPOST")) {
 		KNIGHT_OUTPOST = atoi(commands[command_num++]);
 	} else if(!strcmp(command, "BISHOP_OUTPOST")) {
 		BISHOP_OUTPOST = atoi(commands[command_num++]);
@@ -1617,8 +1607,6 @@ bool check_eval_params(char** commands,char* command,int& command_num) {
 	return true;
 }
 void print_eval_params() {
-	print("feature option=\"LAZY_MARGIN_MIN -spin %d 0 2000\"\n",LAZY_MARGIN_MIN);
-	print("feature option=\"LAZY_MARGIN_MAX -spin %d 0 2000\"\n",LAZY_MARGIN_MAX);
 	print("feature option=\"KNIGHT_OUTPOST -spin %d 0 64\"\n",KNIGHT_OUTPOST);
     print("feature option=\"BISHOP_OUTPOST -spin %d 0 64\"\n",BISHOP_OUTPOST);
 	print("feature option=\"KNIGHT_MOB -spin %d 0 64\"\n",KNIGHT_MOB);

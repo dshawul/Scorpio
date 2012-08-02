@@ -180,18 +180,18 @@ enum square_names {
 #define GEN_LOSCAPS         5
 #define GEN_END             6
 
-#define WSC_FLAG       1
-#define WLC_FLAG       2
-#define BSC_FLAG       4
-#define BLC_FLAG       8
-#define WSLC_FLAG      3
-#define BSLC_FLAG     12
-#define WBC_FLAG      15
+#define WSC_FLAG            1
+#define WLC_FLAG            2
+#define BSC_FLAG            4
+#define BLC_FLAG            8
+#define WSLC_FLAG           3
+#define BSLC_FLAG          12
+#define WBC_FLAG           15
 /*
 Depth
 */
-#define UNITDEPTH             4
-#define DEPTH(x)              ((x) >> 2)
+#define UNITDEPTH           4
+#define DEPTH(x)            ((x) >> 2)
 /*
 Scorpio moves are 32bit long
 */

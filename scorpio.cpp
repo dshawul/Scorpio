@@ -239,17 +239,18 @@ static const char *const commands_recognized[] = {
 	"accepted -- Response to the feature command.",
 	"analyze -- Enter analyze mode.",
 	"build <pgn> <book> <size> <half_plies> <color>"
-	"\n\tBuild book from <pgn> file and save it to <book>."
-	"\n\tAllocate <size> book entries during build."
-	"\n\tConsider only the first <half_plies> moves.\n"
-	"\n\t<color>=white/black postions.\n",
+	"\n\t<pgn> source file with pgn games"
+	"\n\t<book> destination book file"
+	"\n\t<size> Number of book entries to be used during book build"
+	"\n\t<half_plies> Number of half plies considered"
+	"\n\t<color> white/black postions",
 	"book <on/off> -- Turns book usage on/off.",
 	"computer -- Inform Scorpio that the opponent is also a computer chess engine.",
 	"d -- Debugging command to print the current board.",
 	"easy -- Turn off pondering.",
 	"egbb_cache_size -- Set the egbb (endgame bitbase) cache size in megabytes.",
 	"egbb_load_type -- Set the egbb load type:\n\t 0 = none\n\t 1 = all 3/4 men\n"
-	"\t 2 = selective loading of 5 men (not implemented yet)\n\t 3 = all 5 men\n",
+	"\t 2 = selective loading of 5 men (not implemented yet)\n\t 3 = all 5 men",
 	"egbb_path -- Set the egbb path.",
 	"eht -- Set evaluation hash table size in megabytes.",
 	"exit -- Leave analysis mode.",
@@ -260,8 +261,8 @@ static const char *const commands_recognized[] = {
 	"history -- Debugging command to print game history.",
 	"ht -- Set hash table size in megabytes.",
 	"level -- level <MPS> <BASE> <INC> {Set time controls}.",
-	"log -- 'log on' turns log on and 'log off' turns log off.",
-	"merge <book1> <book2> <book> <w1> <w2> -- merge two books with weights <w1> and <w2> and save restult in book.",
+	"log -- turn loggin on/onff.",
+	"merge <book1> <book2> <book> <w1> <w2> \n\tMerge two books with weights <w1> and <w2> and save restult in book.",
 	"mirror -- Debugging command to mirror the current board.",
 	"moves -- Debugging command to print all possible moves for the current board.",
 	"mt/cores <N>-- Set the number of parallel threads of execution.",
@@ -351,7 +352,13 @@ bool parse_commands(char** commands) {
 			) {
 				command_num++;
 		} else if (!strcmp(command, "name")) {
-			print("Hello %s!\n",commands[command_num++]);
+			print("Hello ");
+			while(true) {
+				command = commands[command_num++];
+				if(!command) break;
+				print(command);
+			}
+			print("!\n");
 		} else if(!strcmp(command,"st")) {
 			SEARCHER::chess_clock.max_sd = MAX_PLY;
 			SEARCHER::chess_clock.max_st = 1000 * (atoi(commands[command_num++]));
@@ -510,23 +517,39 @@ bool parse_commands(char** commands) {
 #endif
 #ifdef BOOK_CREATE
 		} else if (!strcmp(command,"build")) {
-			int col = neutral;
-			if(!strcmp(commands[command_num + 4],"white")) col = black;
-			else if(!strcmp(commands[command_num + 4],"black")) col = white;
-			searcher.build_book(commands[command_num],
-				commands[command_num + 1],
-				atoi(commands[command_num + 2]),
-				atoi(commands[command_num + 3]),
-				col);
-			command_num += 5;
+			int col = neutral,hsize = 1024 * 1024,plies = 30;
+			char source[1024] = "book.pgn",dest[1024] = "book.dat";
+
+			int k = 0;
+			while(true) {
+				command = commands[command_num++];
+				if(!command) break;
+				if(!strcmp(command,"white")) col = black;
+				else if(!strcmp(command,"black")) col = white;
+				else  {
+					if(k == 0) strcpy(source,command);
+					else if(k == 1) strcpy(dest,command);
+					else if(k == 2) hsize = atoi(command);
+					else if(k == 3) plies = atoi(command);
+					k++;
+				}
+			}
+			searcher.build_book(source,dest,hsize,plies,col);
 		} else if (!strcmp(command,"merge")) {
-			merge_books(commands[command_num],
-				commands[command_num + 1],
-				commands[command_num + 2],
-				atof(commands[command_num + 3]),
-				atof(commands[command_num + 4])
-				);
-			command_num += 5;
+			char source1[1024] = "book1.dat",source2[1024] = "book2.dat",dest[1024] = "book.dat";
+			double w1,w2;
+			int k = 0;
+			while(true) {
+				command = commands[command_num++];
+				if(!command) break;
+				if(k == 0) strcpy(source1,command);
+				else if(k == 1) strcpy(source2,command);
+				else if(k == 2) strcpy(dest,command);
+				else if(k == 3) w1 = atof(command);
+				else if(k == 4) w2 = atof(command);
+				k++;
+			}
+			merge_books(source1,source2,dest,w1,w2);
 #endif
 #ifdef LOG_FILE
 		} else if (!strcmp(command, "log")) {
