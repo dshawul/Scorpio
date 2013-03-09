@@ -18,12 +18,13 @@ HPP = scorpio.h my_types.h
 #  DTT_TYPE=n    --  Transposition table type for NUMA (0 - global, 1 - distributed, 2 - local)
 #########################################################################
 DEFINES = 
-DEFINES += -DHAS_POPCNT
-DEFINES += -DHAS_PREFETCH
-DEFINES += -DMAX_CPUS=32
+#DEFINES += -DHAS_POPCNT
+#DEFINES += -DHAS_PREFETCH
+#DEFINES += -DMAX_CPUS=32
 #DEFINES += -DMAX_HOSTS=128
 #DEFINES += -DTUNE
 #DEFINES += -DTT_TYPE=1
+DEFINES += -DTHREAD_POLLING
 
 ############################
 # Compiler
@@ -37,7 +38,7 @@ DEFINES += -DMAX_CPUS=32
 #   2        --> -pg
 ############################
 
-COMPILER=gcc
+COMPILER=cluster
 DEBUG=0
 
 CXXFLAGS = -O3 -Wall -fstrict-aliasing -fno-exceptions -fno-rtti

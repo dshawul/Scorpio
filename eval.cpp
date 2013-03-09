@@ -119,7 +119,6 @@ int SEARCHER::eval() {
 	check_eval hash table
 	*/
 	if(probe_eval_hash(hash_key,pstack->actual_score)) {
-	    full_evals++;
 		if(player == black)
 			pstack->actual_score = -pstack->actual_score;
 		return pstack->actual_score;
@@ -629,7 +628,6 @@ int SEARCHER::eval() {
 	/*
 	adjust score and save in tt
 	*/
-	full_evals++;
 
 	if(player == white) {
 		pstack->actual_score = ((w_score.mid - b_score.mid) * (phase) +

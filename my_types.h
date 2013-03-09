@@ -126,7 +126,6 @@ void aligned_free(T*& mem) {
 	}
 	mem = 0;
 }
-
 /*
 Prefetch
 */
@@ -141,35 +140,21 @@ Prefetch
 */
 #    ifdef _MSC_VER
 #        include <process.h>
-#        define pthread_t HANDLE
-#        define t_create(f,p,t) t = (pthread_t) _beginthread(f,0,(void*)p)
+#        define t_create(f,p) _beginthread(f,0,(void*)p)
 #        define t_sleep(x)    Sleep(x)
+#		 define t_yield()	  SwitchToThread()
 #    else
 #        include <pthread.h>
-#        define t_create(f,p,t) pthread_create(&t,0,(void*(*)(void*))&f,(void*)p)
+#        define t_create(f,p) {pthread_t t = 0; pthread_create(&t,0,(void*(*)(void*))&f,(void*)p);}
 #        define t_sleep(x)    usleep((x) * 1000)
+#		 define t_yield()	  pthread_yield()
 #    endif
-
-/*optional code*/
-#ifdef PARALLEL
-#	 define SMP_CODE(x) x
-#else
-#    define SMP_CODE(x)
-#endif
-#ifdef CLUSTER
-#	 define CLUSTER_CODE(x) x
-#else
-#    define CLUSTER_CODE(x)
-#endif
-#ifdef _DEBUG
-#	 define DEBUG_CODE(x) x
-#else
-#    define DEBUG_CODE(x)
-#endif
 
 #ifdef PARALLEL
 #    define VOLATILE volatile
-/*locks*/
+/*
+*locks
+*/
 #    ifdef _MSC_VER
 #        ifdef USE_SPINLOCK
 #             define LOCK VOLATILE int
@@ -213,6 +198,25 @@ inline double get_diff(TIMER s,TIMER e) {
 	return (e.tv_sec - s.tv_sec) * 1e9 + (e.tv_nsec - s.tv_nsec);
 }
 #endif
+/*
+*optional compilation
+*/
+#ifdef PARALLEL
+#	 define SMP_CODE(x) x
+#else
+#    define SMP_CODE(x)
+#endif
+#ifdef CLUSTER
+#	 define CLUSTER_CODE(x) x
+#else
+#    define CLUSTER_CODE(x)
+#endif
+#ifdef _DEBUG
+#	 define DEBUG_CODE(x) x
+#else
+#    define DEBUG_CODE(x)
+#endif
+
 /*
 end
 */

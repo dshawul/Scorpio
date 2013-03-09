@@ -33,6 +33,7 @@ parallel search
 PPROCESSOR processors[MAX_CPUS] = {0};
 int PROCESSOR::n_processors;
 VOLATILE int PROCESSOR::n_idle_processors;
+int PROCESSOR::n_hosts = 1;
 
 #ifdef PARALLEL
 LOCK  lock_smp;
@@ -41,12 +42,9 @@ int PROCESSOR::SMP_SPLIT_DEPTH = 4;
 #endif
 
 #ifdef CLUSTER
-LOCK  lock_mpi;
-MPI_Request PROCESSOR::mpi_request;
-MPI_Status PROCESSOR::mpi_status;
+VOLATILE int PROCESSOR::message_available = 0;
 int PROCESSOR::MESSAGE_POLL_NODES = 200;
 int PROCESSOR::CLUSTER_SPLIT_DEPTH = 8;
-int PROCESSOR::n_hosts;
 int PROCESSOR::host_id;
 char PROCESSOR::host_name[256];
 list<int> PROCESSOR::available_host_workers;
@@ -131,25 +129,14 @@ int CDECL main(int argc, char* argv[]) {
 	 * Start loading egbbs with a separate thread.
 	 * If there are command line options wait for the egbb to load fully.  
 	 */
-	pthread_t thread = 0;
-	t_create(egbb_thread_proc,0,thread);
+	t_create(egbb_thread_proc,0);
 	if(argc)
 		while(!egbb_thread_stoped) t_sleep(100);
-
 	/*
 	 * Initialize MPI
 	 */
 #ifdef CLUSTER
-	int namelen,provided;
-	MPI_Init_thread(&argc, &argv,MPI_THREAD_SINGLE,&provided);
-	MPI_Comm_size(MPI_COMM_WORLD, &PROCESSOR::n_hosts);
-	MPI_Comm_rank(MPI_COMM_WORLD, &PROCESSOR::host_id);
-	MPI_Get_processor_name(PROCESSOR::host_name, &namelen);
-	print("Process [%d/%d] on %s : pid %d\n",PROCESSOR::host_id,
-		PROCESSOR::n_hosts,PROCESSOR::host_name,GETPID());
-	init_messages();
-#endif
-#ifdef  CLUSTER
+	PROCESSOR::init(argc,argv);
 	if(PROCESSOR::host_id == 0) {
 #endif
 		/*
@@ -167,12 +154,13 @@ int CDECL main(int argc, char* argv[]) {
 			goto END;
 
 		/* 
-		 * If log=off both in ini and from the command line, delete it.
-		 * If log=off in ini and log=on from command line,then we will have only 1 log file.
-		 * If log=on in ini, then each processor will have separate log files.
+		 * If log=off in ini and log=off from command line, delete log file.
+		 * If log=off in ini and log=on  from command line, only rank=0 will have log file.
+		 * If log=on  in ini,then each processor will have separate log files.
 		 */
 		if(!log_on)
 			remove_log_file();
+
 		/*
 		 * Parse commands from stdin.
 		 */
@@ -190,14 +178,13 @@ int CDECL main(int argc, char* argv[]) {
 		if(!log_on)
 			remove_log_file();
 		/* goto wait mode */
-		processors[0]->state = WAIT;
+		processors[0]->state = PARK;
 		search(processors[0]);
 	}
 #endif
 
 END:
-	CLUSTER_CODE(MPI_Finalize());
-	return 0;
+	PROCESSOR::exit_scorpio(EXIT_SUCCESS);
 }
 
 /*
@@ -207,9 +194,6 @@ void init_game() {
 #ifdef PARALLEL
 	l_create(lock_smp);
 	l_create(lock_io);
-#endif
-#ifdef  CLUSTER
-	l_create(lock_mpi);
 #endif
 	init_io();
 	print("feature done=0\n");
@@ -265,8 +249,9 @@ static const char *const commands_recognized[] = {
 	"merge <book1> <book2> <book> <w1> <w2> \n\tMerge two books with weights <w1> and <w2> and save restult in book.",
 	"mirror -- Debugging command to mirror the current board.",
 	"moves -- Debugging command to print all possible moves for the current board.",
-	"mt/cores <N>-- Set the number of parallel threads of execution.",
-	"mt/cores auto -- Automatically detect number of threads",
+	"mt/cores   <N>      -- Set the number of parallel threads of execution to N.",
+	"          auto      -- Set to available logical cores.",
+	"          auto-<R>  -- Set to (auto - R) logical cores.",
 	"name -- Tell scorpio who you are.",
 	"new -- Reset the board to the standard chess starting position.",
 	"nopost -- do not show thinking.",
@@ -478,7 +463,10 @@ bool parse_commands(char** commands) {
 			int mt;
 			if(!strcmp(commands[command_num],"auto"))
 				mt = get_number_of_cpus();
-			else
+			else if(!strncmp(commands[command_num],"auto-",5)) {
+				int r = atoi(&commands[command_num][5]);
+				mt = get_number_of_cpus() - r;
+			} else
 				mt = atoi(commands[command_num]);
 			mt = MIN(mt, MAX_CPUS);
 			init_smp(mt);
@@ -537,7 +525,7 @@ bool parse_commands(char** commands) {
 			searcher.build_book(source,dest,hsize,plies,col);
 		} else if (!strcmp(command,"merge")) {
 			char source1[1024] = "book1.dat",source2[1024] = "book2.dat",dest[1024] = "book.dat";
-			double w1,w2;
+			double w1 = 0,w2 = 0;
 			int k = 0;
 			while(true) {
 				command = commands[command_num++];

@@ -10,360 +10,393 @@
 */
 
 #ifdef CLUSTER
+
 static SPLIT_MESSAGE global_split[MAX_HOSTS];
 static MERGE_MESSAGE global_merge;
 static INIT_MESSAGE  global_init;
-
-MPI_Datatype INIT_Datatype;
-void init_messages() {
-	MPI_Datatype init_otype[] = {MPI_CHAR,MPI_INT};
-	int init_count[] = {MAX_FEN_STR,128};
-	MPI_Aint adr1,adr2;
-	MPI_Address(&global_init.fen,&adr1);
-	MPI_Address(&global_init.pv_length,&adr2);
-	MPI_Aint init_offset[] = {0,adr2 - adr1};
-	MPI_Type_struct(2,init_count,init_offset,init_otype,&INIT_Datatype);
-	MPI_Type_commit(&INIT_Datatype);
-}
-#endif
+static VOLATILE int g_message_id;
+static VOLATILE int g_source_id;
+static MPI_Status mpi_status;
+static MPI_Request mpi_request;
 
 /*
-* IDLE loop of processes and threads
+Message polling thread for cluster
 */
-#if defined(PARALLEL) || defined(CLUSTER)
-
-void PROCESSOR::idle_loop() {
-
-#ifndef CLUSTER
-	while(state == WAIT);
-#else
-
-	/*
-	* Only processor 0 checks the messages.
-	* This makes the message polling code non-critical section
-	* and also simplifies it a lot. However we still use lock_mpi 
-	* because other thread could invoke MPI calls during splits or fail highs.
-	*/
-	if(this != processors[0] || n_hosts == 1) {
-		while(state == WAIT);
-		return;
-	}
-	/*
-	* Process messages if we have one, otherwise send one "HELP"
-	* message if this host is idle and wait for a "CANCEL" or "SPLIT"
-	*/
-	int flag;
-	do {
-		/* 
-		* Polling. MPI_Iprobe<->MPI_Recv is not thread safe.
-		*/
-		l_lock(lock_mpi);
-		MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD,&flag,&mpi_status);
-
-		/*Message recieved?*/
-		if(flag) {
-			const PSEARCHER psb = processors[0]->searcher;
-			int message_id = mpi_status.MPI_TAG;
-			int source = mpi_status.MPI_SOURCE;
-#ifdef _DEBUG
-			print("\"%-6s\" message from [%d] to [%d] {thread %d} at <"FMT64">\n",
-				message_str[message_id],source,host_id,this - processors,get_time());
+static void CDECL check_messages(void*) {
+	PROCESSOR::message_idle_loop();
+}
+/*
+* Initialize MPI
+*/
+void PROCESSOR::init(int argc, char* argv[]) {
+	int namelen,provided,requested = MPI_THREAD_SINGLE;
+	MPI_Init_thread(&argc, &argv,requested,&provided);
+	MPI_Comm_size(MPI_COMM_WORLD, &PROCESSOR::n_hosts);
+	MPI_Comm_rank(MPI_COMM_WORLD, &PROCESSOR::host_id);
+	MPI_Get_processor_name(PROCESSOR::host_name, &namelen);
+	print("Process [%d/%d] on %s : pid %d\n",PROCESSOR::host_id,
+		PROCESSOR::n_hosts,PROCESSOR::host_name,GETPID());
+#ifdef THREAD_POLLING
+	if(n_hosts > 1)
+		t_create(check_messages,0);
 #endif
-			if(message_id == HELP) {
-				MPI_Recv(MPI_BOTTOM,0,MPI_INT,source,message_id,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-				l_unlock(lock_mpi);
+}
+/*
+* MPI calls
+*/
+void PROCESSOR::ISend(int dest,int message) {
+	MPI_Isend(MPI_BOTTOM,0,MPI_INT,dest,message,MPI_COMM_WORLD,&mpi_request);
+}
+void PROCESSOR::ISend(int dest,int message,void* data,int size) {
+	MPI_Isend(data,size,MPI_BYTE,dest,message,MPI_COMM_WORLD,&mpi_request);
+}
+void PROCESSOR::Recv(int dest,int message) {
+	MPI_Recv(MPI_BOTTOM,0,MPI_INT,dest,message,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+}
+void PROCESSOR::Recv(int dest,int message,void* data,int size) {
+	MPI_Recv(data,size,MPI_BYTE,dest,message,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+}
+bool PROCESSOR::IProbe(int& source,int& message_id) {
+	int flag;
+	MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD,&flag,&mpi_status);
+	if(flag) {
+		message_id = mpi_status.MPI_TAG;
+		source = mpi_status.MPI_SOURCE;
+#ifdef _DEBUG
+		print("\"%-6s\" message from [%d] to [%d] at <"FMT64">\n",
+			message_str[message_id],source,host_id,get_time());
+#endif
+		return true;
+	}
+	return false;
+}
+/*
+* Handle messages
+*/
+void PROCESSOR::handle_message(int source,int message_id) {
+	const PSEARCHER psb = processors[0]->searcher;
 
-				/*add the host to our list of helpers*/
-				l_lock(lock_smp);
-				if(n_idle_processors == n_processors) {
-					l_unlock(lock_smp);
-					Non_Blocking_Send(source,CANCEL);
-				} else {
-					available_host_workers.push_back(source);
-					l_unlock(lock_smp);
-				}
-				/*end*/
-			} else if(message_id == CANCEL) {
-				MPI_Recv(MPI_BOTTOM,0,MPI_INT,source,message_id,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-				l_unlock(lock_mpi);
+	/**************************************************
+	* SPLIT  - Search from recieved position
+	**************************************************/
+	if(message_id == SPLIT) {
+		SPLIT_MESSAGE& split = global_split[host_id];
+		Recv(source,message_id,&split,sizeof(SPLIT_MESSAGE));
+		message_available = 0;
+		/*setup board by undoing old moves and making new ones*/
+		register int i,score,move,using_pvs;
+		for(i = 0;i < split.pv_length && i < psb->ply;i++) {
+			if(split.pv[i] != psb->hstack[psb->hply - psb->ply + i].move) 
+				break;
+		}
+		while(psb->ply > i) {
+			if(psb->hstack[psb->hply - 1].move) psb->POP_MOVE();
+			else psb->POP_NULL();
+		}
+		for(;i < split.pv_length;i++) {
+			if(split.pv[i]) psb->PUSH_MOVE(split.pv[i]);
+			else psb->PUSH_NULL();
+		}
 
-				help_messages--;
-			} else if(message_id == SPLIT) {
-				SPLIT_MESSAGE& split = global_split[host_id];
-				MPI_Recv(&split,sizeof(SPLIT_MESSAGE),MPI_BYTE,source,message_id,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-				l_unlock(lock_mpi);
+		/*reset*/
+		SEARCHER::abort_search = 0;
+		psb->master = 0;
+		psb->stop_ply = psb->ply;
+		psb->stop_searcher = 0;
+		psb->used = true;
+		psb->n_host_workers = 0;
+		psb->host_workers.clear();
+		psb->n_workers = 0;
+		for(i = 0; i < PROCESSOR::n_processors;i++)
+			psb->workers[i] = 0;
 
-				/*setup board by undoing old moves and making new ones*/
-				register int i,score,move,using_pvs;
-				for(i = 0;i < split.pv_length && i < psb->ply;i++) {
-					if(split.pv[i] != psb->hstack[psb->hply - psb->ply + i].move) 
-						break;
-				}
-				while(psb->ply > i) {
-					if(psb->hstack[psb->hply - 1].move) psb->POP_MOVE();
-					else psb->POP_NULL();
-				}
-				for(;i < split.pv_length;i++) {
-					if(split.pv[i]) psb->PUSH_MOVE(split.pv[i]);
-					else psb->PUSH_NULL();
-				}
+		/*reset counts*/
+		psb->nodes = 0;
+		psb->qnodes = 0;
+		psb->time_check = 0;
+		psb->splits = 0;
+		psb->bad_splits = 0;
+		psb->egbb_probes = 0;
 
-				/*reset*/
-				SEARCHER::abort_search = 0;
-				psb->master = 0;
-				psb->stop_ply = psb->ply;
-				psb->stop_searcher = 0;
-				psb->used = true;
-				psb->n_host_workers = 0;
-				psb->host_workers.clear();
-				psb->n_workers = 0;
-				for(i = 0; i < PROCESSOR::n_processors;i++)
-					psb->workers[i] = 0;
+		/**************************************
+		* PVS-search on root node
+		*************************************/
+		processors[0]->state = GO;
 
-				/*reset counts*/
-				psb->nodes = 0;
-				psb->qnodes = 0;
-				psb->time_check = 0;
-				psb->full_evals = 0;
-				psb->lazy_evals = 0;
-				psb->splits = 0;
-				psb->bad_splits = 0;
-				psb->egbb_probes = 0;
-
-				/*
-				 * Search
-				 */
-				processors[0]->state = GO;
-
-				using_pvs = false;
-				psb->pstack->extension = split.extension;
-				psb->pstack->reduction = split.reduction;
-				psb->pstack->depth = split.depth;
-				psb->pstack->alpha = split.alpha;
-				psb->pstack->beta = split.beta;
-				psb->pstack->node_type = split.node_type;
-				psb->pstack->search_state = split.search_state;
-				if(psb->pstack->beta != psb->pstack->alpha + 1) {
-					psb->pstack->node_type = CUT_NODE;
-					psb->pstack->beta = psb->pstack->alpha + 1;
-					using_pvs = true;
-				}
+		using_pvs = false;
+		psb->pstack->extension = split.extension;
+		psb->pstack->reduction = split.reduction;
+		psb->pstack->depth = split.depth;
+		psb->pstack->alpha = split.alpha;
+		psb->pstack->beta = split.beta;
+		psb->pstack->node_type = split.node_type;
+		psb->pstack->search_state = split.search_state;
+		if(psb->pstack->beta != psb->pstack->alpha + 1) {
+			psb->pstack->node_type = CUT_NODE;
+			psb->pstack->beta = psb->pstack->alpha + 1;
+			using_pvs = true;
+		}
 
 REDO:				
-				/*call search now*/
-				move = psb->hstack[psb->hply - 1].move;
+		/*call search now*/
+		move = psb->hstack[psb->hply - 1].move;
 
-				psb->search();
+		psb->search();
 
-				if(psb->stop_searcher || SEARCHER::abort_search)
-					move = 0;
+		if(psb->stop_searcher || SEARCHER::abort_search)
+			move = 0;
 
-				score = -psb->pstack->best_score;
+		score = -psb->pstack->best_score;
 
-				if(move) {
-					/*research with full window*/
-					if(using_pvs && score > -split.beta
-						&& score < -split.alpha
-						) {
-							using_pvs = false;
-							psb->pstack->alpha = split.alpha;
-							psb->pstack->beta = split.beta;
-							psb->pstack->node_type = split.node_type;
-							psb->pstack->search_state = NULL_MOVE;
-							goto REDO;
-					}
-					/*research with full depth*/
-					if(psb->pstack->reduction
-						&& score >= -split.alpha
-						) {
-							psb->pstack->depth += psb->pstack->reduction;
-							psb->pstack->reduction = 0;
-
-							psb->pstack->alpha = split.alpha;
-							psb->pstack->beta = split.beta;
-							psb->pstack->node_type = split.node_type;
-							psb->pstack->search_state = NULL_MOVE;
-
-							goto REDO;
-					}
-				}
-
-				/*undomove : Go to previous ply even if search was interrupted*/
-				while(psb->ply > psb->stop_ply - 1) {
-					if(psb->hstack[psb->hply - 1].move) psb->POP_MOVE();
-					else psb->POP_NULL();
-				}
-
-				processors[0]->state = WAIT;
-
-				/*
-				 * Cancel all unused helper hosts
-				 */
-				PROCESSOR::cancel_idle_hosts();
-				/*
-				 * Send back result
-				 */
-				MERGE_MESSAGE& merge = global_merge;
-				merge.nodes = psb->nodes;
-				merge.qnodes = psb->qnodes;
-				merge.time_check = psb->time_check;
-				merge.full_evals = psb->full_evals;
-				merge.lazy_evals = psb->lazy_evals;
-				merge.splits = psb->splits;
-				merge.bad_splits = psb->bad_splits;
-				merge.egbb_probes = psb->egbb_probes;
-
-				/*pv*/
-				merge.master = split.master;
-				merge.best_move = move;
-				merge.best_score = score;
-				merge.pv_length = psb->ply;
-
-				if(move && score > -split.beta && score < -split.alpha) {
-					merge.pv[psb->ply] = move;
-					memcpy(&merge.pv[psb->ply + 1],&(psb->pstack + 1)->pv[psb->ply + 1],
-						((psb->pstack + 1)->pv_length - psb->ply ) * sizeof(MOVE));
-					merge.pv_length = (psb->pstack + 1)->pv_length;
-				}
-				/*send it*/
-				l_lock(lock_mpi);
-				MPI_Isend(&merge,MERGE_MESSAGE_SIZE(merge),MPI_BYTE,source,MERGE,MPI_COMM_WORLD,&mpi_request);
-				l_unlock(lock_mpi);
-
-			} else if(message_id == MERGE) {
-				MERGE_MESSAGE& merge = global_merge;
-				MPI_Recv(&merge,sizeof(MERGE_MESSAGE),MPI_BYTE,source,message_id,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-				l_unlock(lock_mpi);
-
-				/*update master*/
-				PSEARCHER master = (PSEARCHER)merge.master;
-				l_lock(master->lock);
-
-				if(merge.best_move && merge.best_score > master->pstack->best_score) {
-					master->pstack->best_score = merge.best_score;
-					master->pstack->best_move = merge.best_move;
-					if(merge.best_score > master->pstack->alpha) {
-						if(merge.best_score > master->pstack->beta) {
-							master->pstack->flag = LOWER;
-
-							l_unlock(master->lock);
-							master->handle_fail_high();
-							l_lock(master->lock);
-						} else {
-							master->pstack->flag = EXACT;
-							master->pstack->alpha = merge.best_score;
-
-							memcpy(&master->pstack->pv[master->ply],&merge.pv[master->ply],
-								(merge.pv_length - master->ply ) * sizeof(MOVE));
-							master->pstack->pv_length = merge.pv_length;
-						}
-					}
-				}
-
-				/*update counts*/
-				master->nodes += merge.nodes;
-				master->qnodes += merge.qnodes;
-				master->time_check += merge.time_check;
-				master->full_evals += merge.full_evals;
-				master->lazy_evals += merge.lazy_evals;
-				master->splits += merge.splits;
-				master->bad_splits += merge.bad_splits;
-				master->egbb_probes += merge.egbb_probes;
-
-				l_unlock(master->lock);
-
-				/* Now that result is fully backed up to master, add the
-				* host to the list of available hosts. MERGE acts like an implicit HELP offer.
-				*/
-				SPLIT_MESSAGE& split = global_split[source];
-				if(master->get_cluster_move(&split)) {
-					l_lock(lock_mpi);
-					MPI_Isend(&split,SPLIT_MESSAGE_SIZE(split),MPI_BYTE,source,PROCESSOR::SPLIT,MPI_COMM_WORLD,&mpi_request);
-					l_unlock(lock_mpi);
-				} else {
-					/*remove host*/
-					l_lock(master->lock);
-					master->host_workers.remove(source);
-					master->n_host_workers--;
-					l_unlock(master->lock);
-
-					l_lock(lock_smp);
-					available_host_workers.push_back(source);
-					l_unlock(lock_smp);
-				}
-				/*end*/
-
-			} else if(message_id == INIT) {
-				INIT_MESSAGE& init = global_init;
-				MPI_Recv(&init,1,INIT_Datatype,source,message_id,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-				l_unlock(lock_mpi);
-
-				/*setup board*/
-				psb->set_board(init.fen);
-				/*make moves*/
-				register int i;
-				for(i = 0;i < init.pv_length;i++) {
-					if(init.pv[i]) psb->do_move(init.pv[i]);	
-					else psb->do_null();
-				}
-#ifdef PARALLEL
-				/*wakeup processors*/
-				for(i = 1;i < n_processors;i++)
-					processors[i]->state = WAIT;
-				while(n_idle_processors != n_processors)
-					t_sleep(1);
-#endif
-			} else if(message_id == QUIT) {
-				MPI_Recv(MPI_BOTTOM,0,MPI_INT,source,message_id,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-				l_unlock(lock_mpi);
-
-				SEARCHER::abort_search = 1;
-			} else if(message_id == RELAX) {
-				MPI_Recv(MPI_BOTTOM,0,MPI_INT,source,message_id,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-				l_unlock(lock_mpi);
-#ifdef PARALLEL
-				for(int i = 1;i < n_processors;i++)
-					processors[i]->state = PARK;
-#endif
-			} else if(message_id == ABORT) {
-				MPI_Recv(MPI_BOTTOM,0,MPI_INT,source,message_id,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-				l_unlock(lock_mpi);
-
-				PROCESSOR::exit_scorpio(EXIT_SUCCESS);
-			} else if(message_id == PING) {
-				MPI_Recv(MPI_BOTTOM,0,MPI_INT,source,message_id,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-				l_unlock(lock_mpi);
-
-				Non_Blocking_Send(source,PONG);
-			}
-		} else {
-			l_unlock(lock_mpi);
-
-			/* Check if this host is idle and 
-			* send "HELP" message to a randomly picked host
-			*/
-			if(state == WAIT 
-				&& n_idle_processors == n_processors 
-				&& !help_messages 
+		if(move) {
+			/*research with full window*/
+			if(using_pvs && score > -split.beta
+				&& score < -split.alpha
 				) {
-					register int i, count = 0,dest;
+					using_pvs = false;
 
-					l_lock(lock_smp);
-					for(i = 0;i < n_processors;i++) {
-						if(processors[i]->state == WAIT) 
-							count++;
-					}
-					if(count == n_processors) {
-						while((dest = (rand() % n_hosts)) == host_id); 
-						Non_Blocking_Send(dest,HELP);
-						help_messages++;
-					}
-					l_unlock(lock_smp);
+					psb->pstack->alpha = split.alpha;
+					psb->pstack->beta = split.beta;
+					psb->pstack->node_type = split.node_type;
+					psb->pstack->search_state = NULL_MOVE;
+					goto REDO;
+			}
+			/*research with full depth*/
+			if(psb->pstack->reduction
+				&& score >= -split.alpha
+				) {
+					psb->pstack->depth += psb->pstack->reduction;
+					psb->pstack->reduction = 0;
+
+					psb->pstack->alpha = split.alpha;
+					psb->pstack->beta = split.beta;
+					psb->pstack->node_type = split.node_type;
+					psb->pstack->search_state = NULL_MOVE;
+					goto REDO;
 			}
 		}
-	} while(state == WAIT || flag);
-#endif
 
+		/*undomove : Go to previous ply even if search was interrupted*/
+		while(psb->ply > psb->stop_ply - 1) {
+			if(psb->hstack[psb->hply - 1].move) psb->POP_MOVE();
+			else psb->POP_NULL();
+		}
+
+		processors[0]->state = WAIT;
+
+		/***********************************************************
+		* Send result back and release all helper nodes we aquired
+		***********************************************************/
+		PROCESSOR::cancel_idle_hosts();
+
+		MERGE_MESSAGE& merge = global_merge;
+		merge.nodes = psb->nodes;
+		merge.qnodes = psb->qnodes;
+		merge.time_check = psb->time_check;
+		merge.splits = psb->splits;
+		merge.bad_splits = psb->bad_splits;
+		merge.egbb_probes = psb->egbb_probes;
+
+		/*pv*/
+		merge.master = split.master;
+		merge.best_move = move;
+		merge.best_score = score;
+		merge.pv_length = psb->ply;
+
+		if(move && score > -split.beta && score < -split.alpha) {
+			merge.pv[psb->ply] = move;
+			memcpy(&merge.pv[psb->ply + 1],&(psb->pstack + 1)->pv[psb->ply + 1],
+				((psb->pstack + 1)->pv_length - psb->ply ) * sizeof(MOVE));
+			merge.pv_length = (psb->pstack + 1)->pv_length;
+		}
+		/*send it*/
+		ISend(source,PROCESSOR::MERGE,&merge,MERGE_MESSAGE_SIZE(merge));
+	} else if(message_id == MERGE) {
+		/**************************************************
+		* MERGE  - Merge result of move at split point
+		**************************************************/
+		MERGE_MESSAGE& merge = global_merge;
+		Recv(source,message_id,&merge,sizeof(MERGE_MESSAGE));
+		message_available = 0;
+
+		/*update master*/
+		PSEARCHER master = (PSEARCHER)merge.master;
+		l_lock(master->lock);
+
+		if(merge.best_move && merge.best_score > master->pstack->best_score) {
+			master->pstack->best_score = merge.best_score;
+			master->pstack->best_move = merge.best_move;
+			if(merge.best_score > master->pstack->alpha) {
+				if(merge.best_score > master->pstack->beta) {
+					master->pstack->flag = LOWER;
+
+					l_unlock(master->lock);
+					master->handle_fail_high();
+					l_lock(master->lock);
+				} else {
+					master->pstack->flag = EXACT;
+					master->pstack->alpha = merge.best_score;
+
+					memcpy(&master->pstack->pv[master->ply],&merge.pv[master->ply],
+						(merge.pv_length - master->ply ) * sizeof(MOVE));
+					master->pstack->pv_length = merge.pv_length;
+				}
+			}
+		}
+
+		/*update counts*/
+		master->nodes += merge.nodes;
+		master->qnodes += merge.qnodes;
+		master->time_check += merge.time_check;
+		master->splits += merge.splits;
+		master->bad_splits += merge.bad_splits;
+		master->egbb_probes += merge.egbb_probes;
+
+		l_unlock(master->lock);
+		/* 
+		* We finished searching one move from the current split. Check for more moves there and keep on searching.
+		* Otherwise remove the node from the split's helper list, and add it to the list of idle helpers.
+		*/
+		l_lock(lock_smp);
+		SPLIT_MESSAGE& split = global_split[source];
+		if(!master->stop_searcher && master->get_cluster_move(&split)) {
+			ISend(source,PROCESSOR::SPLIT,&split,SPLIT_MESSAGE_SIZE(split));
+			l_unlock(lock_smp);
+		} else {
+			available_host_workers.push_back(source);
+			l_unlock(lock_smp);
+			/*remove from current split*/
+			l_lock(master->lock);
+			master->host_workers.remove(source);
+			master->n_host_workers--;
+			l_unlock(master->lock);
+		}
+		/******************************************************************
+		* INIT  - Set up poistion from FEN and prepare threaded search
+		******************************************************************/
+	} else if(message_id == INIT) {
+		INIT_MESSAGE& init = global_init;
+		Recv(source,message_id,&init,sizeof(INIT_MESSAGE));
+		message_available = 0;
+		/*setup board*/
+		psb->set_board((char*)init.fen);
+
+		/*make moves*/
+		register int i;
+		for(i = 0;i < init.pv_length;i++) {
+			if(init.pv[i]) psb->do_move(init.pv[i]);	
+			else psb->do_null();
+		}
+#ifdef PARALLEL
+		/*wakeup processors*/
+		for(i = 0;i < n_processors;i++)
+			processors[i]->state = WAIT;
+#endif
+		/***********************************
+		* Handle notification messages
+		************************************/
+	} else {
+		Recv(source,message_id);
+		message_available = 0;
+		if(message_id == HELP) {
+			l_lock(lock_smp);
+			if(n_idle_processors == n_processors) {
+				l_unlock(lock_smp);
+				ISend(source,CANCEL);
+			} else {
+				available_host_workers.push_back(source);
+				l_unlock(lock_smp);
+			}
+		} else if(message_id == CANCEL) {
+			help_messages--;
+		} else if(message_id == QUIT) {
+			SEARCHER::abort_search = 1;
+#ifdef PARALLEL
+		} else if(message_id == RELAX) {
+			for(int i = 0;i < n_processors;i++)
+				processors[i]->state = PARK;
+#endif
+		} else if(message_id == ABORT) {
+			PROCESSOR::exit_scorpio(EXIT_SUCCESS);
+		} else if(message_id == PING) {
+			ISend(source,PONG);
+		}
+	}
+}
+/*
+* Offer help to a randomly picked host
+*/
+void PROCESSOR::offer_help() {
+	if(!help_messages
+		&& n_idle_processors == n_processors 
+		) {
+			register int i, count = 0,dest;
+
+			l_lock(lock_smp);
+			for(i = 0;i < n_processors;i++) {
+				if(processors[i]->state == WAIT) 
+					count++;
+			}
+			if(count == n_processors) {
+				while((dest = (rand() % n_hosts)) == host_id); 
+				ISend(dest,HELP);
+				help_messages++;
+			}
+			l_unlock(lock_smp);
+	}
+}
+/*
+* idle loop for message processing thread
+*/
+void PROCESSOR::message_idle_loop() {
+	int message_id,source;
+	while(true) {
+		while(IProbe(source,message_id)) {
+			g_message_id = message_id;
+			g_source_id = source;
+			if(message_id == SPLIT) {
+				message_available = 1;
+				while(message_available) 
+					t_yield();
+			} else {
+				handle_message(source,message_id);
+			}
+		}
+		offer_help();
+		t_yield();
+	}
+}
+
+#endif
+/*
+* idle loop for all threads
+*/
+#if defined(PARALLEL) || defined(CLUSTER)
+void PROCESSOR::idle_loop() {
+	if((this != processors[0]) || (n_hosts == 1)) {
+		while(state <= WAIT) {
+			if(state == PARK) t_sleep(1);
+		}
+		return;
+	}
+	int message_id,source;
+#ifdef THREAD_POLLING
+	while(state <= WAIT) {
+		if(state == PARK) t_sleep(1);
+		if(!message_available)
+			continue;
+		message_id = g_message_id;
+		source = g_source_id;
+		handle_message(source,message_id);
+	}
+#else
+	do {
+		while(IProbe(source,message_id))
+			handle_message(source,message_id);
+		offer_help();
+		if(state == PARK) t_sleep(1);
+	} while(state <= WAIT);
+#endif
 }
 #endif
 
@@ -419,7 +452,7 @@ void PROCESSOR::cancel_idle_hosts() {
 	int dest;
 	while(!available_host_workers.empty()) {
 		dest = *(available_host_workers.begin());
-		Non_Blocking_Send(dest,CANCEL);
+		ISend(dest,CANCEL);
 		available_host_workers.pop_front();
 	}
 
@@ -431,7 +464,7 @@ void PROCESSOR::cancel_idle_hosts() {
 void PROCESSOR::quit_hosts() {
 	for(int i = 0;i < n_hosts;i++) {
 		if(i != host_id)
-			Non_Blocking_Send(i,QUIT);
+			ISend(i,QUIT);
 	}
 }
 /*
@@ -440,7 +473,7 @@ void PROCESSOR::quit_hosts() {
 void PROCESSOR::abort_hosts() {
 	for(int i = 0;i < n_hosts;i++) {
 		if(i != host_id)
-			Non_Blocking_Send(i,ABORT);
+			ISend(i,ABORT);
 		print("Process [%d/%d] terminated.\n",i,n_hosts);
 	}
 }
@@ -523,8 +556,7 @@ void PROCESSOR::set_main() {
 void PROCESSOR::create(int id) {
 	long tid = id;
 	t_started = false;
-	pthread_t thread = 0;
-	t_create(thread_proc,tid,thread);
+	t_create(thread_proc,tid);
 	while(t_started == false);
 }
 void PROCESSOR::kill(int id) {
@@ -563,8 +595,6 @@ void SEARCHER::attach_processor(int new_proc_id) {
 		psearcher->nodes = 0;
 		psearcher->qnodes = 0;
 		psearcher->time_check = 0;
-		psearcher->full_evals = 0;
-		psearcher->lazy_evals = 0;
 		psearcher->splits = 0;
 		psearcher->bad_splits = 0;
 		psearcher->egbb_probes = 0;
@@ -592,8 +622,6 @@ void SEARCHER::update_master() {
 	master->nodes += nodes;
 	master->qnodes += qnodes;
 	master->time_check += time_check;
-	master->full_evals += full_evals;
-	master->lazy_evals += lazy_evals;
 	master->splits += splits;
 	master->bad_splits += bad_splits;
 	master->egbb_probes += egbb_probes;
@@ -638,14 +666,15 @@ void SEARCHER::update_master() {
 int SEARCHER::check_split() {
 	register int i;
 	if(((DEPTH(pstack->depth) > PROCESSOR::SMP_SPLIT_DEPTH && PROCESSOR::n_idle_processors > 0)
-		CLUSTER_CODE( || (DEPTH(pstack->depth) > PROCESSOR::CLUSTER_SPLIT_DEPTH && PROCESSOR::available_host_workers.size() > 0)))
+		CLUSTER_CODE( || 
+		(DEPTH(pstack->depth) > PROCESSOR::CLUSTER_SPLIT_DEPTH && PROCESSOR::available_host_workers.size() > 0)))
 		&& !stop_searcher
 		&& stop_ply != ply
 		&& pstack->gen_status < GEN_END
 		&& processors[processor_id]->has_block()
 		) {
 			l_lock(lock_smp);
-
+			
 #ifdef CLUSTER
 			/*attach helper hosts*/
 			if(DEPTH(pstack->depth) > PROCESSOR::CLUSTER_SPLIT_DEPTH 
@@ -664,10 +693,7 @@ int SEARCHER::check_split() {
 							host_workers.push_back(dest);
 							l_unlock(lock);
 
-							l_lock(lock_mpi);
-							MPI_Isend(&split,SPLIT_MESSAGE_SIZE(split),MPI_BYTE,dest,PROCESSOR::SPLIT,
-								MPI_COMM_WORLD,&PROCESSOR::mpi_request);
-							l_unlock(lock_mpi);
+							PROCESSOR::ISend(dest,PROCESSOR::SPLIT,&split,SPLIT_MESSAGE_SIZE(split));
 
 							PROCESSOR::available_host_workers.pop_front();
 					}
@@ -686,10 +712,6 @@ int SEARCHER::check_split() {
 			/*send them off to work*/
 			if(n_workers CLUSTER_CODE(|| n_host_workers)) {
 				splits++;
-#if defined(_DEBUG) && defined(CLUSTER)
-				print("[%d : %d] Split %d at [%d %d]\n",PROCESSOR::host_id,
-					processor_id,splits,ply,pstack->depth);
-#endif
 				attach_processor(processor_id);
 				for(i = 0; i < PROCESSOR::n_processors; i++) {
 					if(workers[i]) {
@@ -721,7 +743,7 @@ void SEARCHER::stop_workers() {
 	if(n_host_workers) {
 		std::list<int>::iterator it;
 		for(it = host_workers.begin();it != host_workers.end();++it)
-			Non_Blocking_Send(*it,PROCESSOR::QUIT);
+			PROCESSOR::ISend(*it,PROCESSOR::QUIT);
 	}
 #endif
 	l_unlock(lock);

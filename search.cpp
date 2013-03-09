@@ -161,7 +161,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 
 	/*
 	* Processor 0 of host 0 does polling for input
-	* from keypress or time limit.
+	* from keypress and checks for time limit.
 	*/
 	if(processor_id == 0 CLUSTER_CODE(&& PROCESSOR::host_id == 0)) {
 		if(nodes > time_check) {
@@ -174,13 +174,21 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 			}
 		} 
 	}
-#ifdef CLUSTER
+
 	/*check for messages from other hosts*/
+#ifdef CLUSTER
+#	ifndef THREAD_POLLING
 	if(processor_id == 0 && nodes > message_check) {
 		processors[processor_id]->idle_loop();
 		message_check += PROCESSOR::MESSAGE_POLL_NODES;
 	}
-#endif     
+#	else
+	if(processor_id == 0 && PROCESSOR::message_available) {
+		processors[processor_id]->idle_loop();
+	}
+#	endif
+#endif   
+
 	/*probe hash table*/
 	if(hash_cutoff())
 		return true;
@@ -660,8 +668,6 @@ IDLE_START:
 							while(true) {
 								switch(proc->state) {
 							case PARK:
-								while(proc->state == PARK) t_sleep(1);
-								break;
 							case WAIT:
 								l_lock(lock_smp);		
 								PROCESSOR::n_idle_processors++;	
@@ -1044,8 +1050,6 @@ MOVE SEARCHER::find_best() {
 	qnodes = 0;
 	time_check = 0;
 	message_check = 0;
-	full_evals = 0;
-	lazy_evals = 0;
 	splits = 0;
 	bad_splits = 0;
 	stop_searcher = 0;
@@ -1159,7 +1163,7 @@ MOVE SEARCHER::find_best() {
 		if(hstack[hply - 1].move) undo_move();
 		else undo_null();
 	}
-	get_fen(init.fen);
+	get_fen((char*)init.fen);
 
 	/*redo moves*/
 	len = i;
@@ -1170,22 +1174,18 @@ MOVE SEARCHER::find_best() {
 		if(move) do_move(move);
 		else do_null();
 	}
-
-	/*send message*/
-	for(i = 1;i < PROCESSOR::n_hosts;i++) {
-		l_lock(lock_mpi);
-		MPI_Send(&init,1,INIT_Datatype,i,PROCESSOR::INIT,MPI_COMM_WORLD);
-		l_unlock(lock_mpi);
+	/*send initial position*/
+	for(i = 0;i < PROCESSOR::n_hosts;i++) {
+		if(i != PROCESSOR::host_id)
+			PROCESSOR::ISend(i,PROCESSOR::INIT,&init,INIT_MESSAGE_SIZE(init));
 	}
 #endif
 
-	/*wakeup processors*/
+	/*wakeup threads*/
 #ifdef PARALLEL
 	for(i = 1;i < PROCESSOR::n_processors;i++) {
 		processors[i]->state = WAIT;
 	}
-	while(PROCESSOR::n_idle_processors != PROCESSOR::n_processors - 1)
-		t_sleep(1);
 #endif
 
 	/*score non-egbb moves*/
@@ -1342,17 +1342,18 @@ MOVE SEARCHER::find_best() {
 		print("nodes = "FMT64" <%d qnodes> time = %dms nps = %d\n",nodes,
 			int(BMP64(qnodes) / (BMP64(nodes) / 100.0f)),
 			time_used,int(BMP64(nodes) / (time_used / 1000.0f)));
-		print("lazy_eval = %d splits = %d badsplits = %d egbb_probes = %d\n",
-			int(100 * (lazy_evals/float(full_evals + lazy_evals))),
+		print("splits = %d badsplits = %d egbb_probes = %d\n",
 			splits,bad_splits,egbb_probes);
 	}
 #ifdef CLUSTER
-	/*relax hosts*/
-	for(i = 1;i < PROCESSOR::n_hosts;i++)
-		Non_Blocking_Send(i,PROCESSOR::RELAX);
+	/*park hosts*/
+	for(i = 0;i < PROCESSOR::n_hosts;i++) {
+		if(i != PROCESSOR::host_id)
+			PROCESSOR::ISend(i,PROCESSOR::RELAX);
+	}
 #endif
 #ifdef PARALLEL
-	/*freeze processors*/
+	/*park threads*/
 	for(i = 1;i < PROCESSOR::n_processors;i++) {
 		processors[i]->state = PARK;
 	}

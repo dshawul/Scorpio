@@ -5,6 +5,8 @@
 #    define _CRT_SECURE_NO_DEPRECATE
 #    define _SCL_SECURE_NO_DEPRECATE
 #    pragma warning (disable: 4127)
+#    pragma warning (disable: 4146)
+#    pragma warning (disable: 4244)
 #endif
 
 /*
@@ -20,6 +22,7 @@ Useful to compile minimal scorpio engine.
 //#define HAS_POPCNT
 //#define HAS_PREFETCH
 //#define TUNE
+//#define THREAD_POLLING
 /*
 parallel search options
 */
@@ -403,6 +406,7 @@ typedef struct STACK{
 	MOVE pv[MAX_PLY];
 	void sort(const int,const int);
 } *PSTACK;
+
 struct SEARCHER;
 struct PROCESSOR;
 /*
@@ -410,10 +414,9 @@ struct PROCESSOR;
  */
 #ifdef CLUSTER
 /*
- * Make them of known size so that we avoid
- * constructing MPI datatypes for them. Simple
- * transfer sizeof(MESSAGE) MPI_BYTEs should be
- * more efficient in theory.
+ * Messages are made to be of known size on all platforms so that
+ * construction of MPI_datatypes is avoided. Also simple transfer of messages
+ * in bytes i.e. sizeof(MESSAGE) * MPI_BYTE is more efficient at least in theory
  */
 struct SPLIT_MESSAGE {
 	BMP64  master;
@@ -432,8 +435,6 @@ struct MERGE_MESSAGE {
 	UBMP64 nodes;
 	UBMP64 qnodes;
 	UBMP64 time_check;
-	UBMP32 full_evals;
-	UBMP32 lazy_evals;
 	UBMP32 splits;
 	UBMP32 bad_splits;
 	UBMP32 egbb_probes;
@@ -442,22 +443,15 @@ struct MERGE_MESSAGE {
 	BMP32  pv_length;
 	MOVE   pv[MAX_PLY];
 };
-/*
- * The fen string makes it difficult to use
- * fixed size struct. So use special data type for that.
- */
 struct INIT_MESSAGE {
-	char fen[MAX_FEN_STR];
+	BMP8 fen[MAX_FEN_STR];
 	BMP32 pv_length;
 	MOVE  pv[127];
 };
-extern MPI_Datatype INIT_Datatype;
-extern void init_messages();
-/*
- * message sizes vary due to pv
- */
+
 #define   SPLIT_MESSAGE_SIZE(x)   (40 + ((x).pv_length << 2))
-#define   MERGE_MESSAGE_SIZE(x)   (64 + ((x).pv_length << 2))
+#define   MERGE_MESSAGE_SIZE(x)   (56 + ((x).pv_length << 2))
+#define   INIT_MESSAGE_SIZE(x)   (MAX_FEN_STR + 4 + ((x).pv_length << 2))
 
 #endif
 /*
@@ -574,8 +568,6 @@ typedef CACHE_ALIGN struct SEARCHER{
 	UBMP64 qnodes;
 	UBMP64 time_check;
 	UBMP64 message_check;
-	UBMP32 full_evals;
-	UBMP32 lazy_evals;
 	UBMP32 splits;
 	UBMP32 bad_splits;
 	UBMP32 egbb_probes;
@@ -746,6 +738,7 @@ typedef struct PROCESSOR {
 	/*processor count*/
 	static int n_processors;
 	static VOLATILE int n_idle_processors;
+	static int n_hosts;
 
 	/*cluster*/
 #ifdef CLUSTER
@@ -753,13 +746,11 @@ typedef struct PROCESSOR {
 		QUIT = 0,INIT,RELAX,HELP,CANCEL,SPLIT,MERGE,PING,PONG,ABORT
 	};
 	static const char *const message_str[10];
-	static int n_hosts;
 	static int host_id;
 	static char host_name[256];
 	static int help_messages;
 	static list<int> available_host_workers;
-	static MPI_Status mpi_status;
-	static MPI_Request mpi_request;
+	static VOLATILE int message_available;
 	static void cancel_idle_hosts();
 	static void quit_hosts();
 	static void abort_hosts();
@@ -775,9 +766,20 @@ typedef struct PROCESSOR {
 	static void kill(int id);
 	static void set_main();
 #endif
+#ifdef CLUSTER
+	static void init(int argc, char* argv[]);
+	static void ISend(int dest,int message);
+	static void ISend(int dest,int message,void* data,int size);
+	static void Recv(int dest,int message);
+	static void Recv(int dest,int message,void* data,int size);
+	static bool IProbe(int& dest,int& message_id);
+	static void handle_message(int dest,int message_id);
+	static void offer_help();
+#endif
 #if defined(PARALLEL) || defined(CLUSTER)
 	bool has_block();
 	void idle_loop();
+	static void message_idle_loop();
 #endif
 
 	/*hash tables*/
@@ -818,14 +820,6 @@ extern LOCK  lock_smp;
 extern LOCK  lock_io;
 #endif
 
-#ifdef CLUSTER
-extern LOCK  lock_mpi;
-FORCEINLINE void Non_Blocking_Send(int dest,int message) {
-	l_lock(lock_mpi);
-	MPI_Isend(MPI_BOTTOM,0,MPI_INT,dest,message,MPI_COMM_WORLD,&PROCESSOR::mpi_request);
-	l_unlock(lock_mpi);
-}
-#endif
 /*
 global data
 */
