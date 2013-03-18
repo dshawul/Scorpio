@@ -104,7 +104,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 
 	/*razoring & static pruning*/
 	if(pstack->depth <= 4 * UNITDEPTH
-		&& (pstack - 1)->search_state != NULL_MOVE
+		&& ply && (pstack - 1)->search_state != NULL_MOVE
 		&& !pstack->extension
 		&& pstack->node_type != PV_NODE
 		) {
@@ -142,6 +142,12 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 		pstack->next_node_type = CUT_NODE;
 	} else {
 		pstack->next_node_type = ALL_NODE;
+	}
+
+	/*root*/
+	if(!ply) {
+		pstack->gen_status = GEN_RESET;
+		return false;
 	}
 
 	if(pstack->alpha > MATE_SCORE - WIN_PLY * (ply)) {
@@ -279,6 +285,18 @@ int SEARCHER::be_selective() {
 
 	pstack->extension = 0;
 	pstack->reduction = 0;
+
+	/*root*/
+	if(ply == 1) {
+		if(nmoves >= 4
+			&& !hstack[hply - 1].checks
+			&& !m_capture(move)
+			&& !is_passed(move,HALFR)
+			) {
+			reduce(UNITDEPTH);
+		}
+		return false;
+	}
 	/*
 	extend
 	*/
@@ -393,39 +411,39 @@ Back up to previous ply
 Iterative search.
 */
 #ifdef PARALLEL
-void search(PROCESSOR* const proc) {
+void search(PROCESSOR* const proc)
 #else
-void search(SEARCHER* const sb) {
+void search(SEARCHER* const sb)
 #endif
-
+{
 	register MOVE move;
 	register int score = 0;
 #ifdef PARALLEL
 	register PSEARCHER sb = proc->searcher;
 	register int active_workers;
-	CLUSTER_CODE(register int active_hosts;)
+	CLUSTER_CODE(register int active_hosts);
 #endif
+	UBMP64 start_nodes = 0;
+	/*
+	* First processor goes on searching, while the
+	* rest go to sleep mode.
+	*/
+	if(sb SMP_CODE(&& proc->state == GO)) {
+		sb->stop_ply = sb->ply;
+		goto NEW_NODE;
+	} else {
+		SMP_CODE(goto IDLE_START);
+	}
 
+	/*
+	* Iterative depth first search (DFS)
+	*/
+	while(true) {
 		/*
-		* First processor goes on searching, while the
-		* rest go to sleep mode.
-		*/
-		if(sb SMP_CODE(&& proc->state == GO)) {
-			sb->stop_ply = sb->ply;
-			goto NEW_NODE;
-		} else {
-			SMP_CODE(goto IDLE_START;);
-		}
-
-		/*
-		* Iterative depth first search (DFS)
+		* GO forward pushing moves until tip of tree is reached
 		*/
 		while(true) {
-			/*
-			* GO forward pushing moves until tip of tree is reached
-			*/
-			while(true) {
-				SMP_CODE (START:);
+			SMP_CODE (START:)
 				/*
 				* IID and Singular search. These two are related in a way because
 				* we do IID at every node to get a move to be tested for singularity later.
@@ -434,410 +452,418 @@ void search(SEARCHER* const sb) {
 				* further by 2 plies.
 				*/
 				switch(sb->pstack->search_state) {
-					case IID_SEARCH:
-						if(use_iid
-							&& sb->pstack->node_type != ALL_NODE
-							&& !sb->pstack->hash_move
-							&& sb->pstack->depth >= 6 * UNITDEPTH
-							) {
-								sb->pstack->o_alpha = sb->pstack->alpha;
-								sb->pstack->o_beta = sb->pstack->beta;
-								sb->pstack->o_depth = sb->pstack->depth;
-								if(sb->pstack->node_type == PV_NODE) 
-									sb->pstack->depth -= 2 * UNITDEPTH;
-								else 
-									sb->pstack->depth -= 4 * UNITDEPTH;
-								sb->pstack->search_state |= NORMAL_MOVE; 
-						} else {
-							sb->pstack->search_state = SINGULAR_SEARCH;
-						}
-						break;
-					case SINGULAR_SEARCH:
-						if(use_singular 
-							&& sb->pstack->node_type != ALL_NODE
-							&& sb->pstack->hash_move 
-							&& sb->pstack->hash_depth >= 6 * UNITDEPTH
-							&& sb->pstack->hash_flags == HASH_GOOD
-							) {
-								sb->pstack->o_alpha = sb->pstack->alpha;
-								sb->pstack->o_beta = sb->pstack->beta;
-								sb->pstack->o_depth = sb->pstack->depth;
-								sb->pstack->alpha = sb->pstack->hash_score - singular_margin;
-								sb->pstack->beta = sb->pstack->alpha + 1;
-								sb->pstack->depth = sb->pstack->hash_depth - 2 * UNITDEPTH;
-								sb->pstack->search_state |= NORMAL_MOVE; 
-						} else {
-							sb->pstack->search_state = NORMAL_MOVE;
-						}
-						break;
-				}
-				/*
-				* Get a legal move (normal/null) and play it on the board.
-				* Null move implementation is clearer this way.
-				*/
-				switch(sb->pstack->search_state & MOVE_MASK) {
-					case NULL_MOVE:
-						if(!sb->hstack[sb->hply - 1].checks
-							&& sb->pstack->hash_flags != AVOID_NULL
-							&& sb->pstack->depth >= 2 * UNITDEPTH
-							&& sb->pstack->node_type != PV_NODE
-							&& sb->piece_c[sb->player]
-						&& (score = sb->eval()) >= sb->pstack->beta
-							) {
-								sb->PUSH_NULL();
-								sb->pstack->extension = 0;
-								sb->pstack->reduction = 0;
-								sb->pstack->alpha = -(sb->pstack - 1)->beta;
-								sb->pstack->beta = -(sb->pstack - 1)->beta + 1;
-								sb->pstack->node_type = (sb->pstack - 1)->next_node_type;
-								/* Smooth scaling from Dann Corbit */
-								sb->pstack->depth = (sb->pstack - 1)->depth - 4 * UNITDEPTH;
-								if(score >= (sb->pstack - 1)->beta)
-									sb->pstack->depth -= (MIN(3 , (score - (sb->pstack - 1)->beta) / 32) * (UNITDEPTH / 2));
-								/* Try double NULL MOVE in late endgames to avoid some bad
-								* play of KB(N)*K* endings. Idea from Vincent Diepeeven.
-								*/
-								if(sb->piece_c[sb->player] <= 9 
-									&& (sb->ply < 2 || (sb->pstack - 2)->search_state != NULL_MOVE))
-									sb->pstack->search_state = NULL_MOVE;
-								else
-									sb->pstack->search_state = NORMAL_MOVE;
-								goto NEW_NODE;
-						}
-						sb->pstack->search_state = IID_SEARCH;
-						break;
-					case NORMAL_MOVE:
-						while(true) {
-#ifdef PARALLEL
-							/*
-							* Get Smp move
-							*/
-							if(sb->master && sb->stop_ply == sb->ply) {
-								if(!sb->get_smp_move())
-									GOBACK(false); //I
-							} else
-#endif
-							/*
-							* Get a move in the regular manner
-							*/
-							{
-								if(!sb->get_move()) {
-									if(!sb->pstack->legal_moves) {
-										if(sb->hstack[sb->hply - 1].checks) {
-											sb->pstack->best_score = -MATE_SCORE + WIN_PLY * (sb->ply + 1);
-										} else {
-											sb->pstack->best_score = 0;
-										}
-										sb->pstack->flag = EXACT;
-									}
-									GOBACK(true);
-								}
-
-								sb->pstack->legal_moves++;
-							}
-							/*
-							* singular search?
-							*/
-							if(sb->pstack->legal_moves == 1
-								&& (sb->pstack->search_state & ~MOVE_MASK) == SINGULAR_SEARCH) {
-									continue;
-							}
-							/*
-							* play the move
-							*/
-							sb->PUSH_MOVE(sb->pstack->current_move);
-
-							/*set next ply's depth and be selective*/			
-							sb->pstack->depth = (sb->pstack - 1)->depth - UNITDEPTH;
-							if(sb->be_selective()) {
-								sb->POP_MOVE();
-								continue;
-							}
-							/*next ply's window*/
-							if((sb->pstack - 1)->node_type == PV_NODE && (sb->pstack - 1)->legal_moves > 1) {
-								sb->pstack->alpha = -(sb->pstack - 1)->alpha - 1;
-								sb->pstack->beta = -(sb->pstack - 1)->alpha;
-								sb->pstack->node_type = CUT_NODE;
-								sb->pstack->search_state = NULL_MOVE;
-							} else {
-								sb->pstack->alpha = -(sb->pstack - 1)->beta;
-								sb->pstack->beta = -(sb->pstack - 1)->alpha;
-								if((sb->pstack - 1)->legal_moves > 3)
-									sb->pstack->node_type = CUT_NODE;
-								else
-									sb->pstack->node_type = (sb->pstack - 1)->next_node_type;
-								sb->pstack->search_state = NULL_MOVE;
-							}
-							/*go to new node*/
-							goto NEW_NODE;
-						}
-				}
-				/*
-				* At this point we have made a normal/null move and already set up
-				* the bounds,depth and other next node states. It is time to check all
-				* the conditions which cause cutoff (repetition draws, hashtable/bitbase cutoffs,
-				* qsearch(Yes:). Qsearch is implemented separately.
-				*/
-NEW_NODE:
-				if(sb->on_node_entry())
-					goto POP;
-			}
-POP:
-			/*
-			* Terminate search on current block if stop signal is on
-			* or if we finished searching.
-			*/
-			if(sb->stop_ply == sb->ply 
-				|| sb->stop_searcher 
-				|| sb->abort_search
-				) {
-#ifndef PARALLEL
-					return;
-#else
-					/*
-					* Is this processor a slave?
-					*/
-					if(sb->master) {
-
-						l_lock(lock_smp);
-						l_lock(sb->master->lock);
-						sb->update_master();
-						active_workers = sb->master->n_workers;
-						CLUSTER_CODE(active_hosts = sb->master->n_host_workers);
-						l_unlock(sb->master->lock);
-						l_unlock(lock_smp);
-						/*
-						* When all helper thread workers are idle but the last helper host is not,
-						* just wait here! It is difficult to do it otherwise because
-						*  i)  Not all threads are idle, since some could be working elsewhere. This
-						*      is a direct consequence of using SMP at a node. SMP is good to share TT at a node
-						*      and i don't want to change things so that a process is started for each processor.
-						*  ii) Other hosts can't continue the current search from here. And it is difficult to do 
-						*      synchronized master to slave conversion. A special "HELP if same master" kind
-						*      of message could be sent to resolve this but problem (i) still remains unsolved.
-						*/ 
-#ifdef CLUSTER
-						if(!active_workers && active_hosts) {
-							while(sb->master->n_host_workers) 
-								proc->idle_loop();
-							active_hosts = 0;
-						}
-#endif
-						/*
-						* We have run out of work now.If this was the _last worker_, grab master 
-						* search block and continue searching with it (IE backup).Otherwise goto 
-						* idle mode until work is assigned. In a recursive search, only the thread 
-						* who initiated the split can backup.
-						*/
-						if(!active_workers 
-							CLUSTER_CODE( && !active_hosts)
-							) {
-								sb->master->stop_searcher = 0;
-								l_lock(lock_smp);
-								proc->searcher = sb->master;
-								/* Did we get here through the same processor that we splitted with ?
-								* If not make sure we have the correct link to the master's master.
-								*/
-								SEARCHER* sbm = sb->master;
-								if(sbm->processor_id != sb->processor_id && sbm->master) {
-									sbm->master->workers[sbm->processor_id] = 0; 
-									sbm->master->workers[sb->processor_id] = sbm;
-								}
-								/*end*/
-								proc->searcher->processor_id = sb->processor_id;
-								sb->used = false;
-								sb = proc->searcher;
-								l_unlock(lock_smp);
-
-								GOBACK(true);
-						} else {
-							/*
-							* make processor idle
-							*/ 
-							l_lock(lock_smp);
-							sb->used = false;
-							if(proc->state == GO) {
-								proc->searcher = NULL;
-								proc->state = WAIT;
-							}
-							l_unlock(lock_smp);
-IDLE_START:	
-							/*
-							* processor's state loop
-							*/
-							while(true) {
-								switch(proc->state) {
-							case PARK:
-							case WAIT:
-								l_lock(lock_smp);		
-								PROCESSOR::n_idle_processors++;	
-								l_unlock(lock_smp);
-
-								proc->idle_loop();
-
-								l_lock(lock_smp);		
-								PROCESSOR::n_idle_processors--;	
-								l_unlock(lock_smp);
-
-								break;
-							case GO: 
-								sb = proc->searcher;
-								goto START;
-							case KILL:
-								proc->state = GO;
-								return;
-								}
-							}
-						}
-						/*
-						* This processor is a master. Only processor[0] can return from here to the root!
-						* If some other processor reached here first switch to processor[0] and return.
-						*/
+				case IID_SEARCH:
+					if(use_iid
+						&& sb->pstack->node_type != ALL_NODE
+						&& !sb->pstack->hash_move
+						&& sb->pstack->depth >= 6 * UNITDEPTH
+						) {
+							sb->pstack->o_alpha = sb->pstack->alpha;
+							sb->pstack->o_beta = sb->pstack->beta;
+							sb->pstack->o_depth = sb->pstack->depth;
+							if(sb->pstack->node_type == PV_NODE) 
+								sb->pstack->depth -= 2 * UNITDEPTH;
+							else 
+								sb->pstack->depth -= 4 * UNITDEPTH;
+							sb->pstack->search_state |= NORMAL_MOVE; 
 					} else {
-						if(proc == processors[0]) {
-							return;
-						} else {
-							/* Switch to processor[0] and send
-							* the current processor to sleep
-							*/
-							l_lock(lock_smp);
-							sb->processor_id = 0;
-							processors[0]->searcher = sb;
-							processors[0]->state = KILL;
-							proc->searcher = NULL;
-							proc->state = WAIT;
-							l_unlock(lock_smp);
-
-							goto IDLE_START;
-						}
+						sb->pstack->search_state = SINGULAR_SEARCH;
 					}
-#endif
+					break;
+				case SINGULAR_SEARCH:
+					if(use_singular 
+						&& sb->pstack->node_type != ALL_NODE
+						&& sb->pstack->hash_move 
+						&& sb->pstack->hash_depth >= 6 * UNITDEPTH
+						&& sb->pstack->hash_flags == HASH_GOOD
+						) {
+							sb->pstack->o_alpha = sb->pstack->alpha;
+							sb->pstack->o_beta = sb->pstack->beta;
+							sb->pstack->o_depth = sb->pstack->depth;
+							sb->pstack->alpha = sb->pstack->hash_score - singular_margin;
+							sb->pstack->beta = sb->pstack->alpha + 1;
+							sb->pstack->depth = sb->pstack->hash_depth - 2 * UNITDEPTH;
+							sb->pstack->search_state |= NORMAL_MOVE; 
+					} else {
+						sb->pstack->search_state = NORMAL_MOVE;
+					}
+					break;
 			}
 			/*
-			* decide to go back one step OR research
-			* with a different window/depth
+			* Get a legal move (normal/null) and play it on the board.
+			* Null move implementation is clearer this way.
 			*/
-			score = -sb->pstack->best_score;
-
-			switch((sb->pstack - 1)->search_state & MOVE_MASK) {
+			switch(sb->pstack->search_state & MOVE_MASK) {
 			case NULL_MOVE:
-				sb->POP_NULL();
+				if(!sb->hstack[sb->hply - 1].checks
+					&& sb->pstack->hash_flags != AVOID_NULL
+					&& sb->pstack->depth >= 2 * UNITDEPTH
+					&& sb->pstack->node_type != PV_NODE
+					&& sb->piece_c[sb->player]
+				&& (score = sb->eval()) >= sb->pstack->beta
+					) {
+						sb->PUSH_NULL();
+						sb->pstack->extension = 0;
+						sb->pstack->reduction = 0;
+						sb->pstack->alpha = -(sb->pstack - 1)->beta;
+						sb->pstack->beta = -(sb->pstack - 1)->beta + 1;
+						sb->pstack->node_type = (sb->pstack - 1)->next_node_type;
+						/* Smooth scaling from Dann Corbit */
+						sb->pstack->depth = (sb->pstack - 1)->depth - 4 * UNITDEPTH;
+						if(score >= (sb->pstack - 1)->beta)
+							sb->pstack->depth -= (MIN(3 , (score - (sb->pstack - 1)->beta) / 32) * (UNITDEPTH / 2));
+						/* Try double NULL MOVE in late endgames to avoid some bad
+						* play of KB(N)*K* endings. Idea from Vincent Diepeeven.
+						*/
+						if(sb->piece_c[sb->player] <= 9 
+							&& (sb->ply < 2 || (sb->pstack - 2)->search_state != NULL_MOVE))
+							sb->pstack->search_state = NULL_MOVE;
+						else
+							sb->pstack->search_state = NORMAL_MOVE;
+						goto NEW_NODE;
+				}
+				sb->pstack->search_state = IID_SEARCH;
 				break;
 			case NORMAL_MOVE:
-				/*research with full depth*/
-				if(sb->pstack->reduction > 0
-					&& score > (sb->pstack - 1)->alpha
-					) {
-						sb->pstack->depth += UNITDEPTH;
-						sb->pstack->reduction -= UNITDEPTH;
+				while(true) {
+#ifdef PARALLEL
+					/*
+					* Get Smp move
+					*/
+					if(sb->master && sb->stop_ply == sb->ply) {
+						if(!sb->get_smp_move())
+							GOBACK(false); //I
+					} else
+#endif
+					/*
+					* Get a move in the regular manner
+					*/
+					{
+						if(!sb->get_move()) {
+							if(!sb->pstack->legal_moves) {
+								if(sb->hstack[sb->hply - 1].checks) {
+									sb->pstack->best_score = -MATE_SCORE + WIN_PLY * (sb->ply + 1);
+								} else {
+									sb->pstack->best_score = 0;
+								}
+								sb->pstack->flag = EXACT;
+							}
+							GOBACK(true);
+						}
+
+						sb->pstack->legal_moves++;
+					}
+					/*root node count*/
+					if(!sb->ply)
+						start_nodes = sb->nodes;
+					/*
+					* singular search?
+					*/
+					if(sb->pstack->legal_moves == 1
+						&& (sb->pstack->search_state & ~MOVE_MASK) == SINGULAR_SEARCH) {
+							continue;
+					}
+					/*
+					* play the move
+					*/
+					sb->PUSH_MOVE(sb->pstack->current_move);
+
+					/*set next ply's depth and be selective*/			
+					sb->pstack->depth = (sb->pstack - 1)->depth - UNITDEPTH;
+					if(sb->be_selective()) {
+						sb->POP_MOVE();
+						continue;
+					}
+					/*next ply's window*/
+					if((sb->pstack - 1)->node_type == PV_NODE && (sb->pstack - 1)->legal_moves > 1) {
 						sb->pstack->alpha = -(sb->pstack - 1)->alpha - 1;
 						sb->pstack->beta = -(sb->pstack - 1)->alpha;
 						sb->pstack->node_type = CUT_NODE;
 						sb->pstack->search_state = NULL_MOVE;
-						goto NEW_NODE;
-				}
-				/*research with full window*/
-				if((sb->pstack - 1)->node_type == PV_NODE 
-					&& sb->pstack->node_type != PV_NODE
-					&& score > (sb->pstack - 1)->alpha
-					&& score < (sb->pstack - 1)->beta
-					) {
+					} else {
 						sb->pstack->alpha = -(sb->pstack - 1)->beta;
 						sb->pstack->beta = -(sb->pstack - 1)->alpha;
-						sb->pstack->node_type = PV_NODE;
+						if((sb->pstack - 1)->legal_moves > 3)
+							sb->pstack->node_type = CUT_NODE;
+						else
+							sb->pstack->node_type = (sb->pstack - 1)->next_node_type;
 						sb->pstack->search_state = NULL_MOVE;
-						goto NEW_NODE;
+					}
+					/*go to new node*/
+					goto NEW_NODE;
 				}
-				sb->POP_MOVE();
-				break;
 			}
 			/*
-			* At this point move is taken back after researches,if any,are done.
-			* So we can update alpha now.
+			* At this point we have made a normal/null move and already set up
+			* the bounds,depth and other next node states. It is time to check all
+			* the conditions which cause cutoff (repetition draws, hashtable/bitbase cutoffs,
+			* qsearch(Yes:). Qsearch is implemented separately.
 			*/
-			switch(sb->pstack->search_state & MOVE_MASK) {
-				case NULL_MOVE:
-					if(score >= sb->pstack->beta) { 
-						sb->pstack->best_score = score;
-						sb->pstack->best_move = 0;
-						sb->pstack->flag = LOWER;
-						GOBACK(true);
-					} else {
-						if(score == -MATE_SCORE + WIN_PLY * (sb->ply + 3))
-							sb->pstack->mate_threat = 1;
-					}
-					sb->pstack->search_state = IID_SEARCH;
-					break;
-				case NORMAL_MOVE:
-					/*update bounds*/
-					move = sb->pstack->current_move;
-					if(score > sb->pstack->best_score) {
-						sb->pstack->best_score = score;
-						sb->pstack->best_move = move;
-					}
-					if(score > sb->pstack->alpha) {
-						if(score >= sb->pstack->beta) {
-							sb->pstack->flag = LOWER;
-							if(!is_cap_prom(move))
-								sb->update_history(move);
-#ifdef PARALLEL		
-							/* stop workers*/
-							if(sb->master && sb->stop_ply == sb->ply)
-								sb->master->handle_fail_high();
-#endif
-							GOBACK(true);
-						}
-						sb->pstack->alpha = score;
-						sb->pstack->flag = EXACT;
-						sb->UPDATE_PV(move);
-					}
-#ifdef PARALLEL	
-					/*
-					* Check split here since at least one move is searched
-					* at this point. On success reset the sb pointer to the child
-					* block pointed to by this processor.
-					*/
-					if(sb->check_split()) 
-						sb = proc->searcher;
-#endif
-					break;
-			}
-			/*
-			* Go up and process another move.
-			*/
+NEW_NODE:
+			if(sb->on_node_entry())
+				goto POP;
+		}
+POP:
+		/*
+		* Terminate search on current block if stop signal is on
+		* or if we finished searching.
+		*/
+		if(sb->stop_ply == sb->ply 
+			|| sb->stop_searcher 
+			|| sb->abort_search
+			) {
+#ifndef PARALLEL
+				return;
+#else
+				/*
+				* Is this processor a slave?
+				*/
+				if(sb->master) {
 
-			continue;
+					l_lock(lock_smp);
+					l_lock(sb->master->lock);
+					sb->update_master();
+					active_workers = sb->master->n_workers;
+					CLUSTER_CODE(active_hosts = sb->master->n_host_workers);
+					l_unlock(sb->master->lock);
+					l_unlock(lock_smp);
+#ifdef CLUSTER
+					/*
+					* Wait until last helper host finishes
+					*/ 
+					if(!active_workers && active_hosts) {
+						while(sb->master->n_host_workers) 
+							proc->idle_loop();
+						active_hosts = 0;
+					}
+#endif
+					/*
+					* We have run out of work now.If this was the _last worker_, grab master 
+					* search block and continue searching with it (i.e. backup).Otherwise goto 
+					* idle mode until work is assigned. In a recursive search, only the thread 
+					* that initiated the split can backup.
+					*/
+					if(!active_workers 
+						CLUSTER_CODE( && !active_hosts)
+						) {
+							sb->master->stop_searcher = 0;
+							l_lock(lock_smp);
+							proc->searcher = sb->master;
+							/* Did we get here through the same processor that we splitted with ?
+							* If not make sure we have the correct link to the master's master.
+							*/
+							SEARCHER* sbm = sb->master;
+							if(sbm->processor_id != sb->processor_id && sbm->master) {
+								sbm->master->workers[sbm->processor_id] = 0; 
+								sbm->master->workers[sb->processor_id] = sbm;
+							}
+							/*end*/
+							proc->searcher->processor_id = sb->processor_id;
+							sb->used = false;
+							sb = proc->searcher;
+							l_unlock(lock_smp);
+
+							GOBACK(true);
+					} else {
+						/*
+						* make processor idle
+						*/ 
+						l_lock(lock_smp);
+						sb->used = false;
+						if(proc->state == GO) {
+							proc->searcher = NULL;
+							proc->state = WAIT;
+						}
+						l_unlock(lock_smp);
+IDLE_START:	
+						/*
+						* processor's state loop
+						*/
+						if(proc->state <= WAIT) {
+							l_lock(lock_smp);		
+							PROCESSOR::n_idle_processors++;	
+							l_unlock(lock_smp);
+
+							proc->idle_loop();
+
+							l_lock(lock_smp);		
+							PROCESSOR::n_idle_processors--;	
+							l_unlock(lock_smp);
+						}
+						if(proc->state == GO) {
+							sb = proc->searcher;
+							goto START;
+						} else if(proc->state == KILL) {
+							proc->state = GO;
+							return;
+						}
+					}
+				} else {
+					/*
+					* This processor is a master. Only processor[0] can return from here to the root!
+					* If some other processor reached here first, switch to processor[0] and return
+					* from there. Also send the current processor to sleep.
+					*/
+					if(proc == processors[0]) {
+						return;
+					} else {
+						l_lock(lock_smp);
+						sb->processor_id = 0;
+						processors[0]->searcher = sb;
+						processors[0]->state = KILL;
+						proc->searcher = NULL;
+						proc->state = WAIT;
+						l_unlock(lock_smp);
+						goto IDLE_START;
+					}
+				}
+#endif
+		}
+		/*
+		* decide to go back one step OR research
+		* with a different window/depth
+		*/
+		score = -sb->pstack->best_score;
+
+		switch((sb->pstack - 1)->search_state & MOVE_MASK) {
+		case NULL_MOVE:
+			sb->POP_NULL();
+			break;
+		case NORMAL_MOVE:
+			/*research with full depth*/
+			if(sb->pstack->reduction > 0
+				&& score > (sb->pstack - 1)->alpha
+				) {
+					sb->pstack->depth += UNITDEPTH;
+					sb->pstack->reduction -= UNITDEPTH;
+					sb->pstack->alpha = -(sb->pstack - 1)->alpha - 1;
+					sb->pstack->beta = -(sb->pstack - 1)->alpha;
+					sb->pstack->node_type = CUT_NODE;
+					sb->pstack->search_state = NULL_MOVE;
+					goto NEW_NODE;
+			}
+			/*research with full window*/
+			if((sb->pstack - 1)->node_type == PV_NODE 
+				&& sb->pstack->node_type != PV_NODE
+				&& score > (sb->pstack - 1)->alpha
+				&& score < (sb->pstack - 1)->beta
+				) {
+					sb->pstack->alpha = -(sb->pstack - 1)->beta;
+					sb->pstack->beta = -(sb->pstack - 1)->alpha;
+					sb->pstack->node_type = PV_NODE;
+					sb->pstack->search_state = NULL_MOVE;
+					goto NEW_NODE;
+			}
+			sb->POP_MOVE();
+			break;
+		}
+		/*
+		* At this point move is taken back after researches,if any,are done.
+		* So we can update alpha now.
+		*/
+		switch(sb->pstack->search_state & MOVE_MASK) {
+		case NULL_MOVE:
+			if(score >= sb->pstack->beta) { 
+				sb->pstack->best_score = score;
+				sb->pstack->best_move = 0;
+				sb->pstack->flag = LOWER;
+				GOBACK(true);
+			} else {
+				if(score == -MATE_SCORE + WIN_PLY * (sb->ply + 3))
+					sb->pstack->mate_threat = 1;
+			}
+			sb->pstack->search_state = IID_SEARCH;
+			break;
+		case NORMAL_MOVE:
+			move = sb->pstack->current_move;
+			/*update best move at root and non-root nodes differently*/
+			if(!sb->ply) {
+				sb->root_score_st[sb->pstack->current_index - 1] 
+				+= (sb->nodes - start_nodes);
+
+				if(sb->pstack->current_index == 1 || score > sb->pstack->alpha) {
+					sb->pstack->best_score = score;
+					sb->pstack->best_move = move;
+
+					if(score < sb->pstack->beta) {
+						sb->UPDATE_PV(move);
+					} else {
+						sb->pstack->pv[0] = move;
+						sb->pstack->pv_length = 1;
+						sb->pstack->flag = LOWER;
+					}
+
+					if(sb->search_depth >= 5)
+						sb->print_pv(sb->pstack->best_score);
+
+					if(!sb->chess_clock.infinite_mode && !sb->chess_clock.pondering)
+						sb->root_score = score;
+
+					if(score <= sb->pstack->alpha) {
+						sb->root_failed_low = 2;
+						GOBACK(true);
+					}
+				}
+			} else if(score > sb->pstack->best_score) {
+				sb->pstack->best_score = score;
+				sb->pstack->best_move = move;
+			}
+			/*update bounds*/
+			if(score > sb->pstack->alpha) {
+				if(score >= sb->pstack->beta) {
+					sb->pstack->flag = LOWER;
+					if(!is_cap_prom(move))
+						sb->update_history(move);
+#ifdef PARALLEL		
+					/* stop workers*/
+					if(sb->master && sb->stop_ply == sb->ply)
+						sb->master->handle_fail_high();
+#endif
+					GOBACK(true);
+				}
+				sb->pstack->alpha = score;
+				sb->pstack->flag = EXACT;
+				sb->UPDATE_PV(move);
+			}
+#ifdef PARALLEL	
+			/* Check for split here since at least one move is searched now.
+			 * Reset the sb pointer to the child block pointed to by this processor.*/
+			if(sb->check_split())
+				sb = proc->searcher;
+#endif
+			break;
+		}
+		/* Go up and process another move.
+		 */
+		continue;
 
 SPECIAL:
-			switch(sb->pstack->search_state & ~MOVE_MASK) {
-				case IID_SEARCH:
-					sb->pstack->hash_move  = sb->pstack->best_move;
-					sb->pstack->hash_score = sb->pstack->best_score;
-					sb->pstack->hash_depth = sb->pstack->depth;
-					sb->pstack->hash_flags = sb->pstack->flag;
-					if(sb->pstack->flag == EXACT || sb->pstack->flag == LOWER)
-						sb->pstack->hash_flags = HASH_GOOD;
-					sb->pstack->search_state = SINGULAR_SEARCH;
-					break;
-				case SINGULAR_SEARCH:
-					if(sb->pstack->flag == UPPER)
-						sb->pstack->singular = 1;
-					sb->pstack->search_state = NORMAL_MOVE;
-					break;
-			} 
-			sb->pstack->alpha = sb->pstack->o_alpha;
-			sb->pstack->beta = sb->pstack->o_beta;
-			sb->pstack->depth = sb->pstack->o_depth;
-			sb->pstack->gen_status = GEN_START;
-			sb->pstack->flag = UPPER;
-			sb->pstack->legal_moves = 0;
-			sb->pstack->best_score = -MATE_SCORE;
-			sb->pstack->best_move = 0;
-			sb->pstack->pv_length = sb->ply;
-			/*
-			end
-			*/
-		}
+		switch(sb->pstack->search_state & ~MOVE_MASK) {
+		case IID_SEARCH:
+			sb->pstack->hash_move  = sb->pstack->best_move;
+			sb->pstack->hash_score = sb->pstack->best_score;
+			sb->pstack->hash_depth = sb->pstack->depth;
+			sb->pstack->hash_flags = sb->pstack->flag;
+			if(sb->pstack->flag == EXACT || sb->pstack->flag == LOWER)
+				sb->pstack->hash_flags = HASH_GOOD;
+			sb->pstack->search_state = SINGULAR_SEARCH;
+			break;
+		case SINGULAR_SEARCH:
+			if(sb->pstack->flag == UPPER)
+				sb->pstack->singular = 1;
+			sb->pstack->search_state = NORMAL_MOVE;
+			break;
+		} 
+		sb->pstack->alpha = sb->pstack->o_alpha;
+		sb->pstack->beta = sb->pstack->o_beta;
+		sb->pstack->depth = sb->pstack->o_depth;
+		sb->pstack->gen_status = GEN_START;
+		sb->pstack->flag = UPPER;
+		sb->pstack->legal_moves = 0;
+		sb->pstack->best_score = -MATE_SCORE;
+		sb->pstack->best_move = 0;
+		sb->pstack->pv_length = sb->ply;
+	}
 }
 
 /*
@@ -909,132 +935,6 @@ POP_Q:
 		}
 	}
 }
-
-/*
-@ root lots of things are done differently so
-lets have a separate search function
-*/
-
-void SEARCHER::root_search() {
-
-	MOVE move;
-	int score;
-
-	pstack->best_score = -MATE_SCORE;
-	pstack->best_move = 0;
-	pstack->flag = UPPER;
-	pstack->hash_move = 0;
-	pstack->mate_threat = 0;
-	pstack->legal_moves = 0;
-	pstack->node_type = PV_NODE;
-	pstack->next_node_type = PV_NODE;
-	pstack->extension = 0;
-	pstack->reduction = 0;
-
-	/*search root moves*/
-	UBMP64 start_nodes;
-	int& i = pstack->current_index;
-
-	for(i = 0; i < pstack->count;i++) {
-		pstack->current_move = move = pstack->move_st[i];
-		pstack->legal_moves++;
-		PUSH_MOVE(move);
-
-		start_nodes = nodes;
-		pstack->extension = 0;
-		pstack->reduction = 0;
-
-		/*set next ply's depth*/	
-		pstack->depth = (pstack - 1)->depth - UNITDEPTH;
-		if(i >= 3
-			&& !hstack[hply - 1].checks
-			&& !m_capture(move)
-			&& !is_passed(move,HALFR)
-			) {
-				reduce(UNITDEPTH);
-		}
-
-		/*search call*/
-#define SEARCH(type) {                                     \
-	if(type == PV_NODE) {                                  \
-		pstack->alpha = -(pstack - 1)->beta;               \
-		pstack->beta = -(pstack - 1)->alpha;               \
-	} else {                                               \
-		pstack->alpha = -(pstack - 1)->alpha - 1;          \
-		pstack->beta = -(pstack - 1)->alpha;               \
-	}                                                      \
-	pstack->node_type = type;                              \
-	pstack->search_state = NULL_MOVE;                      \
-	search();                                              \
-	if(abort_search) return;                               \
-	score = -pstack->best_score;                           \
-}
-		if(i == 0) {
-			SEARCH(PV_NODE);
-		} else {
-			SEARCH(CUT_NODE);
-			/*research with full depth*/
-			while(pstack->reduction > 0
-				&& score > (pstack - 1)->alpha
-				) {
-					reduce(-UNITDEPTH);
-					SEARCH(CUT_NODE);
-			}
-			/*research*/
-			if(score > (pstack - 1)->alpha 
-				&& score < (pstack - 1)->beta
-				) {
-					SEARCH(PV_NODE);
-			}
-		}
-
-		/*undo move*/
-		POP_MOVE();
-
-		root_score_st[i] += (nodes - start_nodes);
-
-		if(i == 0 || score > pstack->alpha) {
-			/*update pv*/
-			pstack->best_score = score;
-			pstack->best_move = move;
-
-			if(score < pstack->beta) {
-				UPDATE_PV(move);
-			} else {
-				pstack->pv[0] = move;
-				pstack->pv_length = 1;
-				pstack->flag = LOWER;
-			}
-
-			/*print pv*/
-			if(search_depth >= 5)
-				print_pv(pstack->best_score);
-
-			/*root score*/
-			if(!chess_clock.infinite_mode && !chess_clock.pondering)
-				root_score = score;
-
-			/*fail low*/
-			if(score <= pstack->alpha) {
-				root_failed_low = 2;
-				goto END;
-			}
-		}
-		if(score > pstack->alpha) {
-			if(score >= pstack->beta) {
-				pstack->flag = LOWER;
-				goto END;
-			}
-			pstack->alpha = score;
-			pstack->flag = EXACT;
-		}
-	}
-	print_pv(pstack->best_score);
-END:
-	record_hash(player,hash_key,pstack->depth,ply,pstack->flag,
-		pstack->best_score,pstack->best_move,0);
-}
-
 /*
 gets best move of position
 */
@@ -1148,41 +1048,17 @@ MOVE SEARCHER::find_best() {
 	if(!chess_clock.infinite_mode)
 		chess_clock.set_stime(hply);
 
-	/*
-	* Send initial position to hosts. This is achived by
-	* sending FEN string and previous non-retractable moves.
-	*/
-
 #ifdef CLUSTER
-	int len,move;
+	/*send initial position to helper hosts*/
 	INIT_MESSAGE init;
-
-	/*undo to last fifty move*/       
-	len = fifty + 1;
-	for(i = 0;i < len && hply > 0;i++) {
-		if(hstack[hply - 1].move) undo_move();
-		else undo_null();
-	}
-	get_fen((char*)init.fen);
-
-	/*redo moves*/
-	len = i;
-	init.pv_length = 0;
-	for(i = 0;i < len;i++) {
-		move = hstack[hply].move;
-		init.pv[init.pv_length++] = move;
-		if(move) do_move(move);
-		else do_null();
-	}
-	/*send initial position*/
+	get_init_pos(&init);
 	for(i = 0;i < PROCESSOR::n_hosts;i++) {
 		if(i != PROCESSOR::host_id)
 			PROCESSOR::ISend(i,PROCESSOR::INIT,&init,INIT_MESSAGE_SIZE(init));
 	}
 #endif
-
-	/*wakeup threads*/
 #ifdef PARALLEL
+	/*wakeup threads*/
 	for(i = 1;i < PROCESSOR::n_processors;i++) {
 		processors[i]->state = WAIT;
 	}
@@ -1224,8 +1100,11 @@ MOVE SEARCHER::find_best() {
 	alpha = pstack->score_st[0] - 4 * WINDOW;
 	beta = pstack->score_st[0] + 4 * WINDOW;
 	root_failed_low = 0;
+	pstack->node_type = PV_NODE;
+	pstack->search_state = NORMAL_MOVE;
+	pstack->extension = 0;
+	pstack->reduction = 0;
 	do {
-
 		/*search with the current depth*/
 		search_depth++;
 
@@ -1237,7 +1116,9 @@ MOVE SEARCHER::find_best() {
 		pstack->depth = search_depth * UNITDEPTH;
 		pstack->alpha = alpha;
 		pstack->beta = beta;
-		root_search();
+		search();
+		if(pstack->flag == EXACT)
+			print_pv(pstack->best_score);
 		if(abort_search)
 			break;
 		/*score*/
@@ -1345,6 +1226,7 @@ MOVE SEARCHER::find_best() {
 		print("splits = %d badsplits = %d egbb_probes = %d\n",
 			splits,bad_splits,egbb_probes);
 	}
+
 #ifdef CLUSTER
 	/*park hosts*/
 	for(i = 0;i < PROCESSOR::n_hosts;i++) {

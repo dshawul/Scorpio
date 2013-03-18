@@ -83,6 +83,7 @@ void PROCESSOR::handle_message(int source,int message_id) {
 		SPLIT_MESSAGE& split = global_split[host_id];
 		Recv(source,message_id,&split,sizeof(SPLIT_MESSAGE));
 		message_available = 0;
+
 		/*setup board by undoing old moves and making new ones*/
 		register int i,score,move,using_pvs;
 		for(i = 0;i < split.pv_length && i < psb->ply;i++) {
@@ -100,23 +101,7 @@ void PROCESSOR::handle_message(int source,int message_id) {
 
 		/*reset*/
 		SEARCHER::abort_search = 0;
-		psb->master = 0;
-		psb->stop_ply = psb->ply;
-		psb->stop_searcher = 0;
-		psb->used = true;
-		psb->n_host_workers = 0;
-		psb->host_workers.clear();
-		psb->n_workers = 0;
-		for(i = 0; i < PROCESSOR::n_processors;i++)
-			psb->workers[i] = 0;
-
-		/*reset counts*/
-		psb->nodes = 0;
-		psb->qnodes = 0;
-		psb->time_check = 0;
-		psb->splits = 0;
-		psb->bad_splits = 0;
-		psb->egbb_probes = 0;
+		psb->clear_block();
 
 		/**************************************
 		* PVS-search on root node
@@ -137,30 +122,15 @@ void PROCESSOR::handle_message(int source,int message_id) {
 			using_pvs = true;
 		}
 
-REDO:				
-		/*call search now*/
+		/*Search move and re-search if necessary*/
 		move = psb->hstack[psb->hply - 1].move;
-
-		psb->search();
-
-		if(psb->stop_searcher || SEARCHER::abort_search)
-			move = 0;
-
-		score = -psb->pstack->best_score;
-
-		if(move) {
-			/*research with full window*/
-			if(using_pvs && score > -split.beta
-				&& score < -split.alpha
-				) {
-					using_pvs = false;
-
-					psb->pstack->alpha = split.alpha;
-					psb->pstack->beta = split.beta;
-					psb->pstack->node_type = split.node_type;
-					psb->pstack->search_state = NULL_MOVE;
-					goto REDO;
+		while(true) {			
+			psb->search();
+			if(psb->stop_searcher || SEARCHER::abort_search) {
+				move = 0;
+				break;
 			}
+			score = -psb->pstack->best_score;
 			/*research with full depth*/
 			if(psb->pstack->reduction
 				&& score >= -split.alpha
@@ -169,11 +139,25 @@ REDO:
 					psb->pstack->reduction = 0;
 
 					psb->pstack->alpha = split.alpha;
+					psb->pstack->beta = split.alpha + 1;
+					psb->pstack->node_type = CUT_NODE;
+					psb->pstack->search_state = NULL_MOVE;
+					continue;
+			}
+			/*research with full window*/
+			if(using_pvs 
+				&& score > -split.beta
+				&& score < -split.alpha
+				) {
+					using_pvs = false;
+
+					psb->pstack->alpha = split.alpha;
 					psb->pstack->beta = split.beta;
 					psb->pstack->node_type = split.node_type;
 					psb->pstack->search_state = NULL_MOVE;
-					goto REDO;
+					continue;
 			}
+			break;
 		}
 
 		/*undomove : Go to previous ply even if search was interrupted*/
@@ -379,6 +363,7 @@ void PROCESSOR::idle_loop() {
 		}
 		return;
 	}
+#ifdef CLUSTER
 	int message_id,source;
 #ifdef THREAD_POLLING
 	while(state <= WAIT) {
@@ -396,6 +381,7 @@ void PROCESSOR::idle_loop() {
 		offer_help();
 		if(state == PARK) t_sleep(1);
 	} while(state <= WAIT);
+#endif
 #endif
 }
 #endif
@@ -475,6 +461,30 @@ void PROCESSOR::abort_hosts() {
 		if(i != host_id)
 			ISend(i,ABORT);
 		print("Process [%d/%d] terminated.\n",i,n_hosts);
+	}
+}
+/*
+* Get initial position
+*/
+void SEARCHER::get_init_pos(INIT_MESSAGE* init) {
+	int i,len,move;
+
+	/*undo to last fifty move*/       
+	len = fifty + 1;
+	for(i = 0;i < len && hply > 0;i++) {
+		if(hstack[hply - 1].move) undo_move();
+		else undo_null();
+	}
+	get_fen((char*)init->fen);
+
+	/*redo moves*/
+	len = i;
+	init->pv_length = 0;
+	for(i = 0;i < len;i++) {
+		move = hstack[hply].move;
+		init->pv[init->pv_length++] = move;
+		if(move) do_move(move);
+		else do_null();
 	}
 }
 #endif
@@ -561,6 +571,8 @@ void PROCESSOR::create(int id) {
 }
 void PROCESSOR::kill(int id) {
 	PPROCESSOR proc = processors[id];
+	proc->state = KILL;
+	while(proc->state == KILL);
 	proc->delete_hash_tables();
 	delete proc;
 	processors[id] = 0;
@@ -570,36 +582,14 @@ void PROCESSOR::kill(int id) {
 * Copy board and other relevant data..
 */
 void SEARCHER::attach_processor(int new_proc_id) {
-	register int i,j = 0;
+	register int j = 0;
 	for(j = 0; (j < MAX_SEARCHERS_PER_CPU) && processors[new_proc_id]->searchers[j].used; j++);
 	if(j < MAX_SEARCHERS_PER_CPU) {
-
 		PSEARCHER psearcher = &processors[new_proc_id]->searchers[j];
 		psearcher->COPY(this);
+		psearcher->clear_block();
 		psearcher->master = this;
-		psearcher->stop_searcher = 0;
 		psearcher->processor_id = new_proc_id;
-		psearcher->stop_ply = ply;
-		psearcher->pstack->pv_length = ply;
-		psearcher->pstack->best_move = 0;
-		psearcher->used = true;
-#ifdef CLUSTER
-		psearcher->n_host_workers = 0;
-		psearcher->host_workers.clear();
-#endif
-		psearcher->n_workers = 0;
-		for(i = 0; i < PROCESSOR::n_processors;i++)
-			psearcher->workers[i] = 0;
-
-		/*reset counts*/
-		psearcher->nodes = 0;
-		psearcher->qnodes = 0;
-		psearcher->time_check = 0;
-		psearcher->splits = 0;
-		psearcher->bad_splits = 0;
-		psearcher->egbb_probes = 0;
-		/*end*/
-
 		processors[new_proc_id]->searcher = psearcher;
 		workers[new_proc_id] = psearcher;
 		n_workers++;
@@ -642,7 +632,7 @@ void SEARCHER::update_master() {
 	/*best move of local search matches with that of the master's*/
 	if(pstack->best_move == master->pstack->best_move) {
 
-		if(pstack->flag == EXACT) {
+		if(pstack->flag == EXACT || (!ply && pstack->flag == LOWER)) {
 			memcpy(&master->pstack->pv[ply],&pstack->pv[ply],
 				(pstack->pv_length - ply ) * sizeof(MOVE));
 			master->pstack->pv_length = pstack->pv_length;
@@ -669,10 +659,11 @@ int SEARCHER::check_split() {
 		CLUSTER_CODE( || 
 		(DEPTH(pstack->depth) > PROCESSOR::CLUSTER_SPLIT_DEPTH && PROCESSOR::available_host_workers.size() > 0)))
 		&& !stop_searcher
-		&& stop_ply != ply
+		&& ((stop_ply != ply) || (!master))
 		&& pstack->gen_status < GEN_END
 		&& processors[processor_id]->has_block()
 		) {
+			
 			l_lock(lock_smp);
 			
 #ifdef CLUSTER
@@ -750,10 +741,37 @@ void SEARCHER::stop_workers() {
 }
 
 #endif
+
+#if defined(PARALLEL) || defined(CLUSTER)
+/*
+* clear searcher block
+*/
+void SEARCHER::clear_block() {
+	master = 0;
+	stop_ply = ply;
+	stop_searcher = 0;
+	used = true;
+	pstack->pv_length = ply;
+	pstack->best_move = 0;
+#ifdef CLUSTER
+	n_host_workers = 0;
+	host_workers.clear();
+#endif
+	n_workers = 0;
+	for(int i = 0; i < PROCESSOR::n_processors;i++)
+		workers[i] = 0;
+
+	/*reset counts*/
+	nodes = 0;
+	qnodes = 0;
+	time_check = 0;
+	splits = 0;
+	bad_splits = 0;
+	egbb_probes = 0;
+}
 /*
 * Fail high handler
 */
-#if defined(PARALLEL) || defined(CLUSTER)
 void SEARCHER::handle_fail_high() {
 	l_lock(lock_smp);
 	if(stop_searcher) {

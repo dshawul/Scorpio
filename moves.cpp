@@ -1378,11 +1378,24 @@ MOVE SEARCHER::get_move() {
 	register int i,start;
 	register int* pscore;
 
+	/*initialization*/
 	if(pstack->gen_status == GEN_START) {
 		pstack->current_index = 0;
+		pstack->gen_status = GEN_HASHM;
 		pstack->bad_index = 0;
 		pstack->count = 0;
-		pstack->gen_status = GEN_HASHM;
+	} else if(pstack->gen_status == GEN_RESET) {
+		pstack->current_index = 0;
+		pstack->gen_status = GEN_AVAIL;
+	}
+
+	/*moves are already generated*/
+	if(pstack->gen_status == GEN_AVAIL) {
+		if(pstack->current_index >= pstack->count) {
+			pstack->gen_status = GEN_END;
+			return 0;
+		}
+		goto END;
 	}
 
 DO_AGAIN:
@@ -1517,7 +1530,7 @@ DO_AGAIN:
 			}
 		}
 	}
-	
+END:
 	pstack->current_move = pstack->move_st[pstack->current_index];
 	pstack->current_index++;
 	return pstack->current_move;

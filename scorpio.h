@@ -175,13 +175,15 @@ enum square_names {
 #define MAX_UBMP64   UBMP64(0xffffffffffffffff)
 
 #define GEN_START           0
-#define GEN_HASHM           1
-#define GEN_CAPS            2
-#define GEN_QNONCAPS        3
-#define GEN_KILLERS         3
-#define GEN_NONCAPS         4
-#define GEN_LOSCAPS         5
-#define GEN_END             6
+#define GEN_RESET           1
+#define GEN_AVAIL           2
+#define GEN_HASHM           3
+#define GEN_CAPS            4
+#define GEN_QNONCAPS        5
+#define GEN_KILLERS         5
+#define GEN_NONCAPS         6
+#define GEN_LOSCAPS         7
+#define GEN_END             8
 
 #define WSC_FLAG            1
 #define WLC_FLAG            2
@@ -536,7 +538,6 @@ typedef CACHE_ALIGN struct SEARCHER{
 	int   on_qnode_entry();
 	void  search();
 	void  qsearch();
-	void  root_search();
 	bool  hash_cutoff();
 	UBMP64   perft(int);
 	MOVE  get_book_move();
@@ -549,7 +550,6 @@ typedef CACHE_ALIGN struct SEARCHER{
 	SCORE eval_pawns(int,int,UBMP8*,UBMP8*);
 	int   eval_passed_pawns(UBMP8*,UBMP8*,UBMP8&);
 	void  eval_win_chance(SCORE&,SCORE&,int&,int&);
-	bool  eval_lazy_exit(int,int,int,SCORE&,SCORE&,int,int);
 	void  pre_calculate();
 	void  record_hash(int,const HASHKEY&,int,int,int,int,MOVE,int);
 	int   probe_hash(int,const HASHKEY&,int,int,int&,MOVE&,int,int,int&,int&);
@@ -580,6 +580,7 @@ typedef CACHE_ALIGN struct SEARCHER{
 #if defined(PARALLEL) || defined(CLUSTER)
 	SEARCHER* master;
 	void handle_fail_high();
+	void clear_block();
 #endif
 #ifdef PARALLEL
 	LOCK lock;
@@ -596,6 +597,7 @@ typedef CACHE_ALIGN struct SEARCHER{
 	VOLATILE int n_host_workers;
 	std::list<int> host_workers;
 	int get_cluster_move(SPLIT_MESSAGE*);
+	void get_init_pos(INIT_MESSAGE*);
 #endif
 	/*
 	things that are shared among multiple searchers.
