@@ -5,7 +5,7 @@ static const int CHECK_DEPTH = UNITDEPTH;
 static int use_iid = 1;
 static int futility_margin = 125;
 static int use_singular = 0;
-static int singular_margin = 30;
+static int singular_margin = 40;
 
 #define extend(value) {                      \
 	extension += value;                      \
@@ -31,9 +31,11 @@ bool SEARCHER::hash_cutoff() {
 	. hashtable lookup 
 	*/
 	pstack->hash_flags = probe_hash(player,hash_key,pstack->depth,ply,pstack->hash_score,
-		pstack->hash_move,pstack->alpha,pstack->beta,pstack->mate_threat,pstack->hash_depth);
+		pstack->hash_move,pstack->alpha,pstack->beta,pstack->mate_threat,pstack->singular,pstack->hash_depth);
 	if(pstack->hash_move && !is_legal_fast(pstack->hash_move))
 		pstack->hash_move = 0;
+	if(pstack->singular && pstack->hash_flags != HASH_GOOD)
+		pstack->singular = 0;
 	if(pstack->node_type != PV_NODE && pstack->hash_flags >= EXACT) {
 		if(pstack->hash_move) {
 			pstack->pv_length = ply + 1;
@@ -104,7 +106,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 
 	/*razoring & static pruning*/
 	if(pstack->depth <= 4 * UNITDEPTH
-		&& ply && (pstack - 1)->search_state != NULL_MOVE
+		&& (pstack - 1)->search_state != NULL_MOVE
 		&& !pstack->extension
 		&& pstack->node_type != PV_NODE
 		) {
@@ -281,7 +283,8 @@ int SEARCHER::is_passed(MOVE move,int type) const {
 int SEARCHER::be_selective() {
 	register MOVE move = (pstack - 1)->current_move; 
 	register int extension = 0,score,depth = DEPTH((pstack - 1)->depth);
-	register int node_t = (pstack - 1)->node_type,nmoves = (pstack - 1)->legal_moves;
+	int node_t = (pstack - 1)->node_type,nmoves = (pstack - 1)->legal_moves,
+		gen_phase = ((pstack - 1)->gen_status - 1);
 
 	pstack->extension = 0;
 	pstack->reduction = 0;
@@ -348,12 +351,11 @@ int SEARCHER::be_selective() {
 	*/
 	if(depth <= 7
 		&& !pstack->extension
-		&& (pstack - 1)->gen_status - 1 == GEN_NONCAPS
+		&& gen_phase == GEN_NONCAPS
 		&& node_t != PV_NODE
 		) {
 			if(depth <= 2 && nmoves >= 8)
 				return true;
-
 			int margin = futility_margin * depth;
 			margin = MAX(margin / 4, margin - 10 * nmoves);
 			if(pstack->depth <= 0) 
@@ -372,24 +374,22 @@ int SEARCHER::be_selective() {
 	/*
 	late move reduction
 	*/
-	if(!pstack->extension
-		&& (pstack - 1)->gen_status - 1 == GEN_NONCAPS
-		) {
-			if(nmoves >= 2 && pstack->depth > UNITDEPTH) {
-				reduce(UNITDEPTH);
-				if(nmoves >= ((node_t == PV_NODE) ? 8 : 4) && pstack->depth > UNITDEPTH) {
+	if(!pstack->extension && gen_phase == GEN_NONCAPS) {
+		if(nmoves >= 2 && pstack->depth > UNITDEPTH) {
+			reduce(UNITDEPTH);
+			if(nmoves >= ((node_t == PV_NODE) ? 8 : 4) && pstack->depth > UNITDEPTH) {
+				reduce(UNITDEPTH); 
+				if(nmoves >= 16 && pstack->depth >= 4 * UNITDEPTH) {
 					reduce(UNITDEPTH);
-					if(nmoves >= 16 && pstack->depth >= 4 * UNITDEPTH) {
-						reduce(UNITDEPTH);
-						if(nmoves >= 24 && pstack->depth >= 4 * UNITDEPTH) {
+					if(nmoves >= 24 && pstack->depth >= 4 * UNITDEPTH) {
+						reduce(2 * UNITDEPTH);
+						if(nmoves >= 32 && pstack->depth >= 4 * UNITDEPTH) {
 							reduce(2 * UNITDEPTH);
-							if(nmoves >= 32 && pstack->depth >= 4 * UNITDEPTH) {
-								reduce(2 * UNITDEPTH);
-							}
 						}
 					}
 				}
 			}
+		}
 	}
 	/*
 	end
@@ -402,7 +402,7 @@ Back up to previous ply
 #define GOBACK(save) {																							\
 	if(save && ((sb->pstack->search_state & ~MOVE_MASK) != SINGULAR_SEARCH)) {     	                            \
 		sb->record_hash(sb->player,sb->hash_key,sb->pstack->depth,sb->ply,sb->pstack->flag,						\
-		sb->pstack->best_score,sb->pstack->best_move,sb->pstack->mate_threat);									\
+		sb->pstack->best_score,sb->pstack->best_move,sb->pstack->mate_threat,sb->pstack->singular);				\
 	}																											\
 	if(sb->pstack->search_state & ~MOVE_MASK) goto SPECIAL;                                                     \
 	goto POP;                                                                                                   \
@@ -423,7 +423,6 @@ void search(SEARCHER* const sb)
 	register int active_workers;
 	CLUSTER_CODE(register int active_hosts);
 #endif
-	UBMP64 start_nodes = 0;
 	/*
 	* First processor goes on searching, while the
 	* rest go to sleep mode.
@@ -474,8 +473,9 @@ void search(SEARCHER* const sb)
 					if(use_singular 
 						&& sb->pstack->node_type != ALL_NODE
 						&& sb->pstack->hash_move 
-						&& sb->pstack->hash_depth >= 6 * UNITDEPTH
+						&& sb->pstack->depth >= 8 * UNITDEPTH
 						&& sb->pstack->hash_flags == HASH_GOOD
+						&& !sb->pstack->singular
 						) {
 							sb->pstack->o_alpha = sb->pstack->alpha;
 							sb->pstack->o_beta = sb->pstack->beta;
@@ -541,21 +541,19 @@ void search(SEARCHER* const sb)
 					{
 						if(!sb->get_move()) {
 							if(!sb->pstack->legal_moves) {
-								if(sb->hstack[sb->hply - 1].checks) {
+								if(sb->hstack[sb->hply - 1].checks)
 									sb->pstack->best_score = -MATE_SCORE + WIN_PLY * (sb->ply + 1);
-								} else {
+								else 
 									sb->pstack->best_score = 0;
-								}
 								sb->pstack->flag = EXACT;
-							}
+							} 
 							GOBACK(true);
 						}
 
 						sb->pstack->legal_moves++;
 					}
-					/*root node count*/
-					if(!sb->ply)
-						start_nodes = sb->nodes;
+					/*save start nodes count*/
+					sb->pstack->start_nodes = sb->nodes;
 					/*
 					* singular search?
 					*/
@@ -589,6 +587,7 @@ void search(SEARCHER* const sb)
 							sb->pstack->node_type = (sb->pstack - 1)->next_node_type;
 						sb->pstack->search_state = NULL_MOVE;
 					}
+
 					/*go to new node*/
 					goto NEW_NODE;
 				}
@@ -779,7 +778,7 @@ IDLE_START:
 			/*update best move at root and non-root nodes differently*/
 			if(!sb->ply) {
 				sb->root_score_st[sb->pstack->current_index - 1] 
-				+= (sb->nodes - start_nodes);
+				+= (sb->nodes - sb->pstack->start_nodes);
 
 				if(sb->pstack->current_index == 1 || score > sb->pstack->alpha) {
 					sb->pstack->best_score = score;
@@ -793,8 +792,7 @@ IDLE_START:
 						sb->pstack->flag = LOWER;
 					}
 
-					if(sb->search_depth >= 5)
-						sb->print_pv(sb->pstack->best_score);
+					sb->print_pv(sb->pstack->best_score);
 
 					if(!sb->chess_clock.infinite_mode && !sb->chess_clock.pondering)
 						sb->root_score = score;
@@ -808,6 +806,9 @@ IDLE_START:
 				sb->pstack->best_score = score;
 				sb->pstack->best_move = move;
 			}
+			/*save nodes count in score*/
+			sb->pstack->score_st[sb->pstack->current_index - 1] = 
+				5000 + int(sb->nodes - sb->pstack->start_nodes);
 			/*update bounds*/
 			if(score > sb->pstack->alpha) {
 				if(score >= sb->pstack->beta) {
@@ -847,6 +848,20 @@ SPECIAL:
 			if(sb->pstack->flag == EXACT || sb->pstack->flag == LOWER)
 				sb->pstack->hash_flags = HASH_GOOD;
 			sb->pstack->search_state = SINGULAR_SEARCH;
+			/*put two moves with highest nodes count in killers*/
+			sb->pstack->sort(0,sb->pstack->count);
+			move = sb->pstack->move_st[0];
+			if(move == sb->pstack->best_move) {
+				sb->pstack->sort(1,sb->pstack->count);
+				sb->pstack->killer[0] = sb->pstack->move_st[1];
+				sb->pstack->sort(2,sb->pstack->count);
+				sb->pstack->killer[1] = sb->pstack->move_st[2];
+			} else {
+				sb->pstack->killer[0] = move;
+				sb->pstack->sort(1,sb->pstack->count);
+				sb->pstack->killer[1] = sb->pstack->move_st[1];
+			}
+			/*end*/
 			break;
 		case SINGULAR_SEARCH:
 			if(sb->pstack->flag == UPPER)
@@ -1117,8 +1132,6 @@ MOVE SEARCHER::find_best() {
 		pstack->alpha = alpha;
 		pstack->beta = beta;
 		search();
-		if(pstack->flag == EXACT)
-			print_pv(pstack->best_score);
 		if(abort_search)
 			break;
 		/*score*/
@@ -1135,7 +1148,7 @@ MOVE SEARCHER::find_best() {
 		first incase it was overwritten*/	
 		if(pstack->pv_length) {
 			for(i = 0;i < stack[0].pv_length;i++) {
-				record_hash(player,hash_key,0,0,CRAP,0,stack[0].pv[i],0);
+				record_hash(player,hash_key,0,0,CRAP,0,stack[0].pv[i],0,0);
 				PUSH_MOVE(stack[0].pv[i]);
 			}
 			for(i = 0;i < stack[0].pv_length;i++)

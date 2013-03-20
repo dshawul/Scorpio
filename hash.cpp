@@ -58,7 +58,7 @@ Main hash table
 
 void SEARCHER::record_hash(
 				 int col,const HASHKEY& hash_key,int depth,int ply,
-				 int flags,int score,MOVE move,int mate_threat
+				 int flags,int score,MOVE move,int mate_threat,int singular
 				 ) {
 #if TT_TYPE == 0
 	static const PPROCESSOR proc = processors[0];
@@ -90,16 +90,10 @@ void SEARCHER::record_hash(
 			else if(score < -WIN_SCORE) 
 				score -= WIN_PLY * (ply + 1);
 			
-			if(move) 
-				pslot->move = UBMP32(move);
-			pslot->score = BMP16(score);
-			pslot->depth = UBMP8(depth);
-			if(mate_threat || (pslot->flags & 4)) 
-				pslot->flags = UBMP8((flags - EXACT) | (PROCESSOR::age << 3) | (4));
-			else 
-				pslot->flags = UBMP8((flags - EXACT) | (PROCESSOR::age << 3));
-			pslot->hash_key = hash_key;
-			return;
+			if(!move) move = pslot->move;
+			mate_threat = (mate_threat || (pslot->flags & 4));
+			pr_slot = pslot;
+			break;
 		} else {
 			sc = (pslot->flags & ~7)                     //8 * age   {larger weight}
 				+  DEPTH(pslot->depth)                   //depth     {non-fractional depth}
@@ -114,13 +108,13 @@ void SEARCHER::record_hash(
 	pr_slot->move = UBMP32(move);
 	pr_slot->score = BMP16(score);
 	pr_slot->depth = UBMP8(depth);
-	pr_slot->flags = UBMP8((flags - EXACT) | (mate_threat << 2) | (PROCESSOR::age << 3));
+	pr_slot->flags = UBMP8((flags - EXACT) | (mate_threat << 2) | (singular << 3) | (PROCESSOR::age << 4));
 	pr_slot->hash_key = hash_key;
 }
 
 int SEARCHER::probe_hash(
 			   int col,const HASHKEY& hash_key,int depth,int ply,int& score,
-			   MOVE& move,int alpha,int beta,int& mate_threat,int& h_depth
+			   MOVE& move,int alpha,int beta,int& mate_threat,int& singular,int& h_depth
 			   ) {
 #if TT_TYPE == 0
 	static const PPROCESSOR proc = processors[0];
@@ -152,6 +146,7 @@ int SEARCHER::probe_hash(
 			
 			move = pslot->move;
 			mate_threat |= ((pslot->flags >> 2) & 1);
+			singular = ((pslot->flags >> 3) & 1);
 			flags = (pslot->flags & 3) + EXACT;
 			h_depth = pslot->depth;
 			

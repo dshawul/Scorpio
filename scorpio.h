@@ -158,7 +158,7 @@ enum square_names {
 #define QRBM    14
 #define KNM     17
 
-#define AGE_MASK 0x1f
+#define AGE_MASK 0xf
 
 #define MAX_STR            256
 #define MAX_FILE_STR      2048
@@ -402,6 +402,7 @@ typedef struct STACK{
 	MOVE killer[2];
 	int qcheck_depth;
 	int actual_score;
+	UBMP64 start_nodes;
 	MOVE move_st[MAX_MOVES];
 	int score_st[MAX_MOVES];
 	MOVE bad_st[MAX_CAPS];
@@ -551,8 +552,8 @@ typedef CACHE_ALIGN struct SEARCHER{
 	int   eval_passed_pawns(UBMP8*,UBMP8*,UBMP8&);
 	void  eval_win_chance(SCORE&,SCORE&,int&,int&);
 	void  pre_calculate();
-	void  record_hash(int,const HASHKEY&,int,int,int,int,MOVE,int);
-	int   probe_hash(int,const HASHKEY&,int,int,int&,MOVE&,int,int,int&,int&);
+	void  record_hash(int,const HASHKEY&,int,int,int,int,MOVE,int,int);
+	int   probe_hash(int,const HASHKEY&,int,int,int&,MOVE&,int,int,int&,int&,int&);
 	void  record_pawn_hash(const HASHKEY&,const SCORE&,const PAWNREC&);
 	int   probe_pawn_hash(const HASHKEY&,SCORE&,PAWNREC&);
 	void  record_eval_hash(const HASHKEY&,int);
