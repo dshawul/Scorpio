@@ -552,17 +552,6 @@ void CDECL thread_proc(void* id) {
 	t_started = true;
 	search((PPROCESSOR)proc);
 }
-void PROCESSOR::set_main() {
-	PPROCESSOR proc = new PROCESSOR();
-	proc->searcher = &proc->searchers[0];
-	proc->searcher->used = true;
-	proc->searcher->processor_id = 0;
-	proc->state = GO;
-	proc->reset_hash_tab(0,0);
-	proc->reset_eval_hash_tab();
-	proc->reset_pawn_hash_tab();
-	processors[0] = proc;
-}
 void PROCESSOR::create(int id) {
 	long tid = id;
 	t_started = false;
@@ -606,7 +595,7 @@ bool PROCESSOR::has_block() {
 * Copy local search result of this thread back to the master. 
 * We have been updating search bounds whenever we got a new move.
 */
-void SEARCHER::update_master() {
+void SEARCHER::update_master(int skip) {
 
 	/*update counts*/
 	master->nodes += nodes;
@@ -616,34 +605,35 @@ void SEARCHER::update_master() {
 	master->bad_splits += bad_splits;
 	master->egbb_probes += egbb_probes;
 
-	/*update stuff at split point. First FIX the stack location because 
-	we may have reached here from an unfinished search where "stop_search" flag is on.
-	*/
-	ply = master->ply;
-	hply = master->hply;
-	pstack = stack + ply;
+	if(!skip) {
+		/*update stuff at split point. First FIX the stack location because 
+		we may have reached here from an unfinished search where "stop_search" flag is on.
+		*/
+		ply = master->ply;
+		hply = master->hply;
+		pstack = stack + ply;
 
-	/*check if the master needs to be updated.
-	We only do this for the sake of the last move played!*/
-	if(pstack->best_score > master->pstack->best_score) {
-		UPDATE_BOUND(master->pstack,pstack);
-	}
-
-	/*best move of local search matches with that of the master's*/
-	if(pstack->best_move == master->pstack->best_move) {
-
-		if(pstack->flag == EXACT || (!ply && pstack->flag == LOWER)) {
-			memcpy(&master->pstack->pv[ply],&pstack->pv[ply],
-				(pstack->pv_length - ply ) * sizeof(MOVE));
-			master->pstack->pv_length = pstack->pv_length;
+		/*check if the master needs to be updated.
+		We only do this for the sake of the last move played!*/
+		if(pstack->best_score > master->pstack->best_score) {
+			UPDATE_BOUND(master->pstack,pstack);
 		}
 
-		for(int i = 0;i < MAX_PLY;i++) {
-			master->stack[i].killer[0] = stack[i].killer[0];
-			master->stack[i].killer[1] = stack[i].killer[1]; 
+		/*best move of local search matches with that of the master's*/
+		if(pstack->best_move == master->pstack->best_move) {
+
+			if(pstack->flag == EXACT || (!ply && pstack->flag == LOWER)) {
+				memcpy(&master->pstack->pv[ply],&pstack->pv[ply],
+					(pstack->pv_length - ply ) * sizeof(MOVE));
+				master->pstack->pv_length = pstack->pv_length;
+			}
+
+			for(int i = 0;i < MAX_PLY;i++) {
+				master->stack[i].killer[0] = stack[i].killer[0];
+				master->stack[i].killer[1] = stack[i].killer[1]; 
+			}
 		}
 	}
-
 	/*zero helper*/
 	master->workers[processor_id] = 0;
 	master->n_workers--;
@@ -814,3 +804,14 @@ void init_smp(int mt) {
 	}
 }
 #endif
+void PROCESSOR::set_main() {
+	PPROCESSOR proc = new PROCESSOR();
+	proc->searcher = &proc->searchers[0];
+	proc->searcher->used = true;
+	proc->searcher->processor_id = 0;
+	proc->state = GO;
+	proc->reset_hash_tab(0,0);
+	proc->reset_eval_hash_tab();
+	proc->reset_pawn_hash_tab();
+	processors[0] = proc;
+}

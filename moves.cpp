@@ -1387,7 +1387,10 @@ MOVE SEARCHER::get_move() {
 	} else if(pstack->gen_status == GEN_RESET) {
 		pstack->current_index = 0;
 		pstack->gen_status = GEN_AVAIL;
+		pstack->legal_moves = 0;
 	}
+
+DO_AGAIN:
 
 	/*moves are already generated*/
 	if(pstack->gen_status == GEN_AVAIL) {
@@ -1397,8 +1400,6 @@ MOVE SEARCHER::get_move() {
 		}
 		goto END;
 	}
-
-DO_AGAIN:
 
 	while(pstack->current_index >= pstack->count 
 		&& pstack->gen_status <= GEN_LOSCAPS) {
@@ -1466,6 +1467,7 @@ DO_AGAIN:
 			}
 		} else if(pstack->gen_status == GEN_NONCAPS) {
 			start = pstack->count;
+			pstack->noncap_start = start;
 			gen_noncaps();
 			pstack->sortm = 2;
 			for(i = start; i < pstack->count;i++) {
@@ -1503,8 +1505,9 @@ DO_AGAIN:
 	if(pstack->sortm)
         pstack->sort(pstack->current_index,pstack->count);  
 
+END:
 	if(pstack->score_st[pstack->current_index] == -MAX_NUMBER) {
-		pstack->current_index = pstack->count;
+		pstack->current_index++;
 		goto DO_AGAIN;
 	}
 
@@ -1530,7 +1533,7 @@ DO_AGAIN:
 			}
 		}
 	}
-END:
+
 	pstack->current_move = pstack->move_st[pstack->current_index];
 	pstack->current_index++;
 	return pstack->current_move;

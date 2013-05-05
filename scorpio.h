@@ -29,9 +29,9 @@ parallel search options
 #define USE_SPINLOCK
 #ifdef  PARALLEL
 #	if !defined(MAX_CPUS)
-#		define MAX_CPUS               8
+#		define MAX_CPUS              16
 #	endif
-#	define MAX_SEARCHERS_PER_CPU     16
+#	define MAX_SEARCHERS_PER_CPU     32
 #	define MAX_CPUS_PER_SPLIT         8
 #else
 #	define MAX_CPUS 			      1
@@ -72,8 +72,6 @@ end
 #  include "mpi.h"
 #endif
 #include "my_types.h"
-
-using namespace std;
 
 typedef UBMP64  HASHKEY;
 typedef UBMP64  BITBOARD;
@@ -168,6 +166,7 @@ enum square_names {
 #define MAX_PLY             64
 #define MAX_HSTACK        1024
 #define MATE_SCORE       20000
+#define SKIP_SCORE       10000
 #define WIN_SCORE         3000
 #define WIN_PLY             40
 #define MAX_NUMBER    16777216
@@ -316,10 +315,15 @@ hash tables
 */
 typedef struct tagHASH {
 	HASHKEY hash_key;
-	UBMP32  move;
-	BMP16   score;
-	UBMP8   depth;
-	UBMP8   flags;
+	union {
+		HASHKEY data_key;
+		struct {
+			UBMP32  move;
+			BMP16   score;
+			UBMP8   depth;
+			UBMP8   flags;
+		};
+	};
 }HASH,*PHASH;
 
 typedef struct tagPAWNREC {
@@ -398,6 +402,9 @@ typedef struct STACK{
 	int next_node_type;
 	int flag;
 	int search_state;
+	int noncap_start;
+	bool all_done;
+	bool second_pass;
 	MOVE mate_killer;
 	MOVE killer[2];
 	int qcheck_depth;
@@ -553,7 +560,7 @@ typedef CACHE_ALIGN struct SEARCHER{
 	void  eval_win_chance(SCORE&,SCORE&,int&,int&);
 	void  pre_calculate();
 	void  record_hash(int,const HASHKEY&,int,int,int,int,MOVE,int,int);
-	int   probe_hash(int,const HASHKEY&,int,int,int&,MOVE&,int,int,int&,int&,int&);
+	int   probe_hash(int,const HASHKEY&,int,int,int&,MOVE&,int,int,int&,int&,int&,bool);
 	void  record_pawn_hash(const HASHKEY&,const SCORE&,const PAWNREC&);
 	int   probe_pawn_hash(const HASHKEY&,SCORE&,PAWNREC&);
 	void  record_eval_hash(const HASHKEY&,int);
@@ -591,7 +598,7 @@ typedef CACHE_ALIGN struct SEARCHER{
 	int get_smp_move();
 	int check_split();
 	void attach_processor(int);
-	void update_master();
+	void update_master(int);
 	void stop_workers();
 #endif
 #ifdef CLUSTER
@@ -752,7 +759,7 @@ typedef struct PROCESSOR {
 	static int host_id;
 	static char host_name[256];
 	static int help_messages;
-	static list<int> available_host_workers;
+	static std::list<int> available_host_workers;
 	static VOLATILE int message_available;
 	static void cancel_idle_hosts();
 	static void quit_hosts();
@@ -767,8 +774,8 @@ typedef struct PROCESSOR {
 	static int SMP_SPLIT_DEPTH;
 	static void create(int id);
 	static void kill(int id);
-	static void set_main();
 #endif
+	static void set_main();
 #ifdef CLUSTER
 	static void init(int argc, char* argv[]);
 	static void ISend(int dest,int message);

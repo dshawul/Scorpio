@@ -47,7 +47,7 @@ int PROCESSOR::MESSAGE_POLL_NODES = 200;
 int PROCESSOR::CLUSTER_SPLIT_DEPTH = 8;
 int PROCESSOR::host_id;
 char PROCESSOR::host_name[256];
-list<int> PROCESSOR::available_host_workers;
+std::list<int> PROCESSOR::available_host_workers;
 int PROCESSOR::help_messages = 0;
 const char *const PROCESSOR::message_str[] = {
 	"QUIT","INIT","RELAX","HELP","CANCEL","SPLIT","MERGE","PING","PONG","ABORT"

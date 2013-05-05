@@ -1,11 +1,15 @@
 #include "scorpio.h"
 
 static const int CHECK_DEPTH = UNITDEPTH;
-
+static const int use_nullmove = 1;
+static const int use_selective = 1;
+static const int use_tt = 1;
+static const int use_aspiration = 1;
 static int use_iid = 1;
-static int futility_margin = 125;
 static int use_singular = 0;
+static int futility_margin = 125;
 static int singular_margin = 40;
+static int use_abdada = 0;
 
 #define extend(value) {                      \
 	extension += value;                      \
@@ -25,15 +29,36 @@ FORCEINLINE void SEARCHER::UPDATE_PV(MOVE move)  {
 	memcpy(&pstack->pv[ply + 1] , &(pstack + 1)->pv[ply + 1] , ((pstack + 1)->pv_length - ply) * sizeof(MOVE));
 	pstack->pv_length = (pstack + 1)->pv_length;
 }
-
+/*
+* hashtable cutoff
+*/
 bool SEARCHER::hash_cutoff() { 
-	/*
-	. hashtable lookup 
-	*/
+	/*abdada*/
+	bool exclusiveP = false;
+#ifdef PARALLEL
+	if(use_abdada
+		&& DEPTH((pstack - 1)->depth) > PROCESSOR::SMP_SPLIT_DEPTH  
+		&& (pstack - 1)->search_state != NULL_MOVE
+		&& !(pstack - 1)->second_pass
+		&& (pstack - 1)->legal_moves > 1
+		) {
+		exclusiveP = true;
+	}
+#endif
+	/*probe*/
 	pstack->hash_flags = probe_hash(player,hash_key,pstack->depth,ply,pstack->hash_score,
-		pstack->hash_move,pstack->alpha,pstack->beta,pstack->mate_threat,pstack->singular,pstack->hash_depth);
-	if(pstack->hash_move && !is_legal_fast(pstack->hash_move))
-		pstack->hash_move = 0;
+		pstack->hash_move,pstack->alpha,pstack->beta,pstack->mate_threat,
+		pstack->singular,pstack->hash_depth,exclusiveP);
+
+#ifdef PARALLEL
+	/*move is taken!*/
+	if(exclusiveP && pstack->hash_flags == CRAP) {
+		pstack->best_score = SKIP_SCORE;
+		return true;
+	}
+#endif
+
+	/*cutoff*/
 	if(pstack->singular && pstack->hash_flags != HASH_GOOD)
 		pstack->singular = 0;
 	if(pstack->node_type != PV_NODE && pstack->hash_flags >= EXACT) {
@@ -105,7 +130,8 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 	prefetch_tt();
 
 	/*razoring & static pruning*/
-	if(pstack->depth <= 4 * UNITDEPTH
+	if(use_selective
+		&& pstack->depth <= 4 * UNITDEPTH
 		&& (pstack - 1)->search_state != NULL_MOVE
 		&& !pstack->extension
 		&& pstack->node_type != PV_NODE
@@ -137,6 +163,8 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 	pstack->best_move = 0;
 	pstack->mate_threat = 0;
 	pstack->singular = 0;
+	pstack->all_done = true;
+	pstack->second_pass = false;
 
 	if(pstack->node_type == PV_NODE) {
 		pstack->next_node_type = PV_NODE;
@@ -157,7 +185,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 		return true; 
 	}
 
-	if(draw()) {
+	if(ply > 1 && draw()) {
 		pstack->best_score = 0;
 		return true;
 	}
@@ -198,7 +226,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 #endif   
 
 	/*probe hash table*/
-	if(hash_cutoff())
+	if(use_tt && hash_cutoff())
 		return true;
 
 	/*bitbase cutoff*/
@@ -226,7 +254,7 @@ FORCEINLINE int SEARCHER::on_qnode_entry() {
 		return true; 
 	}
 
-	if(draw()) {
+	if(ply > 1 && draw()) {
 		pstack->best_score = 0;
 		return true;
 	}
@@ -283,8 +311,7 @@ int SEARCHER::is_passed(MOVE move,int type) const {
 int SEARCHER::be_selective() {
 	register MOVE move = (pstack - 1)->current_move; 
 	register int extension = 0,score,depth = DEPTH((pstack - 1)->depth);
-	int node_t = (pstack - 1)->node_type,nmoves = (pstack - 1)->legal_moves,
-		gen_phase = ((pstack - 1)->gen_status - 1);
+	int node_t = (pstack - 1)->node_type,nmoves = (pstack - 1)->legal_moves;
 
 	pstack->extension = 0;
 	pstack->reduction = 0;
@@ -300,6 +327,10 @@ int SEARCHER::be_selective() {
 		}
 		return false;
 	}
+	/*non-cap phase*/
+	int noncap_reduce = ( (pstack - 1)->gen_status - 1 == GEN_NONCAPS ||
+		                 ((pstack - 1)->gen_status == GEN_AVAIL && 
+						  (pstack - 1)->current_index - 1 >= (pstack - 1)->noncap_start));
 	/*
 	extend
 	*/
@@ -351,15 +382,14 @@ int SEARCHER::be_selective() {
 	*/
 	if(depth <= 7
 		&& !pstack->extension
-		&& gen_phase == GEN_NONCAPS
+		&& noncap_reduce
 		&& node_t != PV_NODE
 		) {
 			if(depth <= 2 && nmoves >= 8)
 				return true;
 			int margin = futility_margin * depth;
 			margin = MAX(margin / 4, margin - 10 * nmoves);
-			if(pstack->depth <= 0) 
-				margin = 0;
+			if(margin < 0) margin = 0;
 
 			score = -eval();
 			
@@ -374,7 +404,7 @@ int SEARCHER::be_selective() {
 	/*
 	late move reduction
 	*/
-	if(!pstack->extension && gen_phase == GEN_NONCAPS) {
+	if(!pstack->extension && noncap_reduce) {
 		if(nmoves >= 2 && pstack->depth > UNITDEPTH) {
 			reduce(UNITDEPTH);
 			if(nmoves >= ((node_t == PV_NODE) ? 8 : 4) && pstack->depth > UNITDEPTH) {
@@ -400,7 +430,7 @@ int SEARCHER::be_selective() {
 Back up to previous ply
 */
 #define GOBACK(save) {																							\
-	if(save && ((sb->pstack->search_state & ~MOVE_MASK) != SINGULAR_SEARCH)) {     	                            \
+	if(use_tt && save && ((sb->pstack->search_state & ~MOVE_MASK) != SINGULAR_SEARCH)) {     	                \
 		sb->record_hash(sb->player,sb->hash_key,sb->pstack->depth,sb->ply,sb->pstack->flag,						\
 		sb->pstack->best_score,sb->pstack->best_move,sb->pstack->mate_threat,sb->pstack->singular);				\
 	}																											\
@@ -442,7 +472,7 @@ void search(SEARCHER* const sb)
 		* GO forward pushing moves until tip of tree is reached
 		*/
 		while(true) {
-			SMP_CODE (START:)
+START:
 				/*
 				* IID and Singular search. These two are related in a way because
 				* we do IID at every node to get a move to be tested for singularity later.
@@ -467,6 +497,7 @@ void search(SEARCHER* const sb)
 							sb->pstack->search_state |= NORMAL_MOVE; 
 					} else {
 						sb->pstack->search_state = SINGULAR_SEARCH;
+						goto START;
 					}
 					break;
 				case SINGULAR_SEARCH:
@@ -486,6 +517,7 @@ void search(SEARCHER* const sb)
 							sb->pstack->search_state |= NORMAL_MOVE; 
 					} else {
 						sb->pstack->search_state = NORMAL_MOVE;
+						goto START;
 					}
 					break;
 			}
@@ -495,12 +527,13 @@ void search(SEARCHER* const sb)
 			*/
 			switch(sb->pstack->search_state & MOVE_MASK) {
 			case NULL_MOVE:
-				if(!sb->hstack[sb->hply - 1].checks
+				if(use_nullmove
+					&& !sb->hstack[sb->hply - 1].checks
 					&& sb->pstack->hash_flags != AVOID_NULL
 					&& sb->pstack->depth >= 2 * UNITDEPTH
 					&& sb->pstack->node_type != PV_NODE
 					&& sb->piece_c[sb->player]
-				&& (score = sb->eval()) >= sb->pstack->beta
+					&& (score = sb->eval()) >= sb->pstack->beta
 					) {
 						sb->PUSH_NULL();
 						sb->pstack->extension = 0;
@@ -523,14 +556,14 @@ void search(SEARCHER* const sb)
 						goto NEW_NODE;
 				}
 				sb->pstack->search_state = IID_SEARCH;
-				break;
+				goto START;
 			case NORMAL_MOVE:
 				while(true) {
 #ifdef PARALLEL
 					/*
 					* Get Smp move
 					*/
-					if(sb->master && sb->stop_ply == sb->ply) {
+					if(!use_abdada && sb->master && sb->stop_ply == sb->ply) {
 						if(!sb->get_smp_move())
 							GOBACK(false); //I
 					} else
@@ -546,8 +579,30 @@ void search(SEARCHER* const sb)
 								else 
 									sb->pstack->best_score = 0;
 								sb->pstack->flag = EXACT;
-							} 
+							}  
+#ifdef PARALLEL
+							else if(use_abdada
+								&& !sb->pstack->all_done
+								&& !sb->pstack->second_pass
+								&& DEPTH(sb->pstack->depth) > PROCESSOR::SMP_SPLIT_DEPTH 
+								) {
+									sb->pstack->second_pass = true;
+									sb->pstack->gen_status = GEN_RESET;
+									continue;
+							}
+#endif
 							GOBACK(true);
+						} else {
+#ifdef PARALLEL
+							if(use_abdada
+								&& !sb->pstack->all_done
+								&& sb->pstack->second_pass
+								&& sb->pstack->score_st[sb->pstack->current_index - 1] != -SKIP_SCORE
+								) {
+									sb->pstack->legal_moves++;
+									continue;
+							}
+#endif
 						}
 
 						sb->pstack->legal_moves++;
@@ -568,7 +623,7 @@ void search(SEARCHER* const sb)
 
 					/*set next ply's depth and be selective*/			
 					sb->pstack->depth = (sb->pstack - 1)->depth - UNITDEPTH;
-					if(sb->be_selective()) {
+					if(use_selective && sb->be_selective()) {
 						sb->POP_MOVE();
 						continue;
 					}
@@ -621,7 +676,7 @@ POP:
 
 					l_lock(lock_smp);
 					l_lock(sb->master->lock);
-					sb->update_master();
+					sb->update_master(use_abdada);
 					active_workers = sb->master->n_workers;
 					CLUSTER_CODE(active_hosts = sb->master->n_host_workers);
 					l_unlock(sb->master->lock);
@@ -642,7 +697,8 @@ POP:
 					* idle mode until work is assigned. In a recursive search, only the thread 
 					* that initiated the split can backup.
 					*/
-					if(!active_workers 
+					if(!use_abdada
+						&& !active_workers 
 						CLUSTER_CODE( && !active_hosts)
 						) {
 							sb->master->stop_searcher = 0;
@@ -691,7 +747,8 @@ IDLE_START:
 						}
 						if(proc->state == GO) {
 							sb = proc->searcher;
-							goto START;
+							if(!use_abdada) goto START;
+							else goto NEW_NODE;
 						} else if(proc->state == KILL) {
 							proc->state = GO;
 							return;
@@ -775,24 +832,36 @@ IDLE_START:
 			break;
 		case NORMAL_MOVE:
 			move = sb->pstack->current_move;
+#ifdef PARALLEL
+			/*remeber skipped moves*/
+			if(use_abdada
+				&& score == -SKIP_SCORE
+				) {
+				sb->pstack->all_done = false;
+				sb->pstack->score_st[sb->pstack->current_index - 1] = score;
+				break;
+			}
+#endif
+			/*save nodes count in score*/
+			sb->pstack->score_st[sb->pstack->current_index - 1] = 
+				5000 + int(sb->nodes - sb->pstack->start_nodes);
 			/*update best move at root and non-root nodes differently*/
 			if(!sb->ply) {
+				l_lock(lock_smp);
 				sb->root_score_st[sb->pstack->current_index - 1] 
-				+= (sb->nodes - sb->pstack->start_nodes);
+				      += (sb->nodes - sb->pstack->start_nodes);
+				l_unlock(lock_smp);
 
-				if(sb->pstack->current_index == 1 || score > sb->pstack->alpha) {
+				if((!use_abdada || !sb->processor_id)
+					&& (sb->pstack->current_index == 1 || score > sb->pstack->alpha)
+					) {
 					sb->pstack->best_score = score;
 					sb->pstack->best_move = move;
 
-					if(score < sb->pstack->beta) {
-						sb->UPDATE_PV(move);
-					} else {
-						sb->pstack->pv[0] = move;
-						sb->pstack->pv_length = 1;
-						sb->pstack->flag = LOWER;
-					}
-
-					sb->print_pv(sb->pstack->best_score);
+					if(score >= sb->pstack->beta) (sb->pstack + 1)->pv_length = 1;
+					sb->UPDATE_PV(move);
+					if(score <= sb->pstack->alpha || score >= sb->pstack->beta);
+					else sb->print_pv(sb->pstack->best_score);
 
 					if(!sb->chess_clock.infinite_mode && !sb->chess_clock.pondering)
 						sb->root_score = score;
@@ -806,9 +875,6 @@ IDLE_START:
 				sb->pstack->best_score = score;
 				sb->pstack->best_move = move;
 			}
-			/*save nodes count in score*/
-			sb->pstack->score_st[sb->pstack->current_index - 1] = 
-				5000 + int(sb->nodes - sb->pstack->start_nodes);
 			/*update bounds*/
 			if(score > sb->pstack->alpha) {
 				if(score >= sb->pstack->beta) {
@@ -829,7 +895,7 @@ IDLE_START:
 #ifdef PARALLEL	
 			/* Check for split here since at least one move is searched now.
 			 * Reset the sb pointer to the child block pointed to by this processor.*/
-			if(sb->check_split())
+			if(!use_abdada && sb->check_split())
 				sb = proc->searcher;
 #endif
 			break;
@@ -1111,9 +1177,9 @@ MOVE SEARCHER::find_best() {
 	stack[0].pv[0] = pstack->move_st[0];
 
 	/*iterative deepening*/
-	int alpha,beta,WINDOW = 25;
-	alpha = pstack->score_st[0] - 4 * WINDOW;
-	beta = pstack->score_st[0] + 4 * WINDOW;
+	int alpha,beta,WINDOW;
+	alpha = -MATE_SCORE;
+	beta = MATE_SCORE;
 	root_failed_low = 0;
 	pstack->node_type = PV_NODE;
 	pstack->search_state = NORMAL_MOVE;
@@ -1131,9 +1197,31 @@ MOVE SEARCHER::find_best() {
 		pstack->depth = search_depth * UNITDEPTH;
 		pstack->alpha = alpha;
 		pstack->beta = beta;
+
+#ifdef PARALLEL
+		if(use_abdada) {
+			for(i = 1;i < PROCESSOR::n_processors;i++) {
+				attach_processor(i);
+				PSEARCHER sb = processors[i]->searcher;
+				memcpy(&sb->pstack->move_st[0],&pstack->move_st[0], 
+					(pstack->count + 1) * sizeof(MOVE));
+				processors[i]->state = GO;
+			}
+		}
+#endif
+
 		search();
 		if(abort_search)
 			break;
+
+#ifdef PARALLEL
+		if(use_abdada) {
+			abort_search = 1;
+			while(n_workers) 
+				t_yield();
+			abort_search = 0;
+		}
+#endif
 		/*score*/
 		score = pstack->best_score;
 
@@ -1145,7 +1233,7 @@ MOVE SEARCHER::find_best() {
 		}
 
 		/*install fake pv into TT table so that it is searched
-		first incase it was overwritten*/	
+		first incase it was overwritten*	
 		if(pstack->pv_length) {
 			for(i = 0;i < stack[0].pv_length;i++) {
 				record_hash(player,hash_key,0,0,CRAP,0,stack[0].pv[i],0,0);
@@ -1200,15 +1288,20 @@ MOVE SEARCHER::find_best() {
 		}
 
 		/*aspiration search*/
-		if(in_egbb || ABS(score) >= 1000 || search_depth <= 3) {
+		if(use_abdada || 
+			!use_aspiration || 
+			in_egbb || 
+			ABS(score) >= 1000 || 
+			search_depth <= 3
+			) {
 			alpha = -MATE_SCORE;
 			beta = MATE_SCORE;
 		} else if(score <= alpha) {
-			WINDOW = MIN(200, 4 * WINDOW);
+			WINDOW = MIN(200, 3 * WINDOW / 2);
 			alpha = MAX(-MATE_SCORE,score - WINDOW);
 			search_depth--;
 		} else if (score >= beta){
-			WINDOW = MIN(200, 4 * WINDOW);
+			WINDOW = MIN(200, 3 * WINDOW / 2);
 			beta = MIN(MATE_SCORE,score + WINDOW);
 			search_depth--;
 		} else {
@@ -1274,6 +1367,8 @@ bool check_search_params(char** commands,char* command,int& command_num) {
 		use_singular = atoi(commands[command_num++]);
 	} else if(!strcmp(command, "singular_margin")) {
 		singular_margin = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "use_abdada")) {
+		use_abdada = atoi(commands[command_num++]);
 	} else if(!strcmp(command, "smp_depth")) {
 		SMP_CODE(PROCESSOR::SMP_SPLIT_DEPTH = atoi(commands[command_num]));
 		command_num++;
@@ -1289,6 +1384,7 @@ bool check_search_params(char** commands,char* command,int& command_num) {
 	return true;
 }
 void print_search_params() {
+	print("feature option=\"use_abdada -check %d\"\n",use_abdada);
 	SMP_CODE(print("feature option=\"smp_depth -spin %d 1 10\"\n",PROCESSOR::SMP_SPLIT_DEPTH));
 	CLUSTER_CODE(print("feature option=\"cluster_depth -spin %d 1 16\"\n",PROCESSOR::CLUSTER_SPLIT_DEPTH));
 	CLUSTER_CODE(print("feature option=\"message_poll_nodes -spin %d 10 20000\"\n",PROCESSOR::MESSAGE_POLL_NODES));

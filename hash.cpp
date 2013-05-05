@@ -71,6 +71,7 @@ void SEARCHER::record_hash(
 	UBMP32 key = UBMP32(hash_key & PROCESSOR::hash_tab_mask);
 #endif
 	register PHASH addr,pslot,pr_slot = 0;
+	register HASH slot;
 	int sc,max_sc = MAX_NUMBER;
 
 	if(col == white) 
@@ -79,10 +80,10 @@ void SEARCHER::record_hash(
 		addr = proc->black_hash_tab;
 
 	for(int i = 0; i < HPROBES; i++) {
-		pslot = addr + (key ^ i);    //H.G trick to follow most probable path
-
-		if(!pslot->hash_key || pslot->hash_key == hash_key) {
-			if(flags == CRAP && pslot->move == move)
+		pslot = (addr + (key ^ i));    //H.G trick to follow most probable path
+		slot = *pslot;
+		if(!slot.hash_key || (slot.hash_key ^ slot.data_key) == hash_key) {
+			if(flags == CRAP && slot.move == move)
 				return;
 
 			if(score > WIN_SCORE) 
@@ -90,14 +91,14 @@ void SEARCHER::record_hash(
 			else if(score < -WIN_SCORE) 
 				score -= WIN_PLY * (ply + 1);
 			
-			if(!move) move = pslot->move;
-			mate_threat = (mate_threat || (pslot->flags & 4));
+			if(!move) move = slot.move;
+			mate_threat = (mate_threat || (slot.flags & 4));
 			pr_slot = pslot;
 			break;
 		} else {
-			sc = (pslot->flags & ~7)                     //8 * age   {larger weight}
-				+  DEPTH(pslot->depth)                   //depth     {non-fractional depth}
-				+ ((pslot->flags & 3) ? 0 : (4 << 3));   //8 * 4     {EXACT score goes 4 ages up}
+			sc = (slot.flags & ~7)                     //8 * age   {larger weight}
+				+  DEPTH(slot.depth)                   //depth     {non-fractional depth}
+				+ ((slot.flags & 3) ? 0 : (4 << 3));   //8 * 4     {EXACT score goes 4 ages up}
 			if(sc < max_sc) {
 				pr_slot = pslot;
 				max_sc = sc;
@@ -105,16 +106,18 @@ void SEARCHER::record_hash(
 		}
 	}
 
-	pr_slot->move = UBMP32(move);
-	pr_slot->score = BMP16(score);
-	pr_slot->depth = UBMP8(depth);
-	pr_slot->flags = UBMP8((flags - EXACT) | (mate_threat << 2) | (singular << 3) | (PROCESSOR::age << 4));
-	pr_slot->hash_key = hash_key;
+	slot.move = UBMP32(move);
+	slot.score = BMP16(score);
+	slot.depth = UBMP8(depth);
+	slot.flags = UBMP8((flags - EXACT) | (mate_threat << 2) | (singular << 3) | (PROCESSOR::age << 4));
+	slot.hash_key = (hash_key ^ slot.data_key);
+	*pr_slot = slot;
 }
 
 int SEARCHER::probe_hash(
 			   int col,const HASHKEY& hash_key,int depth,int ply,int& score,
-			   MOVE& move,int alpha,int beta,int& mate_threat,int& singular,int& h_depth
+			   MOVE& move,int alpha,int beta,int& mate_threat,int& singular,int& h_depth,
+			   bool exclusiveP
 			   ) {
 #if TT_TYPE == 0
 	static const PPROCESSOR proc = processors[0];
@@ -127,6 +130,7 @@ int SEARCHER::probe_hash(
 	UBMP32 key = UBMP32(hash_key & PROCESSOR::hash_tab_mask);
 #endif
 	register PHASH addr,pslot;
+	register HASH slot;
     register int flags;
 	
 	if(col == white) 
@@ -136,19 +140,19 @@ int SEARCHER::probe_hash(
 	
 	for(int i = 0; i < HPROBES; i++) {
 		pslot = addr + (key ^ i);
-
-		if(pslot->hash_key == hash_key) {
-			score = pslot->score;
+		slot = *pslot;
+		if((slot.hash_key ^ slot.data_key) == hash_key) {
+			score = slot.score;
 			if(score > WIN_SCORE) 
 				score -= WIN_PLY * (ply + 1);
 			else if(score < -WIN_SCORE) 
 				score += WIN_PLY * (ply + 1);
 			
-			move = pslot->move;
-			mate_threat |= ((pslot->flags >> 2) & 1);
-			singular = ((pslot->flags >> 3) & 1);
-			flags = (pslot->flags & 3) + EXACT;
-			h_depth = pslot->depth;
+			move = slot.move;
+			mate_threat |= ((slot.flags >> 2) & 1);
+			singular = ((slot.flags >> 3) & 1);
+			flags = (slot.flags & 3) + EXACT;
+			h_depth = slot.depth;
 			
 			if(h_depth >= depth) {
 				if(flags == EXACT) {
@@ -170,6 +174,17 @@ int SEARCHER::probe_hash(
 				&& ( (flags == EXACT && score > alpha) 
 				  || (flags == LOWER && score >= beta)))
 				return HASH_GOOD;
+
+			if(flags == CRAP)
+				return CRAP;
+
+			if(exclusiveP) {
+				slot.hash_key ^= slot.data_key;
+				slot.flags |= 3;
+				slot.depth = 255;
+				slot.hash_key ^= slot.data_key;
+				*pslot = slot;
+			}
 
 			return HASH_HIT;
 		}
