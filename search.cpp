@@ -37,7 +37,7 @@ bool SEARCHER::hash_cutoff() {
 	/*abdada*/
 	bool exclusiveP = false;
 #ifdef PARALLEL
-	if(use_abdada
+	if((use_abdada == 1)
 		&& ply > 1
 		&& DEPTH((pstack - 1)->depth) > PROCESSOR::SMP_SPLIT_DEPTH  
 		&& (pstack - 1)->search_state != NULL_MOVE
@@ -47,6 +47,7 @@ bool SEARCHER::hash_cutoff() {
 		exclusiveP = true;
 	}
 #endif
+
 	/*probe*/
 	pstack->hash_flags = probe_hash(player,hash_key,pstack->depth,ply,pstack->hash_score,
 		pstack->hash_move,pstack->alpha,pstack->beta,pstack->mate_threat,
@@ -82,6 +83,7 @@ bool SEARCHER::hash_cutoff() {
 		pstack->best_score = pstack->hash_score;
 		return true;
 	}
+
 	return false;
 }
 bool SEARCHER::bitbase_cutoff() {
@@ -1223,7 +1225,7 @@ MOVE SEARCHER::find_best() {
 		search();
 		if(abort_search)
 			break;
-
+		
 #ifdef PARALLEL
 		if(use_abdada) {
 			abort_search = 1;
@@ -1377,7 +1379,7 @@ bool check_search_params(char** commands,char* command,int& command_num) {
 		use_singular = atoi(commands[command_num++]);
 	} else if(!strcmp(command, "singular_margin")) {
 		singular_margin = atoi(commands[command_num++]);
-	} else if(!strcmp(command, "use_abdada")) {
+	} else if(!strcmp(command, "smp_type")) {
 		use_abdada = atoi(commands[command_num++]);
 	} else if(!strcmp(command, "smp_depth")) {
 		SMP_CODE(PROCESSOR::SMP_SPLIT_DEPTH = atoi(commands[command_num]));
@@ -1394,7 +1396,7 @@ bool check_search_params(char** commands,char* command,int& command_num) {
 	return true;
 }
 void print_search_params() {
-	print("feature option=\"use_abdada -check %d\"\n",use_abdada);
+	print("feature option=\"smp_type -combo *YBW /// ABDADA /// SHT \"\n",use_abdada);
 	SMP_CODE(print("feature option=\"smp_depth -spin %d 1 10\"\n",PROCESSOR::SMP_SPLIT_DEPTH));
 	CLUSTER_CODE(print("feature option=\"cluster_depth -spin %d 1 16\"\n",PROCESSOR::CLUSTER_SPLIT_DEPTH));
 	CLUSTER_CODE(print("feature option=\"message_poll_nodes -spin %d 10 20000\"\n",PROCESSOR::MESSAGE_POLL_NODES));
