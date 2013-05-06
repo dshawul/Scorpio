@@ -37,6 +37,7 @@ bool SEARCHER::hash_cutoff() {
 	bool exclusiveP = false;
 #ifdef PARALLEL
 	if(use_abdada
+		&& ply > 1
 		&& DEPTH((pstack - 1)->depth) > PROCESSOR::SMP_SPLIT_DEPTH  
 		&& (pstack - 1)->search_state != NULL_MOVE
 		&& !(pstack - 1)->second_pass
@@ -852,16 +853,14 @@ IDLE_START:
 				      += (sb->nodes - sb->pstack->start_nodes);
 				l_unlock(lock_smp);
 
-				if((!use_abdada || !sb->processor_id)
-					&& (sb->pstack->current_index == 1 || score > sb->pstack->alpha)
-					) {
+				if(sb->pstack->current_index == 1 || score > sb->pstack->alpha) {
 					sb->pstack->best_score = score;
 					sb->pstack->best_move = move;
 
 					if(score >= sb->pstack->beta) (sb->pstack + 1)->pv_length = 1;
 					sb->UPDATE_PV(move);
 					if(score <= sb->pstack->alpha || score >= sb->pstack->beta);
-					else sb->print_pv(sb->pstack->best_score);
+					else if((!use_abdada || !sb->processor_id)) sb->print_pv(sb->pstack->best_score);
 
 					if(!sb->chess_clock.infinite_mode && !sb->chess_clock.pondering)
 						sb->root_score = score;
@@ -883,7 +882,7 @@ IDLE_START:
 						sb->update_history(move);
 #ifdef PARALLEL		
 					/* stop workers*/
-					if(sb->master && sb->stop_ply == sb->ply)
+					if(!use_abdada && sb->master && sb->stop_ply == sb->ply)
 						sb->master->handle_fail_high();
 #endif
 					GOBACK(true);
@@ -997,7 +996,7 @@ NEW_NODE_Q:
 
 		}
 POP_Q:
-		if(stop_ply == ply)
+		if(stop_ply == ply || stop_searcher || abort_search)
 			return;
 
 		POP_MOVE();
@@ -1177,7 +1176,7 @@ MOVE SEARCHER::find_best() {
 	stack[0].pv[0] = pstack->move_st[0];
 
 	/*iterative deepening*/
-	int alpha,beta,WINDOW;
+	int alpha,beta,WINDOW = 15;
 	alpha = -MATE_SCORE;
 	beta = MATE_SCORE;
 	root_failed_low = 0;
@@ -1204,7 +1203,7 @@ MOVE SEARCHER::find_best() {
 				attach_processor(i);
 				PSEARCHER sb = processors[i]->searcher;
 				memcpy(&sb->pstack->move_st[0],&pstack->move_st[0], 
-					(pstack->count + 1) * sizeof(MOVE));
+					pstack->count * sizeof(MOVE));
 				processors[i]->state = GO;
 			}
 		}
@@ -1222,6 +1221,7 @@ MOVE SEARCHER::find_best() {
 			abort_search = 0;
 		}
 #endif
+
 		/*score*/
 		score = pstack->best_score;
 
@@ -1233,7 +1233,7 @@ MOVE SEARCHER::find_best() {
 		}
 
 		/*install fake pv into TT table so that it is searched
-		first incase it was overwritten*	
+		first incase it was overwritten*/	
 		if(pstack->pv_length) {
 			for(i = 0;i < stack[0].pv_length;i++) {
 				record_hash(player,hash_key,0,0,CRAP,0,stack[0].pv[i],0,0);
@@ -1288,8 +1288,7 @@ MOVE SEARCHER::find_best() {
 		}
 
 		/*aspiration search*/
-		if(use_abdada || 
-			!use_aspiration || 
+		if(!use_aspiration || 
 			in_egbb || 
 			ABS(score) >= 1000 || 
 			search_depth <= 3

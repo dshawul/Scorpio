@@ -596,7 +596,6 @@ bool PROCESSOR::has_block() {
 * We have been updating search bounds whenever we got a new move.
 */
 void SEARCHER::update_master(int skip) {
-
 	/*update counts*/
 	master->nodes += nodes;
 	master->qnodes += qnodes;
