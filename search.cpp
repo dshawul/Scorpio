@@ -7,9 +7,9 @@ static const int use_tt = 1;
 static const int use_aspiration = 1;
 static int use_iid = 1;
 static int use_singular = 0;
+static int use_abdada = 0;
 static int futility_margin = 125;
 static int singular_margin = 40;
-static int use_abdada = 0;
 
 #define extend(value) {                      \
 	extension += value;                      \
@@ -26,7 +26,8 @@ static int use_abdada = 0;
 */
 FORCEINLINE void SEARCHER::UPDATE_PV(MOVE move)  {
 	pstack->pv[ply] = move; 
-	memcpy(&pstack->pv[ply + 1] , &(pstack + 1)->pv[ply + 1] , ((pstack + 1)->pv_length - ply) * sizeof(MOVE));
+	memcpy(&pstack->pv[ply + 1] , &(pstack + 1)->pv[ply + 1] , 
+		((pstack + 1)->pv_length - ply) * sizeof(MOVE));
 	pstack->pv_length = (pstack + 1)->pv_length;
 }
 /*
@@ -52,17 +53,27 @@ bool SEARCHER::hash_cutoff() {
 		pstack->singular,pstack->hash_depth,exclusiveP);
 
 #ifdef PARALLEL
-	/*move is taken!*/
-	if(exclusiveP && pstack->hash_flags == CRAP) {
-		pstack->best_score = SKIP_SCORE;
-		return true;
+	if(exclusiveP) {
+		if(pstack->hash_flags == CRAP) {
+			/*move is taken!*/
+			pstack->best_score = SKIP_SCORE;
+			return true;
+		} else if(pstack->hash_flags == HASH_HIT) {
+			/*we had a hit and we replaced the flag*/
+		} else {
+			/*store new crap*/
+			record_hash(player,hash_key,255,0,CRAP,0,0,0,0);
+		}
 	}
 #endif
 
 	/*cutoff*/
 	if(pstack->singular && pstack->hash_flags != HASH_GOOD)
 		pstack->singular = 0;
-	if(pstack->node_type != PV_NODE && pstack->hash_flags >= EXACT) {
+	if(pstack->node_type != PV_NODE 
+		&& pstack->hash_flags >= EXACT
+		&& pstack->hash_flags <= LOWER
+		) {
 		if(pstack->hash_move) {
 			pstack->pv_length = ply + 1;
 			pstack->pv[ply] = pstack->hash_move;
@@ -1236,7 +1247,7 @@ MOVE SEARCHER::find_best() {
 		first incase it was overwritten*/	
 		if(pstack->pv_length) {
 			for(i = 0;i < stack[0].pv_length;i++) {
-				record_hash(player,hash_key,0,0,CRAP,0,stack[0].pv[i],0,0);
+				record_hash(player,hash_key,0,0,HASH_HIT,0,stack[0].pv[i],0,0);
 				PUSH_MOVE(stack[0].pv[i]);
 			}
 			for(i = 0;i < stack[0].pv_length;i++)

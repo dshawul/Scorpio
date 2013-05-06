@@ -83,7 +83,7 @@ void SEARCHER::record_hash(
 		pslot = (addr + (key ^ i));    //H.G trick to follow most probable path
 		slot = *pslot;
 		if(!slot.hash_key || (slot.hash_key ^ slot.data_key) == hash_key) {
-			if(flags == CRAP && slot.move == move)
+			if(flags == HASH_HIT && slot.move == move) 
 				return;
 
 			if(score > WIN_SCORE) 
@@ -105,7 +105,7 @@ void SEARCHER::record_hash(
 			}
 		}
 	}
-
+	if(flags == HASH_HIT) flags = CRAP;
 	slot.move = UBMP32(move);
 	slot.score = BMP16(score);
 	slot.depth = UBMP8(depth);
