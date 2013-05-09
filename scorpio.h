@@ -175,14 +175,15 @@ enum square_names {
 
 #define GEN_START           0
 #define GEN_RESET           1
-#define GEN_AVAIL           2
-#define GEN_HASHM           3
-#define GEN_CAPS            4
-#define GEN_QNONCAPS        5
-#define GEN_KILLERS         5
-#define GEN_NONCAPS         6
-#define GEN_LOSCAPS         7
-#define GEN_END             8
+#define GEN_RESET_SORT      2
+#define GEN_AVAIL           3
+#define GEN_HASHM           4
+#define GEN_CAPS            5
+#define GEN_QNONCAPS        6
+#define GEN_KILLERS         6
+#define GEN_NONCAPS         7
+#define GEN_LOSCAPS         8
+#define GEN_END             9
 
 #define WSC_FLAG            1
 #define WLC_FLAG            2

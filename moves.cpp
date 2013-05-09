@@ -1388,6 +1388,12 @@ MOVE SEARCHER::get_move() {
 		pstack->current_index = 0;
 		pstack->gen_status = GEN_AVAIL;
 		pstack->legal_moves = 0;
+		pstack->sortm = 0;
+	} else if(pstack->gen_status == GEN_RESET_SORT) {
+		pstack->current_index = 0;
+		pstack->gen_status = GEN_AVAIL;
+		pstack->legal_moves = 0;
+		pstack->sortm = 1;
 	}
 
 DO_AGAIN:
@@ -1502,10 +1508,10 @@ DO_AGAIN:
 	if(pstack->current_index >= pstack->count)
 		return 0;
 	
+END:
 	if(pstack->sortm)
         pstack->sort(pstack->current_index,pstack->count);  
 
-END:
 	if(pstack->score_st[pstack->current_index] == -MAX_NUMBER) {
 		pstack->current_index++;
 		goto DO_AGAIN;

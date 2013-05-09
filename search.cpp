@@ -60,7 +60,7 @@ bool SEARCHER::hash_cutoff() {
 			pstack->best_score = SKIP_SCORE;
 			return true;
 		} else if(pstack->hash_flags == HASH_HIT) {
-			/*we had a hit and we replaced the flag*/
+			/*we had a hit and replaced the flag with load of CRAP (depth=255)*/
 		} else {
 			/*store new crap*/
 			record_hash(player,hash_key,255,0,CRAP,0,0,0,0);
@@ -873,7 +873,7 @@ IDLE_START:
 					if(score >= sb->pstack->beta) (sb->pstack + 1)->pv_length = 1;
 					sb->UPDATE_PV(move);
 					if(score <= sb->pstack->alpha || score >= sb->pstack->beta);
-					else if((!use_abdada || !sb->processor_id)) sb->print_pv(sb->pstack->best_score);
+					else if(!use_abdada || !sb->processor_id) sb->print_pv(sb->pstack->best_score);
 
 					if(!sb->chess_clock.infinite_mode && !sb->chess_clock.pondering)
 						sb->root_score = score;
@@ -926,18 +926,31 @@ SPECIAL:
 			if(sb->pstack->flag == EXACT || sb->pstack->flag == LOWER)
 				sb->pstack->hash_flags = HASH_GOOD;
 			sb->pstack->search_state = SINGULAR_SEARCH;
-			/*put two moves with highest nodes count in killers*/
-			sb->pstack->sort(0,sb->pstack->count);
-			move = sb->pstack->move_st[0];
-			if(move == sb->pstack->best_move) {
-				sb->pstack->sort(1,sb->pstack->count);
-				sb->pstack->killer[0] = sb->pstack->move_st[1];
-				sb->pstack->sort(2,sb->pstack->count);
-				sb->pstack->killer[1] = sb->pstack->move_st[2];
+			/*reset move generation*/
+			if(sb->pstack->flag == LOWER) {
+				sb->pstack->gen_status = GEN_START;
+				/*put two moves with highest nodes count in killers*/
+				sb->pstack->sort(0,sb->pstack->count);
+				move = sb->pstack->move_st[0];
+				if(move == sb->pstack->best_move) {
+					sb->pstack->sort(1,sb->pstack->count);
+					sb->pstack->killer[0] = sb->pstack->move_st[1];
+					sb->pstack->sort(2,sb->pstack->count);
+					sb->pstack->killer[1] = sb->pstack->move_st[2];
+				} else {
+					sb->pstack->killer[0] = move;
+					sb->pstack->sort(1,sb->pstack->count);
+					sb->pstack->killer[1] = sb->pstack->move_st[1];
+				}
 			} else {
-				sb->pstack->killer[0] = move;
-				sb->pstack->sort(1,sb->pstack->count);
-				sb->pstack->killer[1] = sb->pstack->move_st[1];
+				sb->pstack->gen_status = GEN_RESET_SORT;
+				/*put best move first*/
+				for(int i = 0;i < sb->pstack->count;i++) {
+					if(sb->pstack->hash_move == sb->pstack->move_st[i]) {
+						sb->pstack->score_st[i] = MAX_NUMBER;
+						break;
+					}
+				}
 			}
 			/*end*/
 			break;
@@ -945,12 +958,12 @@ SPECIAL:
 			if(sb->pstack->flag == UPPER)
 				sb->pstack->singular = 1;
 			sb->pstack->search_state = NORMAL_MOVE;
+			sb->pstack->gen_status = GEN_START;
 			break;
 		} 
 		sb->pstack->alpha = sb->pstack->o_alpha;
 		sb->pstack->beta = sb->pstack->o_beta;
 		sb->pstack->depth = sb->pstack->o_depth;
-		sb->pstack->gen_status = GEN_START;
 		sb->pstack->flag = UPPER;
 		sb->pstack->legal_moves = 0;
 		sb->pstack->best_score = -MATE_SCORE;
