@@ -273,7 +273,7 @@ Generate captures
 		}                                                               \
 }
 
-void SEARCHER::gen_caps() {
+void SEARCHER::gen_caps(bool recap) {
 	register BITBOARD bb;
 	BITBOARD occupancyw = (pieces_bb[white] | pawns_bb[white]);
 	BITBOARD occupancyb = (pieces_bb[black] | pawns_bb[black]);
@@ -283,6 +283,8 @@ void SEARCHER::gen_caps() {
 	PLIST current;
 	
 	if(player == white) {
+		if(recap)
+			occupancyb = BB(m_to(hstack[hply - 1].move));
 		/*pawns*/
 		bb = ((pawns_bb[white] & ~file_mask[FILEA]) << 7) & occupancyb;
 		while(bb) {														
@@ -372,6 +374,8 @@ void SEARCHER::gen_caps() {
 		bb = king_attacks(SQ8864(from)) & occupancyb;
 		CAPS();
 	} else {
+		if(recap)
+			occupancyw = BB(m_to(hstack[hply - 1].move));
 		/*pawns*/
 		bb = ((pawns_bb[black] & ~file_mask[FILEH]) >> 7) & occupancyw;
 		while(bb) {														
@@ -1578,7 +1582,8 @@ DO_AGAIN:
 				}
 				pstack->gen_status = GEN_END;
 			} else {
-			    gen_caps();
+				const bool recap = (hply >= 1 && pstack->depth <= -4 * UNITDEPTH);
+			    gen_caps(recap);
 				pstack->sortm = 1;
 				for(int i = 0; i < pstack->count;i++) {
 					move = pstack->move_st[i];
@@ -1605,7 +1610,6 @@ DO_AGAIN:
 	if(hply >= 1 && hstack[hply - 1].checks) {
 	} else {
 		move = pstack->move_st[pstack->current_index];
-
 		if(in_check(move)) {
 			pstack->current_index++;
 			goto DO_AGAIN;

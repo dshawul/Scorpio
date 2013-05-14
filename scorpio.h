@@ -533,7 +533,7 @@ typedef CACHE_ALIGN struct SEARCHER{
 	void  print_game();
 	void  print_allmoves();
 	int   see(MOVE);
-	void  gen_caps();
+	void  gen_caps(bool = false);
 	void  gen_noncaps();
 	void  gen_checks();
 	void  gen_evasions();

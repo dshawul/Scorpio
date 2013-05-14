@@ -344,7 +344,8 @@ int SEARCHER::be_selective() {
 	/*non-cap phase*/
 	int noncap_reduce = ( (pstack - 1)->gen_status - 1 == GEN_NONCAPS ||
 		                 ((pstack - 1)->gen_status == GEN_AVAIL && 
-						  (pstack - 1)->current_index - 1 >= (pstack - 1)->noncap_start));
+						  (pstack - 1)->current_index - 1 >= (pstack - 1)->noncap_start &&
+						  !m_capture(move)));
 	/*
 	extend
 	*/
@@ -401,9 +402,9 @@ int SEARCHER::be_selective() {
 		) {
 			if(depth <= 2 && nmoves >= 8)
 				return true;
+			
 			int margin = futility_margin * depth;
 			margin = MAX(margin / 4, margin - 10 * nmoves);
-			if(margin < 0) margin = 0;
 
 			score = -eval();
 			
@@ -555,18 +556,11 @@ START:
 						sb->pstack->alpha = -(sb->pstack - 1)->beta;
 						sb->pstack->beta = -(sb->pstack - 1)->beta + 1;
 						sb->pstack->node_type = (sb->pstack - 1)->next_node_type;
-						/* Smooth scaling from Dann Corbit */
-						sb->pstack->depth = (sb->pstack - 1)->depth - 4 * UNITDEPTH;
+						/* Smooth scaling from Dann Corbit based on score and depth*/
+						sb->pstack->depth = (sb->pstack - 1)->depth - 3 * UNITDEPTH - (sb->pstack - 1)->depth / 4;
 						if(score >= (sb->pstack - 1)->beta)
 							sb->pstack->depth -= (MIN(3 , (score - (sb->pstack - 1)->beta) / 32) * (UNITDEPTH / 2));
-						/* Try double NULL MOVE in late endgames to avoid some bad
-						* play of KB(N)*K* endings. Idea from Vincent Diepeeven.
-						*/
-						if(sb->piece_c[sb->player] <= 9 
-							&& (sb->ply < 2 || (sb->pstack - 2)->search_state != NULL_MOVE))
-							sb->pstack->search_state = NULL_MOVE;
-						else
-							sb->pstack->search_state = NORMAL_MOVE;
+						sb->pstack->search_state = NORMAL_MOVE;
 						goto NEW_NODE;
 				}
 				sb->pstack->search_state = IID_SEARCH;
@@ -928,8 +922,13 @@ SPECIAL:
 			sb->pstack->search_state = SINGULAR_SEARCH;
 			/*reset move generation*/
 			if(sb->pstack->flag == LOWER) {
-				sb->pstack->gen_status = GEN_START;
+				/*capture move failed high*/
+				if(!sb->hstack[sb->hply - 1].checks
+					&& m_capture(sb->pstack->best_move)) {
+					GOBACK(false);
+				}
 				/*put two moves with highest nodes count in killers*/
+				sb->pstack->gen_status = GEN_START;
 				sb->pstack->sort(0,sb->pstack->count);
 				move = sb->pstack->move_st[0];
 				if(move == sb->pstack->best_move) {
@@ -943,8 +942,8 @@ SPECIAL:
 					sb->pstack->killer[1] = sb->pstack->move_st[1];
 				}
 			} else {
-				sb->pstack->gen_status = GEN_RESET_SORT;
 				/*put best move first*/
+				sb->pstack->gen_status = GEN_RESET_SORT;
 				for(int i = 0;i < sb->pstack->count;i++) {
 					if(sb->pstack->hash_move == sb->pstack->move_st[i]) {
 						sb->pstack->score_st[i] = MAX_NUMBER;
