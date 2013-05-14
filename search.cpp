@@ -342,10 +342,12 @@ int SEARCHER::be_selective() {
 		return false;
 	}
 	/*non-cap phase*/
-	int noncap_reduce = ( (pstack - 1)->gen_status - 1 == GEN_NONCAPS ||
-		                 ((pstack - 1)->gen_status == GEN_AVAIL && 
-						  (pstack - 1)->current_index - 1 >= (pstack - 1)->noncap_start &&
-						  !m_capture(move)));
+	bool avail_noncap = (pstack - 1)->gen_status == GEN_AVAIL && 
+		                (pstack - 1)->current_index - 1 >= (pstack - 1)->noncap_start;
+	int noncap_reduce = ((pstack - 1)->gen_status - 1 == GEN_NONCAPS ||
+		                 (avail_noncap && !m_capture(move)));
+	int loscap_reduce = ((pstack - 1)->gen_status - 1 == GEN_LOSCAPS ||
+		                 (avail_noncap && m_capture(move)));
 	/*
 	extend
 	*/
@@ -402,7 +404,7 @@ int SEARCHER::be_selective() {
 		) {
 			if(depth <= 2 && nmoves >= 8)
 				return true;
-			
+
 			int margin = futility_margin * depth;
 			margin = MAX(margin / 4, margin - 10 * nmoves);
 
@@ -434,6 +436,12 @@ int SEARCHER::be_selective() {
 					}
 				}
 			}
+		}
+	}
+	/*losing captures*/
+	if(!pstack->extension && loscap_reduce) {
+		if(nmoves >= 2 && pstack->depth > UNITDEPTH) {
+			reduce(UNITDEPTH);
 		}
 	}
 	/*
