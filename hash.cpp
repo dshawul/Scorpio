@@ -85,7 +85,8 @@ void SEARCHER::record_hash(
 		if(!slot.hash_key || (slot.hash_key ^ slot.data_key) == hash_key) {
 			if(flags == HASH_HIT && slot.move == move) 
 				return;
-
+			if((slot.depth > depth) && flags != CRAP && ((slot.flags & 3) + EXACT != CRAP))
+				return;
 			if(score > WIN_SCORE) 
 				score += WIN_PLY * (ply + 1);
 			else if(score < -WIN_SCORE) 

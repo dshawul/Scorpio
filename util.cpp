@@ -293,10 +293,26 @@ void SEARCHER::print_pv(int score) {
 	/*print what we have*/
 	for(i = 0;i < stack[0].pv_length;i++) {
 		move = stack[0].pv[i];
+
 		strcpy(mv_str,"");
 		mov_str(move,mv_str);
 		print(" %s",mv_str);
 		PUSH_MOVE(move);
+	}
+	/*add moves from hash table*/
+	int dummy;
+	while(1) {
+		move = 0;
+		probe_hash(player,hash_key,0,0,dummy,move,
+			-MATE_SCORE,MATE_SCORE,dummy,dummy,dummy,0);
+		if(!move || !is_legal_fast(move) || draw())
+			break;
+
+		strcpy(mv_str,"");
+        mov_str(move,mv_str);
+		printf(" %s",mv_str);
+		PUSH_MOVE(move);
+		i++;
 	}
 	/*undo moves*/
 	print("\n");

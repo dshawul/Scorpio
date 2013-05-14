@@ -71,7 +71,7 @@ bool SEARCHER::hash_cutoff() {
 	/*cutoff*/
 	if(pstack->singular && pstack->hash_flags != HASH_GOOD)
 		pstack->singular = 0;
-	if(pstack->node_type != PV_NODE 
+	if((pstack->node_type != PV_NODE || (ply > 0 && pstack->hash_depth > pstack->depth))
 		&& pstack->hash_flags >= EXACT
 		&& pstack->hash_flags <= LOWER
 		) {
