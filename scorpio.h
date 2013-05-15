@@ -406,8 +406,7 @@ typedef struct STACK{
 	int noncap_start;
 	bool all_done;
 	bool second_pass;
-	MOVE mate_killer;
-	MOVE killer[2];
+	MOVE killer[3];
 	int qcheck_depth;
 	int actual_score;
 	UBMP64 start_nodes;
@@ -630,6 +629,7 @@ typedef CACHE_ALIGN struct SEARCHER{
 	static CHESS_CLOCK chess_clock;
 	static UBMP64 root_score_st[MAX_MOVES];
 	static CACHE_ALIGN unsigned int history[14][64];
+	static CACHE_ALIGN MOVE refutation[14][64];
 	/*
 	Bitbases
 	*/

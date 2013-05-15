@@ -58,6 +58,7 @@ static global variables of SEARCHER
 */
 UBMP64 SEARCHER::root_score_st[MAX_MOVES];
 unsigned int SEARCHER::history[14][64];
+MOVE SEARCHER::refutation[14][64];
 CHESS_CLOCK SEARCHER::chess_clock;
 int SEARCHER::search_depth;
 int SEARCHER::start_time;

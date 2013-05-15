@@ -1376,6 +1376,7 @@ incremental move generator
 */
 
 #define HISTORY(move) (history[m_piece(move)][SQ8864(m_to(move))])
+#define REFUTE(move) (refutation[m_piece(move)][SQ8864(m_to(move))])
 
 MOVE SEARCHER::get_move() {
 	register MOVE move;
@@ -1475,6 +1476,21 @@ DO_AGAIN:
 				pstack->score_st[pstack->count] = 1000;
 				pstack->move_st[pstack->count++] = move;
 			}
+			pstack->killer[2] = 0;
+			if(hply >= 1) {
+				move = hstack[hply - 1].move;
+				move = REFUTE(move);
+				if(move 
+					&& move != pstack->hash_move
+					&& move != pstack->killer[0]
+				    && move != pstack->killer[1]
+					&& is_legal_fast(move)
+					) {
+						pstack->score_st[pstack->count] = 900;
+						pstack->move_st[pstack->count++] = move;
+						pstack->killer[2] = move;
+				}
+			}
 		} else if(pstack->gen_status == GEN_NONCAPS) {
 			start = pstack->count;
 			pstack->noncap_start = start;
@@ -1485,6 +1501,7 @@ DO_AGAIN:
 				if(move == pstack->hash_move
 					|| (move == pstack->killer[0]) 
 					|| (move == pstack->killer[1]) 
+					|| (move == pstack->killer[2]) 
 					) {
 						pstack->score_st[i] = -MAX_NUMBER;
 				} else {
@@ -1644,15 +1661,24 @@ void SEARCHER::update_history(MOVE move) {
 		pstack->killer[1] = pstack->killer[0];
 		pstack->killer[0] = move;
 	}
+	MOVE cMove;
+	if(hply >= 1 && (cMove = hstack[hply - 1].move) 
+		&& pstack->depth > UNITDEPTH) {
+		REFUTE(cMove) = move;
+	}
 }
 void SEARCHER::clear_history() {
 	register int i,j;
 	for(i = 0;i < 14;i++)
-		for(j = 0;j < 64;j++)
+		for(j = 0;j < 64;j++) {
 			history[i][j] = 0;
+			refutation[i][j] = 0;
+		}
 	for(i = 0;i < MAX_PLY;i++){
 		stack[i].killer[0] = stack[i].killer[1] = 0;
 	}
 }
 
 #undef HISTORY
+#undef REFUTE
+
