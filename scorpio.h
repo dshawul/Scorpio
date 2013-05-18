@@ -112,6 +112,10 @@ enum passed_rank {
 enum search_states {
 	NULL_MOVE = 1,NORMAL_MOVE = 2,MOVE_MASK = 3,IID_SEARCH = 4,SINGULAR_SEARCH = 8
 };
+enum move_gen_status {
+	GEN_START, GEN_RESET, GEN_RESET_SORT, GEN_AVAIL, GEN_HASHM, GEN_CAPS, GEN_QNONCAPS, 
+	GEN_KILLERS = 6, GEN_NONCAPS, GEN_LOSCAPS, GEN_END
+};
 enum square_names {
 	A1 = 0,B1,C1,D1,E1,F1,G1,H1,
 	A2 = 16,B2,C2,D2,E2,F2,G2,H2,
@@ -172,18 +176,6 @@ enum square_names {
 #define MAX_NUMBER    16777216
 #define MAX_HIST       8388608
 #define MAX_UBMP64   UBMP64(0xffffffffffffffff)
-
-#define GEN_START           0
-#define GEN_RESET           1
-#define GEN_RESET_SORT      2
-#define GEN_AVAIL           3
-#define GEN_HASHM           4
-#define GEN_CAPS            5
-#define GEN_QNONCAPS        6
-#define GEN_KILLERS         6
-#define GEN_NONCAPS         7
-#define GEN_LOSCAPS         8
-#define GEN_END             9
 
 #define WSC_FLAG            1
 #define WLC_FLAG            2

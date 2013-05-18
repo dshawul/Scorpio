@@ -374,7 +374,8 @@ int SEARCHER::be_selective() {
 		) {
 		extend(UNITDEPTH / 2);
 	}
-	if(m_capture(move)
+	if(hply >= 2
+		&& m_capture(move)
 		&& m_capture(hstack[hply - 2].move)
 		&& m_to(move) == m_to(hstack[hply - 2].move)
 		&& piece_cv[m_capture(move)] == piece_cv[m_capture(hstack[hply - 2].move)]
@@ -402,7 +403,7 @@ int SEARCHER::be_selective() {
 		&& noncap_reduce
 		&& node_t != PV_NODE
 		) {
-			if(depth <= 2 && nmoves >= 8)
+			if((depth <= 3 && nmoves >= 12) || (depth <= 2 && nmoves >= 8))
 				return true;
 
 			int margin = futility_margin * depth;
@@ -426,6 +427,8 @@ int SEARCHER::be_selective() {
 			reduce(UNITDEPTH);
 			if(nmoves >= ((node_t == PV_NODE) ? 8 : 4) && pstack->depth > UNITDEPTH) {
 				reduce(UNITDEPTH); 
+				if(node_t == ALL_NODE && pstack->depth >= 8 * UNITDEPTH)
+					reduce(UNITDEPTH);
 				if(nmoves >= 16 && pstack->depth >= 4 * UNITDEPTH) {
 					reduce(UNITDEPTH);
 					if(nmoves >= 24 && pstack->depth >= 4 * UNITDEPTH) {
@@ -930,7 +933,7 @@ SPECIAL:
 			sb->pstack->search_state = SINGULAR_SEARCH;
 			/*reset move generation*/
 			if(sb->pstack->flag == LOWER) {
-				/*capture move failed high*/
+				/*IID fail high pruning*/
 				if(!sb->hstack[sb->hply - 1].checks
 					&& m_capture(sb->pstack->best_move)) {
 					GOBACK(false);

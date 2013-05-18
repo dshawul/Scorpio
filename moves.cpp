@@ -1668,13 +1668,9 @@ void SEARCHER::update_history(MOVE move) {
 	}
 }
 void SEARCHER::clear_history() {
-	register int i,j;
-	for(i = 0;i < 14;i++)
-		for(j = 0;j < 64;j++) {
-			history[i][j] = 0;
-			refutation[i][j] = 0;
-		}
-	for(i = 0;i < MAX_PLY;i++){
+	memset(history,0,sizeof(history));
+	memset(refutation,0,sizeof(refutation));
+	for(int i = 0;i < MAX_PLY;i++) {
 		stack[i].killer[0] = stack[i].killer[1] = 0;
 	}
 }
