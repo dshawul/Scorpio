@@ -8,8 +8,8 @@ static const int use_aspiration = 1;
 static int use_iid = 1;
 static int use_singular = 0;
 static int use_abdada = 0;
-static int futility_margin = 125;
-static int singular_margin = 40;
+static int futility_margin = 100;
+static int singular_margin = 30;
 
 #define extend(value) {                      \
 	extension += value;                      \
@@ -96,7 +96,7 @@ bool SEARCHER::bitbase_cutoff() {
 	. or just after a certain ply (probe_depth) 
 	*/
 	if( egbb_is_loaded
-		&& all_man_c <= 5
+		&& all_man_c <= MAX_EGBB
 		&& (ply >= probe_depth
 		|| is_cap_prom((pstack - 1)->current_move)
 		|| PIECE(m_piece((pstack - 1)->current_move)) == pawn
@@ -106,7 +106,8 @@ bool SEARCHER::bitbase_cutoff() {
 			Probe bitbases at leafs ,only if they are loaded in RAM
 			*/
 			register int score;
-			if((ply <= probe_depth 
+			if(( ((ply <= probe_depth && all_man_c < MAX_EGBB) ||
+				  (ply <= probe_depth / 2 && all_man_c == MAX_EGBB))
 				|| (egbb_load_type >= 1 && all_man_c <= 4)
 				|| egbb_load_type == 3)
 				&& probe_bitbases(score)
@@ -131,8 +132,8 @@ bool SEARCHER::bitbase_cutoff() {
 	*/
 	return false;
 }
-FORCEINLINE int SEARCHER::on_node_entry() {
 
+FORCEINLINE int SEARCHER::on_node_entry() {
 	/*qsearch?*/
 	if(pstack->depth <= 0) {
 		prefetch_qtt();
@@ -145,6 +146,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 
 	/*razoring & static pruning*/
 	if(use_selective
+		&& all_man_c > MAX_EGBB
 		&& pstack->depth <= 4 * UNITDEPTH
 		&& (pstack - 1)->search_state != NULL_MOVE
 		&& !pstack->extension
@@ -153,11 +155,20 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 			int score = eval();
 			int margin = futility_margin + 
 				50 * (DEPTH(pstack->depth) - 1) * (DEPTH(pstack->depth) - 1);
-			if(score + margin < pstack->alpha) {
+			if(score + margin <= pstack->alpha) {
 				pstack->qcheck_depth = CHECK_DEPTH;
-				qsearch();
+				/*do qsearch with shifted-down window*/
+				{
+					int palpha = pstack->alpha;
+					int pbeta = pstack->beta;
+					pstack->alpha -= margin;
+					pstack->beta = pstack->alpha + 1;
+					qsearch();
+					pstack->alpha = palpha;
+					pstack->beta = pbeta;
+				}
 				score = pstack->best_score;
-				if(score + margin < pstack->alpha)
+				if(score + margin <= pstack->alpha)
 					return true;
 			} else if(score - margin >= pstack->beta) {
 				pstack->best_score = pstack->beta;
@@ -179,7 +190,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 	pstack->singular = 0;
 	pstack->all_done = true;
 	pstack->second_pass = false;
-
+	
 	if(pstack->node_type == PV_NODE) {
 		pstack->next_node_type = PV_NODE;
 	} else if(pstack->node_type == ALL_NODE) {
@@ -187,7 +198,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 	} else {
 		pstack->next_node_type = ALL_NODE;
 	}
-
+	
 	/*root*/
 	if(!ply) {
 		pstack->gen_status = GEN_RESET;
@@ -199,7 +210,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 		return true; 
 	}
 
-	if(ply > 1 && draw()) {
+	if(draw()) {
 		pstack->best_score = 0;
 		return true;
 	}
@@ -268,7 +279,7 @@ FORCEINLINE int SEARCHER::on_qnode_entry() {
 		return true; 
 	}
 
-	if(ply > 1 && draw()) {
+	if(draw()) {
 		pstack->best_score = 0;
 		return true;
 	}
@@ -399,11 +410,14 @@ int SEARCHER::be_selective() {
 	pruning
 	*/
 	if(depth <= 7
+		&& all_man_c > MAX_EGBB
 		&& !pstack->extension
 		&& noncap_reduce
 		&& node_t != PV_NODE
 		) {
-			if((depth <= 3 && nmoves >= 12) || (depth <= 2 && nmoves >= 8))
+			if((depth <= 2 && nmoves >= 8) || 
+			   (depth <= 3 && nmoves >= 12) || 
+			   (depth <= 4 && nmoves >= 18) )
 				return true;
 
 			int margin = futility_margin * depth;
@@ -427,14 +441,15 @@ int SEARCHER::be_selective() {
 			reduce(UNITDEPTH);
 			if(nmoves >= ((node_t == PV_NODE) ? 8 : 4) && pstack->depth > UNITDEPTH) {
 				reduce(UNITDEPTH); 
-				if(node_t == ALL_NODE && pstack->depth >= 8 * UNITDEPTH)
-					reduce(UNITDEPTH);
 				if(nmoves >= 16 && pstack->depth >= 4 * UNITDEPTH) {
 					reduce(UNITDEPTH);
-					if(nmoves >= 24 && pstack->depth >= 4 * UNITDEPTH) {
-						reduce(2 * UNITDEPTH);
-						if(nmoves >= 32 && pstack->depth >= 4 * UNITDEPTH) {
+					if(nmoves >= 20 && pstack->depth >= 4 * UNITDEPTH) {
+						reduce(UNITDEPTH);
+						if(nmoves >= 24 && pstack->depth >= 4 * UNITDEPTH) {
 							reduce(2 * UNITDEPTH);
+							if(nmoves >= 32 && pstack->depth >= 4 * UNITDEPTH) {
+								reduce(2 * UNITDEPTH);
+							}
 						}
 					}
 				}
@@ -539,7 +554,7 @@ START:
 							sb->pstack->o_depth = sb->pstack->depth;
 							sb->pstack->alpha = sb->pstack->hash_score - singular_margin;
 							sb->pstack->beta = sb->pstack->alpha + 1;
-							sb->pstack->depth = sb->pstack->hash_depth - 2 * UNITDEPTH;
+							sb->pstack->depth = sb->pstack->hash_depth - 4 * UNITDEPTH;
 							sb->pstack->search_state |= NORMAL_MOVE; 
 					} else {
 						sb->pstack->search_state = NORMAL_MOVE;
@@ -884,7 +899,7 @@ IDLE_START:
 						sb->root_score = score;
 
 					if(score <= sb->pstack->alpha) {
-						sb->root_failed_low = 2;
+						SEARCHER::root_failed_low = 2;
 						GOBACK(true);
 					}
 				}
@@ -935,7 +950,7 @@ SPECIAL:
 			if(sb->pstack->flag == LOWER) {
 				/*IID fail high pruning*/
 				if(!sb->hstack[sb->hply - 1].checks
-					&& m_capture(sb->pstack->best_move)) {
+					&& is_cap_prom(sb->pstack->best_move)) {
 					GOBACK(false);
 				}
 				/*put two moves with highest nodes count in killers*/
@@ -1057,7 +1072,6 @@ gets best move of position
 MOVE SEARCHER::find_best() {
 	int legal_moves,i,score,scorer = 0,time_used;
 	int easy = false,easy_score = 0;
-	int prev_root_score = 0;
 	MOVE easy_move = 0;
 
 	ply = 0;
@@ -1075,7 +1089,7 @@ MOVE SEARCHER::find_best() {
 	egbb_probes = 0;
 	start_time = get_time();
 	PROCESSOR::age = (hply & AGE_MASK);
-	in_egbb = (egbb_is_loaded && all_man_c <= 5);
+	in_egbb = (egbb_is_loaded && all_man_c <= MAX_EGBB);
 	show_full_pv = false;
 	pre_calculate();
 	clear_history();
@@ -1213,7 +1227,9 @@ MOVE SEARCHER::find_best() {
 
 	/*iterative deepening*/
 	int alpha,beta,WINDOW = 15;
-	alpha = -MATE_SCORE;
+	int prev_depth = search_depth;
+	int prev_root_score = 0;
+	alpha = -MATE_SCORE; 
 	beta = MATE_SCORE;
 	root_failed_low = 0;
 	pstack->node_type = PV_NODE;
@@ -1246,9 +1262,11 @@ MOVE SEARCHER::find_best() {
 #endif
 
 		search();
+		
+		/*abort search?*/
 		if(abort_search)
 			break;
-		
+
 #ifdef PARALLEL
 		if(use_abdada) {
 			abort_search = 1;
@@ -1266,6 +1284,17 @@ MOVE SEARCHER::find_best() {
 			root_failed_low--;
 			if(root_failed_low && prev_root_score - root_score < 50) 
 				root_failed_low--;
+		}
+
+		/*Is there enough time to search the first move?*/
+		if(!root_failed_low && chess_clock.is_timed()) {
+			time_used = get_time() - start_time;
+			if(time_used >= 0.75 * chess_clock.search_time) {
+				abort_search = 1;
+				if(score > alpha)
+					print_pv(root_score);
+				break;
+			}
 		}
 
 		/*install fake pv into TT table so that it is searched
@@ -1308,15 +1337,6 @@ MOVE SEARCHER::find_best() {
 			}
 		}
 
-		/*Is there enough time to search the first move?*/
-		if(!root_failed_low && chess_clock.is_timed()) {
-			time_used = get_time() - start_time;
-			if(time_used >= 0.75 * chess_clock.search_time) {
-				abort_search = 1;
-				break;
-			}
-		}
-
 		/*check if "easy" move is really easy*/
 		if(easy && (easy_move != pstack->pv[0] || score <= easy_score - 60)) {
 			easy = false;
@@ -1349,7 +1369,10 @@ MOVE SEARCHER::find_best() {
 		check_quit();
 
 		/*store info*/
-		prev_root_score = root_score;
+		if(search_depth > prev_depth) {
+			prev_root_score = root_score;
+			prev_depth = search_depth;
+		}
 		/*end*/
 
 	} while(search_depth < chess_clock.max_sd);

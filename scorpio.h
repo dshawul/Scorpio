@@ -19,8 +19,8 @@ Useful to compile minimal scorpio engine.
 #define EGBB
 #define PARALLEL
 //#define CLUSTER
-//#define HAS_POPCNT
-//#define HAS_PREFETCH
+#define HAS_POPCNT
+#define HAS_PREFETCH
 //#define TUNE
 //#define THREAD_POLLING
 /*
@@ -176,6 +176,7 @@ enum square_names {
 #define MAX_NUMBER    16777216
 #define MAX_HIST       8388608
 #define MAX_UBMP64   UBMP64(0xffffffffffffffff)
+#define MAX_EGBB             6
 
 #define WSC_FLAG            1
 #define WLC_FLAG            2

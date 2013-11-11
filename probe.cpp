@@ -12,12 +12,9 @@ enum egbb_load_types {
 };
 
 #define _NOTFOUND 99999
+#define MAX_PIECES 9
 
-typedef int (CDECL *PPROBE_EGBB) (int player, int w_king, int b_king,
-							int piece1, int square1,
-							int piece2, int square2,
-							int piece3, int square3);
-
+typedef int (CDECL *PPROBE_EGBB) (int player, int* piece,int* square);
 typedef void (CDECL *PLOAD_EGBB) (char* path,int cache_size,int load_options);
 static PPROBE_EGBB probe_egbb;
 
@@ -68,8 +65,8 @@ int LoadEgbbLibrary(char* main_path,int egbb_cache_size) {
 	}
 	strcat(path,EGBB_NAME);
 	if((hmod = LoadLibrary(path)) != 0) {
-		load_egbb = (PLOAD_EGBB) GetProcAddress(hmod,"load_egbb_5men");
-     	probe_egbb = (PPROBE_EGBB) GetProcAddress(hmod,"probe_egbb_5men");
+		load_egbb = (PLOAD_EGBB) GetProcAddress(hmod,"load_egbb_xmen");
+     	probe_egbb = (PPROBE_EGBB) GetProcAddress(hmod,"probe_egbb_xmen");
         load_egbb(main_path,egbb_cache_size,SEARCHER::egbb_load_type);
 		return true;
 	} else {
@@ -87,17 +84,10 @@ board representation and then probe bitbase.
 int SEARCHER::probe_bitbases(int& score) {
 
 #ifdef EGBB
-
-	register PLIST current;
-	int piece[3],square[3],count;
-	count = 0;
-	piece[0] = 0;
-	piece[1] = 0;
-	piece[2] = 0;
-	square[0] = 0;
-	square[1] = 0;
-	square[2] = 0;
 	
+	register PLIST current;
+	int piece[MAX_PIECES],square[MAX_PIECES],count = 0;
+
 #define ADD_PIECE(list,type) {					\
 	   current = list;							\
 	   while(current) {							\
@@ -106,24 +96,25 @@ int SEARCHER::probe_bitbases(int& score) {
 		  current = current->next;				\
 		  count++;								\
 	   }										\
-	}
-	
-	ADD_PIECE(plist[wpawn],_WPAWN);
-	ADD_PIECE(plist[wknight],_WKNIGHT);
-	ADD_PIECE(plist[wbishop],_WBISHOP);
-	ADD_PIECE(plist[wrook],_WROOK);
+	};
+	ADD_PIECE(plist[wking],_WKING);
+	ADD_PIECE(plist[bking],_BKING);
 	ADD_PIECE(plist[wqueen],_WQUEEN);
-	ADD_PIECE(plist[bpawn],_BPAWN);
-	ADD_PIECE(plist[bknight],_BKNIGHT);
-	ADD_PIECE(plist[bbishop],_BBISHOP);
-	ADD_PIECE(plist[brook],_BROOK);
 	ADD_PIECE(plist[bqueen],_BQUEEN);
-	score = probe_egbb(player,SQ8864(plist[wking]->sq),SQ8864(plist[bking]->sq),
-		piece[0],square[0],piece[1],square[1],piece[2],square[2]);
-	
-	if(score != _NOTFOUND) {
+	ADD_PIECE(plist[wrook],_WROOK);
+	ADD_PIECE(plist[brook],_BROOK);
+	ADD_PIECE(plist[wbishop],_WBISHOP);
+	ADD_PIECE(plist[bbishop],_BBISHOP);
+	ADD_PIECE(plist[wknight],_WKNIGHT);
+	ADD_PIECE(plist[bknight],_BKNIGHT);
+	ADD_PIECE(plist[wpawn],_WPAWN);
+	ADD_PIECE(plist[bpawn],_BPAWN);
+	piece[count] = _EMPTY;
+	square[count] = 0;
+
+	score = probe_egbb(player,piece,square);
+	if(score != _NOTFOUND)
 		return true;
-	}
 #endif
 
     return false;

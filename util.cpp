@@ -310,7 +310,7 @@ void SEARCHER::print_pv(int score) {
 
 		strcpy(mv_str,"");
         mov_str(move,mv_str);
-		printf(" %s",mv_str);
+		print(" %s",mv_str);
 		PUSH_MOVE(move);
 		i++;
 	}
@@ -1430,7 +1430,7 @@ void merge_books(char* path1,char* path2,char* path,double w1 = 1.0,double w2 = 
 	if(!f1 || !f2 || !f) return;
 
 	BOOK_E entry[2];
-	int c1[2],c2[2],c[2],index[2],end[2],result;
+	int c1[2],c2[2],c[2]={0},index[2],end[2],result;
 
 	print("Merging...\n");
 

@@ -586,7 +586,7 @@ bool parse_commands(char** commands) {
 			print("time %.2f sec\n",(end - start) / 1000.0f);
 		} else if(!strcmp(command,"score")) {
 			int score;
-			if(searcher.all_man_c <= 5) {
+			if(searcher.all_man_c <= MAX_EGBB) {
 				searcher.probe_bitbases(score);
 				print("bitbase_score = %d\n",score);
 			} else {

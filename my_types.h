@@ -89,6 +89,7 @@ Intrinsic popcnt
 /*
 cache line memory alignment (64 bytes)
 */
+#include <cstdlib>
 #define CACHE_LINE_SIZE  64
 
 #if defined (__GNUC__)
@@ -138,36 +139,48 @@ Prefetch
 /*
 * Threads
 */
-#    ifdef _MSC_VER
-#        include <process.h>
-#        define t_create(f,p) _beginthread(f,0,(void*)p)
-#        define t_sleep(x)    Sleep(x)
-#		 define t_yield()	  SwitchToThread()
-#    else
-#        include <pthread.h>
-#        define t_create(f,p) {pthread_t t = 0; pthread_create(&t,0,(void*(*)(void*))&f,(void*)p);}
-#        define t_sleep(x)    usleep((x) * 1000)
-#		 define t_yield()	  pthread_yield()
-#    endif
-
-#ifdef PARALLEL
-#    define VOLATILE volatile
+#if defined PARALLEL
+#	 if defined OMP
+#		include <omp.h>
+#	 elif defined _MSC_VER
+#		include <process.h>
+#		define t_create(f,p) _beginthread(f,0,(void*)p)
+#		define t_sleep(x)    Sleep(x)
+#		define t_yield()	  SwitchToThread()
+#	 else
+#		include <pthread.h>
+#		define t_create(f,p) {pthread_t t = 0; pthread_create(&t,0,(void*(*)(void*))&f,(void*)p);}
+#		define t_sleep(x)    usleep((x) * 1000)
+#		define t_yield()	  pthread_yield()
+#	 endif
+#endif
 /*
 *locks
 */
-#    ifdef _MSC_VER
-#        ifdef USE_SPINLOCK
+#if defined PARALLEL
+#	 if defined OMP
+#		define LOCK          omp_lock_t
+#		define l_create(x)   omp_init_lock(&x)
+#		define l_lock(x)     omp_set_lock(&x)
+#		define l_unlock(x)   omp_unset_lock(&x)   
+inline void l_barrier() { 
+#		pragma omp barrier 
+}
+#    elif defined _MSC_VER
+#		define VOLATILE volatile
+#       ifdef USE_SPINLOCK
 #             define LOCK VOLATILE int
 #             define l_create(x)   ((x) = 0)
 #             define l_lock(x)     while(InterlockedExchange((LPLONG)&(x),1) != 0) {while((x) != 0);}
 #             define l_unlock(x)   ((x) = 0)
-#        else
+#       else
 #             define LOCK CRITICAL_SECTION
 #             define l_create(x)   InitializeCriticalSection(&x)
 #             define l_lock(x)     EnterCriticalSection(&x)
 #             define l_unlock(x)   LeaveCriticalSection(&x)
-#        endif   
+#       endif   
 #    else
+#			  define VOLATILE volatile
 #			  define LOCK pthread_mutex_t
 #			  define l_create(x)   pthread_mutex_init(&(x),0)
 #			  define l_lock(x)     pthread_mutex_lock(&(x))
@@ -179,6 +192,7 @@ Prefetch
 #    define l_create(x)
 #    define l_lock(x)
 #    define l_unlock(x)
+#	 define l_barrier()
 #endif
 /*
 * Performance counters
@@ -192,6 +206,7 @@ inline double get_diff(TIMER s,TIMER e) {
 	return (e.QuadPart - s.QuadPart)/(double(freq.QuadPart) / 1e9);
 }
 #else
+#include <ctime>
 typedef struct timespec TIMER;
 #define get_perf(x)  clock_gettime(CLOCK_MONOTONIC,&x)
 inline double get_diff(TIMER s,TIMER e) {
