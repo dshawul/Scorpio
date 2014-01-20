@@ -110,9 +110,9 @@ int SEARCHER::probe_bitbases(int& score) {
 	ADD_PIECE(plist[wpawn],_WPAWN);
 	ADD_PIECE(plist[bpawn],_BPAWN);
 	piece[count] = _EMPTY;
-	square[count] = 0;
-
+	square[count] = SQ8864(epsquare);
 	score = probe_egbb(player,piece,square);
+	
 	if(score != _NOTFOUND)
 		return true;
 #endif

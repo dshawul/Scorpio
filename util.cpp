@@ -964,15 +964,10 @@ void CHESS_CLOCK::set_stime(int hply) {
 	if(pondering) p_time /= 4;
 
 	if(!mps) {
-		if(inc) {
-			moves_left = 35;
-			search_time = p_time / moves_left + inc;
-			maximum_time = p_time / 2;
-		} else {
-			moves_left = 40;
-			search_time = p_time / moves_left;
-			maximum_time = p_time / 4;
-		}
+		if((hply / 2) <= 25) moves_left = 40 - (hply / 2);
+		else moves_left = 15;
+		search_time = p_time / moves_left + inc;
+		maximum_time = p_time / 2;
 	} else {
 		moves_left = (mps - ((hply / 2) % mps));
 		search_time = p_time / moves_left;

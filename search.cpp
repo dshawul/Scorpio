@@ -440,7 +440,9 @@ int SEARCHER::be_selective() {
 		if(nmoves >= 2 && pstack->depth > UNITDEPTH) {
 			reduce(UNITDEPTH);
 			if(nmoves >= ((node_t == PV_NODE) ? 8 : 4) && pstack->depth > UNITDEPTH) {
-				reduce(UNITDEPTH); 
+				reduce(UNITDEPTH);
+				if(node_t != PV_NODE && nmoves >= 8 && pstack->depth >= 4 * UNITDEPTH)
+					reduce(UNITDEPTH);
 				if(nmoves >= 16 && pstack->depth >= 4 * UNITDEPTH) {
 					reduce(UNITDEPTH);
 					if(nmoves >= 20 && pstack->depth >= 4 * UNITDEPTH) {
@@ -458,7 +460,9 @@ int SEARCHER::be_selective() {
 	}
 	/*losing captures*/
 	if(!pstack->extension && loscap_reduce) {
-		if(nmoves >= 2 && pstack->depth > UNITDEPTH) {
+		if(nmoves >= 2) {
+			if(pstack->depth <= 2 * UNITDEPTH)
+				return true;
 			reduce(UNITDEPTH);
 		}
 	}
@@ -1070,7 +1074,7 @@ POP_Q:
 gets best move of position
 */
 MOVE SEARCHER::find_best() {
-	int legal_moves,i,score,scorer = 0,time_used;
+	int legal_moves,i,score,time_used;
 	int easy = false,easy_score = 0;
 	MOVE easy_move = 0;
 
@@ -1096,7 +1100,7 @@ MOVE SEARCHER::find_best() {
 	
 	/*generate root moves here*/
 	if(in_egbb) {
-		if(probe_bitbases(scorer));
+		if(probe_bitbases(score));
 		else in_egbb = false;
 	}
 
@@ -1110,19 +1114,10 @@ MOVE SEARCHER::find_best() {
 			POP_MOVE();
 			continue;
 		}
-		if(in_egbb) {
-			if(probe_bitbases(score)) {
-				score = -score;
-				if(score - scorer >= -1000);
-				else {
-					POP_MOVE();
-					continue;
-				}
-			} else {
-				in_egbb = false;
-				score = 0;
-			}
+		if(in_egbb && probe_bitbases(score)) {
+			score = -score;
 		} else {
+			in_egbb = false;
 			score = 0;
 		}
 		POP_MOVE();
@@ -1135,13 +1130,16 @@ MOVE SEARCHER::find_best() {
 
 	pstack->count = legal_moves;
 
-	/*loss or draw*/
-	if(in_egbb) {
+	/*play fast egbb loss and draws*/
+	if(in_egbb && legal_moves) {
 		for(i = 0;i < pstack->count; i++) {
 			pstack->sort(i,pstack->count);
-		}
-		if(pstack->count && pstack->score_st[0] <= 0) {
-			pstack->count = 1;
+			if(pstack->score_st[i] <= 0) {
+				if(i == 0) pstack->count = 1;
+				else pstack->count = i;
+				legal_moves = pstack->count;
+				break;
+			}
 		}
 	}
 

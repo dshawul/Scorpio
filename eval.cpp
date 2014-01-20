@@ -260,9 +260,18 @@ int SEARCHER::eval() {
 	BITBOARD noccupancyw = ~(pieces_bb[white] | pawns_bb[white]);
 	BITBOARD noccupancyb = ~(pieces_bb[black] | pawns_bb[black]);
 	BITBOARD occupancy = (~noccupancyw | ~noccupancyb);
-	BITBOARD wk_bb = king_attacks(SQ8864(w_ksq));
-	BITBOARD bk_bb = king_attacks(SQ8864(b_ksq));
+	BITBOARD wk_bb,bk_bb;
+
+	sq = w_ksq;
+	if(fw_ksq == FILEA) sq++;
+	else if(fw_ksq == FILEH) sq--;
+	wk_bb = king_attacks(SQ8864(sq));
 	wk_bb |= (wk_bb << 8);
+
+	sq = b_ksq;
+	if(fb_ksq == FILEA) sq++;
+	else if(fb_ksq == FILEH) sq--;
+	bk_bb = king_attacks(SQ8864(sq));
 	bk_bb |= (bk_bb >> 8);
 
 	/*
@@ -1176,10 +1185,10 @@ int SEARCHER::eval_passed_pawns(UBMP8* wf_pawns,UBMP8* bf_pawns,UBMP8& all_pawn_
 			passed_score += rank_score / 4;
         
 		if(piece_c[black] < 9) {
-			passed_score += (rank_score * f_distance(b_ksq,sq)) / 8;
+			passed_score += (rank_score * distance(b_ksq,sq + UU)) / 8;
 		    passed_score += (rank_score * (9 - distance(sq,w_ksq))) / 12;
 		} else {
-			passed_score += (rank_score * f_distance(b_ksq,sq)) / 12;
+			passed_score += (rank_score * distance(b_ksq,sq + UU)) / 12;
             passed_score += (rank_score * (9 - distance(sq,w_ksq))) / 16;
 		}
 		
@@ -1220,10 +1229,10 @@ int SEARCHER::eval_passed_pawns(UBMP8* wf_pawns,UBMP8* bf_pawns,UBMP8& all_pawn_
 			passed_score += rank_score / 4;
         
 		if(piece_c[white] < 9) {
-			passed_score += (rank_score * f_distance(w_ksq,sq)) / 8;
+			passed_score += (rank_score * distance(w_ksq,sq + DD)) / 8;
 		    passed_score += (rank_score * (9 - distance(b_ksq,sq))) / 12;
 		} else {
-			passed_score += (rank_score * f_distance(w_ksq,sq)) / 12;
+			passed_score += (rank_score * distance(w_ksq,sq + DD)) / 12;
             passed_score += (rank_score * (9 - distance(b_ksq,sq))) / 16;
 		}
 			

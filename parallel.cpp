@@ -522,6 +522,7 @@ int SEARCHER::get_smp_move() {
 	pstack->score_st[pstack->current_index - 1] = 
 		master->pstack->score_st[pstack->current_index - 1];
 	pstack->gen_status = master->pstack->gen_status;
+	pstack->noncap_start = master->pstack->noncap_start;
 	pstack->legal_moves = ++master->pstack->legal_moves;
 
 	/*synchronize bounds*/
