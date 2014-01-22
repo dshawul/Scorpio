@@ -957,20 +957,22 @@ void CHESS_CLOCK::set_stime(int hply) {
 	/*
 	set search time and maximum time allowed
 	*/
-	int moves_left;
+	int moves_left,move_no = (hply / 2);
 	int pp_time = p_time;
 	if(p_time > 1500) p_time -= 1500;
 	else p_time = int(0.7 * p_time);
 	if(pondering) p_time /= 4;
 
 	if(!mps) {
-		if((hply / 2) <= 25) moves_left = 40 - (hply / 2);
+		if(move_no <= 25) moves_left = 40 - move_no;
 		else moves_left = 15;
 		search_time = p_time / moves_left + inc;
 		maximum_time = p_time / 2;
 	} else {
-		moves_left = (mps - ((hply / 2) % mps));
+		moves_left = mps - (move_no % mps);
 		search_time = p_time / moves_left;
+		if(moves_left != 1)
+			search_time = int(0.95 * search_time);
 
 		if(moves_left == 1) {
 			maximum_time = p_time;
@@ -983,13 +985,10 @@ void CHESS_CLOCK::set_stime(int hply) {
 		} else {
 			maximum_time = p_time / 2;
 		}
+	}
 
-		if(moves_left != 1)
-			search_time = int(0.95 * search_time);
-	}
-	if(SEARCHER::first_search) {
+	if(SEARCHER::first_search)
 		search_time = 2 * search_time;
-	}
 
 	p_time = pp_time;
 

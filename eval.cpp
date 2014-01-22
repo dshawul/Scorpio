@@ -63,12 +63,6 @@ static const int  file_tropism[8] = {
 /*
 * Tunable parameters
 */
-#ifdef TUNE
-#	define PARAM
-#else
-#	define PARAM const
-#endif
-
 static PARAM int ATTACK_WEIGHT = 16;
 static PARAM int TROPISM_WEIGHT = 8;
 static PARAM int PAWN_GUARD = 16;

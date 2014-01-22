@@ -439,19 +439,19 @@ bool parse_commands(char** commands) {
 			hash tables
 			*/
 		} else if(!strcmp(command,"ht")) {
-			UBMP32 size = 1,size_max = (atoi(commands[command_num++]) * 1024 * 1024) / (2 * sizeof(HASH));
+			UBMP32 size = 1,size_max = atoi(commands[command_num++]) * ((1024 * 1024) / (2 * sizeof(HASH)));
 			while(2 * size <= size_max) size *= 2;
 			for(int i = 0;i < PROCESSOR::n_processors;i++) 
 				processors[i]->reset_hash_tab(i,size);
 			print("ht %d X %d = %.1f MB\n",2 * size,sizeof(HASH),(2 * size * sizeof(HASH)) / double(1024 * 1024));
 		} else if(!strcmp(command,"pht")) {
-			UBMP32 size = 1,size_max = (atoi(commands[command_num++]) * 1024 * 1024) / (sizeof(PAWNHASH));
+			UBMP32 size = 1,size_max = atoi(commands[command_num++]) * ((1024 * 1024) / (sizeof(PAWNHASH)));
 			while(2 * size <= size_max) size *= 2;
 			for(int i = 0;i < PROCESSOR::n_processors;i++) 
 				processors[i]->reset_pawn_hash_tab(size);
 			print("pht %d X %d = %.1f MB\n",size,sizeof(PAWNHASH),(size * sizeof(PAWNHASH)) / double(1024 * 1024));
 		} else if(!strcmp(command,"eht")) {
-			UBMP32 size = 1,size_max = (atoi(commands[command_num++]) * 1024 * 1024) / (sizeof(EVALHASH));
+			UBMP32 size = 1,size_max = atoi(commands[command_num++]) * ((1024 * 1024) / (sizeof(EVALHASH)));
 			while(2 * size <= size_max) size *= 2;
 			for(int i = 0;i < PROCESSOR::n_processors;i++) 
 				processors[i]->reset_eval_hash_tab(size);

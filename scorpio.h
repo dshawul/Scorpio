@@ -73,6 +73,12 @@ end
 #endif
 #include "my_types.h"
 
+#ifdef TUNE
+#	define PARAM
+#else
+#	define PARAM const
+#endif
+
 typedef UBMP64  HASHKEY;
 typedef UBMP64  BITBOARD;
 typedef UBMP32  MOVE;

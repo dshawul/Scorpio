@@ -5,11 +5,12 @@ static const int use_nullmove = 1;
 static const int use_selective = 1;
 static const int use_tt = 1;
 static const int use_aspiration = 1;
-static int use_iid = 1;
+static const int use_iid = 1;
 static int use_singular = 0;
 static int use_abdada = 0;
 static int futility_margin = 100;
 static int singular_margin = 30;
+static int contempt = 2;
 
 #define extend(value) {                      \
 	extension += value;                      \
@@ -120,6 +121,8 @@ bool SEARCHER::bitbase_cutoff() {
 						score -= WIN_PLY * (ply + 1);
 					else if(score < 0)
 						score += WIN_PLY * (ply + 1);
+					else
+						score = ((scorpio == player) ? -contempt : contempt) / 2;
 
 					pstack->best_score = score;
 
@@ -211,7 +214,8 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 	}
 
 	if(draw()) {
-		pstack->best_score = 0;
+		pstack->best_score = 
+			((scorpio == player) ? -contempt : contempt);
 		return true;
 	}
 
@@ -280,7 +284,8 @@ FORCEINLINE int SEARCHER::on_qnode_entry() {
 	}
 
 	if(draw()) {
-		pstack->best_score = 0;
+		pstack->best_score = 
+			((scorpio == player) ? -contempt : contempt);
 		return true;
 	}
 
@@ -441,7 +446,7 @@ int SEARCHER::be_selective() {
 			reduce(UNITDEPTH);
 			if(nmoves >= ((node_t == PV_NODE) ? 8 : 4) && pstack->depth > UNITDEPTH) {
 				reduce(UNITDEPTH);
-				if(node_t != PV_NODE && nmoves >= 8 && pstack->depth >= 4 * UNITDEPTH)
+				if(node_t != PV_NODE && nmoves >= 10 && pstack->depth >= 4 * UNITDEPTH)
 					reduce(UNITDEPTH);
 				if(nmoves >= 16 && pstack->depth >= 4 * UNITDEPTH) {
 					reduce(UNITDEPTH);
@@ -959,17 +964,14 @@ SPECIAL:
 				}
 				/*put two moves with highest nodes count in killers*/
 				sb->pstack->gen_status = GEN_START;
-				sb->pstack->sort(0,sb->pstack->count);
-				move = sb->pstack->move_st[0];
-				if(move == sb->pstack->best_move) {
-					sb->pstack->sort(1,sb->pstack->count);
-					sb->pstack->killer[0] = sb->pstack->move_st[1];
-					sb->pstack->sort(2,sb->pstack->count);
-					sb->pstack->killer[1] = sb->pstack->move_st[2];
-				} else {
-					sb->pstack->killer[0] = move;
-					sb->pstack->sort(1,sb->pstack->count);
-					sb->pstack->killer[1] = sb->pstack->move_st[1];
+				int kcount = 0;
+				for(int i = 0;i < sb->pstack->count;i++) {
+					sb->pstack->sort(i,sb->pstack->count);
+					move = sb->pstack->move_st[i];
+					if(!is_cap_prom(move) && move != sb->pstack->best_move) {
+						sb->pstack->killer[kcount++] = move;
+						if(kcount == 2) break;
+					}
 				}
 			} else {
 				/*put best move first*/
@@ -1415,14 +1417,14 @@ MOVE SEARCHER::find_best() {
 * Search parameters
 */
 bool check_search_params(char** commands,char* command,int& command_num) {
-	if(!strcmp(command, "use_iid")) {
-		use_iid = atoi(commands[command_num++]);
-	} else if(!strcmp(command, "futility_margin")) {
+	if(!strcmp(command, "futility_margin")) {
 		futility_margin = atoi(commands[command_num++]);
 	} else if(!strcmp(command, "use_singular")) {
 		use_singular = atoi(commands[command_num++]);
 	} else if(!strcmp(command, "singular_margin")) {
 		singular_margin = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "contempt")) {
+		contempt = atoi(commands[command_num++]);
 	} else if(!strcmp(command, "smp_type")) {
 		use_abdada = atoi(commands[command_num++]);
 	} else if(!strcmp(command, "smp_depth")) {
@@ -1444,8 +1446,8 @@ void print_search_params() {
 	SMP_CODE(print("feature option=\"smp_depth -spin %d 1 10\"\n",PROCESSOR::SMP_SPLIT_DEPTH));
 	CLUSTER_CODE(print("feature option=\"cluster_depth -spin %d 1 16\"\n",PROCESSOR::CLUSTER_SPLIT_DEPTH));
 	CLUSTER_CODE(print("feature option=\"message_poll_nodes -spin %d 10 20000\"\n",PROCESSOR::MESSAGE_POLL_NODES));
-	print("feature option=\"use_iid -check %d\"\n",use_iid);
 	print("feature option=\"use_singular -check %d\"\n",use_singular);
 	print("feature option=\"singular_margin -spin %d 0 1000\"\n",singular_margin);
 	print("feature option=\"futility_margin -spin %d 0 1000\"\n",futility_margin);
+	print("feature option=\"contempt -spin %d -100 100\"\n",contempt);
 }
