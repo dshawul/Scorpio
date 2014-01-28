@@ -29,7 +29,7 @@ parallel search options
 #define USE_SPINLOCK
 #ifdef  PARALLEL
 #	if !defined(MAX_CPUS)
-#		define MAX_CPUS              16
+#		define MAX_CPUS              32
 #	endif
 #	define MAX_SEARCHERS_PER_CPU     32
 #	define MAX_CPUS_PER_SPLIT         8

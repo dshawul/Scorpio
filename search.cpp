@@ -697,7 +697,7 @@ START:
 			* qsearch(Yes:). Qsearch is implemented separately.
 			*/
 NEW_NODE:
-			if(sb->on_node_entry())
+			if(sb->stop_searcher || sb->on_node_entry())
 				goto POP;
 		}
 POP:
@@ -716,7 +716,6 @@ POP:
 				* Is this processor a slave?
 				*/
 				if(sb->master) {
-
 					l_lock(lock_smp);
 					l_lock(sb->master->lock);
 					sb->update_master(use_abdada);
@@ -725,9 +724,7 @@ POP:
 					l_unlock(sb->master->lock);
 					l_unlock(lock_smp);
 #ifdef CLUSTER
-					/*
-					* Wait until last helper host finishes
-					*/ 
+					/* Wait until last helper host finishes*/ 
 					if(!active_workers && active_hosts) {
 						while(sb->master->n_host_workers) 
 							proc->idle_loop();
@@ -736,7 +733,7 @@ POP:
 #endif
 					/*
 					* We have run out of work now.If this was the _last worker_, grab master 
-					* search block and continue searching with it (i.e. backup).Otherwise goto 
+					* search block and continue searching with it (i.e. backup). Otherwise goto 
 					* idle mode until work is assigned. In a recursive search, only the thread 
 					* that initiated the split can backup.
 					*/
@@ -744,21 +741,20 @@ POP:
 						&& !active_workers 
 						CLUSTER_CODE( && !active_hosts)
 						) {
-							sb->master->stop_searcher = 0;
 							l_lock(lock_smp);
-							proc->searcher = sb->master;
-							/* Did we get here through the same processor that we splitted with ?
-							* If not make sure we have the correct link to the master's master.
-							*/
 							SEARCHER* sbm = sb->master;
+							/* switch worker processors*/
 							if(sbm->processor_id != sb->processor_id && sbm->master) {
 								sbm->master->workers[sbm->processor_id] = 0; 
 								sbm->master->workers[sb->processor_id] = sbm;
 							}
+							sbm->processor_id = sb->processor_id;
 							/*end*/
-							proc->searcher->processor_id = sb->processor_id;
+							sbm->stop_searcher = 0;
 							sb->used = false;
-							sb = proc->searcher;
+							sb = sbm;
+							proc->searcher = sbm;
+							/*unlock*/
 							l_unlock(lock_smp);
 
 							GOBACK(true);
@@ -799,17 +795,21 @@ IDLE_START:
 					}
 				} else {
 					/*
-					* This processor is a master. Only processor[0] can return from here to the root!
-					* If some other processor reached here first, switch to processor[0] and return
-					* from there. Also send the current processor to sleep.
+					* Only processor[0] can return from here to the root! If some other 
+					* processor reached here first, switch to processor[0] and return from there. 
+					* Also send the current processor to sleep.
 					*/
-					if(proc == processors[0]) {
+					if(sb->processor_id == 0) {
 						return;
 					} else {
 						l_lock(lock_smp);
-						sb->processor_id = 0;
-						processors[0]->searcher = sb;
-						processors[0]->state = KILL;
+						if(!use_abdada) {
+							sb->processor_id = 0;
+							processors[0]->searcher = sb;
+							processors[0]->state = KILL;
+						} else {
+							sb->used = false;
+						}
 						proc->searcher = NULL;
 						proc->state = WAIT;
 						l_unlock(lock_smp);
@@ -936,7 +936,9 @@ IDLE_START:
 #ifdef PARALLEL	
 			/* Check for split here since at least one move is searched now.
 			 * Reset the sb pointer to the child block pointed to by this processor.*/
-			if(!use_abdada && sb->check_split())
+			if(!use_abdada 
+				&& (sb->ply || sb->pstack->legal_moves >= 3) 
+				&& sb->check_split())
 				sb = proc->searcher;
 #endif
 			break;
@@ -1192,6 +1194,7 @@ MOVE SEARCHER::find_best() {
 	for(i = 1;i < PROCESSOR::n_processors;i++) {
 		processors[i]->state = WAIT;
 	}
+	while(PROCESSOR::n_idle_processors < PROCESSOR::n_processors - 1);
 #endif
 
 	/*score non-egbb moves*/
@@ -1249,6 +1252,7 @@ MOVE SEARCHER::find_best() {
 		pstack->alpha = alpha;
 		pstack->beta = beta;
 
+		/*attach helpers*/
 #ifdef PARALLEL
 		if(use_abdada) {
 			for(i = 1;i < PROCESSOR::n_processors;i++) {
@@ -1267,11 +1271,11 @@ MOVE SEARCHER::find_best() {
 		if(abort_search)
 			break;
 
+		/*wait till all helpers are idle*/
 #ifdef PARALLEL
 		if(use_abdada) {
 			abort_search = 1;
-			while(n_workers) 
-				t_yield();
+			while(PROCESSOR::n_idle_processors < PROCESSOR::n_processors - 1); 
 			abort_search = 0;
 		}
 #endif

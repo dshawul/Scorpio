@@ -139,26 +139,23 @@ Prefetch
 /*
 * Threads
 */
-#if defined PARALLEL
-#	 if defined OMP
-#		include <omp.h>
-#	 elif defined _MSC_VER
-#		include <process.h>
-#		define t_create(f,p) _beginthread(f,0,(void*)p)
-#		define t_sleep(x)    Sleep(x)
-#		define t_yield()	  SwitchToThread()
-#	 else
-#		include <pthread.h>
-#		define t_create(f,p) {pthread_t t = 0; pthread_create(&t,0,(void*(*)(void*))&f,(void*)p);}
-#		define t_sleep(x)    usleep((x) * 1000)
-#		define t_yield()	  pthread_yield()
-#	 endif
+#if defined _MSC_VER
+#	include <process.h>
+#	define t_create(f,p) _beginthread(f,0,(void*)p)
+#	define t_sleep(x)    Sleep(x)
+#	define t_yield()	  SwitchToThread()
+#else
+#	include <pthread.h>
+#	define t_create(f,p) {pthread_t t = 0; pthread_create(&t,0,(void*(*)(void*))&f,(void*)p);}
+#	define t_sleep(x)    usleep((x) * 1000)
+#	define t_yield()	  pthread_yield()
 #endif
 /*
 *locks
 */
 #if defined PARALLEL
 #	 if defined OMP
+#	    include <omp.h>
 #		define LOCK          omp_lock_t
 #		define l_create(x)   omp_init_lock(&x)
 #		define l_lock(x)     omp_set_lock(&x)

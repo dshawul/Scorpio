@@ -281,6 +281,7 @@ void SEARCHER::print_pv(int score) {
 	MOVE  move;
 	int i;
 	char mv_str[10];
+	char pv[512];
 
 	/*convert to correct mate score*/
 	if(score > MATE_SCORE - WIN_PLY * MAX_PLY) 
@@ -288,17 +289,21 @@ void SEARCHER::print_pv(int score) {
 	else if(score < -MATE_SCORE + WIN_PLY * MAX_PLY) 
 		score = -10000 + ((MATE_SCORE + score) * (ply + 1)) / WIN_PLY;
 
-	print_log("[%d] ",root_failed_low);
-	print("%d %d %d "FMT64" ",search_depth,score,(get_time() - start_time)/10,nodes);
 	/*print what we have*/
+	sprintf(pv,"%d %d %d "FMT64" ",
+		search_depth,score,
+		(get_time() - start_time)/10,
+		(long long)nodes);
 	for(i = 0;i < stack[0].pv_length;i++) {
 		move = stack[0].pv[i];
-
 		strcpy(mv_str,"");
 		mov_str(move,mv_str);
-		print(" %s",mv_str);
+		strcat(pv," ");
+		strcat(pv,mv_str);
 		PUSH_MOVE(move);
 	}
+	print_log("[%d] ",root_failed_low);
+	print(pv);
 	/*add moves from hash table*/
 	int dummy;
 	while(1) {

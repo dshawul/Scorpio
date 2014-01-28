@@ -539,8 +539,6 @@ int SEARCHER::get_smp_move() {
 /*
 * Create/kill search thread
 */
-static volatile bool t_started;
-
 void CDECL thread_proc(void* id) {
 	long tid = (long)id;
 	PPROCESSOR proc = new PROCESSOR();
@@ -550,14 +548,13 @@ void CDECL thread_proc(void* id) {
 	proc->reset_eval_hash_tab();
 	proc->reset_pawn_hash_tab();
 	processors[tid] = proc;
-	t_started = true;
 	search((PPROCESSOR)proc);
 }
 void PROCESSOR::create(int id) {
 	long tid = id;
-	t_started = false;
 	t_create(thread_proc,tid);
-	while(t_started == false);
+	int nidx = n_idle_processors;
+	while(n_idle_processors == nidx);
 }
 void PROCESSOR::kill(int id) {
 	PPROCESSOR proc = processors[id];
@@ -684,7 +681,7 @@ int SEARCHER::check_split() {
 			if(DEPTH(pstack->depth) > PROCESSOR::SMP_SPLIT_DEPTH 
 				&& PROCESSOR::n_idle_processors > 0
 				) {
-					for(i = 0;i < PROCESSOR::n_processors && n_workers < MAX_CPUS_PER_SPLIT;i++) {
+					for(i = 0;i < PROCESSOR::n_processors && n_workers < MAX_CPUS_PER_SPLIT - 1;i++) {
 						if(processors[i]->state == WAIT)
 							attach_processor(i);
 					}
@@ -734,6 +731,25 @@ void SEARCHER::stop_workers() {
 
 #if defined(PARALLEL) || defined(CLUSTER)
 /*
+* Fail high handler
+*/
+void SEARCHER::handle_fail_high() {
+	/*only once*/
+	l_lock(lock);
+	if(stop_searcher) {
+		l_unlock(lock);
+		return;
+	}
+	stop_searcher = 1;
+	l_unlock(lock);
+
+	bad_splits++;
+	/*stop workers*/
+	l_lock(lock_smp);
+	stop_workers();
+	l_unlock(lock_smp);
+}
+/*
 * clear searcher block
 */
 void SEARCHER::clear_block() {
@@ -759,21 +775,7 @@ void SEARCHER::clear_block() {
 	bad_splits = 0;
 	egbb_probes = 0;
 }
-/*
-* Fail high handler
-*/
-void SEARCHER::handle_fail_high() {
-	l_lock(lock_smp);
-	if(stop_searcher) {
-		l_unlock(lock_smp);
-		return;
-	}
-	stop_workers();
-	l_unlock(lock_smp);
 
-	stop_searcher = 1;
-	bad_splits++;
-}
 /*
 * Initialize mt number of threads by creating/deleting 
 * threads from the pool of processors.
