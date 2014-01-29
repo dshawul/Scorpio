@@ -9,22 +9,26 @@ HPP = scorpio.h my_types.h
 #########################################################################
 #
 # Some Options : 
+#  DARC_64BIT    --  Is system 64 bit.
 #  DHAS_POPCNT   --  Use Intrinsic PopCnt. [HIGHLY recommeneded] 
 #  DHAS_PREFETCH --  Prefetch hash table entries [Recommeneded] 
-#  DMAX_CPUS=n   --  Compile for maximum of n cpus. Default is 8
-#  DMAX_HOSTS=n  --  Compile for maximum of n cpus in a cluster.
-#                    Default value is 128.
-#  DTUNE         --  Compile evaluation tuning code. [NOT recommended]
+#  DPARALLEL     --  Compile parallel search code.
+#  DMAX_CPUS=n   --  Compile for maximum of n cpus. Default is 32
+#  DMAX_HOSTS=n  --  Compile for maximum of n cpus in a cluster. Default value is 128.                   
 #  DTT_TYPE=n    --  Transposition table type for NUMA (0 - global, 1 - distributed, 2 - local)
+#  DTUNE         --  Compile evaluation tuning code. [NOT recommended]
+#
 #########################################################################
 DEFINES = 
+#DEFINES += -DARC_64BIT
 #DEFINES += -DHAS_POPCNT
 #DEFINES += -DHAS_PREFETCH
-#DEFINES += -DMAX_CPUS=32
+#DEFINES += -DPARALLEL
+#DEFINES += -DMAX_CPUS=64
 #DEFINES += -DMAX_HOSTS=128
 #DEFINES += -DTUNE
 #DEFINES += -DTT_TYPE=1
-DEFINES += -DTHREAD_POLLING
+#DEFINES += -DTHREAD_POLLING
 
 ############################
 # Compiler
@@ -38,7 +42,7 @@ DEFINES += -DTHREAD_POLLING
 #   2        --> -pg
 ############################
 
-COMPILER=cluster
+COMPILER=gcc
 DEBUG=0
 
 CXXFLAGS = -O3 -Wall -fstrict-aliasing -fno-exceptions -fno-rtti

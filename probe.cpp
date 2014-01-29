@@ -25,7 +25,7 @@ int SEARCHER::egbb_load_type = LOAD_4MEN;
 Load the dll and get the address of the load and probe functions.
 */
 
-#ifdef _MSC_VER
+#ifdef _WIN32
 #	ifdef ARC_64BIT
 #		define EGBB_NAME "egbbdll64.dll"
 #	else
@@ -39,7 +39,7 @@ Load the dll and get the address of the load and probe functions.
 #	endif
 #endif
 
-#ifndef _MSC_VER
+#ifndef _WIN32
 #    define HMODULE void*
 #    define LoadLibrary(x) dlopen(x,RTLD_LAZY)
 #    define GetProcAddress dlsym

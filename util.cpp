@@ -799,7 +799,7 @@ void SEARCHER::COPY(SEARCHER* srcSearcher) {
 time
 */
 int get_time() {
-#ifdef _MSC_VER
+#ifdef _WIN32
 	timeb tb;
 	ftime(&tb);
 	return int(tb.time * 1000 + tb.millitm);
@@ -813,7 +813,7 @@ int get_time() {
 input/output from pipe/consol
 */
 
-#ifdef _MSC_VER
+#ifdef _WIN32
 static HANDLE inh;
 static int pipe;
 #endif
@@ -850,7 +850,7 @@ TOP:
 	if(log_file)
 		setbuf(log_file,NULL);
 	/*pipe/consol*/
-#ifdef _MSC_VER
+#ifdef _WIN32
 	DWORD dw;
 	inh = GetStdHandle(STD_INPUT_HANDLE);
 	pipe = !GetConsoleMode(inh, &dw);
@@ -858,7 +858,7 @@ TOP:
 
 }
 
-#ifdef _MSC_VER
+#ifdef _WIN32
 static int bios_key(void) {
 
 #   ifdef FILE_CNT
@@ -893,7 +893,7 @@ static int bios_key(void) {
 
 bool read_line(char* buffer) {
 	char* pbuffer = buffer;
-#ifdef _MSC_VER
+#ifdef _WIN32
 	if(!pipe && _kbhit()) {
 		*pbuffer++ = (char)_getche();
 		if(buffer[0] == '\r' || buffer[0] == '\n') return false;
@@ -910,7 +910,7 @@ bool read_line(char* buffer) {
 Get number of physical/logical processors
 */
 int get_number_of_cpus() {
-#ifdef _MSC_VER
+#ifdef _WIN32
 	SYSTEM_INFO info;
 	GetSystemInfo(&info);
 	return info.dwNumberOfProcessors;

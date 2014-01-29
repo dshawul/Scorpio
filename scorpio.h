@@ -1,6 +1,7 @@
 #ifndef __SCORPIO__
 #define __SCORPIO__
 
+/*Disable some MSVC warnings*/
 #ifdef _MSC_VER
 #    define _CRT_SECURE_NO_DEPRECATE
 #    define _SCL_SECURE_NO_DEPRECATE
@@ -9,20 +10,37 @@
 #    pragma warning (disable: 4244)
 #endif
 
+/*includes*/
+#include <cstdarg>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <csignal>
+#include <cctype>
+#include <ctime>
+#include <cmath>
+#ifdef _WIN32
+#	include <sys/timeb.h>
+#else
+#	include <sys/time.h>
+#endif
+#ifdef CLUSTER
+#  include <list>
+#  include "mpi.h"
+#endif
+#include "my_types.h"
+
 /*
-comment out some of the defs below to remove some code.
-Useful to compile minimal scorpio engine.
+Some definitions to include/remove code
 */
 #define LOG_FILE
 #define BOOK_PROBE
 #define BOOK_CREATE
 #define EGBB
-#define PARALLEL
 //#define CLUSTER
-#define HAS_POPCNT
-#define HAS_PREFETCH
 //#define TUNE
 //#define THREAD_POLLING
+
 /*
 parallel search options
 */
@@ -52,33 +70,15 @@ parallel search options
 #	define TT_TYPE                   0
 #endif
 /*
-end
+Use const when not tuning
 */
-#include <cstdarg>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <csignal>
-#include <cctype>
-#include <ctime>
-#include <cmath>
-#ifdef _MSC_VER
-#	include <sys/timeb.h>
-#else
-#	include <sys/time.h>
-#endif
-#ifdef CLUSTER
-#  include <list>
-#  include "mpi.h"
-#endif
-#include "my_types.h"
-
 #ifdef TUNE
 #	define PARAM
 #else
 #	define PARAM const
 #endif
 
+/*typedefs*/
 typedef UBMP64  HASHKEY;
 typedef UBMP64  BITBOARD;
 typedef UBMP32  MOVE;

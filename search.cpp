@@ -87,52 +87,35 @@ bool SEARCHER::hash_cutoff() {
 
 	return false;
 }
+/*
+* EGBB cutoff
+*/
 bool SEARCHER::bitbase_cutoff() {
-
 #ifdef EGBB
-	/*
-	. Cutoff tree only if we think "progress" is being made
-	. after captures
-	. after pawn moves
-	. or just after a certain ply (probe_depth) 
-	*/
-	if( egbb_is_loaded
-		&& all_man_c <= MAX_EGBB
-		&& (ply >= probe_depth
-		|| is_cap_prom((pstack - 1)->current_move)
-		|| PIECE(m_piece((pstack - 1)->current_move)) == pawn
-		)
+	int score;
+	int pdepth = (all_man_c < MAX_EGBB) ? probe_depth                  //5-pieces probed in whole of search depth
+		                            : probe_depth / 2;                 //6-pieces only in the first half
+	if( egbb_is_loaded												   //must be loaded
+		&& all_man_c <= MAX_EGBB                                       //maximum 6 pieces
+		&& (ply >= pdepth || fifty == 0)                               //Immediate probe after >=depth OR capture/pawn-push
+		&& (ply <= pdepth ||                                           //Probe at depth limit
+		    (egbb_load_type >= 1 && all_man_c <= 4) ||                 //4-pieces only if others are not in RAM
+		    (egbb_load_type == 3)  )                                   //Probe 5-men everywhere if they are loaded in RAM
+		&& probe_bitbases(score)
 		) {
-			/*
-			Probe bitbases at leafs ,only if they are loaded in RAM
-			*/
-			register int score;
-			if(( ((ply <= probe_depth && all_man_c < MAX_EGBB) ||
-				  (ply <= probe_depth / 2 && all_man_c == MAX_EGBB))
-				|| (egbb_load_type >= 1 && all_man_c <= 4)
-				|| egbb_load_type == 3)
-				&& probe_bitbases(score)
-				) {
+			egbb_probes++;
 
-					egbb_probes++;
+			/*prefer wins near root*/
+			if(score > 0)
+				score -= WIN_PLY * (ply + 1);
+			else if(score < 0)
+				score += WIN_PLY * (ply + 1);
 
-					/*prefer wins near root*/
-					if(score > 0)
-						score -= WIN_PLY * (ply + 1);
-					else if(score < 0)
-						score += WIN_PLY * (ply + 1);
-					else
-						score = ((scorpio == player) ? -contempt : contempt) / 2;
+			pstack->best_score = score;
 
-					pstack->best_score = score;
-
-					return true;
-			}
+			return true;
 	}
 #endif
-	/*
-	. no cutoff
-	*/
 	return false;
 }
 
@@ -174,7 +157,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 				if(score + margin <= pstack->alpha)
 					return true;
 			} else if(score - margin >= pstack->beta) {
-				pstack->best_score = pstack->beta;
+				pstack->best_score = score - margin;
 				return true;
 			}
 	}
@@ -382,7 +365,7 @@ int SEARCHER::be_selective() {
 			extend(0);
 		}
 	}
-	if((pstack - 1)->mate_threat) {
+	if(depth <= 6 && (pstack - 1)->mate_threat) {
 		extend(0);
 	}
 	if((pstack - 1)->count == 1
@@ -421,8 +404,9 @@ int SEARCHER::be_selective() {
 		&& node_t != PV_NODE
 		) {
 			if((depth <= 2 && nmoves >= 8) || 
-			   (depth <= 3 && nmoves >= 12) || 
-			   (depth <= 4 && nmoves >= 18) )
+			   (depth == 3 && nmoves >= 12) || 
+			   (depth == 4 && nmoves >= 18) || 
+			   (depth == 5 && nmoves >= 28) )
 				return true;
 
 			int margin = futility_margin * depth;
@@ -937,7 +921,7 @@ IDLE_START:
 			/* Check for split here since at least one move is searched now.
 			 * Reset the sb pointer to the child block pointed to by this processor.*/
 			if(!use_abdada 
-				&& (sb->ply || sb->pstack->legal_moves >= 3) 
+				&& (sb->ply || sb->pstack->legal_moves >= 4) 
 				&& sb->check_split())
 				sb = proc->searcher;
 #endif
@@ -1446,7 +1430,7 @@ bool check_search_params(char** commands,char* command,int& command_num) {
 	return true;
 }
 void print_search_params() {
-	print("feature option=\"smp_type -combo *YBW /// ABDADA /// SHT \"\n",use_abdada);
+	print("feature option=\"smp_type -combo *YBW /// ABDADA /// SHT \"\n");
 	SMP_CODE(print("feature option=\"smp_depth -spin %d 1 10\"\n",PROCESSOR::SMP_SPLIT_DEPTH));
 	CLUSTER_CODE(print("feature option=\"cluster_depth -spin %d 1 16\"\n",PROCESSOR::CLUSTER_SPLIT_DEPTH));
 	CLUSTER_CODE(print("feature option=\"message_poll_nodes -spin %d 10 20000\"\n",PROCESSOR::MESSAGE_POLL_NODES));

@@ -2,12 +2,12 @@
 #define __MY_TYPES__
 
 /*
-64 bit machine?
+Platform specific defines
 */
-#if defined(__LP64__) || defined(_LP64) || defined(__64BIT__) || defined(__powerpc64__) \
-	|| defined(_WIN64) || defined(_M_IA64) || (defined(_MIPS_SZLONG) && _MIPS_SZLONG == 64)
-#    define ARC_64BIT
-#endif
+#define ARC_64BIT
+#define HAS_POPCNT
+#define HAS_PREFETCH
+#define PARALLEL
 
 /*
 int types
@@ -37,7 +37,7 @@ typedef uint64_t UBMP64;
 /*
 Os stuff
 */
-#ifdef _MSC_VER
+#ifdef _WIN32
 #    include <windows.h>
 #    include <io.h>
 #    include <conio.h>
@@ -47,7 +47,6 @@ Os stuff
 #    define FMTU64   "%016I64x"
 #    define FMT64    "%I64d"
 #    define FMT64W   "%20I64d"
-#    define FORCEINLINE __forceinline
 #	 define GETPID()  _getpid()
 #else
 #    include <unistd.h>
@@ -61,8 +60,18 @@ Os stuff
 #    define FMTU64     "%016llx"
 #    define FMT64      "%lld"
 #    define FMT64W     "%20lld"
-#    define FORCEINLINE __inline
 #	 define GETPID()  getpid()
+#endif
+
+/*
+Force inline
+*/
+#if defined (_MSC_VER)
+#  define FORCEINLINE  __forceinline
+#elif defined (__GNUC__)
+#  define FORCEINLINE  __inline __attribute__((always_inline))
+#else
+#  define FORCEINLINE  __inline
 #endif
 
 /*
@@ -76,12 +85,12 @@ Intrinsic popcnt
 	__asm__("popcnt %1, %0" : "=r" (__ret) : "r" (x));	\
 	__ret;							                    \
 })
-#   elif defined (_MSC_VER)
-#       include<intrin.h>
-#       define popcnt(b) __popcnt64(b)
-#   else
+#   elif defined(_MSC_VER) && defined(__INTEL_COMPILER)
 #       include <nmmintrin.h>
 #       define popcnt(b) _mm_popcnt_u64(b)
+#   else
+#       include<intrin.h>
+#       define popcnt(b) __popcnt64(b)
 #   endif
 #   define popcnt_sparse(b) popcnt(b)
 #endif 
@@ -101,7 +110,7 @@ cache line memory alignment (64 bytes)
 template<typename T>
 void aligned_reserve(T*& mem,const size_t& size) {
 	if((sizeof(T) & (sizeof(T) - 1)) == 0) {
-#ifdef _MSC_VER
+#ifdef _WIN32
 		if(mem) _aligned_free(mem);
 		mem = (T*)_aligned_malloc(size * sizeof(T),CACHE_LINE_SIZE);
 #else
@@ -117,7 +126,7 @@ void aligned_reserve(T*& mem,const size_t& size) {
 template<typename T>
 void aligned_free(T*& mem) {
 	if((sizeof(T) & (sizeof(T) - 1)) == 0) {
-#ifdef _MSC_VER
+#ifdef _WIN32
 		if(mem) _aligned_free(mem);
 #else
 		if(mem) free(mem);
@@ -139,15 +148,15 @@ Prefetch
 /*
 * Threads
 */
-#if defined _MSC_VER
+#if defined _WIN32
 #	include <process.h>
-#	define t_create(f,p) _beginthread(f,0,(void*)p)
-#	define t_sleep(x)    Sleep(x)
+#	define t_create(f,p)  _beginthread(f,0,(void*)p)
+#	define t_sleep(x)     Sleep(x)
 #	define t_yield()	  SwitchToThread()
 #else
 #	include <pthread.h>
-#	define t_create(f,p) {pthread_t t = 0; pthread_create(&t,0,(void*(*)(void*))&f,(void*)p);}
-#	define t_sleep(x)    usleep((x) * 1000)
+#	define t_create(f,p)  {pthread_t t = 0; pthread_create(&t,0,(void*(*)(void*))&f,(void*)p);}
+#	define t_sleep(x)     usleep((x) * 1000)
 #	define t_yield()	  pthread_yield()
 #endif
 /*
@@ -163,7 +172,7 @@ Prefetch
 inline void l_barrier() { 
 #		pragma omp barrier 
 }
-#    elif defined _MSC_VER
+#    elif defined _WIN32
 #		define VOLATILE volatile
 #       ifdef USE_SPINLOCK
 #             define LOCK VOLATILE int
@@ -194,7 +203,7 @@ inline void l_barrier() {
 /*
 * Performance counters
 */
-#ifdef _MSC_VER
+#ifdef _WIN32
 typedef LARGE_INTEGER TIMER;
 #define get_perf(x)  QueryPerformanceCounter(&x)
 inline double get_diff(TIMER s,TIMER e) {

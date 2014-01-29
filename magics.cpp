@@ -270,9 +270,6 @@ void initmagicmoves(void) {
 		magicmovesrdb+90112, magicmovesrdb+75776, magicmovesrdb+40960, magicmovesrdb+45056,
 		magicmovesrdb+49152, magicmovesrdb+55296, magicmovesrdb+79872, magicmovesrdb+98304
 	};
-#ifdef _MSC_VER
-#pragma warning (disable: 4146)
-#endif
 	for(i=0;i<64;i++) {
 		int squares[64];
 		int numsquares=0;
@@ -302,9 +299,6 @@ void initmagicmoves(void) {
 			RmagicNOMASK2(i,tempocc)=initmagicmoves_Rmoves(i,tempocc);
 		}
 	}
-#ifdef _MSC_VER
-#pragma warning (default: 4146)
-#endif
 	/*
 	initialize other bitboards
 	*/
