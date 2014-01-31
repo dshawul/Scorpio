@@ -2,7 +2,7 @@
 
 Scorpio is a strong chess engine at the grand master level. It can be used 
 with GUIs that support the Winboard protocol natively such as Winboard and
-Arena, or via Wb2Uci adapter in Fritz or Shredder interfaces.
+Arena, or via the Wb2Uci adapter in Fritz and Shredder interfaces.
 
 ### Goals
 
@@ -13,7 +13,7 @@ The main goals of Scorpio are:
     access (NUMA) systems. Also distributed parallel search on a loosely
     coupled cluster of computers is done using YBW.
 
-  * use of native endgame bitbases (EGBBS) of upto 5 pieces
+  * use of native endgame bitbases (EGBBS) of upto 6 pieces
       
 ### Parallel
 
@@ -30,15 +30,23 @@ The main goals of Scorpio are:
 
 ### EGBB
 
-  Scorpio uses its own endgame bitbases upto 5 pieces.
+  Scorpio uses its own endgame bitbases upto 6 pieces.
    
 #### Installation 
 
-  First You have to download the 5men bitbases by searching for scorpio
-  bitbases. The egbbs are 225mb in size. Then put them anywhere in your 
-  computer and set the egbb_path, egbb_cache_size and egbb_load_type in 
-  the scorpio ini file. Suggested cache size for 4 men egbbs is minimum 
-  4mb, and for 5 piece minimum 16mb.
+  First You have to download some of the bitbases.
+  
+ * 4-men (3.5 Mb) 
+        [Download](http://shawul.olympuschess.com/egbb/egbb4men.zip)
+ * 5-men (211 Mb) 
+        [Download](http://shawul.olympuschess.com/egbb/egbb5men.zip)
+ * 6-men (48.1 Gb) 
+        [Torrent](http://oics.olympuschess.com/tracker/index.php)
+ 
+Then put them anywhere in your computer and set the egbb_path, egbb_cache_size 
+  and egbb_load_type in the scorpio ini file. Suggested cache size for 4 men 
+  egbbs is minimum 4 Mb, for 5 piece minimum 16 Mb, and for 6-men as much as 
+  you can. Putting the EGBBs on SSD or USB drives can also speed up access time.
 
 #### For programmers
 
@@ -62,11 +70,11 @@ The main goals of Scorpio are:
                
      
   After egbbdll.dll is loaded and we have to get the address of 
-  probe_egbb and load_egbb functions. New functions are provided for 5men
-  egbbs , probe_egbb_5men and load_egbb_5men. So if you want to use 5men
+  probe_egbb and load_egbb functions. New functions are provided for 6-men
+  egbbs , probe_egbb_xmen and load_egbb_xmen.
 
-       load_egbb = (PLOAD_EGBB) GetProcAddress(hmod,"load_egbb_5men");
-       probe_egbb = (PPROBE_EGBB) GetProcAddress(hmod,"probe_egbb_5men");
+       load_egbb = (PLOAD_EGBB) GetProcAddress(hmod,"load_egbb_xmen");
+       probe_egbb = (PPROBE_EGBB) GetProcAddress(hmod,"probe_egbb_xmen");
 
   Then we can call these functions like any other standard functions.
       
@@ -77,23 +85,20 @@ The main goals of Scorpio are:
        path         => it is the directory where the bitbases are located
        cache_size   => size of cache used in bytes
        load_options => options to load some bitbase in to RAM. By default 
-                  the 4 men are loaded in to RAM.
+                       the 4 men are loaded in to RAM.
   Returns
 
        true => if loading succeeds false otherwise. 
 
-       typedef int (*PPROBE_EGBB) (
-                 int player, int w_king, int b_king,
-	         int piece1, int square1,
-	         int piece2, int square2,
-	         int piece3, int square3);
+       typedef int (*PPROBE_EGBB) (int player, int* piece, int* square);
   Parameters
 
-        player  => side to move
-        w_king  => square of white king (remeber to use A1 = 0 ... H8 = 63)
-        b_king  => square of black king
-        piece1  => type of piece 
-        square1 => square of piece1 etc...
+        player   => side to move
+        *piece   => piece types
+        *square  => square of pieces (A1=0...H1=7...A8=56...H8...63)
+
+  The piece array should be terminated with 0 and the last element of square
+  array should be the enpassant square if it exists or 0 otherwise.
 
   Returns
 
@@ -109,7 +114,7 @@ The main goals of Scorpio are:
 		+ (5 - all_c) * 1000;
 
   This type of scoring helps in making progress by prefering 3-men endings 
-  over 5-men, cornering losing king, handling special endils lk KBNK etc.
+  over 5-men, cornering losing king, handling special endings such as KBNK.
 
 #### Note
   
@@ -123,7 +128,7 @@ with them.
 Thanks to the following persons for helping me with development
 of Scorpio: Dann Corbit. Gerhard Schwager, Oliver Deuville, Gunther Simon,
 Leo Dijksman, Ed Shroeder and Pradu Kanan, Shaun Brewer, Werner Schule,
-Klaus Friedel, Andrew Fan, Andres Valverde, Bryan Hoffman
+Klaus Friedel, Andrew Fan, Andres Valverde, Bryan Hoffman, Martin Thorensen
     
 ### Fastest binaries
 
