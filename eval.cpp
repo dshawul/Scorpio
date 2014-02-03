@@ -91,6 +91,7 @@ static PARAM int PAWN_EG = 100;
 static PARAM int BISHOP_PAIR_MG = 16;
 static PARAM int BISHOP_PAIR_EG = 16;
 static PARAM int EXCHANGE_BONUS = 45;
+static PARAM int HANGING_PENALTY = 15;
 /*
 king safety
 */
@@ -255,17 +256,25 @@ int SEARCHER::eval() {
 	BITBOARD noccupancyb = ~(pieces_bb[black] | pawns_bb[black]);
 	BITBOARD occupancy = (~noccupancyw | ~noccupancyb);
 	BITBOARD wk_bb,bk_bb;
+	BITBOARD wkattacks_bb,bkattacks_bb;
+	BITBOARD wattacks_bb = UINT64(0),battacks_bb = UINT64(0);
+	BITBOARD wpattacks_bb = ((pawns_bb[white] & ~file_mask[FILEA]) << 7) |
+							((pawns_bb[white] & ~file_mask[FILEH]) << 9);
+	BITBOARD bpattacks_bb = ((pawns_bb[black] & ~file_mask[FILEH]) >> 7) |
+							((pawns_bb[black] & ~file_mask[FILEA]) >> 9);
 
 	sq = w_ksq;
 	if(fw_ksq == FILEA) sq++;
 	else if(fw_ksq == FILEH) sq--;
-	wk_bb = king_attacks(SQ8864(sq));
+	wkattacks_bb = king_attacks(SQ8864(sq));
+	wk_bb = wkattacks_bb;
 	wk_bb |= (wk_bb << 8);
 
 	sq = b_ksq;
 	if(fb_ksq == FILEA) sq++;
 	else if(fb_ksq == FILEH) sq--;
-	bk_bb = king_attacks(SQ8864(sq));
+	bkattacks_bb = king_attacks(SQ8864(sq));
+	bk_bb = bkattacks_bb;
 	bk_bb |= (bk_bb >> 8);
 
 	/*
@@ -280,6 +289,7 @@ int SEARCHER::eval() {
 		/*mobility*/
 		sq = SQ64(r,f);
 		bb = knight_attacks(sq);
+		wattacks_bb |= bb;
 
 		mob = (3 * KNIGHT_MOB * (popcnt(bb & noccupancyw) - 4)) / 16;
 		w_score.add(mob);
@@ -323,6 +333,7 @@ int SEARCHER::eval() {
 		/*mobility*/
 		sq = SQ64(r,f);
 		bb =  knight_attacks(sq);
+		battacks_bb |= bb;
 
 		mob = (3 * KNIGHT_MOB * (popcnt(bb & noccupancyb) - 4)) / 16;
 		b_score.add(mob);
@@ -367,6 +378,7 @@ int SEARCHER::eval() {
 		/*mobility*/
 		sq = SQ64(r,f);
 		bb =  bishop_attacks(sq,occupancy);
+		wattacks_bb |= bb;
 
 		mob = (5 * BISHOP_MOB * (popcnt(bb & noccupancyw) - 6)) / 16;
 		w_score.add(mob);
@@ -409,6 +421,7 @@ int SEARCHER::eval() {
 		/*mobility*/
 		sq = SQ64(r,f);
 		bb =  bishop_attacks(sq,occupancy);
+		battacks_bb |= bb;
 
 		mob = (5 * BISHOP_MOB * (popcnt(bb & noccupancyb) - 6)) / 16;
 		b_score.add(mob);
@@ -455,6 +468,7 @@ int SEARCHER::eval() {
 		/*mobility*/
 		sq = SQ64(r,f);
 		bb =  rook_attacks(sq,occupancy);
+		wattacks_bb |= bb;
 
 		mob = (3 * ROOK_MOB * (popcnt(bb & noccupancyw) - 7)) / 16;
 		w_score.add(mob);
@@ -507,6 +521,7 @@ int SEARCHER::eval() {
 		/*mobility*/
 		sq = SQ64(r,f);
 		bb =  rook_attacks(sq,occupancy);
+		battacks_bb |= bb;
 
 		mob = (3 * ROOK_MOB * (popcnt(bb & noccupancyb) - 7)) / 16;
 		b_score.add(mob);
@@ -562,6 +577,7 @@ int SEARCHER::eval() {
 
 		sq = SQ64(r,f);
 	    bb =  queen_attacks(sq,occupancy);
+		wattacks_bb |= bb;
 
 		mob = (QUEEN_MOB * (popcnt(bb & noccupancyw) - 13)) / 16;
 		w_score.add(mob);
@@ -591,6 +607,7 @@ int SEARCHER::eval() {
        
 		sq = SQ64(r,f);
 		bb =  queen_attacks(sq,occupancy);
+		battacks_bb |= bb;
 
 		mob = (QUEEN_MOB * (popcnt(bb & noccupancyb) - 13)) / 16;
 		b_score.add(mob);
@@ -620,18 +637,41 @@ int SEARCHER::eval() {
 	/*
 	king eval
 	*/
+	wattacks_bb |= wpattacks_bb;
+	battacks_bb |= bpattacks_bb;
+
 	if(eval_b_attack) {
 		b_attack += pawnrec.b_attack;
+		b_attack += 2 * popcnt_sparse(battacks_bb & ~wattacks_bb & wk_bb);
 		b_score.addm(KING_ATTACK(b_attack,b_attackers,b_tropism));
 	}
 	if(eval_w_attack) {
 		w_attack += pawnrec.w_attack;
+		w_attack += 2 * popcnt_sparse(wattacks_bb & ~battacks_bb & bk_bb);
 		w_score.addm(KING_ATTACK(w_attack,w_attackers,w_tropism));
 	}
+
+
+	/*
+	hanging pieces
+	*/
+	wattacks_bb |= wkattacks_bb;
+	battacks_bb |= bkattacks_bb;
+
+	bb = ((wattacks_bb & ~bpattacks_bb) | wpattacks_bb) & pieces_bb[black];
+	if(bb) {
+		temp = popcnt_sparse(bb);
+		w_score.add(HANGING_PENALTY * temp * temp);
+	}
+	bb = ((battacks_bb & ~wpattacks_bb) | bpattacks_bb) & pieces_bb[white];
+	if(bb) {
+		temp = popcnt_sparse(bb);
+		b_score.add(HANGING_PENALTY * temp * temp);
+	}
+
 	/*
 	adjust score and save in tt
 	*/
-
 	if(player == white) {
 		pstack->actual_score = ((w_score.mid - b_score.mid) * (phase) +
 			                   (w_score.end - b_score.end) * (MAX_MATERIAL - phase)) / MAX_MATERIAL;
@@ -1602,6 +1642,8 @@ bool check_eval_params(char** commands,char* command,int& command_num) {
 		TROPISM_WEIGHT = atoi(commands[command_num++]);
 	} else if(!strcmp(command, "PAWN_GUARD")) {
 		PAWN_GUARD = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "HANGING_PENALTY")) {
+		HANGING_PENALTY = atoi(commands[command_num++]);
 	} else {
 		return false;
 	}
@@ -1636,6 +1678,7 @@ void print_eval_params() {
 	print("feature option=\"PAWN_GUARD -spin %d 0 64\"\n",PAWN_GUARD);
 	print("feature option=\"ATTACK_WEIGHT -spin %d 0 64\"\n",ATTACK_WEIGHT);
 	print("feature option=\"TROPISM_WEIGHT -spin %d 0 64\"\n",TROPISM_WEIGHT);
+	print("feature option=\"HANGING_PENALTY -spin %d 0 100\"\n",HANGING_PENALTY);
 }
 
 #endif
