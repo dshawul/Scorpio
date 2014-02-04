@@ -133,7 +133,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 	/*razoring & static pruning*/
 	if(use_selective
 		&& all_man_c > MAX_EGBB
-		&& pstack->depth <= 4 * UNITDEPTH
+		&& pstack->depth <= 6 * UNITDEPTH
 		&& (pstack - 1)->search_state != NULL_MOVE
 		&& !pstack->extension
 		&& pstack->node_type != PV_NODE
@@ -141,7 +141,9 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 			int score = eval();
 			int margin = futility_margin + 
 				50 * (DEPTH(pstack->depth) - 1) * (DEPTH(pstack->depth) - 1);
-			if(score + margin <= pstack->alpha) {
+			if(score + margin <= pstack->alpha
+				&& pstack->depth <= 4 * UNITDEPTH
+				) {
 				pstack->qcheck_depth = CHECK_DEPTH;
 				/*do qsearch with shifted-down window*/
 				{
@@ -941,13 +943,8 @@ SPECIAL:
 			if(sb->pstack->flag == EXACT || sb->pstack->flag == LOWER)
 				sb->pstack->hash_flags = HASH_GOOD;
 			sb->pstack->search_state = SINGULAR_SEARCH;
-			/*reset move generation*/
+			/*Sort moves and reset move generation status*/
 			if(sb->pstack->flag == LOWER) {
-				/*IID fail high pruning*/
-				if(!sb->hstack[sb->hply - 1].checks
-					&& is_cap_prom(sb->pstack->best_move)) {
-					GOBACK(false);
-				}
 				/*put two moves with highest nodes count in killers*/
 				sb->pstack->gen_status = GEN_START;
 				int kcount = 0;
