@@ -18,9 +18,11 @@ typedef int (CDECL *PPROBE_EGBB) (int player, int* piece,int* square);
 typedef void (CDECL *PLOAD_EGBB) (char* path,int cache_size,int load_options);
 static PPROBE_EGBB probe_egbb;
 
-int SEARCHER::egbb_is_loaded;
+int SEARCHER::egbb_is_loaded = 0;
 int SEARCHER::egbb_load_type = LOAD_4MEN;
-
+int SEARCHER::egbb_probe_percentage = 75;
+int SEARCHER::egbb_cache_size = 16;
+char SEARCHER::egbb_path[MAX_STR] = "egbb/";
 /*
 Load the dll and get the address of the load and probe functions.
 */
@@ -42,13 +44,13 @@ Load the dll and get the address of the load and probe functions.
 #ifndef _WIN32
 #    define HMODULE void*
 #    define LoadLibrary(x) dlopen(x,RTLD_LAZY)
+#    define FreeLibrary(x) dlclose(x)
 #    define GetProcAddress dlsym
 #endif
 
 int LoadEgbbLibrary(char* main_path,int egbb_cache_size) {
-
 #ifdef EGBB
-	HMODULE hmod;
+	static HMODULE hmod = 0;
 	PLOAD_EGBB load_egbb;
 	char path[256];
 	char terminator;
@@ -64,6 +66,7 @@ int LoadEgbbLibrary(char* main_path,int egbb_cache_size) {
 		}
 	}
 	strcat(path,EGBB_NAME);
+	if(hmod) FreeLibrary(hmod);
 	if((hmod = LoadLibrary(path)) != 0) {
 		load_egbb = (PLOAD_EGBB) GetProcAddress(hmod,"load_egbb_xmen");
      	probe_egbb = (PPROBE_EGBB) GetProcAddress(hmod,"probe_egbb_xmen");

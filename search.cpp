@@ -97,7 +97,7 @@ bool SEARCHER::bitbase_cutoff() {
 		                            : probe_depth / 2;                 //6-pieces only in the first half
 	if( egbb_is_loaded												   //must be loaded
 		&& all_man_c <= MAX_EGBB                                       //maximum 6 pieces
-		&& (ply >= pdepth || fifty == 0)                               //Immediate probe after >=depth OR capture/pawn-push
+		&& (ply >= pdepth || pstack->depth <= 0 || fifty == 0)         //Immediate probe after >=depth OR capture/pawn-push
 		&& (ply <= pdepth ||                                           //Probe at depth limit
 		    (egbb_load_type >= 1 && all_man_c <= 4) ||                 //4-pieces only if others are not in RAM
 		    (egbb_load_type == 3)  )                                   //Probe 5-men everywhere if they are loaded in RAM
@@ -1225,8 +1225,7 @@ MOVE SEARCHER::find_best() {
 		search_depth++;
 
 		/*use the whole search depth once inegbb*/
-		if(in_egbb) probe_depth = search_depth;
-		else probe_depth = (2 * search_depth) / 3;
+		probe_depth = egbb_probe_percentage * search_depth / 100;
 
 		/*Set bounds and search.*/
 		pstack->depth = search_depth * UNITDEPTH;

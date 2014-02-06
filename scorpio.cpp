@@ -85,23 +85,60 @@ static SEARCHER searcher;
 static PSEARCHER main_searcher;
 static int ponder = false;
 static int result = R_UNKNOWN;
-static char egbb_path[MAX_STR] = "./egbb/";
-static int  egbb_cache_size = 4;
+static int ht = 64;
+static int eht = 8;
+static int pht = 1;
 
 static bool load_ini();
 static void init_game();
 
 /*
-load egbbs with another thread
+load egbbs with a separate thread
 */
-static VOLATILE bool egbb_thread_stoped = false;
+static VOLATILE bool egbb_is_loading = false;
+static bool egbb_setting_changed = false;
+
+static void wait_for_egbb() {
+	while(egbb_is_loading) t_sleep(100);
+}
 static void CDECL egbb_thread_proc(void*) {
 	int start = get_time();
-	egbb_cache_size = (egbb_cache_size * 1024 * 1024);
-	SEARCHER::egbb_is_loaded = LoadEgbbLibrary(egbb_path,egbb_cache_size);
+	int egbb_cache_sizeb = (SEARCHER::egbb_cache_size * 1024 * 1024);
+	SEARCHER::egbb_is_loaded = LoadEgbbLibrary(SEARCHER::egbb_path,egbb_cache_sizeb);
 	int end = get_time();
 	print("loading_time = %ds\n",(end - start) / 1000);
-	egbb_thread_stoped = true;
+	egbb_is_loading = false;
+	
+}
+static void load_egbbs() {
+	wait_for_egbb();
+	egbb_setting_changed = false;
+	egbb_is_loading = true;
+	t_create(egbb_thread_proc,0);
+}
+/*
+hash tables
+*/
+static void reset_ht() {
+	UBMP32 size = 1,size_max = ht * ((1024 * 1024) / (2 * sizeof(HASH)));
+	while(2 * size <= size_max) size *= 2;
+	for(int i = 0;i < PROCESSOR::n_processors;i++) 
+		processors[i]->reset_hash_tab(i,size);
+	print("ht %d X %d = %.1f MB\n",2 * size,sizeof(HASH),(2 * size * sizeof(HASH)) / double(1024 * 1024));
+}
+static void reset_eht() {
+	UBMP32 size = 1,size_max = eht * ((1024 * 1024) / (sizeof(EVALHASH)));
+	while(2 * size <= size_max) size *= 2;
+	for(int i = 0;i < PROCESSOR::n_processors;i++) 
+		processors[i]->reset_eval_hash_tab(size);
+	print("eht %d X %d = %.1f MB\n",size,sizeof(EVALHASH),(size * sizeof(EVALHASH)) / double(1024 * 1024));
+}
+static void reset_pht() {
+	UBMP32 size = 1,size_max = pht * ((1024 * 1024) / (sizeof(PAWNHASH)));
+	while(2 * size <= size_max) size *= 2;
+	for(int i = 0;i < PROCESSOR::n_processors;i++) 
+		processors[i]->reset_pawn_hash_tab(size);
+	print("pht %d X %d = %.1f MB\n",size,sizeof(PAWNHASH),(size * sizeof(PAWNHASH)) / double(1024 * 1024));
 }
 /*
 exit scorpio 
@@ -124,15 +161,10 @@ int CDECL main(int argc, char* argv[]) {
 	 * Parse scorpio.ini file which contains settings of scorpio. 
 	 * Search/eval execution commands should not be put there.
 	 */
-	if(!load_ini()) 
-		return 0;
-	/*
-	 * Start loading egbbs with a separate thread.
-	 * If there are command line options wait for the egbb to load fully.  
-	 */
-	t_create(egbb_thread_proc,0);
-	if(argc)
-		while(!egbb_thread_stoped) t_sleep(100);
+	load_ini();
+	if(egbb_setting_changed)
+		load_egbbs();
+
 	/*
 	 * Initialize MPI
 	 */
@@ -167,6 +199,8 @@ int CDECL main(int argc, char* argv[]) {
 		 */
 		print_log("==============================\n");
 		while(true) {
+			if(egbb_setting_changed && !bios_key())
+				load_egbbs();
 			if(!read_line(buffer))
 				goto END;
 			commands[tokenize(buffer,commands)] = NULL;
@@ -303,15 +337,23 @@ bool parse_commands(char** commands) {
 			print("feature name=1 myname=\"Scorpio_%s\"\n",VERSION);
 			print("feature sigint=0 sigterm=0\n");
 			print("feature setboard=1 draw=0 colors=0\n");
-			print("feature smp=0 memory=0 egt=\"scorpio\"\n");
+			print("feature smp=0 memory=0\n");
 			print("feature option=\"log -check %d\"\n",log_on);
 			print("feature option=\"clear_hash -button\"\n");
 			print("feature option=\"resign -spin %d 100 30000\"\n",SEARCHER::resign_value);
+			print("feature option=\"cores -spin 1 1 %d\"\n", MAX_CPUS);
+			print("feature option=\"ht -spin %d 1 32768\"\n",ht);
+			print("feature option=\"eht -spin %d 1 16384\"\n",eht);
+			print("feature option=\"pht -spin %d 1 256\"\n",pht);
+			print("feature option=\"egbb_path -string %s\"\n", SEARCHER::egbb_path);
+			print("feature option=\"egbb_cache_size -spin %d 1 16384\"\n", SEARCHER::egbb_cache_size);
+			print("feature option=\"egbb_load_type -combo Load_none /// *Load_4_men /// Load_selected_(NI) /// Load_5_men\"\n");
+			print("feature option=\"egbb_probe_percentage -spin %d 1 100\"\n", SEARCHER::egbb_probe_percentage);
 			print_search_params();
 #ifdef TUNE
 			print_eval_params();
 #endif
-			while(!egbb_thread_stoped) t_sleep(100);
+			wait_for_egbb();
 			print("feature done=1\n");
 
 			command_num++;
@@ -439,23 +481,14 @@ bool parse_commands(char** commands) {
 			hash tables
 			*/
 		} else if(!strcmp(command,"ht")) {
-			UBMP32 size = 1,size_max = atoi(commands[command_num++]) * ((1024 * 1024) / (2 * sizeof(HASH)));
-			while(2 * size <= size_max) size *= 2;
-			for(int i = 0;i < PROCESSOR::n_processors;i++) 
-				processors[i]->reset_hash_tab(i,size);
-			print("ht %d X %d = %.1f MB\n",2 * size,sizeof(HASH),(2 * size * sizeof(HASH)) / double(1024 * 1024));
+			ht = atoi(commands[command_num++]);
+			reset_ht();
 		} else if(!strcmp(command,"pht")) {
-			UBMP32 size = 1,size_max = atoi(commands[command_num++]) * ((1024 * 1024) / (sizeof(PAWNHASH)));
-			while(2 * size <= size_max) size *= 2;
-			for(int i = 0;i < PROCESSOR::n_processors;i++) 
-				processors[i]->reset_pawn_hash_tab(size);
-			print("pht %d X %d = %.1f MB\n",size,sizeof(PAWNHASH),(size * sizeof(PAWNHASH)) / double(1024 * 1024));
+			pht = atoi(commands[command_num++]);
+			reset_pht();
 		} else if(!strcmp(command,"eht")) {
-			UBMP32 size = 1,size_max = atoi(commands[command_num++]) * ((1024 * 1024) / (sizeof(EVALHASH)));
-			while(2 * size <= size_max) size *= 2;
-			for(int i = 0;i < PROCESSOR::n_processors;i++) 
-				processors[i]->reset_eval_hash_tab(size);
-			print("eht %d X %d = %.1f MB\n",size,sizeof(EVALHASH),(size * sizeof(EVALHASH)) / double(1024 * 1024));
+			eht = atoi(commands[command_num++]);
+			reset_eht();
 			/*
 			parallel search
 			*/
@@ -479,17 +512,19 @@ bool parse_commands(char** commands) {
 			*/
 #ifdef EGBB
 		} else if(!strcmp(command, "egbb_path")) {
-			strcpy(egbb_path,commands[command_num]);
-			command_num++;
-		} else if(!strcmp(command, "egtpath")) {
-			command_num++;
-			strcpy(egbb_path,commands[command_num]);
+			egbb_setting_changed = true;
+			strcpy(SEARCHER::egbb_path,commands[command_num]);
 			command_num++;
 		} else if(!strcmp(command, "egbb_cache_size")) {
-			egbb_cache_size = atoi(commands[command_num]);
+			egbb_setting_changed = true;
+			SEARCHER::egbb_cache_size = atoi(commands[command_num]);
 			command_num++;
 		} else if(!strcmp(command, "egbb_load_type")) {
+			egbb_setting_changed = true;
 			SEARCHER::egbb_load_type = atoi(commands[command_num]);
+			command_num++;
+		} else if(!strcmp(command, "egbb_probe_percentage")) {
+			SEARCHER::egbb_probe_percentage = atoi(commands[command_num]);
 			command_num++;
 #endif
 #ifdef BOOK_PROBE
@@ -693,6 +728,9 @@ bool parse_commands(char** commands) {
 			continue;
 		if(result != R_UNKNOWN)
 			continue;
+
+		/*Wait if we are still loading EGBBs*/
+		wait_for_egbb();
 
 		/*
 		Analyze mode

@@ -859,7 +859,7 @@ TOP:
 }
 
 #ifdef _WIN32
-static int bios_key(void) {
+int bios_key(void) {
 
 #   ifdef FILE_CNT
 	if (stdin->_cnt > 0)
@@ -876,7 +876,7 @@ static int bios_key(void) {
 	}
 }
 #else
-static int bios_key(void) {
+int bios_key(void) {
 	fd_set readfds;
 	struct timeval  timeout;
 

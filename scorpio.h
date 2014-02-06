@@ -636,6 +636,9 @@ typedef CACHE_ALIGN struct SEARCHER{
 	bool bitbase_cutoff();
 	static int egbb_is_loaded;
 	static int egbb_load_type;
+	static int egbb_probe_percentage;
+	static int egbb_cache_size;
+	static char egbb_path[MAX_STR];
 	static int probe_depth;
 	/*
 	End
@@ -865,6 +868,7 @@ void  mov_str(const MOVE& ,char*);
 void  str_mov(MOVE& ,char*);
 int   tokenize(char* , char** , const char* str2 = " =\n\r\t");
 bool  read_line(char*);
+int   bios_key(void);
 void  load_book();
 bool  parse_commands(char**);
 void  merge_books(char*,char*,char*,double,double);
