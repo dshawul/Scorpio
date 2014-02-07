@@ -108,7 +108,6 @@ static void CDECL egbb_thread_proc(void*) {
 	int end = get_time();
 	print("loading_time = %ds\n",(end - start) / 1000);
 	egbb_is_loading = false;
-	
 }
 static void load_egbbs() {
 	wait_for_egbb();
@@ -162,8 +161,6 @@ int CDECL main(int argc, char* argv[]) {
 	 * Search/eval execution commands should not be put there.
 	 */
 	load_ini();
-	if(egbb_setting_changed)
-		load_egbbs();
 
 	/*
 	 * Initialize MPI
@@ -199,8 +196,6 @@ int CDECL main(int argc, char* argv[]) {
 		 */
 		print_log("==============================\n");
 		while(true) {
-			if(egbb_setting_changed && !bios_key())
-				load_egbbs();
 			if(!read_line(buffer))
 				goto END;
 			commands[tokenize(buffer,commands)] = NULL;
@@ -347,15 +342,13 @@ bool parse_commands(char** commands) {
 			print("feature option=\"pht -spin %d 1 256\"\n",pht);
 			print("feature option=\"egbb_path -string %s\"\n", SEARCHER::egbb_path);
 			print("feature option=\"egbb_cache_size -spin %d 1 16384\"\n", SEARCHER::egbb_cache_size);
-			print("feature option=\"egbb_load_type -combo Load_none /// *Load_4_men /// Load_selected_(NI) /// Load_5_men\"\n");
+			print("feature option=\"egbb_load_type -spin 1 0 3\"\n");
 			print("feature option=\"egbb_probe_percentage -spin %d 1 100\"\n", SEARCHER::egbb_probe_percentage);
 			print_search_params();
 #ifdef TUNE
 			print_eval_params();
 #endif
-			wait_for_egbb();
 			print("feature done=1\n");
-
 			command_num++;
 		} else if (!strcmp(command, "xboard")) {
 		} else if (!strcmp(command, "computer")
@@ -440,6 +433,8 @@ bool parse_commands(char** commands) {
 		} else if (!strcmp(command, "clear_hash")) {
 			PROCESSOR::clear_hash_tables();
 		} else if (!strcmp(command, "new")) {
+			if(egbb_setting_changed)
+				load_egbbs();
 			PROCESSOR::clear_hash_tables();
 			searcher.new_board();
 			result = R_UNKNOWN;
@@ -730,6 +725,8 @@ bool parse_commands(char** commands) {
 			continue;
 
 		/*Wait if we are still loading EGBBs*/
+		if(egbb_setting_changed)
+			load_egbbs();
 		wait_for_egbb();
 
 		/*

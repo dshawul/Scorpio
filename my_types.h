@@ -96,6 +96,17 @@ Intrinsic popcnt
 #endif 
 
 /*
+Byte swap
+*/
+#if defined (__GNUC__)
+#	define bswap32(x)  __builtin_bswap32(x)
+#elif defined(_MSC_VER) && defined(__INTEL_COMPILER)
+#	define bswap32(x)  _bswap(x)
+#else
+#	define bswap32(x)  _byteswap_ulong(x)
+#endif
+
+/*
 cache line memory alignment (64 bytes)
 */
 #include <cstdlib>

@@ -1410,7 +1410,10 @@ bool check_search_params(char** commands,char* command,int& command_num) {
 	} else if(!strcmp(command, "contempt")) {
 		contempt = atoi(commands[command_num++]);
 	} else if(!strcmp(command, "smp_type")) {
-		use_abdada = atoi(commands[command_num++]);
+		command = commands[command_num++];
+		if(!strcmp(command,"YBW")) use_abdada = 0;
+		else if(!strcmp(command,"ABDADA")) use_abdada = 1;
+		else use_abdada = 2;
 	} else if(!strcmp(command, "smp_depth")) {
 		SMP_CODE(PROCESSOR::SMP_SPLIT_DEPTH = atoi(commands[command_num]));
 		command_num++;

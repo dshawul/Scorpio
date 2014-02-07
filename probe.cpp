@@ -19,7 +19,7 @@ typedef void (CDECL *PLOAD_EGBB) (char* path,int cache_size,int load_options);
 static PPROBE_EGBB probe_egbb;
 
 int SEARCHER::egbb_is_loaded = 0;
-int SEARCHER::egbb_load_type = LOAD_5MEN;
+int SEARCHER::egbb_load_type = LOAD_4MEN;
 int SEARCHER::egbb_probe_percentage = 75;
 int SEARCHER::egbb_cache_size = 16;
 char SEARCHER::egbb_path[MAX_STR] = "egbb/";
