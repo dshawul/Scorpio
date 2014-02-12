@@ -1,5 +1,4 @@
 #include "scorpio.h"
-
 static const char piece_name[] = "_KQRBNPkqrbnpZ";
 static const char rank_name[] = "12345678";
 static const char file_name[] = "abcdefgh";
@@ -859,6 +858,7 @@ TOP:
 }
 
 #ifdef _WIN32
+#    include <conio.h>
 int bios_key(void) {
 
 #   ifdef FILE_CNT

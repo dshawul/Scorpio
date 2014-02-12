@@ -8,6 +8,7 @@ Platform specific defines
 #define HAS_POPCNT
 #define HAS_PREFETCH
 #define PARALLEL
+#define USE_SPINLOCK
 
 /*
 int types
@@ -39,8 +40,6 @@ Os stuff
 */
 #ifdef _WIN32
 #    include <windows.h>
-#    include <io.h>
-#    include <conio.h>
 #    undef CDECL
 #    define CDECL __cdecl
 #    define UINT64(x) (x##ui64)
@@ -50,7 +49,6 @@ Os stuff
 #	 define GETPID()  _getpid()
 #else
 #    include <unistd.h>
-#    include <dlfcn.h>
 #    define CDECL
 #    ifdef ARC_64BIT
 #        define UINT64
@@ -179,7 +177,7 @@ Prefetch
 #		define LOCK          omp_lock_t
 #		define l_create(x)   omp_init_lock(&x)
 #		define l_lock(x)     omp_set_lock(&x)
-#		define l_unlock(x)   omp_unset_lock(&x)   
+#		define l_unlock(x)   omp_unset_lock(&x)
 inline void l_barrier() { 
 #		pragma omp barrier 
 }

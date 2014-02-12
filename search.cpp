@@ -87,38 +87,6 @@ bool SEARCHER::hash_cutoff() {
 
 	return false;
 }
-/*
-* EGBB cutoff
-*/
-bool SEARCHER::bitbase_cutoff() {
-#ifdef EGBB
-	int score;
-	int pdepth = (all_man_c < MAX_EGBB) ? probe_depth                  //5-pieces probed in whole of search depth
-		                            : probe_depth / 2;                 //6-pieces only in the first half
-	if( egbb_is_loaded												   //must be loaded
-		&& all_man_c <= MAX_EGBB                                       //maximum 6 pieces
-		&& (ply >= pdepth || pstack->depth <= 0 || fifty == 0)         //Immediate probe after >=depth OR capture/pawn-push
-		&& (ply <= pdepth ||                                           //Probe at depth limit
-		    (egbb_load_type >= 1 && all_man_c <= 4) ||                 //4-pieces only if others are not in RAM
-		    (egbb_load_type == 3)  )                                   //Probe 5-men everywhere if they are loaded in RAM
-		&& probe_bitbases(score)
-		) {
-			egbb_probes++;
-
-			/*prefer wins near root*/
-			if(score > 0)
-				score -= WIN_PLY * (ply + 1);
-			else if(score < 0)
-				score += WIN_PLY * (ply + 1);
-
-			pstack->best_score = score;
-
-			return true;
-	}
-#endif
-	return false;
-}
-
 FORCEINLINE int SEARCHER::on_node_entry() {
 	/*qsearch?*/
 	if(pstack->depth <= 0) {
@@ -278,10 +246,6 @@ FORCEINLINE int SEARCHER::on_qnode_entry() {
 		pstack->best_score = eval();
 		return true;
 	}
-
-	/*bitbase cutoff*/
-	if(bitbase_cutoff())
-		return true;
 
 	/*stand pat*/
 	if(!hstack[hply - 1].checks) {
@@ -1179,7 +1143,6 @@ MOVE SEARCHER::find_best() {
 #endif
 
 	/*score non-egbb moves*/
-	probe_depth = 0;
 	if(!in_egbb) {
 		for(i = 0;i < pstack->count; i++) {
 			pstack->current_move = pstack->move_st[i];
@@ -1224,8 +1187,9 @@ MOVE SEARCHER::find_best() {
 		/*search with the current depth*/
 		search_depth++;
 
-		/*use the whole search depth once inegbb*/
-		probe_depth = egbb_probe_percentage * search_depth / 100;
+		/*egbb ply limit*/
+		SEARCHER::egbb_ply_limit = 
+			SEARCHER::egbb_ply_limit_percent * search_depth / 100;
 
 		/*Set bounds and search.*/
 		pstack->depth = search_depth * UNITDEPTH;

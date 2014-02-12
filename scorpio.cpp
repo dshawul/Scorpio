@@ -68,7 +68,6 @@ int SEARCHER::root_score;
 int SEARCHER::root_failed_low;
 int SEARCHER::last_book_move;
 int SEARCHER::first_search;
-int SEARCHER::probe_depth;
 int SEARCHER::analysis_mode = false;
 int SEARCHER::in_egbb;
 int SEARCHER::show_full_pv;
@@ -340,10 +339,11 @@ bool parse_commands(char** commands) {
 			print("feature option=\"ht -spin %d 1 32768\"\n",ht);
 			print("feature option=\"eht -spin %d 1 16384\"\n",eht);
 			print("feature option=\"pht -spin %d 1 256\"\n",pht);
-			print("feature option=\"egbb_path -string %s\"\n", SEARCHER::egbb_path);
+			print("feature option=\"egbb_path -path %s\"\n", SEARCHER::egbb_path);
 			print("feature option=\"egbb_cache_size -spin %d 1 16384\"\n", SEARCHER::egbb_cache_size);
-			print("feature option=\"egbb_load_type -spin 1 0 3\"\n");
-			print("feature option=\"egbb_probe_percentage -spin %d 1 100\"\n", SEARCHER::egbb_probe_percentage);
+			print("feature option=\"egbb_load_type -spin %d 0 3\"\n", SEARCHER::egbb_load_type);
+			print("feature option=\"egbb_depth_limit -spin %d 0 %d\"\n", SEARCHER::egbb_depth_limit, MAX_PLY);
+			print("feature option=\"egbb_ply_limit_percent -spin %d 0 100\"\n", SEARCHER::egbb_ply_limit_percent);
 			print_search_params();
 #ifdef TUNE
 			print_eval_params();
@@ -518,8 +518,11 @@ bool parse_commands(char** commands) {
 			egbb_setting_changed = true;
 			SEARCHER::egbb_load_type = atoi(commands[command_num]);
 			command_num++;
-		} else if(!strcmp(command, "egbb_probe_percentage")) {
-			SEARCHER::egbb_probe_percentage = atoi(commands[command_num]);
+		} else if(!strcmp(command, "egbb_depth_limit")) {
+			SEARCHER::egbb_depth_limit = atoi(commands[command_num]);
+			command_num++;
+		} else if(!strcmp(command, "egbb_ply_limit_percent")) {
+			SEARCHER::egbb_ply_limit_percent = atoi(commands[command_num]);
 			command_num++;
 #endif
 #ifdef BOOK_PROBE

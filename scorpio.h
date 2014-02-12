@@ -178,7 +178,7 @@ enum square_names {
 #define MATE_SCORE       20000
 #define SKIP_SCORE       10000
 #define WIN_SCORE         3000
-#define WIN_PLY             40
+#define WIN_PLY             20
 #define MAX_NUMBER    16777216
 #define MAX_HIST       8388608
 #define MAX_UBMP64   UBMP64(0xffffffffffffffff)
@@ -636,10 +636,11 @@ typedef CACHE_ALIGN struct SEARCHER{
 	bool bitbase_cutoff();
 	static int egbb_is_loaded;
 	static int egbb_load_type;
-	static int egbb_probe_percentage;
+	static int egbb_depth_limit;
+	static int egbb_ply_limit_percent;
+	static int egbb_ply_limit;
 	static int egbb_cache_size;
 	static char egbb_path[MAX_STR];
-	static int probe_depth;
 	/*
 	End
 	*/

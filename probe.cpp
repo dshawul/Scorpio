@@ -1,5 +1,12 @@
 #include "scorpio.h"
 
+#ifndef _WIN32   // Linux - Unix
+#	 define dlsym __shut_up
+#    include <dlfcn.h>
+#	 undef dlsym
+extern "C" void *(*dlsym(void *handle, const char *symbol))();
+#endif
+
 enum egbb_colors {
 	_WHITE,_BLACK
 };
@@ -20,9 +27,12 @@ static PPROBE_EGBB probe_egbb;
 
 int SEARCHER::egbb_is_loaded = 0;
 int SEARCHER::egbb_load_type = LOAD_4MEN;
-int SEARCHER::egbb_probe_percentage = 75;
+int SEARCHER::egbb_depth_limit = 3;
+int SEARCHER::egbb_ply_limit_percent = 75;
+int SEARCHER::egbb_ply_limit;
 int SEARCHER::egbb_cache_size = 16;
 char SEARCHER::egbb_path[MAX_STR] = "egbb/";
+
 /*
 Load the dll and get the address of the load and probe functions.
 */
@@ -53,18 +63,17 @@ int LoadEgbbLibrary(char* main_path,int egbb_cache_size) {
 	static HMODULE hmod = 0;
 	PLOAD_EGBB load_egbb;
 	char path[256];
-	char terminator;
 	size_t plen = strlen(main_path);
-	strcpy(path,main_path);
 	if (plen) {
-		terminator = main_path[strlen(main_path)-1];
+		char terminator = main_path[plen - 1];
 		if (terminator != '/' && terminator != '\\') {
-			if (strchr(path, '\\') != NULL)
-				strcat(path, "\\");
+			if (strchr(main_path, '\\') != NULL)
+				strcat(main_path, "\\");
 			else
-				strcat(path, "/");
+				strcat(main_path, "/");
 		}
 	}
+	strcpy(path,main_path);
 	strcat(path,EGBB_NAME);
 	if(hmod) FreeLibrary(hmod);
 	if((hmod = LoadLibrary(path)) != 0) {
@@ -121,4 +130,33 @@ int SEARCHER::probe_bitbases(int& score) {
 #endif
 
     return false;
+}
+/*
+* EGBB cutoff
+*/
+bool SEARCHER::bitbase_cutoff() {
+#ifdef EGBB
+	int score;
+	int dlimit = egbb_depth_limit * UNITDEPTH;
+	int plimit = (all_man_c <= MAX_EGBB) ? egbb_ply_limit : egbb_ply_limit / 2;
+	if( egbb_is_loaded								     //must be loaded
+		&& all_man_c <= MAX_EGBB                         //maximum 6 pieces
+		&& (pstack->depth >= dlimit || all_man_c <= 4 )  //hard depth limit
+		&& (ply >= plimit || fifty == 0)                 //ply above threshold or caps/pawn push
+		&& probe_bitbases(score)
+		) {
+			egbb_probes++;
+
+			/*prefer wins near root*/
+			if(score > 0)
+				score -= WIN_PLY * (ply + 1);
+			else if(score < 0)
+				score += WIN_PLY * (ply + 1);
+
+			pstack->best_score = score;
+
+			return true;
+	}
+#endif
+	return false;
 }
