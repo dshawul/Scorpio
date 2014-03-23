@@ -969,8 +969,8 @@ void CHESS_CLOCK::set_stime(int hply) {
 	if(pondering) p_time /= 4;
 
 	if(!mps) {
-		if(move_no <= 25) moves_left = 40 - move_no;
-		else moves_left = 15;
+		if(move_no <= 20) moves_left = 45 - move_no;
+		else moves_left = 25;
 		search_time = p_time / moves_left + inc;
 		maximum_time = p_time / 2;
 	} else {

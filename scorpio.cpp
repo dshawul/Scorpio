@@ -365,8 +365,9 @@ bool parse_commands(char** commands) {
 				mov_str(main_searcher->stack[0].current_move,mv_str);
 				print("stat01: %d "FMT64" %d %d %d %s\n",time_used / 10,main_searcher->nodes,
 					main_searcher->search_depth,
-					main_searcher->stack[0].count - main_searcher->stack[0].current_index - 1,
-					main_searcher->stack[0].count,mv_str);
+					main_searcher->stack[0].count - main_searcher->stack[0].current_index,
+					main_searcher->stack[0].count,
+					mv_str);
 			}
 		} else if (!strcmp(command, "accepted")
 			|| !strcmp(command, "rejected")
