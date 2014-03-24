@@ -1,6 +1,6 @@
 #include "scorpio.h"
 
-#define VERSION __TIME__
+#define VERSION "2.7.7"
 
 /*
 all external variables declared here
