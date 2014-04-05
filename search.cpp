@@ -339,7 +339,7 @@ int SEARCHER::be_selective() {
 		) {
 		extend(UNITDEPTH / 2);
 	}
-	if(hply >= 2
+	if (depth <= 6 && hply >= 2
 		&& m_capture(move)
 		&& m_capture(hstack[hply - 2].move)
 		&& m_to(move) == m_to(hstack[hply - 2].move)

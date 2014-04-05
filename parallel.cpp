@@ -360,6 +360,7 @@ void PROCESSOR::idle_loop() {
 	if((this != processors[0]) || (n_hosts == 1)) {
 		while(state <= WAIT) {
 			if(state == PARK) t_sleep(1);
+			else t_pause();
 		}
 		return;
 	}
@@ -368,6 +369,7 @@ void PROCESSOR::idle_loop() {
 #ifdef THREAD_POLLING
 	while(state <= WAIT) {
 		if(state == PARK) t_sleep(1);
+		else t_pause();
 		if(!message_available)
 			continue;
 		message_id = g_message_id;
@@ -380,6 +382,7 @@ void PROCESSOR::idle_loop() {
 			handle_message(source,message_id);
 		offer_help();
 		if(state == PARK) t_sleep(1);
+		else t_pause();
 	} while(state <= WAIT);
 #endif
 #endif

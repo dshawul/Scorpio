@@ -162,16 +162,19 @@ Prefetch
 #	define t_create(f,p)  _beginthread(f,0,(void*)p)
 #	define t_sleep(x)     Sleep(x)
 #	define t_yield()	  SwitchToThread()
+#	define t_pause()	  YieldProcessor()
 #else
 #	include <pthread.h>
 #	define t_create(f,p)  {pthread_t t = 0; pthread_create(&t,0,(void*(*)(void*))&f,(void*)p);}
 #	define t_sleep(x)     usleep((x) * 1000)
 #	define t_yield()	  pthread_yield()
+#	define t_pause()      asm volatile("pause\n": : :"memory")
 #endif
 /*
 *locks
 */
 #if defined PARALLEL
+#	 define VOLATILE volatile
 #	 if defined OMP
 #	    include <omp.h>
 #		define LOCK          omp_lock_t
@@ -181,26 +184,31 @@ Prefetch
 inline void l_barrier() { 
 #		pragma omp barrier 
 }
-#    elif defined _WIN32
-#		define VOLATILE volatile
-#       ifdef USE_SPINLOCK
-#             define LOCK VOLATILE int
-#             define l_create(x)   ((x) = 0)
-#             define l_lock(x)     while(InterlockedExchange((LPLONG)&(x),1) != 0) {while((x) != 0);}
-#             define l_unlock(x)   ((x) = 0)
-#       else
-#             define LOCK CRITICAL_SECTION
-#             define l_create(x)   InitializeCriticalSection(&x)
-#             define l_lock(x)     EnterCriticalSection(&x)
-#             define l_unlock(x)   LeaveCriticalSection(&x)
-#       endif   
-#    else
-#			  define VOLATILE volatile
-#			  define LOCK pthread_mutex_t
-#			  define l_create(x)   pthread_mutex_init(&(x),0)
-#			  define l_lock(x)     pthread_mutex_lock(&(x))
-#			  define l_unlock(x)   pthread_mutex_unlock(&(x))
-#    endif
+#	 else
+#		ifdef USE_SPINLOCK
+#			if defined _WIN32
+#				define l_test_and_set(x,v) InterlockedExchange((LPLONG)&(x),v)
+#			else
+#				define l_test_and_set(x,v) __sync_lock_test_and_set(&(x),v)
+#			endif
+#			define LOCK VOLATILE int
+#			define l_create(x)   ((x) = 0)
+#			define l_lock(x)	 while(l_test_and_set(x,1) != 0) {while((x) != 0) t_pause();}
+#			define l_unlock(x)   ((x) = 0)
+#		else
+#			if defined _WIN32
+#				define LOCK CRITICAL_SECTION
+#				define l_create(x)   InitializeCriticalSection(&x)
+#				define l_lock(x)     EnterCriticalSection(&x)
+#				define l_unlock(x)   LeaveCriticalSection(&x)  
+#			else
+#				define LOCK pthread_mutex_t
+#				define l_create(x)   pthread_mutex_init(&(x),0)
+#				define l_lock(x)     pthread_mutex_lock(&(x))
+#				define l_unlock(x)   pthread_mutex_unlock(&(x))
+#			endif
+#		endif
+#	endif
 #else
 #    define VOLATILE
 #    define LOCK int

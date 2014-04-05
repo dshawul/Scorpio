@@ -10,6 +10,17 @@
 #    pragma warning (disable: 4244)
 #endif
 
+/*
+Some definitions to include/remove code
+*/
+#define LOG_FILE
+#define BOOK_PROBE
+#define BOOK_CREATE
+#define EGBB
+//#define CLUSTER
+//#define TUNE
+//#define THREAD_POLLING
+
 /*includes*/
 #include <cstdarg>
 #include <cstdio>
@@ -29,17 +40,6 @@
 #  include "mpi.h"
 #endif
 #include "my_types.h"
-
-/*
-Some definitions to include/remove code
-*/
-#define LOG_FILE
-#define BOOK_PROBE
-#define BOOK_CREATE
-#define EGBB
-//#define CLUSTER
-//#define TUNE
-//#define THREAD_POLLING
 
 /*
 parallel search options
@@ -466,7 +466,7 @@ struct INIT_MESSAGE {
 /*
 SEARCHER
 */
-typedef CACHE_ALIGN struct SEARCHER{
+typedef struct SEARCHER{
 	/*
 	data that needs to be copied by COPY fn below
 	*/
