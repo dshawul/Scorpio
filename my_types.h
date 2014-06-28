@@ -167,7 +167,7 @@ Prefetch
 #	include <pthread.h>
 #	define t_create(f,p)  {pthread_t t = 0; pthread_create(&t,0,(void*(*)(void*))&f,(void*)p);}
 #	define t_sleep(x)     usleep((x) * 1000)
-#	define t_yield()	  pthread_yield()
+#	define t_yield()      sched_yield()
 #	define t_pause()      asm volatile("pause\n": : :"memory")
 #endif
 /*

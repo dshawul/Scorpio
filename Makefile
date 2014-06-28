@@ -28,63 +28,79 @@ DEFINES =
 #DEFINES += -DMAX_HOSTS=128
 #DEFINES += -DTUNE
 #DEFINES += -DTT_TYPE=1
-#DEFINES += -DTHREAD_POLLING
+DEFINES += -DTHREAD_POLLING
 
 ############################
-# Compiler
-#   gcc      --> g++
-#   icpc     --> icpc
-#   arm      --> arm-linux-androideabi
-#   cluster  --> mpiCC
-# Debug
-#   0        --> none
-#   1        --> -g
-#   2        --> -pg
+# Compiler choice 
 ############################
-
-COMPILER=gcc
 DEBUG=0
-
-CXXFLAGS = -O3 -Wall -fstrict-aliasing -fno-exceptions -fno-rtti
-LXXFLAGS = -lm -ldl
-
-ifeq ($(DEBUG),0)
-	CXXFLAGS += -fomit-frame-pointer 
-else
-	ifeq ($(DEBUG),1)
-		CXXFLAGS += -g
-		LXXFLAGS += -g
-	else
-		CXXFLAGS += -g -pg
-		LXXFLAGS += -g -pg
-	endif
-endif
-
+COMP=gcc-cluster
 STRIP=strip
 
-ifeq ($(COMPILER),gcc)
-	CXX=g++
-	CXXFLAGS += -msse
-	LXXFLAGS += -lpthread
-else ifeq ($(COMPILER),icpc)
-	CXX=icpc
-	CXXFLAGS += -wd128 -wd981 -wd869 -wd2259 -wd383 -wd1418 -vec_report0
-	LXXFLAGS += -lpthread
-else ifeq ($(COMPILER),arm)
-	CXX=arm-linux-androideabi-g++
-	STRIP=arm-linux-androideabi-strip 
-else ifeq ($(COMPILER),cluster)
-	CXX="mpiCC"
-	CXXFLAGS += -wd128 -wd981 -wd869 -wd2259 -wd383 -wd1418
-	LXXFLAGS += -lpthread
+ifeq ($(COMP),gcc-cluster)
+	CXX="mpic++"
+	override COMP=gcc
 	DEFINES += -DCLUSTER
+else ifeq ($(COMP),icpc-cluster)
+	CXX="mpic++"
+	override COMP=icpc
+	DEFINES += -DCLUSTER
+else ifeq ($(COMP),gcc)
+	CXX=g++
+else ifeq ($(COMP),icpc)
+	CXX=icpc
+else ifeq ($(COMP),arm)
+	CXX=arm-linux-androideabi-g++
+	STRIP=arm-linux-androideabi-strip
 endif
 
 STRIP += $(EXE)
 
-ifneq ($(DEBUG),0)
-	STRIP=
+###########################
+#  Compiler flags
+###########################
+CXXFLAGS = -Wall -fstrict-aliasing -fno-exceptions -fno-rtti
+LXXFLAGS = -lm -ldl
+
+ifeq ($(COMP),gcc)
+	CXXFLAGS += -msse
+	LXXFLAGS += -lpthread
+else ifeq ($(COMP),icpc)
+	CXXFLAGS += -wd128 -wd981 -wd869 -wd2259 -wd383 -wd1418
+	LXXFLAGS += -lpthread
 endif
+
+ifeq ($(DEBUG),3)
+	ifeq ($(COMP),icpc)
+		CXXFLAGS += -O2 -prof-gen
+	else
+		CXXFLAGS += -O2 -fprofile-generate
+		LXXFLAGS += -lgcov
+	endif
+	STRIP=
+else ifeq ($(DEBUG),2)
+	ifeq ($(COMP),icpc)
+		CXXFLAGS += -g -pg 
+	else
+		CXXFLAGS += -g -pg 
+		LXXFLAGS += -g -pg
+	endif
+	STRIP=
+else ifeq ($(DEBUG),1)
+   	ifeq ($(COMP),icpc)
+		CXXFLAGS += -prof-use -fast -fomit-frame-pointer
+	else
+		CXXFLAGS += -fprofile-use -Ofast -fomit-frame-pointer -flto
+		LXXFLAGS += -lgcov
+	endif
+else
+	ifeq ($(COMP),icpc)
+		CXXFLAGS += -fast -fomit-frame-pointer
+	else
+		CXXFLAGS += -Ofast -fomit-frame-pointer -flto
+	endif
+endif
+
 ######################
 # Rules
 ######################
@@ -93,17 +109,37 @@ default:
 	$(MAKE) $(EXE) strip
 
 clean:
-	$(RM) $(OBJ) $(EXE) core.* cluster.*
+	$(RM) $(OBJ) $(EXE) core.* cluster.* *.gcda
 
 strip:
 	$(STRIP)
+
+help:
+	@echo ""
+	@echo "1. make [DEBUG=n] [COMP=c]"
+	@echo ""
+	@echo "  n ="
+	@echo "	0: Compile optimized binary (-03)"
+	@echo "	1: Compile with profile guided optimization (PGO)"
+	@echo "	2: Compile for deugging (default)"
+	@echo "	3: Prepare for PGO"
+	@echo ""
+	@echo "  c ="
+	@echo "	gcc    :  g++ compiler"
+	@echo "	icpc   :  intel compiler"
+	@echo "	arm    :  arm android compiler"
+	@echo "	cluster:  mpiC++ compiler"
+	@echo ""
+	@echo "2. make clean - removes all files but source code"
+	@echo "3. make strip - strips executable of debugging/profiling data"
+	@echo ""
 
 ##############
 # Dependencies
 ############## 
 
 $(EXE): $(OBJ)
-	$(CXX) $(LXXFLAGS) -o $@ $(OBJ)
+	$(CXX) -o $@ $(OBJ) $(LXXFLAGS) 
 
 %.o: %.cpp $(HPP)
 	$(CXX) $(CXXFLAGS) $(DEFINES) -c -o $@ $<

@@ -139,13 +139,6 @@ static void reset_pht() {
 	print("pht %d X %d = %.1f MB\n",size,sizeof(PAWNHASH),(size * sizeof(PAWNHASH)) / double(1024 * 1024));
 }
 /*
-exit scorpio 
-*/
-void PROCESSOR::exit_scorpio(int status) {
-	CLUSTER_CODE(MPI_Finalize());
-	exit(status);
-}
-/*
 only winboard protocol support
 */
 int CDECL main(int argc, char* argv[]) {

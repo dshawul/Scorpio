@@ -182,8 +182,8 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 	* from keypress and checks for time limit.
 	*/
 	if(processor_id == 0 CLUSTER_CODE(&& PROCESSOR::host_id == 0)) {
-		if(nodes > time_check) {
-			time_check += poll_nodes;
+		if(nodes > time_check + poll_nodes) {
+			time_check = nodes;
 			if(!abort_search)
 				check_quit();
 			if(abort_search) {
@@ -196,13 +196,10 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 	/*check for messages from other hosts*/
 #ifdef CLUSTER
 #	ifndef THREAD_POLLING
-	if(processor_id == 0 && nodes > message_check) {
+	if(processor_id == 0 && 
+	   nodes > message_check + PROCESSOR::MESSAGE_POLL_NODES) {
 		processors[processor_id]->idle_loop();
-		message_check += PROCESSOR::MESSAGE_POLL_NODES;
-	}
-#	else
-	if(processor_id == 0 && PROCESSOR::message_available) {
-		processors[processor_id]->idle_loop();
+		message_check = nodes;
 	}
 #	endif
 #endif   
@@ -682,7 +679,7 @@ POP:
 					}
 #endif
 					/*
-					* We have run out of work now.If this was the _last worker_, grab master 
+					* We have run out of work now. If this was the _last worker_, grab master 
 					* search block and continue searching with it (i.e. backup). Otherwise goto 
 					* idle mode until work is assigned. In a recursive search, only the thread 
 					* that initiated the split can backup.
