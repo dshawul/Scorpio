@@ -88,19 +88,22 @@ void PROCESSOR::handle_message(int source,int message_id) {
 
 		/*setup board by undoing old moves and making new ones*/
 		register int i,score,move,using_pvs;
-		for(i = 0;i < split.pv_length && i < psb->ply;i++) {
-			if(split.pv[i] != psb->hstack[psb->hply - psb->ply + i].move) 
-				break;
+		if(split.pv_length) {
+			for(i = 0;i < split.pv_length && i < psb->ply;i++) {
+				if(split.pv[i] != psb->hstack[psb->hply - psb->ply + i].move) 
+					break;
+			}
+			while(psb->ply > i) {
+				if(psb->hstack[psb->hply - 1].move) psb->POP_MOVE();
+				else psb->POP_NULL();
+			}
+			for(;i < split.pv_length;i++) {
+				if(split.pv[i]) psb->PUSH_MOVE(split.pv[i]);
+				else psb->PUSH_NULL();
+			}
+		} else {
+			psb->PUSH_MOVE(split.pv[0]);
 		}
-		while(psb->ply > i) {
-			if(psb->hstack[psb->hply - 1].move) psb->POP_MOVE();
-			else psb->POP_NULL();
-		}
-		for(;i < split.pv_length;i++) {
-			if(split.pv[i]) psb->PUSH_MOVE(split.pv[i]);
-			else psb->PUSH_NULL();
-		}
-
 		/*reset*/
 		SEARCHER::abort_search = 0;
 		psb->clear_block();
@@ -188,13 +191,13 @@ void PROCESSOR::handle_message(int source,int message_id) {
 		merge.master = split.master;
 		merge.best_move = move;
 		merge.best_score = score;
-		merge.pv_length = psb->ply;
+		merge.pv_length = 0;
 
 		if(move && score > -split.beta && score < -split.alpha) {
-			merge.pv[psb->ply] = move;
-			memcpy(&merge.pv[psb->ply + 1],&(psb->pstack + 1)->pv[psb->ply + 1],
+			merge.pv[0] = move;
+			memcpy(&merge.pv[1],&(psb->pstack + 1)->pv[psb->ply + 1],
 				((psb->pstack + 1)->pv_length - psb->ply ) * sizeof(MOVE));
-			merge.pv_length = (psb->pstack + 1)->pv_length;
+			merge.pv_length = (psb->pstack + 1)->pv_length - psb->ply;
 		}
 		/*send it*/
 		l_lock(lock_smp);
@@ -226,9 +229,9 @@ void PROCESSOR::handle_message(int source,int message_id) {
 					master->pstack->flag = EXACT;
 					master->pstack->alpha = merge.best_score;
 
-					memcpy(&master->pstack->pv[master->ply],&merge.pv[master->ply],
-						(merge.pv_length - master->ply ) * sizeof(MOVE));
-					master->pstack->pv_length = merge.pv_length;
+					memcpy(&master->pstack->pv[master->ply],&merge.pv[0],
+							merge.pv_length * sizeof(MOVE));
+					master->pstack->pv_length = merge.pv_length + master->ply;
 				}
 			}
 		}
@@ -250,11 +253,14 @@ void PROCESSOR::handle_message(int source,int message_id) {
 		*/
 		l_lock(lock_smp);
 		SPLIT_MESSAGE& split = global_split[source];
-		if(!master->stop_searcher && master->get_cluster_move(&split)) {
-			ISend(source,PROCESSOR::SPLIT,&split,SPLIT_MESSAGE_SIZE(split));
+		if(!master->stop_searcher && master->get_cluster_move(&split,true)) {
+			ISend(source,PROCESSOR::SPLIT,&split,SPLIT_MESSAGE_SIZE(split) + 4);
 			l_unlock(lock_smp);
 		} else {
-			available_host_workers.push_back(source);
+			if(n_hosts > 2)
+				ISend(source,CANCEL);
+			else
+				available_host_workers.push_back(source);
 			l_unlock(lock_smp);
 			/*remove from current split*/
 			l_lock(master->lock);
@@ -352,13 +358,13 @@ void PROCESSOR::message_idle_loop() {
 			if(message_id == SPLIT) {
 				message_available = 1;
 				while(message_available) 
-					t_sleep(1);
+					t_yield();
 			} else {
 				handle_message(source,message_id);
 			}
 		}
 		offer_help();
-		t_sleep(1);
+		t_yield();
 	}
 }
 
@@ -405,7 +411,7 @@ void PROCESSOR::exit_scorpio(int status) {
 /*
 * Get move for host helper
 */
-int SEARCHER::get_cluster_move(SPLIT_MESSAGE* split) {
+int SEARCHER::get_cluster_move(SPLIT_MESSAGE* split, bool resplit) {
 
 	l_lock(lock);
 TOP:
@@ -434,10 +440,14 @@ TOP:
 	split->search_state = NULL_MOVE;
 	split->extension = pstack->extension;
 	split->reduction = pstack->reduction;
-	split->pv_length = ply;
-	for(int i = 0;i < ply;i++)
-		split->pv[i] = hstack[hply - ply + i].move;
-
+	if(resplit) {
+		split->pv_length = 0;
+		split->pv[0] = (pstack - 1)->current_move;
+	} else {
+		split->pv_length = ply;
+		for(int i = 0;i < ply;i++)
+			split->pv[i] = hstack[hply - ply + i].move;
+	}
 	/*undo move*/
 	POP_MOVE();
 
@@ -705,9 +715,8 @@ int SEARCHER::check_split() {
 				splits++;
 				attach_processor(processor_id);
 				for(i = 0; i < PROCESSOR::n_processors; i++) {
-					if(workers[i]) {
+					if(workers[i])
 						processors[i]->state = GO;
-					}
 				}
 				l_unlock(lock_smp);
 				return true;

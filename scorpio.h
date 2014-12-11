@@ -603,7 +603,7 @@ typedef struct SEARCHER{
 #ifdef CLUSTER
 	VOLATILE int n_host_workers;
 	std::list<int> host_workers;
-	int get_cluster_move(SPLIT_MESSAGE*);
+	int get_cluster_move(SPLIT_MESSAGE*,bool=false);
 	void get_init_pos(INIT_MESSAGE*);
 #endif
 	/*
