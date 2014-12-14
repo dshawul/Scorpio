@@ -50,7 +50,8 @@ char PROCESSOR::host_name[256];
 std::list<int> PROCESSOR::available_host_workers;
 int PROCESSOR::help_messages = 0;
 const char *const PROCESSOR::message_str[] = {
-	"QUIT","INIT","RELAX","HELP","CANCEL","SPLIT","MERGE","PING","PONG","ABORT"
+	"QUIT","INIT","RELAX","HELP","CANCEL","SPLIT","MERGE","PING","PONG","ABORT",
+	"RECORD_TT","PROBE_TT","PROBE_TT_RESULT"
 };
 #endif
 /*

@@ -11,7 +11,7 @@ Allocate tables
 	-The rest is allocated for each thread.
 */
 void PROCESSOR::reset_hash_tab(int id,UBMP32 size) {
-#if TT_TYPE == 0
+#if NUMA_TT_TYPE == 0
 	if(id != 0) return;
 #endif
 	if(size) hash_tab_mask = size - 1;
@@ -51,6 +51,22 @@ void PROCESSOR::delete_hash_tables() {
 	aligned_free<PAWNHASH>(pawn_hash_tab);
 	aligned_free<EVALHASH>(eval_hash_tab);
 }
+/* 
+ Distributed hashtable on NUMA machines
+ */
+#if NUMA_TT_TYPE == 0
+#define TT_KEY \
+	static const PPROCESSOR proc = processors[0];\
+	UBMP32 key = UBMP32(hash_key & PROCESSOR::hash_tab_mask);
+#elif NUMA_TT_TYPE == 1
+#define TT_KEY \
+	PPROCESSOR proc = processors[(hash_key % PROCESSOR::n_processors)];\
+	UBMP32 key = UBMP32((hash_key / PROCESSOR::n_processors) & PROCESSOR::hash_tab_mask);
+#else
+#define TT_KEY \
+	PPROCESSOR proc = processors[processor_id];\
+	UBMP32 key = UBMP32(hash_key & PROCESSOR::hash_tab_mask);
+#endif
 /*
 Main hash table
 */
@@ -60,16 +76,7 @@ void SEARCHER::record_hash(
 				 int col,const HASHKEY& hash_key,int depth,int ply,
 				 int flags,int score,MOVE move,int mate_threat,int singular
 				 ) {
-#if TT_TYPE == 0
-	static const PPROCESSOR proc = processors[0];
-	UBMP32 key = UBMP32(hash_key & PROCESSOR::hash_tab_mask);
-#elif TT_TYPE == 1
-	PPROCESSOR proc = processors[(hash_key % PROCESSOR::n_processors)];
-	UBMP32 key = UBMP32((hash_key / PROCESSOR::n_processors) & PROCESSOR::hash_tab_mask);
-#else
-	PPROCESSOR proc = processors[processor_id];
-	UBMP32 key = UBMP32(hash_key & PROCESSOR::hash_tab_mask);
-#endif
+	TT_KEY;
 	register PHASH addr,pslot,pr_slot = 0;
 	register HASH slot;
 	int sc,max_sc = MAX_NUMBER;
@@ -120,16 +127,7 @@ int SEARCHER::probe_hash(
 			   MOVE& move,int alpha,int beta,int& mate_threat,int& singular,int& h_depth,
 			   bool exclusiveP
 			   ) {
-#if TT_TYPE == 0
-	static const PPROCESSOR proc = processors[0];
-	UBMP32 key = UBMP32(hash_key & PROCESSOR::hash_tab_mask);
-#elif TT_TYPE == 1
-	PPROCESSOR proc = processors[(hash_key % PROCESSOR::n_processors)];
-	UBMP32 key = UBMP32((hash_key / PROCESSOR::n_processors) & PROCESSOR::hash_tab_mask);
-#else
-	PPROCESSOR proc = processors[processor_id];
-	UBMP32 key = UBMP32(hash_key & PROCESSOR::hash_tab_mask);
-#endif
+	TT_KEY;
 	register PHASH addr,pslot;
 	register HASH slot;
     register int flags;
@@ -244,16 +242,7 @@ prefetch tt
 */
 void SEARCHER::prefetch_tt() {
 #ifdef HAS_PREFETCH
-#if TT_TYPE == 0
-	static const PPROCESSOR proc = processors[0];
-	UBMP32 key = UBMP32(hash_key & PROCESSOR::hash_tab_mask);
-#elif TT_TYPE == 1
-	PPROCESSOR proc = processors[(hash_key % PROCESSOR::n_processors)];
-	UBMP32 key = UBMP32((hash_key / PROCESSOR::n_processors) & PROCESSOR::hash_tab_mask);
-#else
-	PPROCESSOR proc = processors[processor_id];
-	UBMP32 key = UBMP32(hash_key & PROCESSOR::hash_tab_mask);
-#endif	
+	TT_KEY;
 	if(player == white) {
 		PREFETCH_T0(proc->white_hash_tab + key);
 	} else { 

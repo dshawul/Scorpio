@@ -57,7 +57,7 @@ parallel search options
 #endif
 #ifdef  CLUSTER
 #	if !defined(MAX_HOSTS)
-#		define MAX_HOSTS            128
+#		define MAX_HOSTS             16
 #	endif
 #endif
 /*
@@ -66,8 +66,11 @@ parallel search options
 * 1 - distributed tt
 * 2 - local tt
 */
+#if !defined(NUMA_TT_TYPE)
+#	define NUMA_TT_TYPE              0
+#endif
 #if !defined(TT_TYPE)
-#	define TT_TYPE                   0
+#	define TT_TYPE                   1
 #endif
 /*
 Use const when not tuning
@@ -457,10 +460,22 @@ struct INIT_MESSAGE {
 	BMP32 pv_length;
 	MOVE  pv[127];
 };
-
+struct TT_MESSAGE {
+	UBMP64 hash_key;
+	BMP16  score;
+	UBMP8  depth;
+	UBMP8  flags;
+	UBMP8  ply;
+	UBMP8  col;
+	UBMP8  mate_threat;
+	UBMP8  singular;
+	MOVE   move;
+	BMP16  alpha;
+	BMP16  beta;
+};
 #define   SPLIT_MESSAGE_SIZE(x)   (40 + ((x).pv_length << 2))
 #define   MERGE_MESSAGE_SIZE(x)   (56 + ((x).pv_length << 2))
-#define   INIT_MESSAGE_SIZE(x)   (MAX_FEN_STR + 4 + ((x).pv_length << 2))
+#define   INIT_MESSAGE_SIZE(x)    (MAX_FEN_STR + 4 + ((x).pv_length << 2))
 
 #endif
 /*
@@ -560,6 +575,8 @@ typedef struct SEARCHER{
 	void  pre_calculate();
 	void  record_hash(int,const HASHKEY&,int,int,int,int,MOVE,int,int);
 	int   probe_hash(int,const HASHKEY&,int,int,int&,MOVE&,int,int,int&,int&,int&,bool);
+	void  RECORD_HASH(int,const HASHKEY&,int,int,int,int,MOVE,int,int);
+	int   PROBE_HASH(int,const HASHKEY&,int,int,int&,MOVE&,int,int,int&,int&,int&,bool);
 	void  record_pawn_hash(const HASHKEY&,const SCORE&,const PAWNREC&);
 	int   probe_pawn_hash(const HASHKEY&,SCORE&,PAWNREC&);
 	void  record_eval_hash(const HASHKEY&,int);
@@ -757,9 +774,10 @@ typedef struct PROCESSOR {
 	/*cluster*/
 #ifdef CLUSTER
 	enum processor_states {
-		QUIT = 0,INIT,RELAX,HELP,CANCEL,SPLIT,MERGE,PING,PONG,ABORT
+		QUIT = 0,INIT,RELAX,HELP,CANCEL,SPLIT,MERGE,PING,PONG,ABORT,
+		RECORD_TT,PROBE_TT,PROBE_TT_RESULT
 	};
-	static const char *const message_str[10];
+	static const char *const message_str[13];
 	static int host_id;
 	static char host_name[256];
 	static int help_messages;
@@ -783,10 +801,11 @@ typedef struct PROCESSOR {
 #ifdef CLUSTER
 	static void init(int argc, char* argv[]);
 	static void ISend(int dest,int message);
-	static void ISend(int dest,int message,void* data,int size);
+	static void ISend(int dest,int message,void* data,int size,MPI_Request* = 0);
 	static void Recv(int dest,int message);
 	static void Recv(int dest,int message,void* data,int size);
 	static bool IProbe(int& dest,int& message_id);
+	static void Wait(MPI_Request* = 0);
 	static void handle_message(int dest,int message_id);
 	static void offer_help();
 #endif
@@ -801,6 +820,10 @@ typedef struct PROCESSOR {
 	PHASH black_hash_tab;
 	PPAWNHASH pawn_hash_tab;
 	PEVALHASH eval_hash_tab;
+#ifdef CLUSTER
+	TT_MESSAGE ttmsg;
+	VOLATILE bool ttmsg_recieved;
+#endif
 	static UBMP32 hash_tab_mask;
 	static UBMP32 pawn_hash_tab_mask;
 	static UBMP32 eval_hash_tab_mask;

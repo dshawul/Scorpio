@@ -50,7 +50,7 @@ bool SEARCHER::hash_cutoff() {
 #endif
 
 	/*probe*/
-	pstack->hash_flags = probe_hash(player,hash_key,pstack->depth,ply,pstack->hash_score,
+	pstack->hash_flags = PROBE_HASH(player,hash_key,pstack->depth,ply,pstack->hash_score,
 		pstack->hash_move,pstack->alpha,pstack->beta,pstack->mate_threat,
 		pstack->singular,pstack->hash_depth,exclusiveP);
 
@@ -64,7 +64,7 @@ bool SEARCHER::hash_cutoff() {
 			/*we had a hit and replaced the flag with load of CRAP (depth=255)*/
 		} else {
 			/*store new crap*/
-			record_hash(player,hash_key,255,0,CRAP,0,0,0,0);
+			RECORD_HASH(player,hash_key,255,0,CRAP,0,0,0,0);
 		}
 	}
 #endif
@@ -428,7 +428,7 @@ Back up to previous ply
 */
 #define GOBACK(save) {																							\
 	if(use_tt && save && ((sb->pstack->search_state & ~MOVE_MASK) != SINGULAR_SEARCH)) {     	                \
-		sb->record_hash(sb->player,sb->hash_key,sb->pstack->depth,sb->ply,sb->pstack->flag,						\
+		sb->RECORD_HASH(sb->player,sb->hash_key,sb->pstack->depth,sb->ply,sb->pstack->flag,						\
 		sb->pstack->best_score,sb->pstack->best_move,sb->pstack->mate_threat,sb->pstack->singular);				\
 	}																											\
 	if(sb->pstack->search_state & ~MOVE_MASK) goto SPECIAL;                                                     \
@@ -673,8 +673,10 @@ POP:
 #ifdef CLUSTER
 					/* Wait until last helper host finishes*/ 
 					if(!active_workers && active_hosts) {
-						while(sb->master->n_host_workers) 
+						while(sb->master->n_host_workers) {
 							proc->idle_loop();
+							t_yield();
+						}
 						active_hosts = 0;
 					}
 #endif
@@ -1246,7 +1248,7 @@ MOVE SEARCHER::find_best() {
 		first incase it was overwritten*/	
 		if(pstack->pv_length) {
 			for(i = 0;i < stack[0].pv_length;i++) {
-				record_hash(player,hash_key,0,0,HASH_HIT,0,stack[0].pv[i],0,0);
+				RECORD_HASH(player,hash_key,0,0,HASH_HIT,0,stack[0].pv[i],0,0);
 				PUSH_MOVE(stack[0].pv[i]);
 			}
 			for(i = 0;i < stack[0].pv_length;i++)

@@ -9,14 +9,15 @@ HPP = scorpio.h my_types.h
 #########################################################################
 #
 # Some Options : 
-#  DARC_64BIT    --  Is system 64 bit.
-#  DHAS_POPCNT   --  Use Intrinsic PopCnt. [HIGHLY recommeneded] 
-#  DHAS_PREFETCH --  Prefetch hash table entries [Recommeneded] 
-#  DPARALLEL     --  Compile parallel search code.
-#  DMAX_CPUS=n   --  Compile for maximum of n cpus. Default is 32
-#  DMAX_HOSTS=n  --  Compile for maximum of n cpus in a cluster. Default value is 128.                   
-#  DTT_TYPE=n    --  Transposition table type for NUMA (0 - global, 1 - distributed, 2 - local)
-#  DTUNE         --  Compile evaluation tuning code. [NOT recommended]
+#  DARC_64BIT      --  Is system 64 bit.
+#  DHAS_POPCNT     --  Use Intrinsic PopCnt. [HIGHLY recommeneded] 
+#  DHAS_PREFETCH   --  Prefetch hash table entries [Recommeneded] 
+#  DPARALLEL       --  Compile parallel search code.
+#  DMAX_CPUS=n     --  Compile for maximum of n cpus. Default is 32
+#  DMAX_HOSTS=n    --  Compile for maximum of n cpus in a cluster. Default value is 128.                   
+#  DTT_TYPE=n      --  Transposition table type (0 - global, 1 - distributed, 2 - local)
+#  DNUMA_TT_TYPE=n --  Ditto but for NUMA systems
+#  DTUNE           --  Compile evaluation tuning code. [NOT recommended]
 #
 #########################################################################
 DEFINES = 
@@ -25,9 +26,10 @@ DEFINES =
 #DEFINES += -DHAS_PREFETCH
 #DEFINES += -DPARALLEL
 #DEFINES += -DMAX_CPUS=64
-#DEFINES += -DMAX_HOSTS=128
+#DEFINES += -DMAX_HOSTS=16
 #DEFINES += -DTUNE
 #DEFINES += -DTT_TYPE=1
+#DEFINES += -DNUMA_TT_TYPE=1
 DEFINES += -DTHREAD_POLLING
 
 ############################

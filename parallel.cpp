@@ -1,6 +1,6 @@
 #include "scorpio.h"
 
-/*
+/**
 * Distributed search.
 *    Scorpio uses a decentralized approach (p2p) where neither memory nor
 *    jobs are centrialized. Each host could have multiple processors in which case
@@ -11,23 +11,21 @@
 
 #ifdef CLUSTER
 
-static SPLIT_MESSAGE global_split[MAX_HOSTS];
-static MERGE_MESSAGE global_merge;
-static INIT_MESSAGE  global_init;
+static SPLIT_MESSAGE* global_split;
 static VOLATILE int g_message_id;
 static VOLATILE int g_source_id;
-static MPI_Status mpi_status;
 static MPI_Request mpi_request;
+static MPI_Status mpi_status;
 
-/*
-Message polling thread for cluster
+/**
+* Message polling thread for cluster
 */
 #ifdef THREAD_POLLING
 static void CDECL check_messages(void*) {
 	PROCESSOR::message_idle_loop();
 }
 #endif
-/*
+/**
 * Initialize MPI
 */
 void PROCESSOR::init(int argc, char* argv[]) {
@@ -38,6 +36,7 @@ void PROCESSOR::init(int argc, char* argv[]) {
 	MPI_Get_processor_name(PROCESSOR::host_name, &namelen);
 	print("Process [%d/%d] on %s : pid %d\n",PROCESSOR::host_id,
 		PROCESSOR::n_hosts,PROCESSOR::host_name,GETPID());
+	global_split = new SPLIT_MESSAGE[n_hosts];
 #ifdef THREAD_POLLING
 	if(n_hosts > 1)
 		t_create(check_messages,0);
@@ -49,14 +48,23 @@ void PROCESSOR::init(int argc, char* argv[]) {
 void PROCESSOR::ISend(int dest,int message) {
 	MPI_Isend(MPI_BOTTOM,0,MPI_INT,dest,message,MPI_COMM_WORLD,&mpi_request);
 }
-void PROCESSOR::ISend(int dest,int message,void* data,int size) {
-	MPI_Isend(data,size,MPI_BYTE,dest,message,MPI_COMM_WORLD,&mpi_request);
+void PROCESSOR::ISend(int dest,int message,void* data,int size, MPI_Request* rqst) {
+	if(rqst)
+		MPI_Isend(data,size,MPI_BYTE,dest,message,MPI_COMM_WORLD,rqst);
+	else
+		MPI_Isend(data,size,MPI_BYTE,dest,message,MPI_COMM_WORLD,&mpi_request);
 }
 void PROCESSOR::Recv(int dest,int message) {
 	MPI_Recv(MPI_BOTTOM,0,MPI_INT,dest,message,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
 }
 void PROCESSOR::Recv(int dest,int message,void* data,int size) {
 	MPI_Recv(data,size,MPI_BYTE,dest,message,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+}
+void PROCESSOR::Wait(MPI_Request* rqst) {
+	if(rqst)
+		MPI_Wait(rqst,MPI_STATUS_IGNORE);
+	else
+		MPI_Wait(&mpi_request,MPI_STATUS_IGNORE);
 }
 bool PROCESSOR::IProbe(int& source,int& message_id) {
 	int flag;
@@ -72,7 +80,7 @@ bool PROCESSOR::IProbe(int& source,int& message_id) {
 	}
 	return false;
 }
-/*
+/**
 * Handle messages
 */
 void PROCESSOR::handle_message(int source,int message_id) {
@@ -82,7 +90,7 @@ void PROCESSOR::handle_message(int source,int message_id) {
 	* SPLIT  - Search from recieved position
 	**************************************************/
 	if(message_id == SPLIT) {
-		SPLIT_MESSAGE& split = global_split[host_id];
+		SPLIT_MESSAGE split;
 		Recv(source,message_id,&split,sizeof(SPLIT_MESSAGE));
 		message_available = 0;
 
@@ -179,7 +187,7 @@ void PROCESSOR::handle_message(int source,int message_id) {
 		***********************************************************/
 		PROCESSOR::cancel_idle_hosts();
 
-		MERGE_MESSAGE& merge = global_merge;
+		MERGE_MESSAGE merge;
 		merge.nodes = psb->nodes;
 		merge.qnodes = psb->qnodes;
 		merge.time_check = psb->time_check;
@@ -203,11 +211,12 @@ void PROCESSOR::handle_message(int source,int message_id) {
 		l_lock(lock_smp);
 		ISend(source,PROCESSOR::MERGE,&merge,MERGE_MESSAGE_SIZE(merge));
 		l_unlock(lock_smp);
+		Wait();
 	} else if(message_id == MERGE) {
 		/**************************************************
 		* MERGE  - Merge result of move at split point
 		**************************************************/
-		MERGE_MESSAGE& merge = global_merge;
+		MERGE_MESSAGE merge;
 		Recv(source,message_id,&merge,sizeof(MERGE_MESSAGE));
 		message_available = 0;
 
@@ -272,7 +281,7 @@ void PROCESSOR::handle_message(int source,int message_id) {
 		* INIT  - Set up poistion from FEN and prepare threaded search
 		******************************************************************/
 	} else if(message_id == INIT) {
-		INIT_MESSAGE& init = global_init;
+		INIT_MESSAGE init;
 		Recv(source,message_id,&init,sizeof(INIT_MESSAGE));
 		message_available = 0;
 		/*setup board*/
@@ -288,6 +297,48 @@ void PROCESSOR::handle_message(int source,int message_id) {
 		/*wakeup processors*/
 		for(i = 0;i < n_processors;i++)
 			processors[i]->state = WAIT;
+#endif
+		/***********************************
+		* Distributed transposition table
+		************************************/
+#if TT_TYPE == 1
+	} else if(message_id == RECORD_TT) {
+		TT_MESSAGE ttmsg;
+		Recv(source,message_id,&ttmsg,sizeof(TT_MESSAGE));
+		message_available = 0;
+		/*record*/
+		psb->record_hash(ttmsg.col,ttmsg.hash_key,ttmsg.depth,ttmsg.ply,
+					ttmsg.flags,ttmsg.score,ttmsg.move,
+					ttmsg.mate_threat,ttmsg.singular);
+	} else if(message_id == PROBE_TT) {
+		TT_MESSAGE ttmsg;
+		Recv(source,message_id,&ttmsg,sizeof(TT_MESSAGE));
+		message_available = 0;
+		/*probe*/
+		int proc_id = ttmsg.flags;
+		int h_depth,score,mate_threat,singular;
+		ttmsg.flags = psb->probe_hash(ttmsg.col,ttmsg.hash_key,ttmsg.depth,ttmsg.ply,
+					score,ttmsg.move,ttmsg.alpha,ttmsg.beta,
+					mate_threat,singular,h_depth,false);
+		ttmsg.depth = h_depth;
+		ttmsg.score = (BMP16)score;
+		ttmsg.mate_threat = (UBMP8)mate_threat;
+		ttmsg.singular = (UBMP8)singular;
+		ttmsg.ply = proc_id;  //embed processor_id in message
+		/*send*/
+		l_lock(lock_smp);
+		ISend(source,PROCESSOR::PROBE_TT_RESULT,&ttmsg,sizeof(TT_MESSAGE));
+		l_unlock(lock_smp);
+		Wait();
+	} else if(message_id == PROBE_TT_RESULT) {
+		TT_MESSAGE ttmsg;
+		Recv(source,message_id,&ttmsg,sizeof(TT_MESSAGE));
+		message_available = 0;
+		/*copy tt entry to processor*/
+		int proc_id = ttmsg.ply;
+		PPROCESSOR proc = processors[proc_id];
+		proc->ttmsg = ttmsg;
+		proc->ttmsg_recieved = true;
 #endif
 		/***********************************
 		* Handle notification messages
@@ -322,7 +373,102 @@ void PROCESSOR::handle_message(int source,int message_id) {
 		}
 	}
 }
-/*
+/**
+* Record hashtable entry in distributed system
+*/
+void SEARCHER::RECORD_HASH(
+				 int col,const HASHKEY& hash_key,int depth,int ply,
+				 int flags,int score,MOVE move,int mate_threat,int singular
+				 ) {
+#ifdef CLUSTER
+#	if TT_TYPE == 1
+	bool local = (DEPTH(depth) <= PROCESSOR::CLUSTER_SPLIT_DEPTH);
+	int dest;
+	if(!local) {
+		dest = (hash_key % PROCESSOR::n_hosts);
+		if(dest == PROCESSOR::host_id) local = true;
+	}
+	if(!local) {
+		/*construct message*/
+		TT_MESSAGE ttmsg;
+		ttmsg.hash_key = (hash_key / PROCESSOR::n_hosts);
+		ttmsg.score = score;
+		ttmsg.depth = depth;
+		ttmsg.flags = flags;
+		ttmsg.ply = ply;
+		ttmsg.col = col;
+		ttmsg.mate_threat = mate_threat;
+		ttmsg.singular = singular;
+		ttmsg.move = move;
+		/*send it*/
+		MPI_Request rqst;
+		l_lock(lock_smp);
+		PROCESSOR::ISend(dest,PROCESSOR::RECORD_TT,&ttmsg,sizeof(TT_MESSAGE),&rqst);
+		l_unlock(lock_smp);
+		PROCESSOR::Wait(&rqst);
+	} else 
+#	endif
+#endif
+	{
+		record_hash(col,hash_key,depth,ply,flags,score,move,mate_threat,singular);
+	}
+}
+/**
+* Read hashtable entry in distributed system
+*/
+int SEARCHER::PROBE_HASH(
+			   int col,const HASHKEY& hash_key,int depth,int ply,int& score,
+			   MOVE& move,int alpha,int beta,int& mate_threat,int& singular,int& h_depth,
+			   bool exclusiveP
+			   ) {
+#ifdef CLUSTER
+#	if TT_TYPE == 1
+	bool local = (DEPTH(depth) <= PROCESSOR::CLUSTER_SPLIT_DEPTH);
+	int dest = 0;
+	if(!local) {
+		dest = (hash_key % PROCESSOR::n_hosts);
+		if(dest == PROCESSOR::host_id) local = true;
+	}
+	if(!local) {
+		PPROCESSOR proc = processors[processor_id];
+		/*construct message*/
+		TT_MESSAGE& ttmsg = proc->ttmsg;
+		ttmsg.hash_key = (hash_key / PROCESSOR::n_hosts);
+		ttmsg.score = score;
+		ttmsg.depth = depth;
+		ttmsg.flags = processor_id; //embed processor_id in message
+		ttmsg.ply = ply;
+		ttmsg.col = col;
+		ttmsg.mate_threat = mate_threat;
+		ttmsg.singular = singular;
+		ttmsg.alpha = alpha;
+		ttmsg.beta = beta;
+		ttmsg.move = move;
+		/*send it*/
+		proc->ttmsg_recieved = false;
+		l_lock(lock_smp);
+		PROCESSOR::ISend(dest,PROCESSOR::PROBE_TT,&ttmsg,sizeof(TT_MESSAGE));
+		l_unlock(lock_smp);
+		/*wait*/ 
+		while(!proc->ttmsg_recieved) {
+			proc->idle_loop();
+			t_yield();
+		}
+		/*return*/
+		h_depth = ttmsg.depth;
+		score = ttmsg.score;
+		mate_threat = ttmsg.mate_threat;
+		singular = ttmsg.singular;
+		return ttmsg.flags;
+	} else
+#	endif
+#endif
+	{
+		return probe_hash(col,hash_key,depth,ply,score,move,alpha,beta,
+				mate_threat,singular,h_depth,exclusiveP);
+	}
+}
+/**
 * Offer help to a randomly picked host
 */
 void PROCESSOR::offer_help() {
@@ -344,7 +490,7 @@ void PROCESSOR::offer_help() {
 			l_unlock(lock_smp);
 	}
 }
-/*
+/**
 * idle loop for message processing thread
 */
 static VOLATILE bool scorpio_ending = false;
@@ -369,12 +515,11 @@ void PROCESSOR::message_idle_loop() {
 }
 
 #endif
-/*
+/**
 * idle loop for all other threads
 */
 #if defined(PARALLEL) || defined(CLUSTER)
 void PROCESSOR::idle_loop() {
-	int message_id,source;
 	bool skip_message = ((this != processors[0]) || (n_hosts == 1));
 	do {
 		if(state == PARK) t_sleep(1);
@@ -382,6 +527,7 @@ void PROCESSOR::idle_loop() {
 		/*check message*/
 		if(!skip_message) {
 #ifdef CLUSTER
+			int message_id,source;
 #	ifdef THREAD_POLLING
 			if(message_available) {
 				message_id = g_message_id;
@@ -399,7 +545,7 @@ void PROCESSOR::idle_loop() {
 	} while(state <= WAIT);
 }
 #endif
-/*
+/**
 exit scorpio 
 */
 void PROCESSOR::exit_scorpio(int status) {
@@ -408,7 +554,7 @@ void PROCESSOR::exit_scorpio(int status) {
 	exit(status);
 }
 #ifdef CLUSTER
-/*
+/**
 * Get move for host helper
 */
 int SEARCHER::get_cluster_move(SPLIT_MESSAGE* split, bool resplit) {
@@ -454,7 +600,7 @@ TOP:
 	l_unlock(lock);
 	return true;
 }
-/*
+/**
 * Cancel idle hosts
 */
 void PROCESSOR::cancel_idle_hosts() {
@@ -469,7 +615,7 @@ void PROCESSOR::cancel_idle_hosts() {
 
 	l_unlock(lock_smp);
 }
-/*
+/**
 * Quit hosts 
 */
 void PROCESSOR::quit_hosts() {
@@ -478,7 +624,7 @@ void PROCESSOR::quit_hosts() {
 			ISend(i,QUIT);
 	}
 }
-/*
+/**
 * Abort hosts 
 */
 void PROCESSOR::abort_hosts() {
@@ -488,7 +634,7 @@ void PROCESSOR::abort_hosts() {
 		print("Process [%d/%d] terminated.\n",i,n_hosts);
 	}
 }
-/*
+/**
 * Get initial position
 */
 void SEARCHER::get_init_pos(INIT_MESSAGE* init) {
@@ -516,8 +662,8 @@ void SEARCHER::get_init_pos(INIT_MESSAGE* init) {
 
 #ifdef PARALLEL
 
-/*
-* update bounds,score,move
+/**
+* Update bounds,score,move
 */
 #define UPDATE_BOUND(ps1,ps2) {           \
 	ps1->best_score = ps2->best_score;    \
@@ -527,7 +673,7 @@ void SEARCHER::get_init_pos(INIT_MESSAGE* init) {
 	ps1->beta       = ps2->beta;          \
 }
 
-/*
+/**
 * Get SMP split move
 */
 int SEARCHER::get_smp_move() {
@@ -561,7 +707,7 @@ int SEARCHER::get_smp_move() {
 	l_unlock(master->lock);
 	return true;
 }
-/*
+/**
 * Create/kill search thread
 */
 void CDECL thread_proc(void* id) {
@@ -589,7 +735,7 @@ void PROCESSOR::kill(int id) {
 	delete proc;
 	processors[id] = 0;
 }
-/*
+/**
 * Attach processor to help at the split node.
 * Copy board and other relevant data..
 */
@@ -614,7 +760,7 @@ bool PROCESSOR::has_block() {
 	}
 	return false;
 }
-/*
+/**
 * Copy local search result of this thread back to the master. 
 * We have been updating search bounds whenever we got a new move.
 */
@@ -661,7 +807,7 @@ void SEARCHER::update_master(int skip) {
 	master->n_workers--;
 }
 
-/*
+/**
 * Check if splitting tree is possible after at least one move is searched (YBW concept).
 * We look for both idle hosts and idle threads to share the work.
 */
@@ -727,7 +873,7 @@ int SEARCHER::check_split() {
 	}
 	return false;
 }
-/*
+/**
 * Stop workers at split point
 */
 void SEARCHER::stop_workers() {
@@ -752,7 +898,7 @@ void SEARCHER::stop_workers() {
 #endif
 
 #if defined(PARALLEL) || defined(CLUSTER)
-/*
+/**
 * Fail high handler
 */
 void SEARCHER::handle_fail_high() {
@@ -771,7 +917,7 @@ void SEARCHER::handle_fail_high() {
 	stop_workers();
 	l_unlock(lock_smp);
 }
-/*
+/**
 * clear searcher block
 */
 void SEARCHER::clear_block() {
@@ -798,7 +944,7 @@ void SEARCHER::clear_block() {
 	egbb_probes = 0;
 }
 
-/*
+/**
 * Initialize mt number of threads by creating/deleting 
 * threads from the pool of processors.
 */
@@ -828,6 +974,9 @@ void init_smp(int mt) {
 	}
 }
 #endif
+/**
+* Set main search thread
+*/
 void PROCESSOR::set_main() {
 	PPROCESSOR proc = new PROCESSOR();
 	proc->searcher = &proc->searchers[0];
