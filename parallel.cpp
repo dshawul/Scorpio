@@ -14,8 +14,6 @@
 static SPLIT_MESSAGE* global_split;
 static VOLATILE int g_message_id;
 static VOLATILE int g_source_id;
-static MPI_Request mpi_request;
-static MPI_Status mpi_status;
 
 /**
 * Message polling thread for cluster
@@ -29,11 +27,13 @@ static void CDECL check_messages(void*) {
 * Initialize MPI
 */
 void PROCESSOR::init(int argc, char* argv[]) {
-	int namelen,provided,requested = MPI_THREAD_SINGLE;
+	int namelen,provided,requested = MPI_THREAD_MULTIPLE;
 	MPI_Init_thread(&argc, &argv,requested,&provided);
 	MPI_Comm_size(MPI_COMM_WORLD, &PROCESSOR::n_hosts);
 	MPI_Comm_rank(MPI_COMM_WORLD, &PROCESSOR::host_id);
 	MPI_Get_processor_name(PROCESSOR::host_name, &namelen);
+	if((host_id == 0) && (provided != requested))
+		print("Error: MPI_THREAD_MULTIPLE not supported\n");
 	print("Process [%d/%d] on %s : pid %d\n",PROCESSOR::host_id,
 		PROCESSOR::n_hosts,PROCESSOR::host_name,GETPID());
 	global_split = new SPLIT_MESSAGE[n_hosts];
@@ -46,13 +46,16 @@ void PROCESSOR::init(int argc, char* argv[]) {
 * MPI calls
 */
 void PROCESSOR::ISend(int dest,int message) {
+	MPI_Request mpi_request;
 	MPI_Isend(MPI_BOTTOM,0,MPI_INT,dest,message,MPI_COMM_WORLD,&mpi_request);
 }
 void PROCESSOR::ISend(int dest,int message,void* data,int size, MPI_Request* rqst) {
 	if(rqst)
 		MPI_Isend(data,size,MPI_BYTE,dest,message,MPI_COMM_WORLD,rqst);
-	else
+	else {
+		MPI_Request mpi_request;
 		MPI_Isend(data,size,MPI_BYTE,dest,message,MPI_COMM_WORLD,&mpi_request);
+	}
 }
 void PROCESSOR::Recv(int dest,int message) {
 	MPI_Recv(MPI_BOTTOM,0,MPI_INT,dest,message,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
@@ -61,20 +64,18 @@ void PROCESSOR::Recv(int dest,int message,void* data,int size) {
 	MPI_Recv(data,size,MPI_BYTE,dest,message,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
 }
 void PROCESSOR::Wait(MPI_Request* rqst) {
-	if(rqst)
-		MPI_Wait(rqst,MPI_STATUS_IGNORE);
-	else
-		MPI_Wait(&mpi_request,MPI_STATUS_IGNORE);
+	MPI_Wait(rqst,MPI_STATUS_IGNORE);
 }
 bool PROCESSOR::IProbe(int& source,int& message_id) {
+	static MPI_Status mpi_status;
 	int flag;
 	MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD,&flag,&mpi_status);
 	if(flag) {
 		message_id = mpi_status.MPI_TAG;
 		source = mpi_status.MPI_SOURCE;
 #ifdef _DEBUG
-		print("\"%-6s\" message from [%d] to [%d] at <"FMT64">\n",
-			message_str[message_id],source,host_id,get_time());
+		print("<"FMT64"> from [%d] to [%d] message \"%-6s\" \n",
+			get_time(),source,host_id,message_str[message_id]);
 #endif
 		return true;
 	}
@@ -208,17 +209,16 @@ void PROCESSOR::handle_message(int source,int message_id) {
 			merge.pv_length = (psb->pstack + 1)->pv_length - psb->ply;
 		}
 		/*send it*/
-		l_lock(lock_smp);
-		ISend(source,PROCESSOR::MERGE,&merge,MERGE_MESSAGE_SIZE(merge));
-		l_unlock(lock_smp);
-		Wait();
+		MPI_Request rq;
+		ISend(source,PROCESSOR::MERGE,&merge,MERGE_MESSAGE_SIZE(merge),&rq);
+		Wait(&rq);
 	} else if(message_id == MERGE) {
 		/**************************************************
 		* MERGE  - Merge result of move at split point
 		**************************************************/
 		MERGE_MESSAGE merge;
 		Recv(source,message_id,&merge,sizeof(MERGE_MESSAGE));
-		message_available = 0;
+		
 
 		/*update master*/
 		PSEARCHER master = (PSEARCHER)merge.master;
@@ -263,8 +263,8 @@ void PROCESSOR::handle_message(int source,int message_id) {
 		l_lock(lock_smp);
 		SPLIT_MESSAGE& split = global_split[source];
 		if(!master->stop_searcher && master->get_cluster_move(&split,true)) {
-			ISend(source,PROCESSOR::SPLIT,&split,SPLIT_MESSAGE_SIZE(split) + 4);
 			l_unlock(lock_smp);
+			ISend(source,PROCESSOR::SPLIT,&split,RESPLIT_MESSAGE_SIZE(split));
 		} else {
 			if(n_hosts > 2)
 				ISend(source,CANCEL);
@@ -283,7 +283,7 @@ void PROCESSOR::handle_message(int source,int message_id) {
 	} else if(message_id == INIT) {
 		INIT_MESSAGE init;
 		Recv(source,message_id,&init,sizeof(INIT_MESSAGE));
-		message_available = 0;
+		
 		/*setup board*/
 		psb->set_board((char*)init.fen);
 
@@ -305,7 +305,7 @@ void PROCESSOR::handle_message(int source,int message_id) {
 	} else if(message_id == RECORD_TT) {
 		TT_MESSAGE ttmsg;
 		Recv(source,message_id,&ttmsg,sizeof(TT_MESSAGE));
-		message_available = 0;
+		
 		/*record*/
 		psb->record_hash(ttmsg.col,ttmsg.hash_key,ttmsg.depth,ttmsg.ply,
 					ttmsg.flags,ttmsg.score,ttmsg.move,
@@ -313,7 +313,7 @@ void PROCESSOR::handle_message(int source,int message_id) {
 	} else if(message_id == PROBE_TT) {
 		TT_MESSAGE ttmsg;
 		Recv(source,message_id,&ttmsg,sizeof(TT_MESSAGE));
-		message_available = 0;
+		
 		/*probe*/
 		int proc_id = ttmsg.flags;
 		int h_depth,score,mate_threat,singular;
@@ -326,14 +326,13 @@ void PROCESSOR::handle_message(int source,int message_id) {
 		ttmsg.singular = (UBMP8)singular;
 		ttmsg.ply = proc_id;  //embed processor_id in message
 		/*send*/
-		l_lock(lock_smp);
-		ISend(source,PROCESSOR::PROBE_TT_RESULT,&ttmsg,sizeof(TT_MESSAGE));
-		l_unlock(lock_smp);
-		Wait();
+		MPI_Request rq;
+		ISend(source,PROCESSOR::PROBE_TT_RESULT,&ttmsg,sizeof(TT_MESSAGE),&rq);
+		Wait(&rq);
 	} else if(message_id == PROBE_TT_RESULT) {
 		TT_MESSAGE ttmsg;
 		Recv(source,message_id,&ttmsg,sizeof(TT_MESSAGE));
-		message_available = 0;
+		
 		/*copy tt entry to processor*/
 		int proc_id = ttmsg.ply;
 		PPROCESSOR proc = processors[proc_id];
@@ -345,16 +344,14 @@ void PROCESSOR::handle_message(int source,int message_id) {
 		************************************/
 	} else {
 		Recv(source,message_id);
-		message_available = 0;
+		
 		if(message_id == HELP) {
 			l_lock(lock_smp);
-			if(n_idle_processors == n_processors) {
+			if(n_idle_processors == n_processors)
 				ISend(source,CANCEL);
-				l_unlock(lock_smp);
-			} else {
+			else
 				available_host_workers.push_back(source);
-				l_unlock(lock_smp);
-			}
+			l_unlock(lock_smp);
 		} else if(message_id == CANCEL) {
 			help_messages--;
 		} else if(message_id == QUIT) {
@@ -367,9 +364,7 @@ void PROCESSOR::handle_message(int source,int message_id) {
 		} else if(message_id == ABORT) {
 			PROCESSOR::exit_scorpio(EXIT_SUCCESS);
 		} else if(message_id == PING) {
-			l_lock(lock_smp);
 			ISend(source,PONG);
-			l_unlock(lock_smp);
 		}
 	}
 }
@@ -401,11 +396,9 @@ void SEARCHER::RECORD_HASH(
 		ttmsg.singular = singular;
 		ttmsg.move = move;
 		/*send it*/
-		MPI_Request rqst;
-		l_lock(lock_smp);
-		PROCESSOR::ISend(dest,PROCESSOR::RECORD_TT,&ttmsg,sizeof(TT_MESSAGE),&rqst);
-		l_unlock(lock_smp);
-		PROCESSOR::Wait(&rqst);
+		MPI_Request rq;
+		PROCESSOR::ISend(dest,PROCESSOR::RECORD_TT,&ttmsg,sizeof(TT_MESSAGE),&rq);
+		PROCESSOR::Wait(&rq);
 	} else 
 #	endif
 #endif
@@ -446,9 +439,7 @@ int SEARCHER::PROBE_HASH(
 		ttmsg.move = move;
 		/*send it*/
 		proc->ttmsg_recieved = false;
-		l_lock(lock_smp);
 		PROCESSOR::ISend(dest,PROCESSOR::PROBE_TT,&ttmsg,sizeof(TT_MESSAGE));
-		l_unlock(lock_smp);
 		/*wait*/ 
 		while(!proc->ttmsg_recieved) {
 			proc->idle_loop();
@@ -482,12 +473,18 @@ void PROCESSOR::offer_help() {
 				if(processors[i]->state == WAIT) 
 					count++;
 			}
+			l_unlock(lock_smp);
+			
 			if(count == n_processors) {
-				while((dest = (rand() % n_hosts)) == host_id); 
+				while(true) {
+					dest = (rand() % n_hosts);
+					if((dest != host_id) && (dest != prev_dest)) 
+						break;
+				}
 				ISend(dest,HELP);
 				help_messages++;
+				prev_dest = dest;
 			}
-			l_unlock(lock_smp);
 	}
 }
 /**

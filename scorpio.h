@@ -474,6 +474,7 @@ struct TT_MESSAGE {
 	BMP16  beta;
 };
 #define   SPLIT_MESSAGE_SIZE(x)   (40 + ((x).pv_length << 2))
+#define   RESPLIT_MESSAGE_SIZE(x) (SPLIT_MESSAGE_SIZE(x) + 4)
 #define   MERGE_MESSAGE_SIZE(x)   (56 + ((x).pv_length << 2))
 #define   INIT_MESSAGE_SIZE(x)    (MAX_FEN_STR + 4 + ((x).pv_length << 2))
 
@@ -781,6 +782,7 @@ typedef struct PROCESSOR {
 	static int host_id;
 	static char host_name[256];
 	static int help_messages;
+	static int prev_dest;
 	static std::list<int> available_host_workers;
 	static VOLATILE int message_available;
 	static void cancel_idle_hosts();
@@ -805,7 +807,7 @@ typedef struct PROCESSOR {
 	static void Recv(int dest,int message);
 	static void Recv(int dest,int message,void* data,int size);
 	static bool IProbe(int& dest,int& message_id);
-	static void Wait(MPI_Request* = 0);
+	static void Wait(MPI_Request*);
 	static void handle_message(int dest,int message_id);
 	static void offer_help();
 #endif
