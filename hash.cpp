@@ -60,8 +60,9 @@ void PROCESSOR::delete_hash_tables() {
 	UBMP32 key = UBMP32(hash_key & PROCESSOR::hash_tab_mask);
 #elif NUMA_TT_TYPE == 1
 #define TT_KEY \
-	PPROCESSOR proc = processors[(hash_key % PROCESSOR::n_processors)];\
-	UBMP32 key = UBMP32((hash_key / PROCESSOR::n_processors) & PROCESSOR::hash_tab_mask);
+	int proc_id = ((hash_key >> 48) * PROCESSOR::n_processors) >> 16;\
+	PPROCESSOR proc = processors[proc_id];\
+	UBMP32 key = UBMP32(hash_key & PROCESSOR::hash_tab_mask);
 #else
 #define TT_KEY \
 	PPROCESSOR proc = processors[processor_id];\

@@ -380,13 +380,13 @@ void SEARCHER::RECORD_HASH(
 	bool local = (DEPTH(depth) <= PROCESSOR::CLUSTER_SPLIT_DEPTH);
 	int dest;
 	if(!local) {
-		dest = (hash_key % PROCESSOR::n_hosts);
+		dest = ((hash_key >> 48) * PROCESSOR::n_hosts) >> 16;
 		if(dest == PROCESSOR::host_id) local = true;
 	}
 	if(!local) {
 		/*construct message*/
 		TT_MESSAGE ttmsg;
-		ttmsg.hash_key = (hash_key / PROCESSOR::n_hosts);
+		ttmsg.hash_key = hash_key;
 		ttmsg.score = score;
 		ttmsg.depth = depth;
 		ttmsg.flags = flags;
@@ -419,14 +419,14 @@ int SEARCHER::PROBE_HASH(
 	bool local = (DEPTH(depth) <= PROCESSOR::CLUSTER_SPLIT_DEPTH);
 	int dest = 0;
 	if(!local) {
-		dest = (hash_key % PROCESSOR::n_hosts);
+		dest = ((hash_key >> 48) * PROCESSOR::n_hosts) >> 16;
 		if(dest == PROCESSOR::host_id) local = true;
 	}
 	if(!local) {
 		PPROCESSOR proc = processors[processor_id];
 		/*construct message*/
 		TT_MESSAGE& ttmsg = proc->ttmsg;
-		ttmsg.hash_key = (hash_key / PROCESSOR::n_hosts);
+		ttmsg.hash_key = hash_key;
 		ttmsg.score = score;
 		ttmsg.depth = depth;
 		ttmsg.flags = processor_id; //embed processor_id in message
