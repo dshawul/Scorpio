@@ -32,8 +32,14 @@ void PROCESSOR::init(int argc, char* argv[]) {
 	MPI_Comm_size(MPI_COMM_WORLD, &PROCESSOR::n_hosts);
 	MPI_Comm_rank(MPI_COMM_WORLD, &PROCESSOR::host_id);
 	MPI_Get_processor_name(PROCESSOR::host_name, &namelen);
-	if((host_id == 0) && (provided != requested))
-		print("Error: MPI_THREAD_MULTIPLE not supported\n");
+	if((host_id == 0) && (provided != requested)) {
+		static const char* support[] = {
+			"MPI_THREAD_SINGLE","MPI_THREAD_FUNNELED",
+		    "MPI_THREAD_SERIALIZED","MPI_THREAD_MULTIPLE"
+		};
+		print("Warning: %s not supported. %s provided.\n",
+				support[requested],support[provided]);
+	}
 	print("Process [%d/%d] on %s : pid %d\n",PROCESSOR::host_id,
 		PROCESSOR::n_hosts,PROCESSOR::host_name,GETPID());
 	global_split = new SPLIT_MESSAGE[n_hosts];
