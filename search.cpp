@@ -7,7 +7,6 @@ static const int use_tt = 1;
 static const int use_aspiration = 1;
 static const int use_iid = 1;
 static int use_singular = 0;
-static int use_abdada = 0;
 static int futility_margin = 100;
 static int singular_margin = 30;
 static int contempt = 2;
@@ -38,7 +37,7 @@ bool SEARCHER::hash_cutoff() {
 	/*abdada*/
 	bool exclusiveP = false;
 #ifdef PARALLEL
-	if((use_abdada == 1)
+	if((use_abdada_smp == 1)
 		&& ply > 1
 		&& DEPTH((pstack - 1)->depth) > PROCESSOR::SMP_SPLIT_DEPTH  
 		&& (pstack - 1)->search_state != NULL_MOVE
@@ -186,7 +185,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 			time_check = nodes;
 			if(!abort_search)
 				check_quit();
-			if(abort_search) {
+			if(abort_search CLUSTER_CODE(&& !use_abdada_cluster)) {
 				CLUSTER_CODE(PROCESSOR::quit_hosts());
 				return true;
 			}
@@ -553,7 +552,7 @@ START:
 					/*
 					* Get Smp move
 					*/
-					if(!use_abdada && sb->master && sb->stop_ply == sb->ply) {
+					if(!use_abdada_smp && sb->master && sb->stop_ply == sb->ply) {
 						if(!sb->get_smp_move())
 							GOBACK(false); //I
 					} else
@@ -571,7 +570,7 @@ START:
 								sb->pstack->flag = EXACT;
 							}  
 #ifdef PARALLEL
-							else if(use_abdada
+							else if(use_abdada_smp
 								&& !sb->pstack->all_done
 								&& !sb->pstack->second_pass
 								&& DEPTH(sb->pstack->depth) > PROCESSOR::SMP_SPLIT_DEPTH 
@@ -584,7 +583,7 @@ START:
 							GOBACK(true);
 						} else {
 #ifdef PARALLEL
-							if(use_abdada
+							if(use_abdada_smp
 								&& !sb->pstack->all_done
 								&& sb->pstack->second_pass
 								&& sb->pstack->score_st[sb->pstack->current_index - 1] != -SKIP_SCORE
@@ -665,7 +664,7 @@ POP:
 				if(sb->master) {
 					l_lock(lock_smp);
 					l_lock(sb->master->lock);
-					sb->update_master(use_abdada);
+					sb->update_master(use_abdada_smp);
 					active_workers = sb->master->n_workers;
 					CLUSTER_CODE(active_hosts = sb->master->n_host_workers);
 					l_unlock(sb->master->lock);
@@ -686,7 +685,7 @@ POP:
 					* idle mode until work is assigned. In a recursive search, only the thread 
 					* that initiated the split can backup.
 					*/
-					if(!use_abdada
+					if(!use_abdada_smp
 						&& !active_workers 
 						CLUSTER_CODE( && !active_hosts)
 						) {
@@ -726,7 +725,7 @@ IDLE_START:
 							l_lock(lock_smp);		
 							PROCESSOR::n_idle_processors++;	
 							l_unlock(lock_smp);
-
+								
 							proc->idle_loop();
 
 							l_lock(lock_smp);		
@@ -735,7 +734,7 @@ IDLE_START:
 						}
 						if(proc->state == GO) {
 							sb = proc->searcher;
-							if(!use_abdada) goto START;
+							if(!use_abdada_smp) goto START;
 							else goto NEW_NODE;
 						} else if(proc->state == KILL) {
 							proc->state = GO;
@@ -752,7 +751,7 @@ IDLE_START:
 						return;
 					} else {
 						l_lock(lock_smp);
-						if(!use_abdada) {
+						if(!use_abdada_smp) {
 							sb->processor_id = 0;
 							processors[0]->searcher = sb;
 							processors[0]->state = KILL;
@@ -826,7 +825,7 @@ IDLE_START:
 			move = sb->pstack->current_move;
 #ifdef PARALLEL
 			/*remeber skipped moves*/
-			if(use_abdada
+			if(use_abdada_smp
 				&& score == -SKIP_SCORE
 				) {
 				sb->pstack->all_done = false;
@@ -851,7 +850,7 @@ IDLE_START:
 					if(score >= sb->pstack->beta) (sb->pstack + 1)->pv_length = 1;
 					sb->UPDATE_PV(move);
 					if(score <= sb->pstack->alpha || score >= sb->pstack->beta);
-					else if(!use_abdada || !sb->processor_id) sb->print_pv(sb->pstack->best_score);
+					else if(!use_abdada_smp || !sb->processor_id) sb->print_pv(sb->pstack->best_score);
 
 					if(!sb->chess_clock.infinite_mode && !sb->chess_clock.pondering)
 						sb->root_score = score;
@@ -873,7 +872,7 @@ IDLE_START:
 						sb->update_history(move);
 #ifdef PARALLEL		
 					/* stop workers*/
-					if(!use_abdada && sb->master && sb->stop_ply == sb->ply)
+					if(!use_abdada_smp && sb->master && sb->stop_ply == sb->ply)
 						sb->master->handle_fail_high();
 #endif
 					GOBACK(true);
@@ -885,7 +884,7 @@ IDLE_START:
 #ifdef PARALLEL	
 			/* Check for split here since at least one move is searched now.
 			 * Reset the sb pointer to the child block pointed to by this processor.*/
-			if(!use_abdada 
+			if(!use_abdada_smp 
 				&& (sb->ply || sb->pstack->legal_moves >= 4) 
 				&& sb->check_split())
 				sb = proc->searcher;
@@ -1022,6 +1021,23 @@ POP_Q:
 gets best move of position
 */
 MOVE SEARCHER::find_best() {
+	
+#ifdef CLUSTER
+	/*send initial position to helper hosts*/
+	if(PROCESSOR::host_id == 0) {
+		INIT_MESSAGE init;
+		get_init_pos(&init);
+		for(int i = 0;i < PROCESSOR::n_hosts;i++) {
+			if(i != PROCESSOR::host_id) {
+				PROCESSOR::ISend(i,PROCESSOR::INIT,&init,INIT_MESSAGE_SIZE(init));
+				if(use_abdada_cluster)
+					PROCESSOR::ISend(i,PROCESSOR::GOROOT);
+			}
+		}
+	}
+#endif
+	
+	/*start search*/
 	int legal_moves,i,score,time_used;
 	int easy = false,easy_score = 0;
 	MOVE easy_move = 0;
@@ -1124,15 +1140,6 @@ MOVE SEARCHER::find_best() {
 	if(!chess_clock.infinite_mode)
 		chess_clock.set_stime(hply);
 
-#ifdef CLUSTER
-	/*send initial position to helper hosts*/
-	INIT_MESSAGE init;
-	get_init_pos(&init);
-	for(i = 0;i < PROCESSOR::n_hosts;i++) {
-		if(i != PROCESSOR::host_id)
-			PROCESSOR::ISend(i,PROCESSOR::INIT,&init,INIT_MESSAGE_SIZE(init));
-	}
-#endif
 #ifdef PARALLEL
 	/*wakeup threads*/
 	for(i = 1;i < PROCESSOR::n_processors;i++) {
@@ -1140,7 +1147,7 @@ MOVE SEARCHER::find_best() {
 	}
 	while(PROCESSOR::n_idle_processors < PROCESSOR::n_processors - 1);
 #endif
-
+	
 	/*score non-egbb moves*/
 	if(!in_egbb) {
 		for(i = 0;i < pstack->count; i++) {
@@ -1197,7 +1204,7 @@ MOVE SEARCHER::find_best() {
 
 		/*attach helpers*/
 #ifdef PARALLEL
-		if(use_abdada) {
+		if(use_abdada_smp) {
 			for(i = 1;i < PROCESSOR::n_processors;i++) {
 				attach_processor(i);
 				PSEARCHER sb = processors[i]->searcher;
@@ -1207,7 +1214,7 @@ MOVE SEARCHER::find_best() {
 			}
 		}
 #endif
-
+		
 		search();
 		
 		/*abort search?*/
@@ -1216,7 +1223,7 @@ MOVE SEARCHER::find_best() {
 
 		/*wait till all helpers are idle*/
 #ifdef PARALLEL
-		if(use_abdada) {
+		if(use_abdada_smp) {
 			abort_search = 1;
 			while(PROCESSOR::n_idle_processors < PROCESSOR::n_processors - 1); 
 			abort_search = 0;
@@ -1331,20 +1338,12 @@ MOVE SEARCHER::find_best() {
 		print(" "FMT64W" %8.2f %10d %8d %8d\n",nodes,float(time_used) / 1000,
 			int(BMP64(nodes) / (time_used / 1000.0f)),splits,bad_splits);
 	} else {
+		print("splits = %d badsplits = %d egbb_probes = %d\n",
+			splits,bad_splits,egbb_probes);
 		print("nodes = "FMT64" <%d qnodes> time = %dms nps = %d\n",nodes,
 			int(BMP64(qnodes) / (BMP64(nodes) / 100.0f)),
 			time_used,int(BMP64(nodes) / (time_used / 1000.0f)));
-		print("splits = %d badsplits = %d egbb_probes = %d\n",
-			splits,bad_splits,egbb_probes);
 	}
-
-#ifdef CLUSTER
-	/*park hosts*/
-	for(i = 0;i < PROCESSOR::n_hosts;i++) {
-		if(i != PROCESSOR::host_id)
-			PROCESSOR::ISend(i,PROCESSOR::RELAX);
-	}
-#endif
 #ifdef PARALLEL
 	/*park threads*/
 	for(i = 1;i < PROCESSOR::n_processors;i++) {
@@ -1357,6 +1356,22 @@ MOVE SEARCHER::find_best() {
 		first_search = false;
 	}
 
+#ifdef CLUSTER
+	/*park hosts*/
+	if(PROCESSOR::host_id == 0 && use_abdada_cluster) {
+		for(i = 1;i < PROCESSOR::n_hosts;i++)
+			PROCESSOR::ISend(i,PROCESSOR::QUIT);
+	}
+	/*total nps*/
+	if(use_abdada_cluster) {
+		PROCESSOR::Barrier();
+		int lnps,nps;
+		lnps = int(BMP64(nodes) / (time_used / 1000.0f));
+		PROCESSOR::Sum(&lnps,&nps,1);
+		print("==== Total NPS = %d ====\n",nps);
+	}
+#endif
+	
 	return stack[0].pv[0];
 }
 
@@ -1374,9 +1389,18 @@ bool check_search_params(char** commands,char* command,int& command_num) {
 		contempt = atoi(commands[command_num++]);
 	} else if(!strcmp(command, "smp_type")) {
 		command = commands[command_num++];
-		if(!strcmp(command,"YBW")) use_abdada = 0;
-		else if(!strcmp(command,"ABDADA")) use_abdada = 1;
-		else use_abdada = 2;
+#ifdef PARALLEL
+		if(!strcmp(command,"YBW")) use_abdada_smp = 0;
+		else if(!strcmp(command,"ABDADA")) use_abdada_smp = 1;
+		else use_abdada_smp = 2;
+#endif
+	} else if(!strcmp(command, "cluster_type")) {
+		command = commands[command_num++];
+#ifdef CLUSTER
+		if(!strcmp(command,"YBW")) use_abdada_cluster = 0;
+		else if(!strcmp(command,"ABDADA")) use_abdada_cluster = 1;
+		else use_abdada_cluster = 2;
+#endif
 	} else if(!strcmp(command, "smp_depth")) {
 		SMP_CODE(PROCESSOR::SMP_SPLIT_DEPTH = atoi(commands[command_num]));
 		command_num++;
@@ -1392,8 +1416,9 @@ bool check_search_params(char** commands,char* command,int& command_num) {
 	return true;
 }
 void print_search_params() {
-	print("feature option=\"smp_type -combo *YBW /// ABDADA /// SHT \"\n");
+	SMP_CODE(print("feature option=\"smp_type -combo *YBW /// ABDADA /// SHT \"\n"));
 	SMP_CODE(print("feature option=\"smp_depth -spin %d 1 10\"\n",PROCESSOR::SMP_SPLIT_DEPTH));
+	CLUSTER_CODE(print("feature option=\"cluster_type -combo *YBW /// ABDADA /// SHT \"\n"));
 	CLUSTER_CODE(print("feature option=\"cluster_depth -spin %d 1 16\"\n",PROCESSOR::CLUSTER_SPLIT_DEPTH));
 	CLUSTER_CODE(print("feature option=\"message_poll_nodes -spin %d 10 20000\"\n",PROCESSOR::MESSAGE_POLL_NODES));
 	print("feature option=\"use_singular -check %d\"\n",use_singular);

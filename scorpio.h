@@ -44,7 +44,6 @@ Some definitions to include/remove code
 /*
 parallel search options
 */
-#define USE_SPINLOCK
 #ifdef  PARALLEL
 #	if !defined(MAX_CPUS)
 #		define MAX_CPUS              32
@@ -55,22 +54,17 @@ parallel search options
 #	define MAX_CPUS 			      1
 #	define MAX_SEARCHERS_PER_CPU      1
 #endif
-#ifdef  CLUSTER
-#	if !defined(MAX_HOSTS)
-#		define MAX_HOSTS             16
-#	endif
-#endif
 /*
 * Transposition table type
 * 0 - global tt
 * 1 - distributed tt
 * 2 - local tt
 */
-#if !defined(NUMA_TT_TYPE)
-#	define NUMA_TT_TYPE              0
+#if !defined(SMP_TT_TYPE)
+#	define SMP_TT_TYPE              0
 #endif
-#if !defined(TT_TYPE)
-#	define TT_TYPE                   1
+#if !defined(DST_TT_TYPE)
+#	define DST_TT_TYPE              1
 #endif
 /*
 Use const when not tuning
@@ -775,10 +769,10 @@ typedef struct PROCESSOR {
 	/*cluster*/
 #ifdef CLUSTER
 	enum processor_states {
-		QUIT = 0,INIT,RELAX,HELP,CANCEL,SPLIT,MERGE,PING,PONG,ABORT,
-		RECORD_TT,PROBE_TT,PROBE_TT_RESULT
+		QUIT = 0,INIT,HELP,CANCEL,SPLIT,MERGE,PING,PONG,
+		GOROOT, RECORD_TT,PROBE_TT,PROBE_TT_RESULT
 	};
-	static const char *const message_str[13];
+	static const char *const message_str[12];
 	static int host_id;
 	static char host_name[256];
 	static int help_messages;
@@ -787,7 +781,6 @@ typedef struct PROCESSOR {
 	static VOLATILE int message_available;
 	static void cancel_idle_hosts();
 	static void quit_hosts();
-	static void abort_hosts();
 	static int MESSAGE_POLL_NODES;
 	static int CLUSTER_SPLIT_DEPTH;
 #endif
@@ -808,6 +801,8 @@ typedef struct PROCESSOR {
 	static void Recv(int dest,int message,void* data,int size);
 	static bool IProbe(int& dest,int& message_id);
 	static void Wait(MPI_Request*);
+	static void Barrier();
+	static void Sum(int* sendbuf,int* recvbuf,int size);
 	static void handle_message(int dest,int message_id);
 	static void offer_help();
 #endif
@@ -857,8 +852,12 @@ multi processors
 void init_smp(int);
 extern LOCK  lock_smp;
 extern LOCK  lock_io;
+extern int use_abdada_smp;
 #endif
 
+#ifdef CLUSTER
+extern int use_abdada_cluster;
+#endif
 /*
 global data
 */
@@ -881,6 +880,7 @@ int   get_time();
 void  init_io();
 void  remove_log_file();
 void  print(const char* format,...);
+void  printH(const char* format,...);
 void  print_log(const char* format,...);
 void  print_std(const char* format,...);
 void  print_move(const MOVE&);

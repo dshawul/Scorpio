@@ -39,6 +39,7 @@ int PROCESSOR::n_hosts = 1;
 LOCK  lock_smp;
 LOCK  lock_io;
 int PROCESSOR::SMP_SPLIT_DEPTH = 4;
+int use_abdada_smp = 0;
 #endif
 
 #ifdef CLUSTER
@@ -51,9 +52,10 @@ std::list<int> PROCESSOR::available_host_workers;
 int PROCESSOR::help_messages = 0;
 int PROCESSOR::prev_dest = -1;
 const char *const PROCESSOR::message_str[] = {
-	"QUIT","INIT","RELAX","HELP","CANCEL","SPLIT","MERGE","PING","PONG","ABORT",
-	"RECORD_TT","PROBE_TT","PROBE_TT_RESULT"
+	"QUIT","INIT","HELP","CANCEL","SPLIT","MERGE","PING","PONG",
+	"GOROOT","RECORD_TT","PROBE_TT","PROBE_TT_RESULT"
 };
+int use_abdada_cluster = 0;
 #endif
 /*
 static global variables of SEARCHER
@@ -147,6 +149,17 @@ int CDECL main(int argc, char* argv[]) {
 	char   buffer[MAX_FILE_STR];
 	char*  commands[MAX_STR];
 
+	/*init io*/
+	init_io();
+	
+	/*init mpi*/
+#ifdef CLUSTER
+	PROCESSOR::init(argc,argv);
+#endif
+	
+	/*tell winboard to wait*/
+	print("feature done=0\n");
+	
 	/*init game*/
 	init_game();
 
@@ -160,7 +173,6 @@ int CDECL main(int argc, char* argv[]) {
 	 * Initialize MPI
 	 */
 #ifdef CLUSTER
-	PROCESSOR::init(argc,argv);
 	if(PROCESSOR::host_id == 0) {
 #endif
 		/*
@@ -217,10 +229,7 @@ initialize game
 void init_game() {
 #ifdef PARALLEL
 	l_create(lock_smp);
-	l_create(lock_io);
 #endif
-	init_io();
-	print("feature done=0\n");
 	scorpio_start_time = get_time();
 	PROCESSOR::n_idle_processors = 0;
 	PROCESSOR::n_processors = 1;
@@ -423,7 +432,6 @@ bool parse_commands(char** commands) {
 			while(commands[++command_num]);
 			searcher.print_game();
 		} else if(!strcmp(command,"quit")) {
-			CLUSTER_CODE(PROCESSOR::abort_hosts());
 			print("Bye Bye\n");
 			PROCESSOR::exit_scorpio(EXIT_SUCCESS);
 		} else if (!strcmp(command, "clear_hash")) {

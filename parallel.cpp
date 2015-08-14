@@ -32,16 +32,23 @@ void PROCESSOR::init(int argc, char* argv[]) {
 	MPI_Comm_size(MPI_COMM_WORLD, &PROCESSOR::n_hosts);
 	MPI_Comm_rank(MPI_COMM_WORLD, &PROCESSOR::host_id);
 	MPI_Get_processor_name(PROCESSOR::host_name, &namelen);
-	if((host_id == 0) && (provided != requested)) {
+	
+	/*init thread support*/
+	if(provided != requested) {
 		static const char* support[] = {
 			"MPI_THREAD_SINGLE","MPI_THREAD_FUNNELED",
 		    "MPI_THREAD_SERIALIZED","MPI_THREAD_MULTIPLE"
 		};
 		print("Warning: %s not supported. %s provided.\n",
-				support[requested],support[provided]);
+			support[requested],support[provided]);
+		print("Scorpio may hang when run with multiple threads \n"
+			  "including the thread  used for MPI input polling.\n");
 	}
+
 	print("Process [%d/%d] on %s : pid %d\n",PROCESSOR::host_id,
 		PROCESSOR::n_hosts,PROCESSOR::host_name,GETPID());
+	
+	/*global split point*/
 	global_split = new SPLIT_MESSAGE[n_hosts];
 #ifdef THREAD_POLLING
 	if(n_hosts > 1)
@@ -72,6 +79,12 @@ void PROCESSOR::Recv(int dest,int message,void* data,int size) {
 void PROCESSOR::Wait(MPI_Request* rqst) {
 	MPI_Wait(rqst,MPI_STATUS_IGNORE);
 }
+void PROCESSOR::Barrier() {
+	MPI_Barrier(MPI_COMM_WORLD);
+}
+void PROCESSOR::Sum(int* sendbuf,int* recvbuf,int size) {
+	MPI_Reduce(sendbuf,recvbuf,1,MPI_INT,MPI_SUM,0,MPI_COMM_WORLD);
+}
 bool PROCESSOR::IProbe(int& source,int& message_id) {
 	static MPI_Status mpi_status;
 	int flag;
@@ -79,7 +92,7 @@ bool PROCESSOR::IProbe(int& source,int& message_id) {
 	if(flag) {
 		message_id = mpi_status.MPI_TAG;
 		source = mpi_status.MPI_SOURCE;
-#ifdef _DEBUG
+#ifdef MYDEBUG
 		print("<"FMT64"> from [%d] to [%d] message \"%-6s\" \n",
 			get_time(),source,host_id,message_str[message_id]);
 #endif
@@ -307,7 +320,7 @@ void PROCESSOR::handle_message(int source,int message_id) {
 		/***********************************
 		* Distributed transposition table
 		************************************/
-#if TT_TYPE == 1
+#if DST_TT_TYPE == 1
 	} else if(message_id == RECORD_TT) {
 		TT_MESSAGE ttmsg;
 		Recv(source,message_id,&ttmsg,sizeof(TT_MESSAGE));
@@ -345,9 +358,9 @@ void PROCESSOR::handle_message(int source,int message_id) {
 		proc->ttmsg = ttmsg;
 		proc->ttmsg_recieved = true;
 #endif
-		/***********************************
-		* Handle notification messages
-		************************************/
+		/******************************************
+		* Handle notification (zero-size) messages
+		*******************************************/
 	} else {
 		Recv(source,message_id);
 		
@@ -362,18 +375,72 @@ void PROCESSOR::handle_message(int source,int message_id) {
 			help_messages--;
 		} else if(message_id == QUIT) {
 			SEARCHER::abort_search = 1;
-#ifdef PARALLEL
-		} else if(message_id == RELAX) {
-			for(int i = 0;i < n_processors;i++)
-				processors[i]->state = PARK;
-#endif
-		} else if(message_id == ABORT) {
-			PROCESSOR::exit_scorpio(EXIT_SUCCESS);
+		} else if(message_id == GOROOT) {
+			message_available = 0;
+			SEARCHER::chess_clock.infinite_mode = true;
+			int save = processors[0]->state;
+			processors[0]->state = GO;
+			psb->find_best();
+			processors[0]->state = save;
 		} else if(message_id == PING) {
 			ISend(source,PONG);
 		}
 	}
 }
+/**
+* Offer help to a randomly picked host
+*/
+void PROCESSOR::offer_help() {
+	if(!help_messages
+		&& n_idle_processors == n_processors 
+		&& !use_abdada_cluster
+		) {
+			register int i, count = 0,dest;
+
+			l_lock(lock_smp);
+			for(i = 0;i < n_processors;i++) {
+				if(processors[i]->state == WAIT) 
+					count++;
+			}
+			l_unlock(lock_smp);
+			
+			if(count == n_processors) {
+				while(true) {
+					dest = (rand() % n_hosts);
+					if((dest != host_id) && (dest != prev_dest)) 
+						break;
+				}
+				ISend(dest,HELP);
+				help_messages++;
+				prev_dest = dest;
+			}
+	}
+}
+/**
+* idle loop for message processing thread
+*/
+static VOLATILE bool scorpio_ending = false;
+void PROCESSOR::message_idle_loop() {
+	int message_id,source;
+	while(!scorpio_ending) {
+		while(IProbe(source,message_id)) {
+			g_message_id = message_id;
+			g_source_id = source;
+			/*Message thread handles all messages except SPLIT and GOROOT*/
+			if(message_id == SPLIT || message_id == GOROOT) {
+				message_available = 1;
+				while(message_available) 
+					t_yield();
+			} else {
+				handle_message(source,message_id);
+			}
+		}
+		offer_help();
+		t_yield();
+	}
+}
+
+#endif
 /**
 * Record hashtable entry in distributed system
 */
@@ -382,7 +449,7 @@ void SEARCHER::RECORD_HASH(
 				 int flags,int score,MOVE move,int mate_threat,int singular
 				 ) {
 #ifdef CLUSTER
-#	if TT_TYPE == 1
+#	if DST_TT_TYPE == 1
 	bool local = (DEPTH(depth) <= PROCESSOR::CLUSTER_SPLIT_DEPTH);
 	int dest;
 	if(!local) {
@@ -421,7 +488,7 @@ int SEARCHER::PROBE_HASH(
 			   bool exclusiveP
 			   ) {
 #ifdef CLUSTER
-#	if TT_TYPE == 1
+#	if DST_TT_TYPE == 1
 	bool local = (DEPTH(depth) <= PROCESSOR::CLUSTER_SPLIT_DEPTH);
 	int dest = 0;
 	if(!local) {
@@ -447,7 +514,7 @@ int SEARCHER::PROBE_HASH(
 		proc->ttmsg_recieved = false;
 		PROCESSOR::ISend(dest,PROCESSOR::PROBE_TT,&ttmsg,sizeof(TT_MESSAGE));
 		/*wait*/ 
-		while(!proc->ttmsg_recieved) {
+		while(!proc->ttmsg_recieved && !abort_search) {
 			proc->idle_loop();
 			t_yield();
 		}
@@ -465,59 +532,6 @@ int SEARCHER::PROBE_HASH(
 				mate_threat,singular,h_depth,exclusiveP);
 	}
 }
-/**
-* Offer help to a randomly picked host
-*/
-void PROCESSOR::offer_help() {
-	if(!help_messages
-		&& n_idle_processors == n_processors 
-		) {
-			register int i, count = 0,dest;
-
-			l_lock(lock_smp);
-			for(i = 0;i < n_processors;i++) {
-				if(processors[i]->state == WAIT) 
-					count++;
-			}
-			l_unlock(lock_smp);
-			
-			if(count == n_processors) {
-				while(true) {
-					dest = (rand() % n_hosts);
-					if((dest != host_id) && (dest != prev_dest)) 
-						break;
-				}
-				ISend(dest,HELP);
-				help_messages++;
-				prev_dest = dest;
-			}
-	}
-}
-/**
-* idle loop for message processing thread
-*/
-static VOLATILE bool scorpio_ending = false;
-void PROCESSOR::message_idle_loop() {
-	int message_id,source;
-	while(!scorpio_ending) {
-		while(IProbe(source,message_id)) {
-			g_message_id = message_id;
-			g_source_id = source;
-			/*Message thread handles all messages except SPLIT*/
-			if(message_id == SPLIT) {
-				message_available = 1;
-				while(message_available) 
-					t_yield();
-			} else {
-				handle_message(source,message_id);
-			}
-		}
-		offer_help();
-		t_yield();
-	}
-}
-
-#endif
 /**
 * idle loop for all other threads
 */
@@ -552,9 +566,13 @@ void PROCESSOR::idle_loop() {
 exit scorpio 
 */
 void PROCESSOR::exit_scorpio(int status) {
-	CLUSTER_CODE(scorpio_ending=true);
-	CLUSTER_CODE(MPI_Finalize());
+#ifdef CLUSTER
+	print("Process [%d/%d] terminated.\n",host_id,n_hosts);
+	scorpio_ending=true;
+	MPI_Abort(MPI_COMM_WORLD,status);
+#else
 	exit(status);
+#endif
 }
 #ifdef CLUSTER
 /**
@@ -625,16 +643,6 @@ void PROCESSOR::quit_hosts() {
 	for(int i = 0;i < n_hosts;i++) {
 		if(i != host_id)
 			ISend(i,QUIT);
-	}
-}
-/**
-* Abort hosts 
-*/
-void PROCESSOR::abort_hosts() {
-	for(int i = 0;i < n_hosts;i++) {
-		if(i != host_id)
-			ISend(i,ABORT);
-		print("Process [%d/%d] terminated.\n",i,n_hosts);
 	}
 }
 /**
@@ -728,12 +736,14 @@ void PROCESSOR::create(int id) {
 	long tid = id;
 	t_create(thread_proc,tid);
 	int nidx = n_idle_processors;
-	while(n_idle_processors == nidx);
+	while(n_idle_processors == nidx) 
+		t_yield();
 }
 void PROCESSOR::kill(int id) {
 	PPROCESSOR proc = processors[id];
 	proc->state = KILL;
-	while(proc->state == KILL);
+	while(proc->state == KILL) 
+		t_yield();
 	proc->delete_hash_tables();
 	delete proc;
 	processors[id] = 0;
@@ -827,18 +837,10 @@ int SEARCHER::check_split() {
 			
 			l_lock(lock_smp);
 			
-			/*attach helper threads*/
-			if(DEPTH(pstack->depth) > PROCESSOR::SMP_SPLIT_DEPTH 
-				&& PROCESSOR::n_idle_processors > 0
-				) {
-					for(i = 0;i < PROCESSOR::n_processors && n_workers < MAX_CPUS_PER_SPLIT - 1;i++) {
-						if(processors[i]->state == WAIT)
-							attach_processor(i);
-					}
-			}
-			/*attach helper hosts*/
 #ifdef CLUSTER
+			/*attach helper hosts*/
 			if(DEPTH(pstack->depth) > PROCESSOR::CLUSTER_SPLIT_DEPTH 
+				&& !use_abdada_cluster
 				&& PROCESSOR::available_host_workers.size() > 0
 				) {
 					while(n_host_workers < MAX_CPUS_PER_SPLIT && !PROCESSOR::available_host_workers.empty()) {
@@ -859,6 +861,22 @@ int SEARCHER::check_split() {
 					}
 			}
 #endif
+			
+			/*attach helper threads*/
+			if(DEPTH(pstack->depth) > PROCESSOR::SMP_SPLIT_DEPTH 
+				&& PROCESSOR::n_idle_processors > 0
+				) {
+					for(i = 0;i < PROCESSOR::n_processors && n_workers < MAX_CPUS_PER_SPLIT - 1;i++) {
+						if(processors[i]->state == WAIT) {
+							attach_processor(i);
+							/*if depth greater than cluster_split_depth, attach only one thread*/
+							CLUSTER_CODE(
+								if(!use_abdada_cluster && DEPTH(pstack->depth) > PROCESSOR::CLUSTER_SPLIT_DEPTH) break;
+							)
+						}
+					}
+			}
+	
 			/*send them off to work*/
 			if(n_workers CLUSTER_CODE(|| n_host_workers)) {
 				splits++;
@@ -960,7 +978,6 @@ void init_smp(int mt) {
 				if(processors[i] == 0) {
 					PROCESSOR::create(i);
 					PROCESSOR::n_processors++;
-					print("+ Thread %d started.\n",i);
 				}
 			} 
 		}
@@ -970,7 +987,6 @@ void init_smp(int mt) {
 				if(processors[i] != 0) {
 					PROCESSOR::kill(i);
 					PROCESSOR::n_processors--;
-					print("- Thread %d terminated.\n",i);
 				}
 			}
 		}

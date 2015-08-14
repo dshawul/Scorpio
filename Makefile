@@ -8,29 +8,33 @@ HPP = scorpio.h my_types.h
 
 #########################################################################
 #
-# Some Options : 
+# Some options
+# ------------
+#
 #  DARC_64BIT      --  Is system 64 bit.
 #  DHAS_POPCNT     --  Use Intrinsic PopCnt. [HIGHLY recommeneded] 
 #  DHAS_PREFETCH   --  Prefetch hash table entries [Recommeneded] 
 #  DPARALLEL       --  Compile parallel search code.
-#  DMAX_CPUS=n     --  Compile for maximum of n cpus. Default is 32
-#  DMAX_HOSTS=n    --  Compile for maximum of n cpus in a cluster. Default value is 128.                   
-#  DTT_TYPE=n      --  Transposition table type (0 - global, 1 - distributed, 2 - local)
-#  DNUMA_TT_TYPE=n --  Ditto but for NUMA systems
-#  DTUNE           --  Compile evaluation tuning code. [NOT recommended]
+#  DCLUSTER        --  Compile MPI cluster code.
+#  DMAX_CPUS=n     --  Compile for maximum of n cpus. Default is 32                 
+#  DSMP_TT_TYPE=n  --  Shared memory transposition table type (0 - global, 1 - distributed, 2 - local)
+#  DDST_TT_TYPE=n  --  Distributed   transposition table type (0 - global, 1 - distributed, 2 - local)
+#  DTUNE           --  Compile evaluation tuning code. [NOT recommended to turn on]
+#  DTHREAD_POLLING --  Poll for MPI message using a thread. 
+#  DMYDEBUG        --  Turn on some MPI debugging
 #
 #########################################################################
 DEFINES = 
+#DEFINES += -DMYDEBUG
 #DEFINES += -DARC_64BIT
 #DEFINES += -DHAS_POPCNT
 #DEFINES += -DHAS_PREFETCH
 #DEFINES += -DPARALLEL
 #DEFINES += -DMAX_CPUS=64
-#DEFINES += -DMAX_HOSTS=16
 #DEFINES += -DTUNE
-#DEFINES += -DTT_TYPE=1
-#DEFINES += -DNUMA_TT_TYPE=1
-DEFINES += -DTHREAD_POLLING
+#DEFINES += -DDST_TT_TYPE=1
+#DEFINES += -DSMP_TT_TYPE=0
+#DEFINES += -DTHREAD_POLLING
 
 ############################
 # Compiler choice 

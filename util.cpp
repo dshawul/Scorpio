@@ -21,53 +21,70 @@ void remove_log_file() {
 	}
 }
 
+#define PRINT(pf,mstr) {		\
+	va_start(ap, format);		\
+	vfprintf(pf,mstr, ap);		\
+	va_end(ap);					\
+	fflush(pf);					\
+}
 void print(const char* format,...) {
-
+	
+#ifndef MYDEBUG
+	CLUSTER_CODE(if(PROCESSOR::host_id != 0) return;)
+#endif
+		
 	l_lock(lock_io);
-
+		
 	va_list ap;
-	va_start(ap, format);
-	vprintf(format, ap);
-	va_end(ap);
-	fflush(stdout);
-
-	if(log_on && log_file) {
-		va_start(ap, format);
-		vfprintf(log_file, format, ap);
-		va_end(ap);
-		fflush(log_file);
-	}
+	PRINT(stdout,format);
+	if(log_on && log_file)
+		PRINT(log_file,format);	
 
 	l_unlock(lock_io);
 }
+void printH(const char* format,...) {
+#ifdef CLUSTER
+	char str[1024];
+	sprintf(str,"[%d]%s",PROCESSOR::host_id,format);
+#else
+	const char* str = format;
+#endif
+	l_lock(lock_io);
+		
+	va_list ap;
+	PRINT(stdout,str);
+	if(log_on && log_file)
+		PRINT(log_file,str);	
 
+	l_unlock(lock_io);
+}
 void print_log(const char* format,...) {
-
+	
+	CLUSTER_CODE(if(PROCESSOR::host_id != 0) return;)
+		
 	if(!log_on || !log_file) return;
-
+	
 	l_lock(lock_io);
 
 	va_list ap;
-	va_start(ap, format);
-	vfprintf(log_file, format, ap);
-	fflush(log_file);
-	va_end(ap);
+	PRINT(log_file,format);
 
 	l_unlock(lock_io);
 }
 
 void print_std(const char* format,...) {
-
+	
+	CLUSTER_CODE(if(PROCESSOR::host_id != 0) return;)
+	
 	l_lock(lock_io);
-
+	
 	va_list ap;
-	va_start(ap, format);
-	vprintf(format, ap);
-	fflush(stdout);
-	va_end(ap);
+	PRINT(stdout,format);
 
 	l_unlock(lock_io);
 }
+
+#undef PRINT
 /*
 print elements of board
 */
@@ -179,7 +196,7 @@ void SEARCHER::print_board() const {
 	print(fen);
 	print("\n");
 
-#ifdef	_DEBUG
+#ifdef	MYDEBUG
 	print("%d %d %d %d\n",piece_c[white],piece_c[black],pawn_c[white],pawn_c[black]);
 	print("play = %d opp = %d ep = %d cas = %d fif = %d hkey 0x"FMTU64"\n\n",player,
 		opponent,epsquare,castle,fifty,hash_key);
@@ -280,7 +297,7 @@ void SEARCHER::print_pv(int score) {
 	MOVE  move;
 	int i;
 	char mv_str[10];
-	char pv[512];
+	char pv[1024];
 
 	/*convert to correct mate score*/
 	if(score > MATE_SCORE - WIN_PLY * MAX_PLY) 
@@ -301,8 +318,6 @@ void SEARCHER::print_pv(int score) {
 		strcat(pv,mv_str);
 		PUSH_MOVE(move);
 	}
-	print_log("[%d] ",root_failed_low);
-	print(pv);
 	/*add moves from hash table*/
 	int dummy;
 	while(1) {
@@ -314,12 +329,15 @@ void SEARCHER::print_pv(int score) {
 
 		strcpy(mv_str,"");
         mov_str(move,mv_str);
-		print(" %s",mv_str);
+		strcat(pv, " ");
+		strcat(pv, mv_str);
 		PUSH_MOVE(move);
 		i++;
 	}
+	/*print it now*/
+	strcat(pv,"\n");
+	print(pv);
 	/*undo moves*/
-	print("\n");
 	for (int j = 0; j < i ; j++)
 		POP_MOVE();
 }
@@ -825,7 +843,11 @@ void init_io() {
 	signal(SIGINT,SIG_IGN);
 	srand((unsigned)time(NULL));
 	rand();
-
+	
+#ifdef PARALLEL
+	l_create(lock_io);
+#endif
+	
 #ifdef LOG_FILE
 	/*log file*/
 	int i;
