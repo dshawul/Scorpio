@@ -39,10 +39,10 @@ void PROCESSOR::init(int argc, char* argv[]) {
 			"MPI_THREAD_SINGLE","MPI_THREAD_FUNNELED",
 		    "MPI_THREAD_SERIALIZED","MPI_THREAD_MULTIPLE"
 		};
-		print("Warning: %s not supported. %s provided.\n",
+		print("[Warning]: %s not supported. %s provided.\n",
 			support[requested],support[provided]);
-		print("Scorpio may hang when run with multiple threads \n"
-			  "including the thread  used for MPI input polling.\n");
+		print("[Warning]: Scorpio may hang when run with multiple threads"
+			" (including message polling thread).\n");
 	}
 
 	print("Process [%d/%d] on %s : pid %d\n",PROCESSOR::host_id,

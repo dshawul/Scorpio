@@ -15,27 +15,35 @@ HPP = scorpio.h my_types.h
 #  DHAS_POPCNT     --  Use Intrinsic PopCnt. [HIGHLY recommeneded] 
 #  DHAS_PREFETCH   --  Prefetch hash table entries [Recommeneded] 
 #  DPARALLEL       --  Compile parallel search code.
+#  DUSE_SPINLOCK   --  Use spin locks.
 #  DCLUSTER        --  Compile MPI cluster code.
 #  DMAX_CPUS=n     --  Compile for maximum of n cpus. Default is 32                 
-#  DSMP_TT_TYPE=n  --  Shared memory transposition table type (0 - global, 1 - distributed, 2 - local)
-#  DDST_TT_TYPE=n  --  Distributed   transposition table type (0 - global, 1 - distributed, 2 - local)
+#  DSMP_TT_TYPE=n  --  Shared memory transposition table type (0 - global, 1 - distributed, 2 - local) default=0
+#  DDST_TT_TYPE=n  --  Distributed   transposition table type (0 - global, 1 - distributed, 2 - local) default=1
 #  DTUNE           --  Compile evaluation tuning code. [NOT recommended to turn on]
 #  DTHREAD_POLLING --  Poll for MPI message using a thread. 
 #  DMYDEBUG        --  Turn on some MPI debugging
-#
+#  DLOG_FILE       --  Include logging code
+#  DBOOK_PROBE     --  Include book probing code
+#  DBOOK_CREATE    --  Include book creation code
+#  DEGBB           --  Include EGBB probing code
 #########################################################################
 DEFINES = 
+DEFINES += -DARC_64BIT
+DEFINES += -DHAS_POPCNT
+DEFINES += -DHAS_PREFETCH
+DEFINES += -DPARALLEL
+DEFINES += -DUSE_SPINLOCK
+DEFINES += -DTHREAD_POLLING
+DEFINES += -DLOG_FILE
+DEFINES += -DBOOK_PROBE
+DEFINES += -DBOOK_CREATE
+DEFINES += -DEGBB
 #DEFINES += -DMYDEBUG
-#DEFINES += -DARC_64BIT
-#DEFINES += -DHAS_POPCNT
-#DEFINES += -DHAS_PREFETCH
-#DEFINES += -DPARALLEL
-#DEFINES += -DMAX_CPUS=64
 #DEFINES += -DTUNE
-#DEFINES += -DDST_TT_TYPE=1
+#DEFINES += -DMAX_CPUS=32
 #DEFINES += -DSMP_TT_TYPE=0
-#DEFINES += -DTHREAD_POLLING
-
+#DEFINES += -DDST_TT_TYPE=1
 ############################
 # Compiler choice 
 ############################
@@ -51,6 +59,11 @@ else ifeq ($(COMP),icpc-cluster)
 	CXX="mpic++"
 	override COMP=icpc
 	DEFINES += -DCLUSTER
+else ifeq ($(COMP),pgcc-cluster)
+	CXX="mpic++"
+	override COMP=pgcc
+else ifeq ($(COMP),pgcc)
+	CXX=pgc++
 else ifeq ($(COMP),gcc)
 	CXX=g++
 else ifeq ($(COMP),icpc)
@@ -65,46 +78,59 @@ STRIP += $(EXE)
 ###########################
 #  Compiler flags
 ###########################
-CXXFLAGS = -Wall -fstrict-aliasing -fno-exceptions -fno-rtti
-LXXFLAGS = -lm -ldl
+ifeq ($(COMP),pgcc)
+        CXXFLAGS = warn
+        LXXFLAGS = -lm -ldl -lpthread
+else
+        CXXFLAGS = -Wall -fstrict-aliasing -fno-exceptions -fno-rtti
+        LXXFLAGS = -lm -ldl
+endif
 
 ifeq ($(COMP),gcc)
-	CXXFLAGS += -msse
-	LXXFLAGS += -lpthread
+        CXXFLAGS += -msse
+        LXXFLAGS += -lpthread
 else ifeq ($(COMP),icpc)
-	CXXFLAGS += -wd128 -wd981 -wd869 -wd2259 -wd383 -wd1418
-	LXXFLAGS += -lpthread
+        CXXFLAGS += -wd128 -wd981 -wd869 -wd2259 -wd383 -wd1418
+        LXXFLAGS += -lpthread
+else ifeq ($COMP),pgcc)
+
 endif
 
 ifeq ($(DEBUG),3)
-	ifeq ($(COMP),icpc)
-		CXXFLAGS += -O2 -prof-gen
-	else
-		CXXFLAGS += -O2 -fprofile-generate
-		LXXFLAGS += -lgcov
-	endif
-	STRIP=
+        ifeq ($(COMP),icpc)
+                CXXFLAGS += -O2 -prof-gen
+        else ifeq ($(COMP),pgcc)
+                CXXFLAGS += -O2 -Mpfi
+        else
+                CXXFLAGS += -O2 -fprofile-generate
+                LXXFLAGS += -lgcov
+        endif
+        STRIP=
 else ifeq ($(DEBUG),2)
-	ifeq ($(COMP),icpc)
-		CXXFLAGS += -g -pg 
-	else
-		CXXFLAGS += -g -pg 
-		LXXFLAGS += -g -pg
-	endif
-	STRIP=
+        ifeq ($(COMP),icpc)
+                CXXFLAGS += -g -pg
+        else
+                CXXFLAGS += -g -pg
+                LXXFLAGS += -g -pg
+        endif
+        STRIP=
 else ifeq ($(DEBUG),1)
-   	ifeq ($(COMP),icpc)
-		CXXFLAGS += -prof-use -fast -fomit-frame-pointer
-	else
-		CXXFLAGS += -fprofile-use -Ofast -fomit-frame-pointer -flto
-		LXXFLAGS += -lgcov
-	endif
+        ifeq ($(COMP),icpc)
+                CXXFLAGS += -prof-use -fast -fomit-frame-pointer
+        else ifeq ($(COMP),pgcc)
+                CXXFLAGS += -Mpfo -fast noframe
+        else
+                CXXFLAGS += -fprofile-use -Ofast -fomit-frame-pointer -flto
+                LXXFLAGS += -lgcov
+        endif
 else
-	ifeq ($(COMP),icpc)
-		CXXFLAGS += -fast -fomit-frame-pointer
-	else
-		CXXFLAGS += -Ofast -fomit-frame-pointer -flto
-	endif
+        ifeq ($(COMP),icpc)
+                CXXFLAGS += -fast -fomit-frame-pointer
+        else ifeq ($(COMP),pgcc)
+                CXXFLAGS += -fast noframe
+        else
+                CXXFLAGS += -Ofast -fomit-frame-pointer -flto
+        endif
 endif
 
 ######################

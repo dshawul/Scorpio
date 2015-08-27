@@ -13,13 +13,15 @@
 /*
 Some definitions to include/remove code
 */
-#define LOG_FILE
-#define BOOK_PROBE
-#define BOOK_CREATE
-#define EGBB
-//#define CLUSTER
-//#define TUNE
-//#define THREAD_POLLING
+#ifdef _MSC_VER
+#	define LOG_FILE
+#	define BOOK_PROBE
+#	define BOOK_CREATE
+#	define EGBB
+#	define CLUSTER
+#	define THREAD_POLLING
+// #	define TUNE
+#endif
 
 /*includes*/
 #include <cstdarg>

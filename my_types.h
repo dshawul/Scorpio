@@ -2,14 +2,16 @@
 #define __MY_TYPES__
 
 /*
-Platform specific defines
+Platform specific defines for Windows
+For others, they are set in Makefile
 */
+#ifdef _MSC_VER
 #define ARC_64BIT
 #define HAS_POPCNT
 #define HAS_PREFETCH
 #define PARALLEL
 #define USE_SPINLOCK
-
+#endif
 /*
 int types
 */
