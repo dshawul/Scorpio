@@ -82,8 +82,8 @@ void PROCESSOR::Wait(MPI_Request* rqst) {
 void PROCESSOR::Barrier() {
 	MPI_Barrier(MPI_COMM_WORLD);
 }
-void PROCESSOR::Sum(int* sendbuf,int* recvbuf,int size) {
-	MPI_Reduce(sendbuf,recvbuf,1,MPI_INT,MPI_SUM,0,MPI_COMM_WORLD);
+void PROCESSOR::Sum(UBMP64* sendbuf,UBMP64* recvbuf) {
+	MPI_Reduce(sendbuf,recvbuf,1,MPI_LONG_LONG_INT,MPI_SUM,0,MPI_COMM_WORLD);
 }
 bool PROCESSOR::IProbe(int& source,int& message_id) {
 	static MPI_Status mpi_status;
@@ -320,7 +320,7 @@ void PROCESSOR::handle_message(int source,int message_id) {
 		/***********************************
 		* Distributed transposition table
 		************************************/
-#if DST_TT_TYPE == 1
+#if CLUSTER_TT_TYPE == 1
 	} else if(message_id == RECORD_TT) {
 		TT_MESSAGE ttmsg;
 		Recv(source,message_id,&ttmsg,sizeof(TT_MESSAGE));
@@ -449,7 +449,7 @@ void SEARCHER::RECORD_HASH(
 				 int flags,int score,MOVE move,int mate_threat,int singular
 				 ) {
 #ifdef CLUSTER
-#	if DST_TT_TYPE == 1
+#	if CLUSTER_TT_TYPE == 1
 	bool local = (DEPTH(depth) <= PROCESSOR::CLUSTER_SPLIT_DEPTH);
 	int dest;
 	if(!local) {
@@ -488,7 +488,7 @@ int SEARCHER::PROBE_HASH(
 			   bool exclusiveP
 			   ) {
 #ifdef CLUSTER
-#	if DST_TT_TYPE == 1
+#	if CLUSTER_TT_TYPE == 1
 	bool local = (DEPTH(depth) <= PROCESSOR::CLUSTER_SPLIT_DEPTH);
 	int dest = 0;
 	if(!local) {

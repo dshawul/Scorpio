@@ -222,7 +222,7 @@ void SEARCHER::print_history() {
 		print(" cst=%d ep=",hstack[i].castle);
 		print_sq(hstack[i].epsquare);
 		print(" fif=%d chk=%d",hstack[i].fifty,hstack[i].checks);
-		print(" hkey 0x"FMTU64,hstack[i].hash_key);
+		print(" hkey 0x" FMTU64,hstack[i].hash_key);
 		print("\n");
 	}
 }
@@ -306,7 +306,7 @@ void SEARCHER::print_pv(int score) {
 		score = -10000 + ((MATE_SCORE + score) * (ply + 1)) / WIN_PLY;
 
 	/*print what we have*/
-	sprintf(pv,"%d %d %d "FMT64" ",
+	sprintf(pv,"%d %d %d " FMT64 " ",
 		search_depth,score,
 		(get_time() - start_time)/10,
 		(long long)nodes);

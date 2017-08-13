@@ -42,8 +42,8 @@ DEFINES += -DEGBB
 #DEFINES += -DMYDEBUG
 #DEFINES += -DTUNE
 #DEFINES += -DMAX_CPUS=32
-#DEFINES += -DSMP_TT_TYPE=0
-#DEFINES += -DDST_TT_TYPE=1
+#DEFINES += -DNUMA_TT_TYPE=0
+#DEFINES += -DCLUSTER_TT_TYPE=1
 ############################
 # Compiler choice 
 ############################

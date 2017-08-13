@@ -953,7 +953,26 @@ searcher's search function
 */
 void SEARCHER::search() {
 #ifdef PARALLEL
+	/*attach helper processor here once for abdada*/
+	if(use_abdada_smp) {
+		for(int i = 1;i < PROCESSOR::n_processors;i++) {
+			attach_processor(i);
+			PSEARCHER sb = processors[i]->searcher;
+			memcpy(&sb->pstack->move_st[0],&pstack->move_st[0], 
+				pstack->count * sizeof(MOVE));
+			processors[i]->state = GO;
+		}
+	}
+
+	/*do the search*/
 	::search(processors[0]);
+
+	/*wait till all helpers become idle*/
+	if(use_abdada_smp) {
+		abort_search = 1;
+		while(PROCESSOR::n_idle_processors < PROCESSOR::n_processors - 1); 
+		abort_search = 0;
+	}
 #else
 	::search(this);
 #endif
@@ -1030,6 +1049,7 @@ MOVE SEARCHER::find_best() {
 		for(int i = 0;i < PROCESSOR::n_hosts;i++) {
 			if(i != PROCESSOR::host_id) {
 				PROCESSOR::ISend(i,PROCESSOR::INIT,&init,INIT_MESSAGE_SIZE(init));
+				/*start iterative deepening searcher for ABDADA/SHT*/
 				if(use_abdada_cluster)
 					PROCESSOR::ISend(i,PROCESSOR::GOROOT);
 			}
@@ -1053,6 +1073,10 @@ MOVE SEARCHER::find_best() {
 	stop_searcher = 0;
 	abort_search = 0;
 	search_depth = 1;
+#ifdef CLUSTER
+	if(PROCESSOR::n_hosts > 1 && use_abdada_cluster) 
+		search_depth += 1 - (PROCESSOR::host_id & 1);
+#endif
 	poll_nodes = 5000;
 	egbb_probes = 0;
 	start_time = get_time();
@@ -1192,7 +1216,10 @@ MOVE SEARCHER::find_best() {
 	do {
 		/*search with the current depth*/
 		search_depth++;
-
+#ifdef CLUSTER
+		if(PROCESSOR::n_hosts > 1 && use_abdada_cluster) 
+			search_depth++;
+#endif
 		/*egbb ply limit*/
 		SEARCHER::egbb_ply_limit = 
 			SEARCHER::egbb_ply_limit_percent * search_depth / 100;
@@ -1201,34 +1228,12 @@ MOVE SEARCHER::find_best() {
 		pstack->depth = search_depth * UNITDEPTH;
 		pstack->alpha = alpha;
 		pstack->beta = beta;
-
-		/*attach helpers*/
-#ifdef PARALLEL
-		if(use_abdada_smp) {
-			for(i = 1;i < PROCESSOR::n_processors;i++) {
-				attach_processor(i);
-				PSEARCHER sb = processors[i]->searcher;
-				memcpy(&sb->pstack->move_st[0],&pstack->move_st[0], 
-					pstack->count * sizeof(MOVE));
-				processors[i]->state = GO;
-			}
-		}
-#endif
 		
 		search();
 		
 		/*abort search?*/
 		if(abort_search)
 			break;
-
-		/*wait till all helpers are idle*/
-#ifdef PARALLEL
-		if(use_abdada_smp) {
-			abort_search = 1;
-			while(PROCESSOR::n_idle_processors < PROCESSOR::n_processors - 1); 
-			abort_search = 0;
-		}
-#endif
 
 		/*score*/
 		score = pstack->best_score;
@@ -1331,19 +1336,6 @@ MOVE SEARCHER::find_best() {
 
 	} while(search_depth < chess_clock.max_sd);
 
-	/*search has ended. display some info*/
-	time_used = get_time() - start_time;
-	if(!time_used) time_used = 1;
-	if(pv_print_style == 1) {
-		print(" "FMT64W" %8.2f %10d %8d %8d\n",nodes,float(time_used) / 1000,
-			int(BMP64(nodes) / (time_used / 1000.0f)),splits,bad_splits);
-	} else {
-		print("splits = %d badsplits = %d egbb_probes = %d\n",
-			splits,bad_splits,egbb_probes);
-		print("nodes = "FMT64" <%d qnodes> time = %dms nps = %d\n",nodes,
-			int(BMP64(qnodes) / (BMP64(nodes) / 100.0f)),
-			time_used,int(BMP64(nodes) / (time_used / 1000.0f)));
-	}
 #ifdef PARALLEL
 	/*park threads*/
 	for(i = 1;i < PROCESSOR::n_processors;i++) {
@@ -1362,16 +1354,32 @@ MOVE SEARCHER::find_best() {
 		for(i = 1;i < PROCESSOR::n_hosts;i++)
 			PROCESSOR::ISend(i,PROCESSOR::QUIT);
 	}
-	/*total nps*/
-	if(use_abdada_cluster) {
-		PROCESSOR::Barrier();
-		int lnps,nps;
-		lnps = int(BMP64(nodes) / (time_used / 1000.0f));
-		PROCESSOR::Sum(&lnps,&nps,1);
-		print("==== Total NPS = %d ====\n",nps);
-	}
 #endif
 	
+
+#ifdef CLUSTER
+	/*total nps*/
+	if(use_abdada_cluster) {
+		UBMP64 tnodes;
+		PROCESSOR::Sum(&nodes, &tnodes);
+		nodes = (UBMP64)tnodes;
+	}
+#endif
+
+	/*search has ended. display some info*/
+	time_used = get_time() - start_time;
+	if(!time_used) time_used = 1;
+	if(pv_print_style == 1) {
+		print(" " FMT64W " %8.2f %10d %8d %8d\n",nodes,float(time_used) / 1000,
+			int(BMP64(nodes) / (time_used / 1000.0f)),splits,bad_splits);
+	} else {
+		print("splits = %d badsplits = %d egbb_probes = %d\n",
+			splits,bad_splits,egbb_probes);
+		print("nodes = " FMT64 " <%d qnodes> time = %dms nps = %d\n",nodes,
+			int(BMP64(qnodes) / (BMP64(nodes) / 100.0f)),
+			time_used,int(BMP64(nodes) / (time_used / 1000.0f)));
+	}
+
 	return stack[0].pv[0];
 }
 

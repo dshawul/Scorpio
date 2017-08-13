@@ -62,11 +62,11 @@ parallel search options
 * 1 - distributed tt
 * 2 - local tt
 */
-#if !defined(SMP_TT_TYPE)
-#	define SMP_TT_TYPE              0
+#if !defined(NUMA_TT_TYPE)
+#	define NUMA_TT_TYPE              0
 #endif
-#if !defined(DST_TT_TYPE)
-#	define DST_TT_TYPE              1
+#if !defined(CLUSTER_TT_TYPE)
+#	define CLUSTER_TT_TYPE           1
 #endif
 /*
 Use const when not tuning
@@ -804,7 +804,7 @@ typedef struct PROCESSOR {
 	static bool IProbe(int& dest,int& message_id);
 	static void Wait(MPI_Request*);
 	static void Barrier();
-	static void Sum(int* sendbuf,int* recvbuf,int size);
+	static void Sum(UBMP64* sendbuf,UBMP64* recvbuf);
 	static void handle_message(int dest,int message_id);
 	static void offer_help();
 #endif

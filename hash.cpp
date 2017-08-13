@@ -11,7 +11,7 @@ Allocate tables
 	-The rest is allocated for each thread.
 */
 void PROCESSOR::reset_hash_tab(int id,UBMP32 size) {
-#if SMP_TT_TYPE == 0
+#if NUMA_TT_TYPE == 0
 	if(id != 0) return;
 #endif
 	if(size) hash_tab_mask = size - 1;
@@ -54,11 +54,11 @@ void PROCESSOR::delete_hash_tables() {
 /* 
  Distributed hashtable on NUMA machines
  */
-#if SMP_TT_TYPE == 0
+#if NUMA_TT_TYPE == 0
 #define TT_KEY \
 	static const PPROCESSOR proc = processors[0];\
 	UBMP32 key = UBMP32(hash_key & PROCESSOR::hash_tab_mask);
-#elif SMP_TT_TYPE == 1
+#elif NUMA_TT_TYPE == 1
 #define TT_KEY \
 	int proc_id = ((hash_key >> 48) * PROCESSOR::n_processors) >> 16;\
 	PPROCESSOR proc = processors[proc_id];\

@@ -367,7 +367,7 @@ bool parse_commands(char** commands) {
 			if(!SEARCHER::abort_search) {
 				int time_used = get_time() - SEARCHER::start_time; 
 				mov_str(main_searcher->stack[0].current_move,mv_str);
-				print("stat01: %d "FMT64" %d %d %d %s\n",time_used / 10,main_searcher->nodes,
+				print("stat01: %d " FMT64 " %d %d %d %s\n",time_used / 10,main_searcher->nodes,
 					main_searcher->search_depth,
 					main_searcher->stack[0].count - main_searcher->stack[0].current_index,
 					main_searcher->stack[0].count,
@@ -619,7 +619,7 @@ bool parse_commands(char** commands) {
 			start = clock();
 			UBMP64 nodes = searcher.perft(depth);
 			end = clock();
-			print("\nnodes "FMT64"\n",nodes);
+			print("\nnodes " FMT64 "\n",nodes);
 			print("time %.2f sec\n",(end - start) / 1000.0f);
 		} else if(!strcmp(command,"score")) {
 			int score;
