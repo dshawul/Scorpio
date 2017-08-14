@@ -849,8 +849,10 @@ IDLE_START:
 
 					if(score >= sb->pstack->beta) (sb->pstack + 1)->pv_length = 1;
 					sb->UPDATE_PV(move);
+
 					if(score <= sb->pstack->alpha || score >= sb->pstack->beta);
-					else if(!use_abdada_smp || !sb->processor_id) sb->print_pv(sb->pstack->best_score);
+					else SMP_CODE(if(!use_abdada_smp || !sb->processor_id))
+						sb->print_pv(sb->pstack->best_score);
 
 					if(!sb->chess_clock.infinite_mode && !sb->chess_clock.pondering)
 						sb->root_score = score;
@@ -969,9 +971,9 @@ void SEARCHER::search() {
 
 	/*wait till all helpers become idle*/
 	if(use_abdada_smp) {
-		abort_search = 1;
-		while(PROCESSOR::n_idle_processors < PROCESSOR::n_processors - 1); 
-		abort_search = 0;
+		stop_workers();
+		while(PROCESSOR::n_idle_processors < PROCESSOR::n_processors - 1)
+			t_yield(); 
 	}
 #else
 	::search(this);
@@ -1075,7 +1077,7 @@ MOVE SEARCHER::find_best() {
 	search_depth = 1;
 #ifdef CLUSTER
 	if(PROCESSOR::n_hosts > 1 && use_abdada_cluster) 
-		search_depth += 1 - (PROCESSOR::host_id & 1);
+		search_depth = 1 - (PROCESSOR::host_id & 1);
 #endif
 	poll_nodes = 5000;
 	egbb_probes = 0;
@@ -1217,7 +1219,8 @@ MOVE SEARCHER::find_best() {
 		/*search with the current depth*/
 		search_depth++;
 #ifdef CLUSTER
-		if(PROCESSOR::n_hosts > 1 && use_abdada_cluster) 
+		if(use_abdada_cluster && PROCESSOR::n_hosts > 1 && 
+		   search_depth < chess_clock.max_sd) 
 			search_depth++;
 #endif
 		/*egbb ply limit*/
@@ -1228,7 +1231,7 @@ MOVE SEARCHER::find_best() {
 		pstack->depth = search_depth * UNITDEPTH;
 		pstack->alpha = alpha;
 		pstack->beta = beta;
-		
+
 		search();
 		
 		/*abort search?*/
@@ -1314,10 +1317,18 @@ MOVE SEARCHER::find_best() {
 			WINDOW = MIN(200, 3 * WINDOW / 2);
 			alpha = MAX(-MATE_SCORE,score - WINDOW);
 			search_depth--;
+#ifdef CLUSTER
+			if(use_abdada_cluster && PROCESSOR::n_hosts > 1) 
+				search_depth--;
+#endif
 		} else if (score >= beta){
 			WINDOW = MIN(200, 3 * WINDOW / 2);
 			beta = MIN(MATE_SCORE,score + WINDOW);
 			search_depth--;
+#ifdef CLUSTER
+			if(use_abdada_cluster && PROCESSOR::n_hosts > 1) 
+				search_depth--;
+#endif
 		} else {
 			WINDOW = 10;
 			alpha = score - WINDOW;
@@ -1343,11 +1354,6 @@ MOVE SEARCHER::find_best() {
 	}
 #endif
 
-	/*was this first search?*/
-	if(first_search) {
-		first_search = false;
-	}
-
 #ifdef CLUSTER
 	/*park hosts*/
 	if(PROCESSOR::host_id == 0 && use_abdada_cluster) {
@@ -1356,7 +1362,6 @@ MOVE SEARCHER::find_best() {
 	}
 #endif
 	
-
 #ifdef CLUSTER
 	/*total nps*/
 	if(use_abdada_cluster) {
@@ -1378,6 +1383,11 @@ MOVE SEARCHER::find_best() {
 		print("nodes = " FMT64 " <%d qnodes> time = %dms nps = %d\n",nodes,
 			int(BMP64(qnodes) / (BMP64(nodes) / 100.0f)),
 			time_used,int(BMP64(nodes) / (time_used / 1000.0f)));
+	}
+
+	/*was this first search?*/
+	if(first_search) {
+		first_search = false;
 	}
 
 	return stack[0].pv[0];

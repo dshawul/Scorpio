@@ -48,7 +48,7 @@ DEFINES += -DEGBB
 # Compiler choice 
 ############################
 DEBUG=0
-COMP=gcc-cluster
+COMP=gcc
 STRIP=strip
 
 ifeq ($(COMP),gcc-cluster)
@@ -82,7 +82,7 @@ ifeq ($(COMP),pgcc)
         CXXFLAGS = warn
         LXXFLAGS = -lm -ldl -lpthread
 else
-        CXXFLAGS = -Wall -fstrict-aliasing -fno-exceptions -fno-rtti
+        CXXFLAGS = -Wall -fstrict-aliasing -fno-exceptions -fno-rtti -Wno-unused-result
         LXXFLAGS = -lm -ldl
 endif
 
