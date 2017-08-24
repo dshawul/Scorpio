@@ -327,14 +327,6 @@ int SEARCHER::be_selective() {
 			extend(0);
 		}
 	}
-	if(depth <= 6 && (pstack - 1)->mate_threat) {
-		extend(0);
-	}
-	if((pstack - 1)->count == 1
-		&& hstack[hply - 2].checks
-		) {
-		extend(UNITDEPTH / 2);
-	}
 	if (depth <= 6 && hply >= 2
 		&& m_capture(move)
 		&& m_capture(hstack[hply - 2].move)
@@ -347,7 +339,7 @@ int SEARCHER::be_selective() {
 		&& piece_c[white] + piece_c[black] == 0
 		&& PIECE(m_capture(move)) != pawn
 		) {
-			extend(UNITDEPTH);
+		extend(UNITDEPTH);
 	}
 	if(nmoves == 1 && (pstack - 1)->singular) {
 		extend(UNITDEPTH);
