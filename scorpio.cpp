@@ -221,6 +221,7 @@ int CDECL main(int argc, char* argv[]) {
 
 END:
 	PROCESSOR::exit_scorpio(EXIT_SUCCESS);
+	return 0;
 }
 
 /*

@@ -10,6 +10,7 @@ static int use_singular = 0;
 static int futility_margin = 100;
 static int singular_margin = 30;
 static int contempt = 2;
+static int aspiration_window = 10;
 
 #define extend(value) {                      \
 	extension += value;                      \
@@ -90,8 +91,10 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 	/*qsearch?*/
 	if(pstack->depth <= 0) {
 		prefetch_qtt();
-		if(pstack->node_type == PV_NODE) pstack->qcheck_depth = 2 * CHECK_DEPTH;	
-		else pstack->qcheck_depth = CHECK_DEPTH;
+		if(pstack->node_type == PV_NODE) 
+			pstack->qcheck_depth = 2 * CHECK_DEPTH;	
+		else 
+			pstack->qcheck_depth = CHECK_DEPTH;
 		qsearch();
 		return true;
 	}
@@ -299,6 +302,8 @@ int SEARCHER::be_selective() {
 			&& !is_passed(move,HALFR)
 			) {
 			reduce(UNITDEPTH);
+		    if(nmoves >= 8 && pstack->depth > UNITDEPTH)
+		    	reduce(UNITDEPTH);
 		}
 		return false;
 	}
@@ -380,7 +385,7 @@ int SEARCHER::be_selective() {
 	late move reduction
 	*/
 	if(!pstack->extension && noncap_reduce) {
-		if(nmoves >= 2 && pstack->depth > UNITDEPTH) {
+		if(nmoves >= 2 && pstack->depth > UNITDEPTH) { 
 			reduce(UNITDEPTH);
 			if(nmoves >= ((node_t == PV_NODE) ? 8 : 4) && pstack->depth > UNITDEPTH) {
 				reduce(UNITDEPTH);
@@ -1197,7 +1202,7 @@ MOVE SEARCHER::find_best() {
 	stack[0].pv[0] = pstack->move_st[0];
 
 	/*iterative deepening*/
-	int alpha,beta,WINDOW = 15;
+	int alpha,beta,WINDOW = 3*aspiration_window/2;
 	int prev_depth = search_depth;
 	int prev_root_score = 0;
 	alpha = -MATE_SCORE; 
@@ -1322,7 +1327,7 @@ MOVE SEARCHER::find_best() {
 				search_depth--;
 #endif
 		} else {
-			WINDOW = 10;
+			WINDOW = aspiration_window;
 			alpha = score - WINDOW;
 			beta = score + WINDOW;
 		}
@@ -1434,5 +1439,6 @@ void print_search_params() {
 	print("feature option=\"use_singular -check %d\"\n",use_singular);
 	print("feature option=\"singular_margin -spin %d 0 1000\"\n",singular_margin);
 	print("feature option=\"futility_margin -spin %d 0 1000\"\n",futility_margin);
+	print("feature option=\"aspiration_window -spin %d 0 1000\"\n",aspiration_window);
 	print("feature option=\"contempt -spin %d -100 100\"\n",contempt);
 }
