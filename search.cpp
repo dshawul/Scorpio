@@ -6,9 +6,11 @@ static const int use_selective = 1;
 static const int use_tt = 1;
 static const int use_aspiration = 1;
 static const int use_iid = 1;
+static int use_probcut = 0;
 static int use_singular = 0;
 static int futility_margin = 100;
 static int singular_margin = 30;
+static int probcut_margin = 150;
 static int contempt = 2;
 static int aspiration_window = 10;
 
@@ -347,8 +349,12 @@ int SEARCHER::be_selective() {
 		) {
 		extend(UNITDEPTH);
 	}
-	if(nmoves == 1 && (pstack - 1)->singular) {
-		extend(UNITDEPTH);
+	if((pstack - 1)->singular) {
+		if(nmoves == 1) {
+			extend(UNITDEPTH);
+		} else {
+			reduce(UNITDEPTH);
+		}
 	}
 	if(extension > UNITDEPTH)
 		extension = UNITDEPTH;
@@ -381,6 +387,7 @@ int SEARCHER::be_selective() {
 				}
 				return true;
 			}
+
 	}
 	/*
 	late move reduction
@@ -467,53 +474,73 @@ void search(SEARCHER* const sb)
 		*/
 		while(true) {
 START:
-				/*
-				* IID and Singular search. These two are related in a way because
-				* we do IID at every node to get a move to be tested for singularity later.
-				* Try both at every node other than _ALL_ nodes. Use moderate reduction for IID
-				* so that we have a good enough move. In the test for singularity reduce the depth
-				* further by 2 plies.
-				*/
-				switch(sb->pstack->search_state) {
-				case IID_SEARCH:
-					if(use_iid
-						&& sb->pstack->node_type != ALL_NODE
-						&& !sb->pstack->hash_move
-						&& sb->pstack->depth >= 6 * UNITDEPTH
-						) {
-							sb->pstack->o_alpha = sb->pstack->alpha;
-							sb->pstack->o_beta = sb->pstack->beta;
-							sb->pstack->o_depth = sb->pstack->depth;
-							if(sb->pstack->node_type == PV_NODE) 
-								sb->pstack->depth -= 2 * UNITDEPTH;
-							else 
-								sb->pstack->depth -= 4 * UNITDEPTH;
-							sb->pstack->search_state |= NORMAL_MOVE; 
-					} else {
-						sb->pstack->search_state = SINGULAR_SEARCH;
-						goto START;
-					}
-					break;
-				case SINGULAR_SEARCH:
-					if(use_singular 
-						&& sb->pstack->node_type != ALL_NODE
-						&& sb->pstack->hash_move 
-						&& sb->pstack->depth >= 8 * UNITDEPTH
-						&& sb->pstack->hash_flags == HASH_GOOD
-						&& !sb->pstack->singular
-						) {
-							sb->pstack->o_alpha = sb->pstack->alpha;
-							sb->pstack->o_beta = sb->pstack->beta;
-							sb->pstack->o_depth = sb->pstack->depth;
-							sb->pstack->alpha = sb->pstack->hash_score - singular_margin;
-							sb->pstack->beta = sb->pstack->alpha + 1;
-							sb->pstack->depth = sb->pstack->hash_depth - 4 * UNITDEPTH;
-							sb->pstack->search_state |= NORMAL_MOVE; 
-					} else {
-						sb->pstack->search_state = NORMAL_MOVE;
-						goto START;
-					}
-					break;
+			/*
+			* IID and Singular search. These two are related in a way because
+			* we do IID at every node to get a move to be tested for singularity later.
+			* Try both at every node other than _ALL_ nodes. Use moderate reduction for IID
+			* so that we have a good enough move. In the test for singularity reduce the depth
+			* further by 2 plies.
+			*/
+			switch(sb->pstack->search_state) {
+			case PROBCUT_SEARCH:
+				if(use_probcut
+					&& sb->pstack->depth >= 6 * UNITDEPTH
+					&& sb->pstack->node_type != PV_NODE
+					) {
+					sb->pstack->o_alpha = sb->pstack->alpha;
+					sb->pstack->o_beta = sb->pstack->beta;
+					sb->pstack->o_depth = sb->pstack->depth;
+					if(sb->pstack->node_type == CUT_NODE)
+						sb->pstack->alpha = sb->pstack->beta + probcut_margin;
+					else
+						sb->pstack->alpha = sb->pstack->alpha - probcut_margin;
+					sb->pstack->beta = sb->pstack->alpha + 1;
+					sb->pstack->depth -= 3 * UNITDEPTH;
+					sb->pstack->search_state |= NORMAL_MOVE; 
+				} else {
+					sb->pstack->search_state = IID_SEARCH;
+					goto START;
+				}
+				break;
+			case IID_SEARCH:
+				if(use_iid
+					&& sb->pstack->node_type != ALL_NODE
+					&& !sb->pstack->hash_move
+					&& sb->pstack->depth >= 6 * UNITDEPTH
+					) {
+					sb->pstack->o_alpha = sb->pstack->alpha;
+					sb->pstack->o_beta = sb->pstack->beta;
+					sb->pstack->o_depth = sb->pstack->depth;
+					if(sb->pstack->node_type == PV_NODE) 
+						sb->pstack->depth -= 2 * UNITDEPTH;
+					else 
+						sb->pstack->depth -= 4 * UNITDEPTH;
+					sb->pstack->search_state |= NORMAL_MOVE; 
+				} else {
+					sb->pstack->search_state = SINGULAR_SEARCH;
+					goto START;
+				}
+				break;
+			case SINGULAR_SEARCH:
+				if(use_singular 
+					&& sb->pstack->node_type != ALL_NODE
+					&& sb->pstack->hash_move 
+					&& sb->pstack->depth >= 8 * UNITDEPTH
+					&& sb->pstack->hash_flags == HASH_GOOD
+					&& !sb->pstack->singular
+					) {
+						sb->pstack->o_alpha = sb->pstack->alpha;
+						sb->pstack->o_beta = sb->pstack->beta;
+						sb->pstack->o_depth = sb->pstack->depth;
+						sb->pstack->alpha = sb->pstack->hash_score - singular_margin;
+						sb->pstack->beta = sb->pstack->alpha + 1;
+						sb->pstack->depth = sb->pstack->hash_depth - 4 * UNITDEPTH;
+						sb->pstack->search_state |= NORMAL_MOVE; 
+				} else {
+					sb->pstack->search_state = NORMAL_MOVE;
+					goto START;
+				}
+				break;
 			}
 			/*
 			* Get a legal move (normal/null) and play it on the board.
@@ -542,7 +569,7 @@ START:
 						sb->pstack->search_state = NORMAL_MOVE;
 						goto NEW_NODE;
 				}
-				sb->pstack->search_state = IID_SEARCH;
+				sb->pstack->search_state = PROBCUT_SEARCH;
 				goto START;
 			case NORMAL_MOVE:
 				while(true) {
@@ -817,7 +844,7 @@ IDLE_START:
 				if(score == -MATE_SCORE + WIN_PLY * (sb->ply + 3))
 					sb->pstack->mate_threat = 1;
 			}
-			sb->pstack->search_state = IID_SEARCH;
+			sb->pstack->search_state = PROBCUT_SEARCH;
 			break;
 		case NORMAL_MOVE:
 			move = sb->pstack->current_move;
@@ -897,6 +924,13 @@ IDLE_START:
 
 SPECIAL:
 		switch(sb->pstack->search_state & ~MOVE_MASK) {
+		case PROBCUT_SEARCH:
+			if((sb->pstack->flag == LOWER && sb->pstack->node_type == CUT_NODE) ||
+			   (sb->pstack->flag == UPPER && sb->pstack->node_type == ALL_NODE) )
+				goto POP;
+			sb->pstack->search_state = IID_SEARCH;
+			sb->pstack->gen_status = GEN_START;
+			break;
 		case IID_SEARCH:
 			sb->pstack->hash_move  = sb->pstack->best_move;
 			sb->pstack->hash_score = sb->pstack->best_score;
@@ -1400,8 +1434,12 @@ bool check_search_params(char** commands,char* command,int& command_num) {
 		futility_margin = atoi(commands[command_num++]);
 	} else if(!strcmp(command, "use_singular")) {
 		use_singular = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "use_probcut")) {
+		use_probcut = atoi(commands[command_num++]);
 	} else if(!strcmp(command, "singular_margin")) {
 		singular_margin = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "probcut_margin")) {
+		probcut_margin = atoi(commands[command_num++]);
 	} else if(!strcmp(command, "contempt")) {
 		contempt = atoi(commands[command_num++]);
 	} else if(!strcmp(command, "smp_type")) {
@@ -1439,7 +1477,9 @@ void print_search_params() {
 	CLUSTER_CODE(print("feature option=\"cluster_depth -spin %d 1 16\"\n",PROCESSOR::CLUSTER_SPLIT_DEPTH));
 	CLUSTER_CODE(print("feature option=\"message_poll_nodes -spin %d 10 20000\"\n",PROCESSOR::MESSAGE_POLL_NODES));
 	print("feature option=\"use_singular -check %d\"\n",use_singular);
+	print("feature option=\"use_probcut -check %d\"\n",use_probcut);
 	print("feature option=\"singular_margin -spin %d 0 1000\"\n",singular_margin);
+	print("feature option=\"probcut_margin -spin %d 0 1000\"\n",probcut_margin);
 	print("feature option=\"futility_margin -spin %d 0 1000\"\n",futility_margin);
 	print("feature option=\"aspiration_window -spin %d 0 1000\"\n",aspiration_window);
 	print("feature option=\"contempt -spin %d -100 100\"\n",contempt);
