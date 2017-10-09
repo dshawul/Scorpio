@@ -41,6 +41,9 @@ Some definitions to include/remove code
 #  include <list>
 #  include "mpi.h"
 #endif
+#ifdef TUNE
+#  include <vector>
+#endif
 #include "my_types.h"
 
 /*
@@ -67,14 +70,6 @@ parallel search options
 #endif
 #if !defined(CLUSTER_TT_TYPE)
 #	define CLUSTER_TT_TYPE           1
-#endif
-/*
-Use const when not tuning
-*/
-#ifdef TUNE
-#	define PARAM
-#else
-#	define PARAM const
 #endif
 
 /*typedefs*/
@@ -569,7 +564,8 @@ typedef struct SEARCHER{
 	SCORE eval_pawns(int,int,UBMP8*,UBMP8*);
 	int   eval_passed_pawns(UBMP8*,UBMP8*,UBMP8&);
 	void  eval_win_chance(SCORE&,SCORE&,int&,int&);
-	void  pre_calculate();
+	static void  pre_calculate();
+	void  update_pcsq(int,int,int);
 	void  record_hash(int,const HASHKEY&,int,int,int,int,MOVE,int,int);
 	int   probe_hash(int,const HASHKEY&,int,int,int&,MOVE&,int,int,int&,int&,int&,bool);
 	void  RECORD_HASH(int,const HASHKEY&,int,int,int,int,MOVE,int,int);
@@ -903,7 +899,13 @@ void  merge_books(char*,char*,char*,double,double);
 int   get_number_of_cpus();
 bool  check_search_params(char**,char*,int&);
 void  print_search_params();
+
 #ifdef TUNE
+void allocate_jacobian(int);
+bool has_jacobian();
+float eval_jacobian(int,int&);
+void compute_jacobian(PSEARCHER,int,int);
+double get_log_likelihood(int,double);
 bool  check_eval_params(char**,char*,int&);
 void  print_eval_params();
 #endif

@@ -63,35 +63,58 @@ static const int  file_tropism[8] = {
 /*
 * Tunable parameters
 */
-static PARAM int ATTACK_WEIGHT = 16;
-static PARAM int TROPISM_WEIGHT = 8;
-static PARAM int PAWN_GUARD = 16;
-static PARAM int KNIGHT_OUTPOST = 16;
-static PARAM int BISHOP_OUTPOST = 12;
-static PARAM int KNIGHT_MOB = 16;
-static PARAM int BISHOP_MOB = 16;
-static PARAM int ROOK_MOB = 16;
-static PARAM int QUEEN_MOB = 16;
-static PARAM int PASSER_MG = 12;
-static PARAM int PASSER_EG = 16;
-static PARAM int PAWN_STRUCT_MG = 12;
-static PARAM int PAWN_STRUCT_EG = 16;
-static PARAM int ROOK_ON_7TH = 12;
-static PARAM int ROOK_ON_OPEN = 16;
-static PARAM int QUEEN_MG = 1050;
-static PARAM int QUEEN_EG = 1050;
-static PARAM int ROOK_MG = 500;
-static PARAM int ROOK_EG = 500;
-static PARAM int BISHOP_MG = 325;
-static PARAM int BISHOP_EG = 325;
-static PARAM int KNIGHT_MG = 325;
-static PARAM int KNIGHT_EG = 325;
-static PARAM int PAWN_MG = 80;
-static PARAM int PAWN_EG = 100;
-static PARAM int BISHOP_PAIR_MG = 16;
-static PARAM int BISHOP_PAIR_EG = 16;
-static PARAM int EXCHANGE_BONUS = 45;
-static PARAM int HANGING_PENALTY = 15;
+#ifdef TUNE
+#	define PARAM int
+#else
+#	define PARAM const int
+#endif
+
+static PARAM ATTACK_WEIGHT(16);
+static PARAM TROPISM_WEIGHT(8);
+static PARAM PAWN_GUARD(16);
+static PARAM HANGING_PENALTY(15);
+static PARAM KNIGHT_OUTPOST(16);
+static PARAM BISHOP_OUTPOST(12);
+static PARAM KNIGHT_MOB(16);
+static PARAM BISHOP_MOB(16);
+static PARAM ROOK_MOB(16);
+static PARAM QUEEN_MOB(16);
+static PARAM PASSER_MG(12);
+static PARAM PASSER_EG(16);
+static PARAM PAWN_STRUCT_MG(12);
+static PARAM PAWN_STRUCT_EG(16);
+static PARAM ROOK_ON_7TH(12);
+static PARAM ROOK_ON_OPEN(16);
+static PARAM ROOK_SUPPORT_PASSED_MG(10);
+static PARAM ROOK_SUPPORT_PASSED_EG(20);
+static PARAM TRAPPED_BISHOP(80);
+static PARAM TRAPPED_KNIGHT(50);
+static PARAM TRAPPED_ROOK(90);
+static PARAM QUEEN_MG(1050);
+static PARAM QUEEN_EG(1050);
+static PARAM ROOK_MG(500);
+static PARAM ROOK_EG(500);
+static PARAM BISHOP_MG(325);
+static PARAM BISHOP_EG(325);
+static PARAM KNIGHT_MG(325);
+static PARAM KNIGHT_EG(325);
+static PARAM PAWN_MG(80);
+static PARAM PAWN_EG(100);
+static PARAM BISHOP_PAIR_MG(16);
+static PARAM BISHOP_PAIR_EG(16);
+static PARAM MAJOR_v_P(180);
+static PARAM MINOR_v_P(90);
+static PARAM MINORS3_v_MAJOR(45);
+static PARAM MINORS2_v_MAJOR(45);
+static PARAM ROOK_v_MINOR(45);
+
+static const SCORE ROOK_SUPPORT_PASSED(ROOK_SUPPORT_PASSED_MG,ROOK_SUPPORT_PASSED_EG);
+
+#ifdef TUNE
+static int ksafety = 0;
+static int material = 0;
+#endif
+
 /*
 king safety
 */
@@ -113,11 +136,13 @@ int SEARCHER::eval() {
 	/*
 	check_eval hash table
 	*/
+#ifndef TUNE
 	if(probe_eval_hash(hash_key,pstack->actual_score)) {
 		if(player == black)
 			pstack->actual_score = -pstack->actual_score;
 		return pstack->actual_score;
 	}
+#endif
 	/*
 	evaluate
 	*/
@@ -130,7 +155,10 @@ int SEARCHER::eval() {
 	int phase = piece_c[white] + piece_c[black];
 
 	phase = MIN(phase,MAX_MATERIAL);
-
+#ifdef TUNE
+	material = phase;
+	ksafety = 0;
+#endif
 	/*
 	evaluate winning chances for some endgames.
 	*/
@@ -140,75 +168,75 @@ int SEARCHER::eval() {
 	if((board[A7] == wbishop || (board[B8] == wbishop && board[C7] == bpawn))
 		&& board[B6] == bpawn
 		) {
-		w_score.sub(80);
+		w_score.sub(TRAPPED_BISHOP);
 		if(board[C7] == bpawn)
-			w_score.sub(40);
+			w_score.sub(TRAPPED_BISHOP/2);
 	}
     if((board[H7] == wbishop || (board[G8] == wbishop && board[F7] == bpawn))
 		&& board[G6] == bpawn
 		) {
-		w_score.sub(80);
+		w_score.sub(TRAPPED_BISHOP);
 		if(board[F7] == bpawn) 
-			w_score.sub(40);
+			w_score.sub(TRAPPED_BISHOP/2);
 	}
 	if((board[A2] == bbishop || (board[B1] == bbishop && board[C2] == wpawn))
 		&& board[B3] == wpawn
 		) {
-		b_score.sub(80);
+		b_score.sub(TRAPPED_BISHOP);
 		if(board[C2] == wpawn)
-			b_score.sub(40);
+			b_score.sub(TRAPPED_BISHOP/2);
 	}
     if((board[H2] == bbishop || (board[G1] == bbishop && board[F2] == wpawn))
 		&& board[G3] == wpawn
 		) {
-		b_score.sub(80);
+		b_score.sub(TRAPPED_BISHOP);
 		if(board[F2] == wpawn) 
-			b_score.sub(40);
+			b_score.sub(TRAPPED_BISHOP/2);
 	}
 
 	/*trapped bishop at A6/H6/A3/H3*/
 	if(board[A6] == wbishop && board[B5] == bpawn)
-		w_score.sub(50);
+		w_score.sub(5 * TRAPPED_BISHOP / 8);
 	if(board[H6] == wbishop && board[G5] == bpawn)
-		w_score.sub(50);
+		w_score.sub(5 * TRAPPED_BISHOP / 8);
 	if(board[A3] == bbishop && board[B4] == wpawn)
-		b_score.sub(50);
+		b_score.sub(5 * TRAPPED_BISHOP / 8);
 	if(board[H3] == bbishop && board[G4] == wpawn)
-		b_score.sub(50);
+		b_score.sub(5 * TRAPPED_BISHOP / 8);
 
 	/*trapped knight*/
 	if(board[A7] == wknight && board[B7] == bpawn && (board[C6] == bpawn || board[A6] == bpawn))
-		w_score.sub(50);
+		w_score.sub(5 * TRAPPED_BISHOP / 8);
     if(board[H7] == wknight && board[G7] == bpawn && (board[F6] == bpawn || board[H6] == bpawn)) 
-		w_score.sub(50);
+		w_score.sub(5 * TRAPPED_BISHOP / 8);
 	if(board[A2] == bknight && board[B2] == wpawn && (board[C3] == wpawn || board[A3] == wpawn)) 
-		b_score.sub(50);
+		b_score.sub(5 * TRAPPED_BISHOP / 8);
     if(board[H2] == bknight && board[G2] == wpawn && (board[F3] == wpawn || board[H3] == wpawn)) 
-		b_score.sub(50);
+		b_score.sub(5 * TRAPPED_BISHOP / 8);
 
 	/*trapped knight at A8/H8/A1/H1*/
 	if(board[A8] == wknight && (board[A7] == bpawn || board[C7] == bpawn))
-		w_score.sub(50);
+		w_score.sub(TRAPPED_KNIGHT);
 	if(board[H8] == wknight && (board[H7] == bpawn || board[G7] == bpawn))
-		w_score.sub(50);
+		w_score.sub(TRAPPED_KNIGHT);
 	if(board[A1] == bknight && (board[A2] == wpawn || board[C2] == wpawn))
-		b_score.sub(50);
+		b_score.sub(TRAPPED_KNIGHT);
 	if(board[H1] == bknight && (board[H2] == wpawn || board[G2] == wpawn))
-		b_score.sub(50);
+		b_score.sub(TRAPPED_KNIGHT);
 
 	/*trapped rook*/
 	if((board[F1] == wking || board[G1] == wking) && 
 		(board[H1] == wrook || board[H2] == wrook || board[G1] == wrook))
-		w_score.subm(90);
+		w_score.subm(TRAPPED_ROOK);
 	if((board[C1] == wking || board[B1] == wking) && 
 		(board[A1] == wrook || board[A2] == wrook || board[B1] == wrook))
-		w_score.subm(90);
+		w_score.subm(TRAPPED_ROOK);
 	if((board[F8] == bking || board[G8] == bking) && 
 		(board[H8] == brook || board[H7] == brook || board[G8] == brook))
-		b_score.subm(90);
+		b_score.subm(TRAPPED_ROOK);
 	if((board[C8] == bking || board[B8] == bking) && 
 		(board[A8] == brook || board[A7] == brook || board[B8] == brook))
-		b_score.subm(90);
+		b_score.subm(TRAPPED_ROOK);
 	/*
 	pawns
 	*/
@@ -502,11 +530,11 @@ int SEARCHER::eval() {
 		/*support passed pawn*/
 		if(pawnrec.w_passed & mask[f]) {
 			if(r < last_bit[wf_pawns[f]])
-				w_score.add(10,20);
+				w_score.add(ROOK_SUPPORT_PASSED);
 		}
 		if(pawnrec.b_passed & mask[f]) {
 			if(r > first_bit[bf_pawns[f]])
-				w_score.add(10,20);
+				w_score.add(ROOK_SUPPORT_PASSED);
 		}
         /*end*/
 
@@ -555,11 +583,11 @@ int SEARCHER::eval() {
 		/*support passed pawn*/
 		if(pawnrec.b_passed & mask[f]) {
 			if(r > first_bit[bf_pawns[f]])
-				b_score.add(10,20);
+				b_score.add(ROOK_SUPPORT_PASSED);
 		}
 		if(pawnrec.w_passed & mask[f]) {
 			if(r < last_bit[wf_pawns[f]])
-				b_score.add(10,20);
+				b_score.add(ROOK_SUPPORT_PASSED);
 		}
 		/*end*/
 
@@ -643,14 +671,21 @@ int SEARCHER::eval() {
 	if(eval_b_attack) {
 		b_attack += pawnrec.b_attack;
 		b_attack += 2 * popcnt_sparse(battacks_bb & ~wattacks_bb & wk_bb);
-		b_score.addm(KING_ATTACK(b_attack,b_attackers,b_tropism));
+		temp = KING_ATTACK(b_attack,b_attackers,b_tropism);
+		b_score.addm(temp);
+#ifdef TUNE
+		ksafety += temp;
+#endif
 	}
 	if(eval_w_attack) {
 		w_attack += pawnrec.w_attack;
 		w_attack += 2 * popcnt_sparse(wattacks_bb & ~battacks_bb & bk_bb);
-		w_score.addm(KING_ATTACK(w_attack,w_attackers,w_tropism));
+		temp = KING_ATTACK(w_attack,w_attackers,w_tropism);
+		w_score.addm(temp);
+#ifdef TUNE
+		ksafety += temp;
+#endif
 	}
-
 
 	/*
 	hanging pieces
@@ -680,7 +715,9 @@ int SEARCHER::eval() {
 		} else {
 			pstack->actual_score = (pstack->actual_score * b_win_chance) / 8;
 		}
+#ifndef TUNE
 		record_eval_hash(hash_key,pstack->actual_score);
+#endif
 	} else {
 		pstack->actual_score = ((b_score.mid - w_score.mid) * (phase) +
 			                   (b_score.end - w_score.end) * (MAX_MATERIAL - phase)) / MAX_MATERIAL;
@@ -689,7 +726,9 @@ int SEARCHER::eval() {
 		} else {
 			pstack->actual_score = (pstack->actual_score * w_win_chance) / 8;
 		}
+#ifndef TUNE
 		record_eval_hash(hash_key,-pstack->actual_score);
+#endif
 	}
     
 	return pstack->actual_score;
@@ -782,6 +821,21 @@ void SEARCHER::pre_calculate() {
 		pcsq[bqueen][sq] += queen_pcsq[MIRRORR(sq)];
 		pcsq[wpawn][sq] += pawn_pcsq[sq];
 		pcsq[bpawn][sq] += pawn_pcsq[MIRRORR(sq)];
+	}
+}
+void SEARCHER::update_pcsq(int pic, int eg, int dval) {
+	for(int sq = 0; sq < 128; sq++) {
+		if( ((sq & 0x88) && eg) || (!(sq & 0x88) && !eg) ) {
+        	pcsq[COMBINE(white,pic)][sq] += dval;
+        	pcsq[COMBINE(black,pic)][sq] += dval;
+        }
+	}
+	if(eg) {
+		pcsq_score[white].add(0, dval * man_c[COMBINE(white,pic)]);
+		pcsq_score[black].add(0, dval * man_c[COMBINE(black,pic)]);
+	} else {
+		pcsq_score[white].add(dval * man_c[COMBINE(white,pic)], 0);
+		pcsq_score[black].add(dval * man_c[COMBINE(black,pic)], 0);
 	}
 }
 /*
@@ -991,7 +1045,6 @@ static const SCORE ISOLATED_ON_CLOSED(10,10);
 static const SCORE WEAK_ON_OPEN(12,8);
 static const SCORE WEAK_ON_CLOSED(6,6);
 
-
 SCORE SEARCHER::eval_pawns(int eval_w_attack,int eval_b_attack,
 						 UBMP8* wf_pawns,UBMP8* bf_pawns) {
 	register SCORE score;
@@ -1000,6 +1053,7 @@ SCORE SEARCHER::eval_pawns(int eval_w_attack,int eval_b_attack,
 	pawnrec.w_evaled = 0;
 	pawnrec.b_evaled = 0;
 
+#ifndef TUNE
 	if(probe_pawn_hash(pawn_hash_key,score,pawnrec)) {
 		/*evaluate pawn cover*/
 		if(eval_w_attack || eval_b_attack) {
@@ -1012,6 +1066,7 @@ SCORE SEARCHER::eval_pawns(int eval_w_attack,int eval_b_attack,
 			}
 		}
 	} else {
+#endif
 		register int sq,tsq,f,r;
         /*zero*/
 		score.zero();
@@ -1169,7 +1224,6 @@ SCORE SEARCHER::eval_pawns(int eval_w_attack,int eval_b_attack,
 			/*end*/
 			pawnl = pawnl->next;
 		}
-		
         /*evaluate pawn cover*/
 		if(eval_w_attack || eval_b_attack) {
 			eval_pawn_cover(eval_w_attack,eval_b_attack,wf_pawns,bf_pawns);
@@ -1179,9 +1233,11 @@ SCORE SEARCHER::eval_pawns(int eval_w_attack,int eval_b_attack,
 		score.mid = (score.mid * PAWN_STRUCT_MG) / 16;
 		score.end = (score.end * PAWN_STRUCT_EG) / 16;
 
+#ifndef TUNE
         /*store in hash table*/
 		record_pawn_hash(pawn_hash_key,score,pawnrec);
 	}
+#endif
 	return score;
 }
 
@@ -1343,7 +1399,7 @@ void SEARCHER::eval_win_chance(SCORE& w_score,SCORE& b_score,int& w_win_chance,i
 	int b_bishop_c = man_c[bbishop];
 	int w_minors = w_knight_c + w_bishop_c;
 	int b_minors = b_knight_c + b_bishop_c;
-	int temp,temp1;
+	int temp,temp1,temp2;
 
 	/*
 	Material and pcsq tables
@@ -1356,18 +1412,39 @@ void SEARCHER::eval_win_chance(SCORE& w_score,SCORE& b_score,int& w_win_chance,i
 	*/
 	temp = w_piece_value_c - b_piece_value_c;
 	temp1 = w_minors - b_minors;
+	temp2 = w_pawn_c - b_pawn_c;
 
-	if(temp >= 5) w_score.add(4 * EXCHANGE_BONUS);                               //[R,Q] vs Ps
-	else if(temp <= -5) b_score.add(4 * EXCHANGE_BONUS);
-	else if(temp >= 3) w_score.add(2 * EXCHANGE_BONUS,3 * EXCHANGE_BONUS / 2);   //M vs 3P
-	else if(temp <= -3) b_score.add(2 * EXCHANGE_BONUS,3 * EXCHANGE_BONUS / 2);
-	else if(temp1 >= 3) w_score.add(EXCHANGE_BONUS);                             //3M vs (2R or Q)
-	else if(temp1 <= -3) b_score.add(EXCHANGE_BONUS);
-	else if(temp1 == 2) w_score.add(EXCHANGE_BONUS);                             //2M vs R
-	else if(temp1 == -2) b_score.add(EXCHANGE_BONUS);
-	else if(temp == 2) w_score.add(EXCHANGE_BONUS);                              //R vs M
-	else if(temp == -2) b_score.add(EXCHANGE_BONUS);
-
+	if(temp >= 5) {										//[R,Q] vs Ps
+		if(temp2 <= -(temp-1)) 
+			w_score.add(MAJOR_v_P, MAJOR_v_P / 2);       
+	} else if(temp <= -5 ) {
+		if(temp2 >= -(temp+1))
+			b_score.add(MAJOR_v_P, MAJOR_v_P / 2);
+	} else if(temp >= 3) {								//M vs 3P , Q vs R+4P
+		if(temp2 <= -temp) 
+			w_score.add(MINOR_v_P, MINOR_v_P / 2);         
+	} else if(temp <= -3) {
+		if(temp2 >= -temp)
+			b_score.add(MINOR_v_P, MINOR_v_P / 2);
+	} else if(temp1 >= 3) {								//3M vs (2R or Q)
+		if(abs(temp) <= 1)
+			w_score.add(MINORS3_v_MAJOR);                 
+	} else if(temp1 <= -3) {
+		if(abs(temp) <= 1) 
+			b_score.add(MINORS3_v_MAJOR);
+	} else if(temp1 == 2) {								//2M vs R
+		if(abs(temp) <= 1) 
+			w_score.add(MINORS2_v_MAJOR);               
+	} else if(temp1 == -2) {
+		if(abs(temp) <= 1) 
+			b_score.add(MINORS2_v_MAJOR);
+	} else if(temp == 2) {								//R vs M
+		if(temp2 <= -1)
+			w_score.add(ROOK_v_MINOR);                  
+	} else if(temp == -2) {
+		if(temp2 >= 1)
+			b_score.add(ROOK_v_MINOR);
+	}
 	/*
 	bishop pair
 	*/
@@ -1585,8 +1662,240 @@ void SEARCHER::eval_win_chance(SCORE& w_score,SCORE& b_score,int& w_win_chance,i
 * Modify eval parameters
 */
 #ifdef TUNE
+/*
+elo curve
+*/
+static PARAM ELO_MODEL(0);
+static PARAM ELO_DRAW(50);
+static PARAM ELO_DRAW_SLOPE_PHASE(0);
+static PARAM ELO_DRAW_SLOPE_KSAFETY(0);
+static PARAM ELO_HOME(20);
+static PARAM ELO_HOME_SLOPE_PHASE(0);
+static PARAM ELO_HOME_SLOPE_KSAFETY(0);
+
+static inline double score_to_elo(double p) {
+	return 400.0 * log10(p / (1 - p));
+}
+static inline double gamma_to_elo(double g) {
+	return 400.0 * log10(g);
+}
+static inline double elo_to_gamma(double eloDelta) {
+	return pow(10.0,eloDelta / 400.0);
+}
+static inline double logistic(double eloDelta) {
+	return 1 / (1 + pow(10.0,eloDelta / 400.0));
+}
+static inline double gaussian(double eloDelta) {
+	return (1 + erf(-eloDelta / 400.0)) / 2;
+}
+static double win_prob(double eloDelta, int eloH, int eloD) {
+	if(ELO_MODEL == 0) {
+		return logistic(-eloDelta - eloH + eloD);
+	} else if(ELO_MODEL == 1) {
+		double thetaD = elo_to_gamma(eloD);
+		double f = thetaD * sqrt(logistic(eloDelta + eloH) * logistic(-eloDelta - eloH));
+		return logistic(-eloDelta - eloH) / (1 + f);
+	} else {
+		return gaussian(-eloDelta - eloH + eloD);
+	}
+}
+static double loss_prob(double eloDelta, int eloH, int eloD) {
+	if(ELO_MODEL == 0) {
+		return logistic(eloDelta + eloH + eloD);
+	} else if(ELO_MODEL == 1) {
+		double thetaD = elo_to_gamma(eloD);
+		double f = thetaD * sqrt(logistic(eloDelta + eloH) * logistic(-eloDelta - eloH));
+		return logistic(eloDelta + eloH) / (1 + f);
+	} else {
+		return gaussian(eloDelta + eloH + eloD);
+	}
+}
+static double draw_prob(double eloDelta, int eloH, int eloD) {
+	return 1 - win_prob(eloDelta,eloH,eloD) - loss_prob(eloDelta,eloH,eloD);
+}
+static double get_scale(double eloD, double eloH) {
+    const double K = log(10)/400.0;
+    double df;
+    if(ELO_MODEL == 0) {
+        double f = 1.0 / (1 + exp(-K*(eloD - eloH)));
+        df = f * (1 - f) * K;
+    } else if(ELO_MODEL == 1) {
+        double dg = elo_to_gamma(eloD) - 1;
+        double f = 1.0 / (1 + exp(-K*(eloD - eloH)));
+        double dfx = f * (1 - f);
+        double dx = dg * sqrt(dfx);
+        double b = 1 + dx;
+        double c = (dg * f * (1 - 2 * f)) / (2 * sqrt(dfx));
+        df = ((b - c) / (b * b)) * dfx * K;
+    } else if(ELO_MODEL == 2) {
+        const double pi = 3.14159265359;
+        double x = -(eloD - eloH)/400.0;
+        df = exp(-x*x) / (400.0 * sqrt(pi));
+    }
+    return (4.0 / K) * df;
+}
+double get_log_likelihood(int result, double se) {
+	double factor_m = material / 62.0;
+	double factor_k = ksafety / 100.0;
+	int eloH = ELO_HOME + factor_m * ELO_HOME_SLOPE_PHASE
+						+ factor_k * ELO_HOME_SLOPE_KSAFETY;
+	int eloD = ELO_DRAW + factor_m * ELO_DRAW_SLOPE_PHASE
+						+ factor_k * ELO_DRAW_SLOPE_KSAFETY;
+	double scale = get_scale(eloD,eloH);
+	se = se / scale;
+	if(result == 1)
+		return -log(win_prob(se,eloH,eloD));
+	else if(result == -1)
+		return -log(loss_prob(se,eloH,eloD));
+	else
+		return -log(draw_prob(se,eloH,eloD));
+}
+
+struct vPARAM{
+	int* value;
+	int flags;
+	vPARAM() {
+		value = 0;
+		flags = 0;
+	}
+	vPARAM(int& x) {
+		value = &x;
+		flags = 0;
+	}
+	vPARAM(int& x, int f) {
+		value = &x;
+		flags = f;
+	}
+	bool is_pval() {
+		return flags & 1;
+	}
+};
+
+static std::vector<vPARAM> parameters;
+static float* jacobian = 0;
+
+static void init_parameters() {
+#define ADD(x,f) parameters.push_back(vPARAM(x,f))
+	ADD(ATTACK_WEIGHT,0);
+	ADD(TROPISM_WEIGHT,0);
+	ADD(PAWN_GUARD,0);
+	ADD(HANGING_PENALTY,0);
+	ADD(KNIGHT_OUTPOST,0);
+	ADD(BISHOP_OUTPOST,0);
+	ADD(KNIGHT_MOB,0);
+	ADD(BISHOP_MOB,0);
+	ADD(ROOK_MOB,0);
+	ADD(QUEEN_MOB,0);
+	ADD(PASSER_MG,0);
+	ADD(PASSER_EG,0);
+	ADD(PAWN_STRUCT_MG,0);
+	ADD(PAWN_STRUCT_EG,0);
+	ADD(ROOK_ON_7TH,0);
+	ADD(ROOK_ON_OPEN,0);
+	ADD(ROOK_SUPPORT_PASSED_MG,0);
+	ADD(ROOK_SUPPORT_PASSED_EG,0);
+	ADD(TRAPPED_BISHOP,0);
+	ADD(TRAPPED_KNIGHT,0);
+	ADD(TRAPPED_ROOK,0);
+	ADD(QUEEN_MG,1);
+	ADD(QUEEN_EG,6);
+	ADD(ROOK_MG,2);
+	ADD(ROOK_EG,7);
+	ADD(BISHOP_MG,3);
+	ADD(BISHOP_EG,8);
+	ADD(KNIGHT_MG,4);
+	ADD(KNIGHT_EG,9);
+	ADD(PAWN_MG,5);
+	ADD(PAWN_EG,10);
+	ADD(BISHOP_PAIR_MG,0);
+	ADD(BISHOP_PAIR_EG,0);
+	ADD(MAJOR_v_P,0);
+	ADD(MINOR_v_P,0);
+	ADD(MINORS3_v_MAJOR,0);
+	ADD(MINORS2_v_MAJOR,0);
+	ADD(ROOK_v_MINOR,0);
+#undef ADD
+}
+
+void allocate_jacobian(int npos) {
+	int numbytes;
+	init_parameters();
+	numbytes = npos * (parameters.size() + 2) * sizeof(float);
+	jacobian = (float*)malloc(numbytes);
+	print("Allocated jacobian matrix of size %.2f MB ...\n",double(numbytes)/(1024*1024));
+}
+
+bool has_jacobian() {
+	return (jacobian != 0);
+}
+
+void compute_jacobian(PSEARCHER ps, int pos, int result) {
+	int sc,sce,delta;
+	double se;
+	float* J = jacobian + pos * (parameters.size() + 2);
+
+	sc = ps->eval();
+	if(sc > WIN_SCORE) sc = WIN_SCORE;
+	if(sc < -WIN_SCORE) sc = -WIN_SCORE;
+
+	for(unsigned int i = 0;i < parameters.size();i++) {
+		delta = *(parameters[i].value) / 16;
+		if(delta < 1) delta = 1;
+
+		*(parameters[i].value) += delta;
+
+		if(parameters[i].is_pval()) {
+			int pic = parameters[i].flags;
+			if(pic > 5) ps->update_pcsq(pic+1-5,1,delta);
+			else        ps->update_pcsq(pic+1+0,0,delta);
+		}
+
+		sce = ps->eval();
+		if(sce > WIN_SCORE) sce = WIN_SCORE;
+		if(sce < -WIN_SCORE) sce = -WIN_SCORE;
+
+		*(parameters[i].value) -= delta;
+
+		if(parameters[i].is_pval()) {
+			int pic = parameters[i].flags;
+			if(pic > 5) ps->update_pcsq(pic+1-5,1,-delta);
+			else        ps->update_pcsq(pic+1+0,0,-delta);
+		}
+
+		J[i] = float(sce - sc) / delta;
+	}
+
+	se = 0;
+	for(unsigned int i = 0;i < parameters.size();i++) {
+		se += *(parameters[i].value) * J[i];
+	}
+
+	J[parameters.size()] = sc - se;
+	J[parameters.size()+1] = result;
+}
+float eval_jacobian(int pos, int& result) {
+	float* J = jacobian + pos * (parameters.size() + 2);
+	float se = J[parameters.size()];
+	for(unsigned int i = 0;i < parameters.size();i++) {
+		se += *(parameters[i].value) * J[i];
+	}
+	if(se > WIN_SCORE) se = WIN_SCORE;
+	if(se < -WIN_SCORE) se = -WIN_SCORE;
+
+	result = (int) J[parameters.size()+1];
+	return se;
+}
+
 bool check_eval_params(char** commands,char* command,int& command_num) {
-	if(!strcmp(command, "KNIGHT_OUTPOST")) {
+	if(!strcmp(command, "ATTACK_WEIGHT")) {
+		ATTACK_WEIGHT = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "TROPISM_WEIGHT")) {
+		TROPISM_WEIGHT = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "PAWN_GUARD")) {
+		PAWN_GUARD = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "HANGING_PENALTY")) {
+		HANGING_PENALTY = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "KNIGHT_OUTPOST")) {
 		KNIGHT_OUTPOST = atoi(commands[command_num++]);
 	} else if(!strcmp(command, "BISHOP_OUTPOST")) {
 		BISHOP_OUTPOST = atoi(commands[command_num++]);
@@ -1610,6 +1919,16 @@ bool check_eval_params(char** commands,char* command,int& command_num) {
 		ROOK_ON_7TH = atoi(commands[command_num++]);
 	} else if(!strcmp(command, "ROOK_ON_OPEN")) {
 		ROOK_ON_OPEN = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "ROOK_SUPPORT_PASSED_MG")) {
+		ROOK_SUPPORT_PASSED_MG = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "ROOK_SUPPORT_PASSED_EG")) {
+		ROOK_SUPPORT_PASSED_EG = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "TRAPPED_BISHOP")) {
+		TRAPPED_BISHOP = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "TRAPPED_KNIGHT")) {
+		TRAPPED_KNIGHT = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "TRAPPED_ROOK")) {
+		TRAPPED_ROOK = atoi(commands[command_num++]);
 	} else if(!strcmp(command, "QUEEN_MG")) {
 		QUEEN_MG = atoi(commands[command_num++]);
 	} else if(!strcmp(command, "QUEEN_EG")) {
@@ -1634,22 +1953,40 @@ bool check_eval_params(char** commands,char* command,int& command_num) {
 		BISHOP_PAIR_MG = atoi(commands[command_num++]);
 	} else if(!strcmp(command, "BISHOP_PAIR_EG")) {
 		BISHOP_PAIR_EG = atoi(commands[command_num++]);
-	} else if(!strcmp(command, "EXCHANGE_BONUS")) {
-		EXCHANGE_BONUS = atoi(commands[command_num++]);
-	} else if(!strcmp(command, "ATTACK_WEIGHT")) {
-		ATTACK_WEIGHT = atoi(commands[command_num++]);
-	} else if(!strcmp(command, "TROPISM_WEIGHT")) {
-		TROPISM_WEIGHT = atoi(commands[command_num++]);
-	} else if(!strcmp(command, "PAWN_GUARD")) {
-		PAWN_GUARD = atoi(commands[command_num++]);
-	} else if(!strcmp(command, "HANGING_PENALTY")) {
-		HANGING_PENALTY = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "MAJOR_v_P")) {
+		MAJOR_v_P = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "MINOR_v_P")) {
+		MINOR_v_P = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "MINORS3_v_MAJOR")) {
+		MINORS3_v_MAJOR = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "MINORS2_v_MAJOR")) {
+		MINORS2_v_MAJOR = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "ROOK_v_MINOR")) {
+		ROOK_v_MINOR = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "ELO_MODEL")) {
+		ELO_MODEL = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "ELO_HOME")) {
+		ELO_HOME = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "ELO_DRAW")) {
+		ELO_DRAW = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "ELO_HOME_SLOPE_PHASE")) {
+		ELO_HOME_SLOPE_PHASE = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "ELO_DRAW_SLOPE_PHASE")) {
+		ELO_DRAW_SLOPE_PHASE = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "ELO_HOME_SLOPE_KSAFETY")) {
+		ELO_HOME_SLOPE_KSAFETY = atoi(commands[command_num++]);
+	} else if(!strcmp(command, "ELO_DRAW_SLOPE_KSAFETY")) {
+		ELO_DRAW_SLOPE_KSAFETY = atoi(commands[command_num++]);
 	} else {
 		return false;
 	}
 	return true;
 }
 void print_eval_params() {
+	print("feature option=\"ATTACK_WEIGHT -spin %d 0 64\"\n",ATTACK_WEIGHT);
+	print("feature option=\"TROPISM_WEIGHT -spin %d 0 64\"\n",TROPISM_WEIGHT);
+	print("feature option=\"PAWN_GUARD -spin %d 0 64\"\n",PAWN_GUARD);
+	print("feature option=\"HANGING_PENALTY -spin %d 0 100\"\n",HANGING_PENALTY);
 	print("feature option=\"KNIGHT_OUTPOST -spin %d 0 64\"\n",KNIGHT_OUTPOST);
     print("feature option=\"BISHOP_OUTPOST -spin %d 0 64\"\n",BISHOP_OUTPOST);
 	print("feature option=\"KNIGHT_MOB -spin %d 0 64\"\n",KNIGHT_MOB);
@@ -1662,6 +1999,11 @@ void print_eval_params() {
 	print("feature option=\"PAWN_STRUCT_EG -spin %d 0 64\"\n",PAWN_STRUCT_EG);
 	print("feature option=\"ROOK_ON_7TH -spin %d 0 64\"\n",ROOK_ON_7TH);
 	print("feature option=\"ROOK_ON_OPEN -spin %d 0 64\"\n",ROOK_ON_OPEN);
+	print("feature option=\"ROOK_SUPPORT_PASSED_MG -spin %d 0 64\"\n",ROOK_SUPPORT_PASSED_MG);
+	print("feature option=\"ROOK_SUPPORT_PASSED_EG -spin %d 0 64\"\n",ROOK_SUPPORT_PASSED_EG);
+	print("feature option=\"TRAPPED_BISHOP -spin %d 0 200\"\n",TRAPPED_BISHOP);
+	print("feature option=\"TRAPPED_KNIGHT -spin %d 0 200\"\n",TRAPPED_KNIGHT);
+	print("feature option=\"TRAPPED_ROOK -spin %d 0 200\"\n",TRAPPED_ROOK);
 	print("feature option=\"QUEEN_MG -spin %d 0 2000\"\n",QUEEN_MG);
 	print("feature option=\"QUEEN_EG -spin %d 0 2000\"\n",QUEEN_EG);
 	print("feature option=\"ROOK_MG -spin %d 0 2000\"\n",ROOK_MG);
@@ -1674,11 +2016,18 @@ void print_eval_params() {
 	print("feature option=\"PAWN_EG -spin %d 0 2000\"\n",PAWN_EG);
 	print("feature option=\"BISHOP_PAIR_MG -spin %d 0 64\"\n",BISHOP_PAIR_MG);
 	print("feature option=\"BISHOP_PAIR_EG -spin %d 0 64\"\n",BISHOP_PAIR_EG);
-	print("feature option=\"EXCHANGE_BONUS -spin %d 0 200\"\n",EXCHANGE_BONUS);
-	print("feature option=\"PAWN_GUARD -spin %d 0 64\"\n",PAWN_GUARD);
-	print("feature option=\"ATTACK_WEIGHT -spin %d 0 64\"\n",ATTACK_WEIGHT);
-	print("feature option=\"TROPISM_WEIGHT -spin %d 0 64\"\n",TROPISM_WEIGHT);
-	print("feature option=\"HANGING_PENALTY -spin %d 0 100\"\n",HANGING_PENALTY);
+	print("feature option=\"MAJOR_v_P -spin %d 0 400\"\n",MAJOR_v_P);
+	print("feature option=\"MINOR_v_P -spin %d 0 400\"\n",MINOR_v_P);
+	print("feature option=\"MINORS3_v_MAJOR -spin %d 0 200\"\n",MINORS3_v_MAJOR);
+	print("feature option=\"MINORS2_v_MAJOR -spin %d 0 200\"\n",MINORS2_v_MAJOR);
+	print("feature option=\"ROOK_v_MINOR -spin %d 0 200\"\n",ROOK_v_MINOR);
+	print("feature option=\"ELO_MODEL -spin %d 0 2\"\n",ELO_MODEL);
+	print("feature option=\"ELO_DRAW -spin %d 0 500\"\n",ELO_DRAW);
+	print("feature option=\"ELO_HOME -spin %d 0 500\"\n",ELO_HOME);
+	print("feature option=\"ELO_DRAW_SLOPE_PHASE -spin %d 0 500\"\n",ELO_DRAW_SLOPE_PHASE);
+	print("feature option=\"ELO_HOME_SLOPE_PHASE -spin %d 0 500\"\n",ELO_HOME_SLOPE_PHASE);
+	print("feature option=\"ELO_DRAW_SLOPE_KSAFETY -spin %d 0 500\"\n",ELO_DRAW_SLOPE_KSAFETY);
+	print("feature option=\"ELO_HOME_SLOPE_KSAFETY -spin %d 0 500\"\n",ELO_HOME_SLOPE_KSAFETY);
 }
 
 #endif

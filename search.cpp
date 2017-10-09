@@ -247,7 +247,7 @@ FORCEINLINE int SEARCHER::on_qnode_entry() {
 	}
 
 	/*stand pat*/
-	if(!hstack[hply - 1].checks) {
+	if((hply >=1 && !hstack[hply - 1].checks) || !ply) {
 		score = eval();
 		pstack->best_score = score;
 		if(score > pstack->alpha) {
@@ -256,6 +256,7 @@ FORCEINLINE int SEARCHER::on_qnode_entry() {
 			pstack->alpha = score;
 		}
 	}
+
 
 	return false;
 }
@@ -991,7 +992,7 @@ void SEARCHER::qsearch() {
 
 			/*get legal move*/
 			if(!get_qmove()) {
-				if(hstack[hply - 1].checks && pstack->legal_moves == 0)
+				if(hply >= 1 && hstack[hply - 1].checks && pstack->legal_moves == 0)
 					pstack->best_score = -MATE_SCORE + WIN_PLY * (ply + 1);
 				goto POP_Q;
 			}
@@ -1021,7 +1022,7 @@ POP_Q:
 
 		POP_MOVE();
 		score = -(pstack + 1)->best_score;
-
+		
 		if(score > pstack->best_score) {
 			pstack->best_score = score;
 			pstack->best_move = pstack->current_move;
@@ -1132,7 +1133,6 @@ MOVE SEARCHER::find_best() {
 
 	/*no move*/
 	if(pstack->count == 0) {
-		print("no moves\n");
 		return 0;
 	}
 	/*only one move*/
@@ -1200,6 +1200,7 @@ MOVE SEARCHER::find_best() {
 	}
 
 	stack[0].pv[0] = pstack->move_st[0];
+	stack[0].best_score = pstack->score_st[0];
 
 	/*iterative deepening*/
 	int alpha,beta,WINDOW = 3*aspiration_window/2;
@@ -1212,7 +1213,8 @@ MOVE SEARCHER::find_best() {
 	pstack->search_state = NORMAL_MOVE;
 	pstack->extension = 0;
 	pstack->reduction = 0;
-	do {
+
+	while(search_depth < chess_clock.max_sd) {
 		/*search with the current depth*/
 		search_depth++;
 #ifdef CLUSTER
@@ -1342,7 +1344,7 @@ MOVE SEARCHER::find_best() {
 		}
 		/*end*/
 
-	} while(search_depth < chess_clock.max_sd);
+	}
 
 #ifdef PARALLEL
 	/*park threads*/
@@ -1374,7 +1376,7 @@ MOVE SEARCHER::find_best() {
 	if(pv_print_style == 1) {
 		print(" " FMT64W " %8.2f %10d %8d %8d\n",nodes,float(time_used) / 1000,
 			int(BMP64(nodes) / (time_used / 1000.0f)),splits,bad_splits);
-	} else {
+	} else if(pv_print_style == 0) {
 		print("splits = %d badsplits = %d egbb_probes = %d\n",
 			splits,bad_splits,egbb_probes);
 		print("nodes = " FMT64 " <%d qnodes> time = %dms nps = %d\n",nodes,

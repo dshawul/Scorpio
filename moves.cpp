@@ -1416,7 +1416,7 @@ DO_AGAIN:
 		&& pstack->gen_status <= GEN_LOSCAPS) {
         
 		if(pstack->gen_status == GEN_HASHM) {
-			if(hply >= 1 && hstack[hply - 1].checks) {
+			if(ply && hply >= 1 && hstack[hply - 1].checks) {
 				gen_evasions();
 				pstack->sortm = 1;
 				for(i = 0; i < pstack->count;i++) {

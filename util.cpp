@@ -198,14 +198,14 @@ void SEARCHER::print_board() const {
 
 #ifdef	MYDEBUG
 	print("%d %d %d %d\n",piece_c[white],piece_c[black],pawn_c[white],pawn_c[black]);
-	print("play = %d opp = %d ep = %d cas = %d fif = %d hkey 0x"FMTU64"\n\n",player,
+	print("play = %d opp = %d ep = %d cas = %d fif = %d hkey 0x" FMTU64 "\n\n",player,
 		opponent,epsquare,castle,fifty,hash_key);
 	PLIST current;
 	char  str[4];
 	for(i = wking;i <= bpawn;i++) {
 		current = plist[i];
 		print_pc(i);
-		print(":");
+		print(": %d :",man_c[i]);
 		while(current) {
 			sq_str(current->sq,str);
 			print("%5s",str);
@@ -292,7 +292,7 @@ int SEARCHER::is_legal(MOVE& move) {
 }
 
 void SEARCHER::print_pv(int score) {
-	if(pv_print_style == 1)
+	if(pv_print_style != 0)
 		return;
 	MOVE  move;
 	int i;
@@ -969,14 +969,14 @@ void CHESS_CLOCK::set_stime(int hply) {
 	if(max_st != MAX_NUMBER) {
 		search_time = max_st;
 		maximum_time = max_st;
-		if(SEARCHER::pv_print_style != 1)
+		if(SEARCHER::pv_print_style == 0)
 			print("[st = %dms, mt = %dms , hply = %d]\n",search_time,maximum_time,hply);
 		return;
 	}
 	if(max_sd != MAX_PLY) {
 		search_time = MAX_NUMBER;
 		maximum_time = MAX_NUMBER;
-		if(SEARCHER::pv_print_style != 1)
+		if(SEARCHER::pv_print_style == 0)
 			print("[sd = %d , hply = %d]\n",max_sd,hply);
 		return;
 	}
@@ -1022,7 +1022,7 @@ void CHESS_CLOCK::set_stime(int hply) {
 	/*
 	print time
 	*/
-	if(SEARCHER::pv_print_style != 1)
+	if(SEARCHER::pv_print_style == 0)
 		print("[st = %dms, mt = %dms , hply = %d , moves_left %d]\n",
 		search_time,maximum_time,hply,moves_left);
 }

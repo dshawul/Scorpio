@@ -96,6 +96,69 @@ static bool load_ini();
 static void init_game();
 
 /*
+load epd file
+*/
+static char* mem_epdfile = 0;
+
+static void load_epdfile(char* name) {
+	FILE* fd = fopen(name, "r");
+	if(!fd) {
+		print("epd file %s not found!\n",name);
+		return;
+	}
+	print("Started loading epd ...\n");
+	fseek(fd, 0L, SEEK_END);
+	long numbytes = ftell(fd);
+	fseek(fd, 0L, SEEK_SET);
+	print("Loading epd of size %.2f MB ...\n",double(numbytes)/(1024*1024));
+	mem_epdfile = (char*)malloc(numbytes);
+	fread(mem_epdfile, sizeof(char), numbytes, fd);
+	print("Finished Loading epd file.\n");
+	fclose(fd);
+}
+
+static void unload_epdfile() {
+	free(mem_epdfile);
+	mem_epdfile = 0;
+	print("Unloaded epd!\n");
+}
+
+#ifdef TUNE
+static int epdfile_count = 0;
+static int get_search_score() {
+	int sce;
+	if(SEARCHER::chess_clock.max_sd == 0) {
+		//evaluation score
+		sce = searcher.eval();
+	} else if(SEARCHER::chess_clock.max_sd == 1) {
+		//quiescence search score
+		if((searcher.player == white && searcher.attacks(black,searcher.plist[wking]->sq)) ||
+		   (searcher.player == black && searcher.attacks(white,searcher.plist[bking]->sq)) ){
+			sce = searcher.eval();
+		} else {
+			main_searcher->COPY(&searcher);
+			main_searcher->pstack->node_type = PV_NODE;
+			main_searcher->pstack->search_state = NORMAL_MOVE;
+			main_searcher->pstack->alpha = -MATE_SCORE;
+			main_searcher->pstack->beta = MATE_SCORE;
+			main_searcher->pstack->depth = 0;
+			main_searcher->pstack->qcheck_depth = 0;	
+			main_searcher->qsearch();
+			sce = main_searcher->pstack->best_score;
+		}
+	} else {
+		//regular search score
+		main_searcher->COPY(&searcher);
+		main_searcher->find_best();
+		sce = main_searcher->pstack->best_score;
+	}
+	if(sce > WIN_SCORE) sce = WIN_SCORE;
+	if(sce < -WIN_SCORE) sce = -WIN_SCORE;
+	return sce;
+}
+#endif
+
+/*
 load egbbs with a separate thread
 */
 static VOLATILE bool egbb_is_loading = false;
@@ -283,6 +346,9 @@ static const char *const commands_recognized[] = {
 	"merge <book1> <book2> <book> <w1> <w2> \n\tMerge two books with weights <w1> and <w2> and save restult in book.",
 	"mirror -- Debugging command to mirror the current board.",
 	"moves -- Debugging command to print all possible moves for the current board.",
+	"mse -- Calculate mean squared error of evaluaiton/search result with actual result.",
+	"       <frac>  -- Fraction of positions to consider (1=all,...,0=none).",
+	"       <K>     -- Scalaing constant of the logistic formula 1/1+exp(-K*x).",
 	"mt/cores   <N>      -- Set the number of parallel threads of execution to N.",
 	"          auto      -- Set to available logical cores.",
 	"          auto-<R>  -- Set to (auto - R) logical cores.",
@@ -612,8 +678,7 @@ bool parse_commands(char** commands) {
 		} else if(!strcmp(command,"moves")) {
 			searcher.print_allmoves();
 		} else if(!strcmp(command,"pvstyle")) {
-			SEARCHER::pv_print_style = atoi(commands[command_num]);
-			command_num++;
+			SEARCHER::pv_print_style = atoi(commands[command_num++]);
 		} else if(!strcmp(command,"perft")) {
 			clock_t start,end;
 			int depth = atoi(commands[command_num++]);
@@ -624,38 +689,107 @@ bool parse_commands(char** commands) {
 			print("time %.2f sec\n",(end - start) / 1000.0f);
 		} else if(!strcmp(command,"score")) {
 			int score;
-			if(searcher.all_man_c <= MAX_EGBB) {
+			if(SEARCHER::egbb_is_loaded && searcher.all_man_c <= MAX_EGBB) {
 				searcher.probe_bitbases(score);
-				print("bitbase_score = %d\n",score);
+				print("%d\n",score);
 			} else {
 				score = searcher.eval();
-				print("score = %d\n",score);
+				print("%d\n",score);
 			}
-		} else if (!strcmp(command, "runeval") || !strcmp(command, "runsearch") ) {
+		} else if(!strcmp(command,"loadepd")) {
+			load_epdfile(commands[command_num++]);
+		} else if(!strcmp(command,"unloadepd")) {
+			unload_epdfile();
+		} else if (!strcmp(command, "runeval") || 
+				   !strcmp(command, "runsearch") ||
+				   !strcmp(command, "jacobian") ||
+				   !strcmp(command, "mse")
+				   ) {
 
 			char input[MAX_STR],fen[MAX_STR];
 			char* words[100];
-			int sc = 0,visited = 0;
-			bool eval_test = !strcmp(command,"runeval");
+			int sc, sce;
+			int test,visited = 0;
+			double frac,prior,mse = 0.0;
+			int result;
 
+			if(!strcmp(command,"runeval")) test = 0;
+			else if(!strcmp(command,"runsearch")) test = 1;
+			else if(!strcmp(command,"jacobian")) test = 2;
+			else test = 3;
+
+#ifdef TUNE
+			if(test == 3) {
+				frac = atof(commands[command_num++]);
+				prior = atof(commands[command_num++]);
+				int randseed = atoi(commands[command_num++]);
+				srand(randseed);
+
+				if(has_jacobian()) {
+					for(int cnt = 0;cnt < epdfile_count;cnt++) {
+						/*sample a few*/
+						double r = double(rand()) / RAND_MAX;
+						if(r >= frac) continue;
+						visited++;
+
+						/*compute evaluation from the stored jacobian*/
+						double se = eval_jacobian(cnt,result);
+
+						/*log-likelihood*/
+						se = get_log_likelihood(result,se);
+						mse += (se - mse) / visited;
+					}
+					/*regularization in the form of prior*/
+					int nprior = int(prior * visited);
+					mse = (mse * visited + 0.0 * nprior) / (visited + nprior);
+
+					/*print mse*/
+					print("%.16f\n",mse);
+					continue;
+				}
+			}
+#endif
+
+			/*open file*/
 			FILE *fd;
-
-			fd = fopen(commands[command_num++],"r");
-
-			if(!fd) {
-				print("epd file not found!\n");
-				continue;
+			if(mem_epdfile)
+				fd = fmemopen(mem_epdfile, strlen(mem_epdfile), "r");
+			else {
+				fd = fopen(commands[command_num++],"r");
+				if(!fd) {
+					print("epd file not found!\n");
+					continue;
+				}
 			}
 
-			if(SEARCHER::pv_print_style != 1) 
+#ifdef TUNE
+			if(test == 2) {
+				while(fgets(input,MAX_STR,fd))
+					epdfile_count++;
+				rewind(fd);
+				allocate_jacobian(epdfile_count);
+				print("Computing jacobian matrix of evaluation function ...\n");
+			}
+#endif
+			if(SEARCHER::pv_print_style == 0) 
 				print("******************************************\n");
-			else
+			else if(SEARCHER::pv_print_style == 1)
 				print("\n\t\tNodes     Time      NPS      splits     bad"
 				"\n\t\t=====     ====      ===      ======     ===\n");
 
+			SEARCHER::pre_calculate();
+			PROCESSOR::clear_hash_tables();
+
 			while(fgets(input,MAX_STR,fd)) {
+				/*sample a few*/
+				if(test == 3) {
+					double r = double(rand()) / RAND_MAX;
+					if(r >= frac) continue;
+					visited++;
+				}
+				/*decode fen*/
 				input[strlen(input) - 1] = 0;
-				tokenize(input,words);
+				int nwords = tokenize(input,words) - 1;
 				strcpy(fen,words[0]);
 				strcat(fen," ");
 				strcat(fen,words[1]);
@@ -667,24 +801,61 @@ bool parse_commands(char** commands) {
 				visited++;
 				searcher.set_board(fen);
 
-				if(eval_test) {
+				switch(test) {
+				case 0:
 					sc = searcher.eval();
 					searcher.mirror();
-					int sc1 = searcher.eval();
-					if(sc == sc1)
+					sce = searcher.eval();
+					if(sc == sce)
 						print("*%d* %d\n",visited,sc);
 					else {
 						print("*****WRONG RESULT*****\n");
-						print("[ %s ] \nsc = %6d sc1 = %6d\n",fen,sc,sc1);
+						print("[ %s ] \nsc = %6d sc1 = %6d\n",fen,sc,sce);
 						print("**********************\n");
 					}
-				} else {
+					break;
+				case 1:
 					PROCESSOR::clear_hash_tables();
 					main_searcher->COPY(&searcher);
 					main_searcher->find_best();
-					if(SEARCHER::pv_print_style != 1) 
+					if(SEARCHER::pv_print_style == 0) 
 						print("********** %d ************\n",visited);
+					break;
+				case 2:
+				case 3:
+					if(!strncmp(words[nwords - 1],"1-0",3)) result = 1;
+					else if(!strncmp(words[nwords - 1],"0-1",3)) result = -1;
+					else if(!strncmp(words[nwords - 1],"1/2-1/2",7)) result = 0;
+					else {
+						print("Position %d not labeled: fen %s\n",visited,fen);
+						continue;
+					}
+					if(searcher.player == black) 
+						result = -result;
+#ifdef TUNE
+					if(test == 2) {
+						compute_jacobian(&searcher,visited-1,result);
+					} else {
+						double se = get_search_score();
+						se = get_log_likelihood(result,se);
+						mse += (se - mse) / visited;
+					}
+#endif
+					break;
 				}
+			}
+
+			if(test == 2) {
+				print("Finished computing jacobian for %d positions.\n",visited);
+			}
+
+			if(test == 3) {
+				/*regularization in the form of prior*/
+				int nprior = int(prior * visited);
+				mse = (mse * visited + 0.0 * nprior) / (visited + nprior);
+
+				/*print mse*/
+				print("%.16f\n",mse);
 			}
 
 			searcher.new_board();
