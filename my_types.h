@@ -48,7 +48,7 @@ Os stuff
 #    define FMTU64   "%016I64x"
 #    define FMT64    "%I64d"
 #    define FMT64W   "%20I64d"
-#	 define GETPID()  _getpid()
+#    define GETPID()  _getpid()
 #else
 #    include <unistd.h>
 #    define CDECL
@@ -60,7 +60,7 @@ Os stuff
 #    define FMTU64     "%016llx"
 #    define FMT64      "%lld"
 #    define FMT64W     "%20lld"
-#	 define GETPID()  getpid()
+#    define GETPID()  getpid()
 #endif
 
 /*
@@ -79,11 +79,11 @@ Intrinsic popcnt
 */
 #if defined(HAS_POPCNT) && defined(ARC_64BIT)
 #   if defined (__GNUC__)
-#       define popcnt(x)								\
-	({													\
-	typeof(x) __ret;									\
-	__asm__("popcnt %1, %0" : "=r" (__ret) : "r" (x));	\
-	__ret;							                    \
+#       define popcnt(x)                                \
+    ({                                                  \
+    typeof(x) __ret;                                    \
+    __asm__("popcnt %1, %0" : "=r" (__ret) : "r" (x));  \
+    __ret;                                              \
 })
 #   elif defined(_MSC_VER) && defined(__INTEL_COMPILER)
 #       include <nmmintrin.h>
@@ -99,11 +99,11 @@ Intrinsic popcnt
 Byte swap
 */
 #if defined (__GNUC__)
-#	define bswap32(x)  __builtin_bswap32(x)
+#   define bswap32(x)  __builtin_bswap32(x)
 #elif defined(_MSC_VER) && defined(__INTEL_COMPILER)
-#	define bswap32(x)  _bswap(x)
+#   define bswap32(x)  _bswap(x)
 #else
-#	define bswap32(x)  _byteswap_ulong(x)
+#   define bswap32(x)  _byteswap_ulong(x)
 #endif
 
 /*
@@ -113,111 +113,111 @@ cache line memory alignment (64 bytes)
 #define CACHE_LINE_SIZE  64
 
 #if defined (__GNUC__)
-#	define CACHE_ALIGN  __attribute__ ((aligned(CACHE_LINE_SIZE)))
+#   define CACHE_ALIGN  __attribute__ ((aligned(CACHE_LINE_SIZE)))
 #else
-#	define CACHE_ALIGN __declspec(align(CACHE_LINE_SIZE))
+#   define CACHE_ALIGN __declspec(align(CACHE_LINE_SIZE))
 #endif
 
 template<typename T>
 void aligned_reserve(T*& mem,const size_t& size) {
-	if((sizeof(T) & (sizeof(T) - 1)) == 0) {
+    if((sizeof(T) & (sizeof(T) - 1)) == 0) {
 #ifdef _WIN32
-		if(mem) _aligned_free(mem);
-		mem = (T*)_aligned_malloc(size * sizeof(T),CACHE_LINE_SIZE);
+        if(mem) _aligned_free(mem);
+        mem = (T*)_aligned_malloc(size * sizeof(T),CACHE_LINE_SIZE);
 #else
-		if(mem) free(mem);
-		posix_memalign((void**)&mem,CACHE_LINE_SIZE,size * sizeof(T));
+        if(mem) free(mem);
+        posix_memalign((void**)&mem,CACHE_LINE_SIZE,size * sizeof(T));
 #endif
-	} else {
-		if(mem) free(mem);
-		mem = (T*) malloc(size * sizeof(T));
-	}
+    } else {
+        if(mem) free(mem);
+        mem = (T*) malloc(size * sizeof(T));
+    }
 }
 
 template<typename T>
 void aligned_free(T*& mem) {
-	if((sizeof(T) & (sizeof(T) - 1)) == 0) {
+    if((sizeof(T) & (sizeof(T) - 1)) == 0) {
 #ifdef _WIN32
-		if(mem) _aligned_free(mem);
+        if(mem) _aligned_free(mem);
 #else
-		if(mem) free(mem);
+        if(mem) free(mem);
 #endif
-	} else {
-		if(mem) free(mem);
-	}
-	mem = 0;
+    } else {
+        if(mem) free(mem);
+    }
+    mem = 0;
 }
 /*
 Prefetch
 */
 #if defined(HAS_PREFETCH)
-#	include <xmmintrin.h>
-#	define PREFETCH_T0(addr) _mm_prefetch(((char *)(addr)),_MM_HINT_T0);
+#   include <xmmintrin.h>
+#   define PREFETCH_T0(addr) _mm_prefetch(((char *)(addr)),_MM_HINT_T0);
 #else
-#	define PREFETCH_T0(addr)
+#   define PREFETCH_T0(addr)
 #endif
 /*
 * Threads
 */
 #if defined _WIN32
-#	include <process.h>
-#	define t_create(f,p)  _beginthread(f,0,(void*)p)
-#	define t_sleep(x)     Sleep(x)
-#	define t_yield()	  SwitchToThread()
-#	define t_pause()	  YieldProcessor()
+#   include <process.h>
+#   define t_create(f,p)  _beginthread(f,0,(void*)p)
+#   define t_sleep(x)     Sleep(x)
+#   define t_yield()      SwitchToThread()
+#   define t_pause()      YieldProcessor()
 #else
-#	include <pthread.h>
-#	define t_create(f,p)  {pthread_t t = 0; pthread_create(&t,0,(void*(*)(void*))&f,(void*)p);}
-#	define t_sleep(x)     usleep((x) * 1000)
-#	define t_yield()      sched_yield()
-#	define t_pause()      asm volatile("pause\n": : :"memory")
+#   include <pthread.h>
+#   define t_create(f,p)  {pthread_t t = 0; pthread_create(&t,0,(void*(*)(void*))&f,(void*)p);}
+#   define t_sleep(x)     usleep((x) * 1000)
+#   define t_yield()      sched_yield()
+#   define t_pause()      asm volatile("pause\n": : :"memory")
 #endif
 /*
 *locks
 */
 #if defined PARALLEL
-#	 define VOLATILE volatile
-#	 if defined OMP
-#	    include <omp.h>
-#		define LOCK          omp_lock_t
-#		define l_create(x)   omp_init_lock(&x)
-#		define l_lock(x)     omp_set_lock(&x)
-#		define l_unlock(x)   omp_unset_lock(&x)
+#    define VOLATILE volatile
+#    if defined OMP
+#       include <omp.h>
+#       define LOCK          omp_lock_t
+#       define l_create(x)   omp_init_lock(&x)
+#       define l_lock(x)     omp_set_lock(&x)
+#       define l_unlock(x)   omp_unset_lock(&x)
 inline void l_barrier() { 
-#		pragma omp barrier 
+#       pragma omp barrier 
 }
-#	 else
-#		ifdef USE_SPINLOCK
-#			if defined _WIN32
-#				define l_test_and_set(x,v) InterlockedExchange((LPLONG)&(x),v)
-#			else
-#				define l_test_and_set(x,v) __sync_lock_test_and_set(&(x),v)
-#			endif
-#			define LOCK VOLATILE int
-#			define l_create(x)   ((x) = 0)
-#			define l_lock(x)	 while(l_test_and_set(x,1) != 0) {while((x) != 0) t_pause();}
-#			define l_unlock(x)   ((x) = 0)
-#		else
-#			if defined _WIN32
-#				define LOCK CRITICAL_SECTION
-#				define l_create(x)   InitializeCriticalSection(&x)
-#				define l_lock(x)     EnterCriticalSection(&x)
-#				define l_unlock(x)   LeaveCriticalSection(&x)  
-#			else
-#				define LOCK pthread_mutex_t
-#				define l_create(x)   pthread_mutex_init(&(x),0)
-#				define l_lock(x)     pthread_mutex_lock(&(x))
-#				define l_unlock(x)   pthread_mutex_unlock(&(x))
-#			endif
-#		endif
-#	endif
+#    else
+#       ifdef USE_SPINLOCK
+#           if defined _WIN32
+#               define l_test_and_set(x,v) InterlockedExchange((LPLONG)&(x),v)
+#           else
+#               define l_test_and_set(x,v) __sync_lock_test_and_set(&(x),v)
+#           endif
+#           define LOCK VOLATILE int
+#           define l_create(x)   ((x) = 0)
+#           define l_lock(x)     while(l_test_and_set(x,1) != 0) {while((x) != 0) t_pause();}
+#           define l_unlock(x)   ((x) = 0)
+#       else
+#           if defined _WIN32
+#               define LOCK CRITICAL_SECTION
+#               define l_create(x)   InitializeCriticalSection(&x)
+#               define l_lock(x)     EnterCriticalSection(&x)
+#               define l_unlock(x)   LeaveCriticalSection(&x)  
+#           else
+#               define LOCK pthread_mutex_t
+#               define l_create(x)   pthread_mutex_init(&(x),0)
+#               define l_lock(x)     pthread_mutex_lock(&(x))
+#               define l_unlock(x)   pthread_mutex_unlock(&(x))
+#           endif
+#       endif
+#   endif
 #else
 #    define VOLATILE
 #    define LOCK int
 #    define l_create(x)
 #    define l_lock(x)
 #    define l_unlock(x)
-#	 define l_barrier()
+#    define l_barrier()
 #endif
 /*
 * Performance counters
@@ -226,33 +226,33 @@ inline void l_barrier() {
 typedef LARGE_INTEGER TIMER;
 #define get_perf(x)  QueryPerformanceCounter(&x)
 inline double get_diff(TIMER s,TIMER e) {
-	TIMER freq; 
-	QueryPerformanceFrequency( &freq );  
-	return (e.QuadPart - s.QuadPart)/(double(freq.QuadPart) / 1e9);
+    TIMER freq; 
+    QueryPerformanceFrequency( &freq );  
+    return (e.QuadPart - s.QuadPart)/(double(freq.QuadPart) / 1e9);
 }
 #else
 #include <ctime>
 typedef struct timespec TIMER;
 #define get_perf(x)  clock_gettime(CLOCK_MONOTONIC,&x)
 inline double get_diff(TIMER s,TIMER e) {
-	return (e.tv_sec - s.tv_sec) * 1e9 + (e.tv_nsec - s.tv_nsec);
+    return (e.tv_sec - s.tv_sec) * 1e9 + (e.tv_nsec - s.tv_nsec);
 }
 #endif
 /*
 *optional compilation
 */
 #ifdef PARALLEL
-#	 define SMP_CODE(x) x
+#    define SMP_CODE(x) x
 #else
 #    define SMP_CODE(x)
 #endif
 #ifdef CLUSTER
-#	 define CLUSTER_CODE(x) x
+#    define CLUSTER_CODE(x) x
 #else
 #    define CLUSTER_CODE(x)
 #endif
 #ifdef _DEBUG
-#	 define DEBUG_CODE(x) x
+#    define DEBUG_CODE(x) x
 #else
 #    define DEBUG_CODE(x)
 #endif

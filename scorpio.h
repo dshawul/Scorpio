@@ -14,13 +14,13 @@
 Some definitions to include/remove code
 */
 #ifdef _MSC_VER
-#	define LOG_FILE
-#	define BOOK_PROBE
-#	define BOOK_CREATE
-#	define EGBB
-#	define CLUSTER
-#	define THREAD_POLLING
-// #	define TUNE
+#   define LOG_FILE
+#   define BOOK_PROBE
+#   define BOOK_CREATE
+#   define EGBB
+#   define CLUSTER
+#   define THREAD_POLLING
+// #    define TUNE
 #endif
 
 /*includes*/
@@ -33,9 +33,9 @@ Some definitions to include/remove code
 #include <ctime>
 #include <cmath>
 #ifdef _WIN32
-#	include <sys/timeb.h>
+#   include <sys/timeb.h>
 #else
-#	include <sys/time.h>
+#   include <sys/time.h>
 #endif
 #ifdef CLUSTER
 #  include <list>
@@ -50,14 +50,14 @@ Some definitions to include/remove code
 parallel search options
 */
 #ifdef  PARALLEL
-#	if !defined(MAX_CPUS)
-#		define MAX_CPUS              32
-#	endif
-#	define MAX_SEARCHERS_PER_CPU     32
-#	define MAX_CPUS_PER_SPLIT         8
+#   if !defined(MAX_CPUS)
+#       define MAX_CPUS              32
+#   endif
+#   define MAX_SEARCHERS_PER_CPU     32
+#   define MAX_CPUS_PER_SPLIT         8
 #else
-#	define MAX_CPUS 			      1
-#	define MAX_SEARCHERS_PER_CPU      1
+#   define MAX_CPUS                   1
+#   define MAX_SEARCHERS_PER_CPU      1
 #endif
 /*
 * Transposition table type
@@ -66,10 +66,10 @@ parallel search options
 * 2 - local tt
 */
 #if !defined(NUMA_TT_TYPE)
-#	define NUMA_TT_TYPE              0
+#   define NUMA_TT_TYPE              0
 #endif
 #if !defined(CLUSTER_TT_TYPE)
-#	define CLUSTER_TT_TYPE           1
+#   define CLUSTER_TT_TYPE           1
 #endif
 
 /*typedefs*/
@@ -81,50 +81,50 @@ typedef UBMP32  MOVE;
 Scorpio board representation
 */
 enum colors {
-	white,black,neutral
+    white,black,neutral
 };
 enum chessmen {
-	king = 1,queen,rook,bishop,knight,pawn
+    king = 1,queen,rook,bishop,knight,pawn
 };
 #undef blank
 enum occupancy {
-	blank,wking,wqueen,wrook,wbishop,wknight,wpawn,
-	bking,bqueen,brook,bbishop,bknight,bpawn,elephant
+    blank,wking,wqueen,wrook,wbishop,wknight,wpawn,
+    bking,bqueen,brook,bbishop,bknight,bpawn,elephant
 };
 enum ranks {
-	RANK1,RANK2,RANK3,RANK4,RANK5,RANK6,RANK7,RANK8
+    RANK1,RANK2,RANK3,RANK4,RANK5,RANK6,RANK7,RANK8
 };
 enum files {
-	FILEA,FILEB,FILEC,FILED,FILEE,FILEF,FILEG,FILEH
+    FILEA,FILEB,FILEC,FILED,FILEE,FILEF,FILEG,FILEH
 };
 enum hash_types {
-	UNKNOWN,AVOID_NULL,HASH_HIT,HASH_GOOD,EXACT,UPPER,LOWER,CRAP
+    UNKNOWN,AVOID_NULL,HASH_HIT,HASH_GOOD,EXACT,UPPER,LOWER,CRAP
 };
 enum results {
-	R_UNKNOWN,R_WWIN,R_BWIN,R_DRAW
+    R_UNKNOWN,R_WWIN,R_BWIN,R_DRAW
 };
 enum node_types {
-	PV_NODE,CUT_NODE,ALL_NODE
+    PV_NODE,CUT_NODE,ALL_NODE
 };
 enum passed_rank {
-	LASTR, HALFR, ALLR
+    LASTR, HALFR, ALLR
 };
 enum search_states {
-	NULL_MOVE = 1,NORMAL_MOVE = 2,MOVE_MASK = 3,PROBCUT_SEARCH = 4,IID_SEARCH = 8,SINGULAR_SEARCH = 16
+    NULL_MOVE = 1,NORMAL_MOVE = 2,MOVE_MASK = 3,PROBCUT_SEARCH = 4,IID_SEARCH = 8,SINGULAR_SEARCH = 16
 };
 enum move_gen_status {
-	GEN_START, GEN_RESET, GEN_RESET_SORT, GEN_AVAIL, GEN_HASHM, GEN_CAPS, GEN_QNONCAPS, 
-	GEN_KILLERS = 6, GEN_NONCAPS, GEN_LOSCAPS, GEN_END
+    GEN_START, GEN_RESET, GEN_RESET_SORT, GEN_AVAIL, GEN_HASHM, GEN_CAPS, GEN_QNONCAPS, 
+    GEN_KILLERS = 6, GEN_NONCAPS, GEN_LOSCAPS, GEN_END
 };
 enum square_names {
-	A1 = 0,B1,C1,D1,E1,F1,G1,H1,
-	A2 = 16,B2,C2,D2,E2,F2,G2,H2,
-	A3 = 32,B3,C3,D3,E3,F3,G3,H3,
-	A4 = 48,B4,C4,D4,E4,F4,G4,H4,
-	A5 = 64,B5,C5,D5,E5,F5,G5,H5,
-	A6 = 80,B6,C6,D6,E6,F6,G6,H6,
-	A7 = 96,B7,C7,D7,E7,F7,G7,H7,
-	A8 = 112,B8,C8,D8,E8,F8,G8,H8
+    A1 = 0,B1,C1,D1,E1,F1,G1,H1,
+    A2 = 16,B2,C2,D2,E2,F2,G2,H2,
+    A3 = 32,B3,C3,D3,E3,F3,G3,H3,
+    A4 = 48,B4,C4,D4,E4,F4,G4,H4,
+    A5 = 64,B5,C5,D5,E5,F5,G5,H5,
+    A6 = 80,B6,C6,D6,E6,F6,G6,H6,
+    A7 = 96,B7,C7,D7,E7,F7,G7,H7,
+    A8 = 112,B8,C8,D8,E8,F8,G8,H8
 };
 
 #define RR    0x01
@@ -250,7 +250,7 @@ distances
 #define ABS(a)           abs(a)
 #define f_distance(x,y)  ABS(file(x)-file(y))
 #define r_distance(x,y)  ABS(rank(x)-rank(y))
-#define distance(x,y)			 MAX(f_distance(x,y),r_distance(x,y))
+#define distance(x,y)            MAX(f_distance(x,y),r_distance(x,y))
 #define DISTANCE(f1,r1,f2,r2)    MAX(ABS((f1) - (f2)),ABS((r1) - (r2)))
 /*
 hash keys
@@ -262,152 +262,152 @@ hash keys
 chess clock
 */
 typedef struct CHESS_CLOCK {
-	int mps;
-	int inc;
-	int p_time;
-	int o_time;
-	int max_st;
-	int max_sd;
-	int search_time;
-	int maximum_time;
-	int infinite_mode;
-	int pondering;
-	CHESS_CLOCK();
-	void set_stime(int);
-	bool is_timed();
+    int mps;
+    int inc;
+    int p_time;
+    int o_time;
+    int max_st;
+    int max_sd;
+    int search_time;
+    int maximum_time;
+    int infinite_mode;
+    int pondering;
+    CHESS_CLOCK();
+    void set_stime(int);
+    bool is_timed();
 }*PCHESS_CLOCK;
 /*
 piece list
 */
 typedef struct LIST{
-	int   sq;
-	LIST* prev;
-	LIST* next;
+    int   sq;
+    LIST* prev;
+    LIST* next;
 }*PLIST;
 /*
 score
 */
 typedef struct SCORE {
-	BMP16 mid;
-	BMP16 end;
-	SCORE() {}
-	SCORE(int m,int e) {mid = m;end = e;}
-	void zero() {mid = 0;end = 0;}
-	void add(SCORE s) {mid += s.mid;end += s.end;}
-	void sub(SCORE s) {mid -= s.mid;end -= s.end;}
-	void add(int m,int e) {mid += m;end += e;}
-	void sub(int m,int e) {mid -= m;end -= e;}
-	void add(int x) {mid += x;end += x;}
-	void sub(int x) {mid -= x;end -= x;}
-	void addm(int m) {mid += m;}
-	void subm(int m) {mid -= m;}
-	void adde(int e) {end += e;}
-	void sube(int e) {end -= e;}
+    BMP16 mid;
+    BMP16 end;
+    SCORE() {}
+    SCORE(int m,int e) {mid = m;end = e;}
+    void zero() {mid = 0;end = 0;}
+    void add(SCORE s) {mid += s.mid;end += s.end;}
+    void sub(SCORE s) {mid -= s.mid;end -= s.end;}
+    void add(int m,int e) {mid += m;end += e;}
+    void sub(int m,int e) {mid -= m;end -= e;}
+    void add(int x) {mid += x;end += x;}
+    void sub(int x) {mid -= x;end -= x;}
+    void addm(int m) {mid += m;}
+    void subm(int m) {mid -= m;}
+    void adde(int e) {end += e;}
+    void sube(int e) {end -= e;}
 } *PSCORE;
 /*
 hash tables
 */
 typedef struct tagHASH {
-	HASHKEY hash_key;
-	union {
-		HASHKEY data_key;
-		struct {
-			UBMP32  move;
-			BMP16   score;
-			UBMP8   depth;
-			UBMP8   flags;
-		};
-	};
+    HASHKEY hash_key;
+    union {
+        HASHKEY data_key;
+        struct {
+            UBMP32  move;
+            BMP16   score;
+            UBMP8   depth;
+            UBMP8   flags;
+        };
+    };
 }HASH,*PHASH;
 
 typedef struct tagPAWNREC {
-	UBMP8  w_passed;
-	UBMP8  b_passed;
-	UBMP8  w_pawn_f;
-	UBMP8  b_pawn_f;
-	UBMP8  w_ksq;
-	UBMP8  b_ksq;
-	BMP8   w_evaled;
-	BMP8   b_evaled;
-	UBMP8  w_attack;
-	UBMP8  b_attack;
-	BMP8   w_s_attack;
-	BMP8   b_s_attack;
+    UBMP8  w_passed;
+    UBMP8  b_passed;
+    UBMP8  w_pawn_f;
+    UBMP8  b_pawn_f;
+    UBMP8  w_ksq;
+    UBMP8  b_ksq;
+    BMP8   w_evaled;
+    BMP8   b_evaled;
+    UBMP8  w_attack;
+    UBMP8  b_attack;
+    BMP8   w_s_attack;
+    BMP8   b_s_attack;
 } PAWNREC,*PPAWNREC;
 
 typedef struct tagPAWNHASH {
-	HASHKEY hash_key;
-	SCORE   score;
-	PAWNREC pawnrec;
+    HASHKEY hash_key;
+    SCORE   score;
+    PAWNREC pawnrec;
 } PAWNHASH, *PPAWNHASH;
 
 typedef struct tagEVALHASH {
-	UBMP32  check_sum;
-	BMP16   score;
-	BMP16   age;
+    UBMP32  check_sum;
+    BMP16   score;
+    BMP16   age;
 } EVALHASH,*PEVALHASH;
 /*
 stacks
 */
 typedef struct HIST_STACK{
-	MOVE move;
-	int castle;
-	int epsquare;
-	int fifty;
-	int checks;
-	int rev_check;
-	PLIST pCapt;
-	PLIST pProm;
-	SCORE pcsq_score[2];
-	BITBOARD all_bb;
-	HASHKEY hash_key;
-	HASHKEY pawn_hash_key;
-	BITBOARD pieces_bb[2];
-	BITBOARD pawns_bb[2];
-	static char start_fen[MAX_FEN_STR];
+    MOVE move;
+    int castle;
+    int epsquare;
+    int fifty;
+    int checks;
+    int rev_check;
+    PLIST pCapt;
+    PLIST pProm;
+    SCORE pcsq_score[2];
+    BITBOARD all_bb;
+    HASHKEY hash_key;
+    HASHKEY pawn_hash_key;
+    BITBOARD pieces_bb[2];
+    BITBOARD pawns_bb[2];
+    static char start_fen[MAX_FEN_STR];
 } *PHIST_STACK;
 
 typedef struct STACK{
-	int pv_length;
-	MOVE current_move;
-	int count;
-	int current_index;
-	int bad_index;
-	int gen_status;
-	int sortm;
-	int best_score;
-	MOVE best_move;
-	MOVE hash_move;
-	int hash_flags;
-	int hash_depth;
-	int hash_score;
-	int extension;
-	int reduction;
-	int mate_threat;
-	int singular;
-	int legal_moves;
-	int alpha;
-	int beta;
-	int depth;
-	int o_alpha;
-	int o_beta;
-	int o_depth;
-	int node_type;
-	int next_node_type;
-	int flag;
-	int search_state;
-	int noncap_start;
-	bool all_done;
-	bool second_pass;
-	MOVE killer[3];
-	int qcheck_depth;
-	int actual_score;
-	UBMP64 start_nodes;
-	MOVE move_st[MAX_MOVES];
-	int score_st[MAX_MOVES];
-	MOVE bad_st[MAX_CAPS];
-	MOVE pv[MAX_PLY];
-	void sort(const int,const int);
+    int pv_length;
+    MOVE current_move;
+    int count;
+    int current_index;
+    int bad_index;
+    int gen_status;
+    int sortm;
+    int best_score;
+    MOVE best_move;
+    MOVE hash_move;
+    int hash_flags;
+    int hash_depth;
+    int hash_score;
+    int extension;
+    int reduction;
+    int mate_threat;
+    int singular;
+    int legal_moves;
+    int alpha;
+    int beta;
+    int depth;
+    int o_alpha;
+    int o_beta;
+    int o_depth;
+    int node_type;
+    int next_node_type;
+    int flag;
+    int search_state;
+    int noncap_start;
+    bool all_done;
+    bool second_pass;
+    MOVE killer[3];
+    int qcheck_depth;
+    int actual_score;
+    UBMP64 start_nodes;
+    MOVE move_st[MAX_MOVES];
+    int score_st[MAX_MOVES];
+    MOVE bad_st[MAX_CAPS];
+    MOVE pv[MAX_PLY];
+    void sort(const int,const int);
 } *PSTACK;
 
 struct SEARCHER;
@@ -422,47 +422,47 @@ struct PROCESSOR;
  * in bytes i.e. sizeof(MESSAGE) * MPI_BYTE is more efficient at least in theory
  */
 struct SPLIT_MESSAGE {
-	BMP64  master;
-	BMP32  depth;
-	BMP32  alpha;
-	BMP32  beta;
-	BMP32  node_type;
-	BMP32  search_state;
-	BMP32  extension;
-	BMP32  reduction;
-	BMP32  pv_length;
-	MOVE   pv[MAX_PLY];
+    BMP64  master;
+    BMP32  depth;
+    BMP32  alpha;
+    BMP32  beta;
+    BMP32  node_type;
+    BMP32  search_state;
+    BMP32  extension;
+    BMP32  reduction;
+    BMP32  pv_length;
+    MOVE   pv[MAX_PLY];
 };
 struct MERGE_MESSAGE {
-	BMP64  master;
-	UBMP64 nodes;
-	UBMP64 qnodes;
-	UBMP64 time_check;
-	UBMP32 splits;
-	UBMP32 bad_splits;
-	UBMP32 egbb_probes;
-	MOVE   best_move;
-	BMP32  best_score;
-	BMP32  pv_length;
-	MOVE   pv[MAX_PLY];
+    BMP64  master;
+    UBMP64 nodes;
+    UBMP64 qnodes;
+    UBMP64 time_check;
+    UBMP32 splits;
+    UBMP32 bad_splits;
+    UBMP32 egbb_probes;
+    MOVE   best_move;
+    BMP32  best_score;
+    BMP32  pv_length;
+    MOVE   pv[MAX_PLY];
 };
 struct INIT_MESSAGE {
-	BMP8 fen[MAX_FEN_STR];
-	BMP32 pv_length;
-	MOVE  pv[127];
+    BMP8 fen[MAX_FEN_STR];
+    BMP32 pv_length;
+    MOVE  pv[127];
 };
 struct TT_MESSAGE {
-	UBMP64 hash_key;
-	BMP16  score;
-	UBMP8  depth;
-	UBMP8  flags;
-	UBMP8  ply;
-	UBMP8  col;
-	UBMP8  mate_threat;
-	UBMP8  singular;
-	MOVE   move;
-	BMP16  alpha;
-	BMP16  beta;
+    UBMP64 hash_key;
+    BMP16  score;
+    UBMP8  depth;
+    UBMP8  flags;
+    UBMP8  ply;
+    UBMP8  col;
+    UBMP8  mate_threat;
+    UBMP8  singular;
+    MOVE   move;
+    BMP16  alpha;
+    BMP16  beta;
 };
 #define   SPLIT_MESSAGE_SIZE(x)   (40 + ((x).pv_length << 2))
 #define   RESPLIT_MESSAGE_SIZE(x) (SPLIT_MESSAGE_SIZE(x) + 4)
@@ -474,186 +474,186 @@ struct TT_MESSAGE {
 SEARCHER
 */
 typedef struct SEARCHER{
-	/*
-	data that needs to be copied by COPY fn below
-	*/
-	int* const board;
-	PSTACK pstack;
-	int player;
-	int opponent;
-	int castle;
-	int epsquare;
-	int fifty;
-	int hply;
-	int ply;
-	int stop_ply;
-	int pawn_c[2];
-	int piece_c[2];
-	int man_c[15];
-	int all_man_c;
-	BITBOARD all_bb;
-	BITBOARD pieces_bb[2];
-	BITBOARD pawns_bb[2];
-	HASHKEY hash_key;
-	HASHKEY pawn_hash_key;
-	SCORE pcsq_score[2];
-	int temp_board[192];
-	PLIST list[128];
-	PLIST plist[15];
-	HIST_STACK hstack[MAX_HSTACK];
-	STACK stack[MAX_PLY];
-	/*eval data*/
-	PAWNREC pawnrec;
-	/*functions*/
-	SEARCHER();
-	void  COPY(SEARCHER*);
-	void  operator = (SEARCHER& right) { COPY(&right); }
-	void  set_board(const char* fen_str);
-	void  get_fen(char* fen_str) const;
-	void  new_board();
-	void  mirror();
-	void  init_data();
-	void  pcAdd(int,int,PLIST = 0);
-	void  pcRemove(int,int,PLIST&);
-	void  pcSwap(int,int);
-	void  do_move(const MOVE&);
-	void  do_null();
-	void  undo_move();
-	void  undo_null();
-	void  PUSH_MOVE(MOVE);
-	void  PUSH_NULL();
-	void  POP_MOVE();
-	void  POP_NULL();
-	void  UPDATE_PV(MOVE);
-	int   attacks(int,int) const;
-	int   checks(MOVE,int&) const;
-	int   in_check(MOVE) const;
-	int   is_legal(MOVE&);
-	int   is_legal_fast(MOVE) const;
-	int   is_passed(MOVE,int) const;
-	int   pinned_on_king(int,int) const;
-	void  print_board() const;
-	void  print_history();
-	void  print_stack();
-	void  print_game();
-	void  print_allmoves();
-	int   see(MOVE);
-	void  gen_caps(bool = false);
-	void  gen_noncaps();
-	void  gen_checks();
-	void  gen_evasions();
-	void  gen_all();
-	MOVE  get_move();
-	MOVE  get_qmove();
-	int   draw() const;
-	MOVE  find_best();
-	int   be_selective();
-	int   on_node_entry();
-	int   on_qnode_entry();
-	void  search();
-	void  qsearch();
-	bool  hash_cutoff();
-	UBMP64   perft(int);
-	MOVE  get_book_move();
-	void  show_book_moves();
-	void  print_pv(int);
-	int   print_result(bool);
-	void  check_quit();
-	int   eval();
-	void  eval_pawn_cover(int,int,UBMP8*,UBMP8*);
-	SCORE eval_pawns(int,int,UBMP8*,UBMP8*);
-	int   eval_passed_pawns(UBMP8*,UBMP8*,UBMP8&);
-	void  eval_win_chance(SCORE&,SCORE&,int&,int&);
-	static void  pre_calculate();
-	void  update_pcsq(int,int,int);
-	void  record_hash(int,const HASHKEY&,int,int,int,int,MOVE,int,int);
-	int   probe_hash(int,const HASHKEY&,int,int,int&,MOVE&,int,int,int&,int&,int&,bool);
-	void  RECORD_HASH(int,const HASHKEY&,int,int,int,int,MOVE,int,int);
-	int   PROBE_HASH(int,const HASHKEY&,int,int,int&,MOVE&,int,int,int&,int&,int&,bool);
-	void  record_pawn_hash(const HASHKEY&,const SCORE&,const PAWNREC&);
-	int   probe_pawn_hash(const HASHKEY&,SCORE&,PAWNREC&);
-	void  record_eval_hash(const HASHKEY&,int);
-	int   probe_eval_hash(const HASHKEY&,int&);
-	void  prefetch_tt();
-	void  prefetch_qtt();
-	bool  san_mov(MOVE& move,char* s);
-	bool  build_book(char*,char*,int,int,int);
-	void  update_history(MOVE);
-	void  clear_history();
-	/*counts*/
-	UBMP64 nodes;
-	UBMP64 qnodes;
-	UBMP64 time_check;
-	UBMP64 message_check;
-	UBMP32 splits;
-	UBMP32 bad_splits;
-	UBMP32 egbb_probes;
-	VOLATILE int stop_searcher;
-	/*
-	Parallel search
-	*/
-	bool used;
-	int  processor_id;
+    /*
+    data that needs to be copied by COPY fn below
+    */
+    int* const board;
+    PSTACK pstack;
+    int player;
+    int opponent;
+    int castle;
+    int epsquare;
+    int fifty;
+    int hply;
+    int ply;
+    int stop_ply;
+    int pawn_c[2];
+    int piece_c[2];
+    int man_c[15];
+    int all_man_c;
+    BITBOARD all_bb;
+    BITBOARD pieces_bb[2];
+    BITBOARD pawns_bb[2];
+    HASHKEY hash_key;
+    HASHKEY pawn_hash_key;
+    SCORE pcsq_score[2];
+    int temp_board[192];
+    PLIST list[128];
+    PLIST plist[15];
+    HIST_STACK hstack[MAX_HSTACK];
+    STACK stack[MAX_PLY];
+    /*eval data*/
+    PAWNREC pawnrec;
+    /*functions*/
+    SEARCHER();
+    void  COPY(SEARCHER*);
+    void  operator = (SEARCHER& right) { COPY(&right); }
+    void  set_board(const char* fen_str);
+    void  get_fen(char* fen_str) const;
+    void  new_board();
+    void  mirror();
+    void  init_data();
+    void  pcAdd(int,int,PLIST = 0);
+    void  pcRemove(int,int,PLIST&);
+    void  pcSwap(int,int);
+    void  do_move(const MOVE&);
+    void  do_null();
+    void  undo_move();
+    void  undo_null();
+    void  PUSH_MOVE(MOVE);
+    void  PUSH_NULL();
+    void  POP_MOVE();
+    void  POP_NULL();
+    void  UPDATE_PV(MOVE);
+    int   attacks(int,int) const;
+    int   checks(MOVE,int&) const;
+    int   in_check(MOVE) const;
+    int   is_legal(MOVE&);
+    int   is_legal_fast(MOVE) const;
+    int   is_passed(MOVE,int) const;
+    int   pinned_on_king(int,int) const;
+    void  print_board() const;
+    void  print_history();
+    void  print_stack();
+    void  print_game();
+    void  print_allmoves();
+    int   see(MOVE);
+    void  gen_caps(bool = false);
+    void  gen_noncaps();
+    void  gen_checks();
+    void  gen_evasions();
+    void  gen_all();
+    MOVE  get_move();
+    MOVE  get_qmove();
+    int   draw() const;
+    MOVE  find_best();
+    int   be_selective();
+    int   on_node_entry();
+    int   on_qnode_entry();
+    void  search();
+    void  qsearch();
+    bool  hash_cutoff();
+    UBMP64   perft(int);
+    MOVE  get_book_move();
+    void  show_book_moves();
+    void  print_pv(int);
+    int   print_result(bool);
+    void  check_quit();
+    int   eval();
+    void  eval_pawn_cover(int,int,UBMP8*,UBMP8*);
+    SCORE eval_pawns(int,int,UBMP8*,UBMP8*);
+    int   eval_passed_pawns(UBMP8*,UBMP8*,UBMP8&);
+    void  eval_win_chance(SCORE&,SCORE&,int&,int&);
+    static void  pre_calculate();
+    void  update_pcsq(int,int,int);
+    void  record_hash(int,const HASHKEY&,int,int,int,int,MOVE,int,int);
+    int   probe_hash(int,const HASHKEY&,int,int,int&,MOVE&,int,int,int&,int&,int&,bool);
+    void  RECORD_HASH(int,const HASHKEY&,int,int,int,int,MOVE,int,int);
+    int   PROBE_HASH(int,const HASHKEY&,int,int,int&,MOVE&,int,int,int&,int&,int&,bool);
+    void  record_pawn_hash(const HASHKEY&,const SCORE&,const PAWNREC&);
+    int   probe_pawn_hash(const HASHKEY&,SCORE&,PAWNREC&);
+    void  record_eval_hash(const HASHKEY&,int);
+    int   probe_eval_hash(const HASHKEY&,int&);
+    void  prefetch_tt();
+    void  prefetch_qtt();
+    bool  san_mov(MOVE& move,char* s);
+    bool  build_book(char*,char*,int,int,int);
+    void  update_history(MOVE);
+    void  clear_history();
+    /*counts*/
+    UBMP64 nodes;
+    UBMP64 qnodes;
+    UBMP64 time_check;
+    UBMP64 message_check;
+    UBMP32 splits;
+    UBMP32 bad_splits;
+    UBMP32 egbb_probes;
+    VOLATILE int stop_searcher;
+    /*
+    Parallel search
+    */
+    bool used;
+    int  processor_id;
 #if defined(PARALLEL) || defined(CLUSTER)
-	SEARCHER* master;
-	void handle_fail_high();
-	void clear_block();
+    SEARCHER* master;
+    void handle_fail_high();
+    void clear_block();
 #endif
 #ifdef PARALLEL
-	LOCK lock;
-	VOLATILE int n_workers;
-	SEARCHER* VOLATILE workers[MAX_CPUS];
+    LOCK lock;
+    VOLATILE int n_workers;
+    SEARCHER* VOLATILE workers[MAX_CPUS];
 
-	int get_smp_move();
-	int check_split();
-	void attach_processor(int);
-	void update_master(int);
-	void stop_workers();
+    int get_smp_move();
+    int check_split();
+    void attach_processor(int);
+    void update_master(int);
+    void stop_workers();
 #endif
 #ifdef CLUSTER
-	VOLATILE int n_host_workers;
-	std::list<int> host_workers;
-	int get_cluster_move(SPLIT_MESSAGE*,bool=false);
-	void get_init_pos(INIT_MESSAGE*);
+    VOLATILE int n_host_workers;
+    std::list<int> host_workers;
+    int get_cluster_move(SPLIT_MESSAGE*,bool=false);
+    void get_init_pos(INIT_MESSAGE*);
 #endif
-	/*
-	things that are shared among multiple searchers.
-	*/
-	static int search_depth;
-	static int start_time;
-	static int scorpio;
-	static int pv_print_style;
-	static int root_score;
-	static int root_failed_low;
-	static int last_book_move;
-	static int first_search;
-	static int analysis_mode;
-	static int in_egbb;
-	static int show_full_pv;
-	static int abort_search;
-	static UBMP32 poll_nodes;
-	static MOVE expected_move;
-	static int resign_value;
-	static int resign_count;
-	static CHESS_CLOCK chess_clock;
-	static UBMP64 root_score_st[MAX_MOVES];
-	static CACHE_ALIGN unsigned int history[14][64];
-	static CACHE_ALIGN MOVE refutation[14][64];
-	/*
-	Bitbases
-	*/
-	int probe_bitbases(int&);
-	bool bitbase_cutoff();
-	static int egbb_is_loaded;
-	static int egbb_load_type;
-	static int egbb_depth_limit;
-	static int egbb_ply_limit_percent;
-	static int egbb_ply_limit;
-	static int egbb_cache_size;
-	static char egbb_path[MAX_STR];
-	/*
-	End
-	*/
+    /*
+    things that are shared among multiple searchers.
+    */
+    static int search_depth;
+    static int start_time;
+    static int scorpio;
+    static int pv_print_style;
+    static int root_score;
+    static int root_failed_low;
+    static int last_book_move;
+    static int first_search;
+    static int analysis_mode;
+    static int in_egbb;
+    static int show_full_pv;
+    static int abort_search;
+    static UBMP32 poll_nodes;
+    static MOVE expected_move;
+    static int resign_value;
+    static int resign_count;
+    static CHESS_CLOCK chess_clock;
+    static UBMP64 root_score_st[MAX_MOVES];
+    static CACHE_ALIGN unsigned int history[14][64];
+    static CACHE_ALIGN MOVE refutation[14][64];
+    /*
+    Bitbases
+    */
+    int probe_bitbases(int&);
+    bool bitbase_cutoff();
+    static int egbb_is_loaded;
+    static int egbb_load_type;
+    static int egbb_depth_limit;
+    static int egbb_ply_limit_percent;
+    static int egbb_ply_limit;
+    static int egbb_cache_size;
+    static char egbb_path[MAX_STR];
+    /*
+    End
+    */
 } *PSEARCHER;
 
 #ifdef PARALLEL
@@ -665,180 +665,180 @@ void search(SEARCHER* const);
 inline piece list functions
 */
 FORCEINLINE void SEARCHER::pcAdd(int pic,int sq,PLIST pCapt) {
-	PLIST& pHead = plist[pic];
-	PLIST pPc = list[sq];
+    PLIST& pHead = plist[pic];
+    PLIST pPc = list[sq];
 
-	if(!pHead) {
-		pHead = pPc;
-		pHead->next = 0;
-		pHead->prev = 0;
-	} else {
-		if(pCapt) {
-			pPc->prev = pCapt;
-			if(pCapt->next) pCapt->next->prev = pPc;
-			pPc->next = pCapt->next;
-			pCapt->next = pPc;
-		} else {
-			pPc->next = pHead;
-			pHead->prev = pPc;
-			pPc->prev = 0;
-			pHead = pPc;
-		}
-	}
+    if(!pHead) {
+        pHead = pPc;
+        pHead->next = 0;
+        pHead->prev = 0;
+    } else {
+        if(pCapt) {
+            pPc->prev = pCapt;
+            if(pCapt->next) pCapt->next->prev = pPc;
+            pPc->next = pCapt->next;
+            pCapt->next = pPc;
+        } else {
+            pPc->next = pHead;
+            pHead->prev = pPc;
+            pPc->prev = 0;
+            pHead = pPc;
+        }
+    }
 }
 FORCEINLINE void SEARCHER::pcRemove(int pic,int sq,PLIST& pCapt) {
-	PLIST& pHead = plist[pic];
-	PLIST pPc = list[sq];
+    PLIST& pHead = plist[pic];
+    PLIST pPc = list[sq];
 
-	pCapt = pPc->prev; 
-	if(pPc->next) pPc->next->prev = pPc->prev;
-	if(pPc->prev) pPc->prev->next = pPc->next;
-	if(pHead == pPc) pHead = pHead->next;
+    pCapt = pPc->prev; 
+    if(pPc->next) pPc->next->prev = pPc->prev;
+    if(pPc->prev) pPc->prev->next = pPc->next;
+    if(pHead == pPc) pHead = pHead->next;
 }
 FORCEINLINE void SEARCHER::pcSwap(int from,int to) {
-	PLIST pPc;
-	PLIST& pTo = list[to];
-	PLIST& pFrom = list[from];
-	pPc = pTo;
-	pTo = pFrom;
-	pFrom = pPc;
-	pTo->sq = to;
-	pFrom->sq = from;
+    PLIST pPc;
+    PLIST& pTo = list[to];
+    PLIST& pFrom = list[from];
+    pPc = pTo;
+    pTo = pFrom;
+    pFrom = pPc;
+    pTo->sq = to;
+    pFrom->sq = from;
 }
 FORCEINLINE void SEARCHER::PUSH_MOVE(MOVE move) {
-	do_move(move);
-	ply++;
-	pstack++;
+    do_move(move);
+    ply++;
+    pstack++;
 }
 FORCEINLINE void SEARCHER::PUSH_NULL() {
-	do_null();
-	ply++;
-	pstack++;
+    do_null();
+    ply++;
+    pstack++;
 }
 FORCEINLINE void SEARCHER::POP_MOVE() {
-	ply--;
-	pstack--;
-	undo_move();
+    ply--;
+    pstack--;
+    undo_move();
 }
 FORCEINLINE void SEARCHER::POP_NULL() {
-	ply--;
-	pstack--;
-	undo_null();
+    ply--;
+    pstack--;
+    undo_null();
 }
 /*
 sort move list
 */
 FORCEINLINE void STACK::sort(const int start,const int end) {
-	register int i,bi = start,bs = score_st[start];
-	for (i = start + 1; i < end; i++) {
-		if(score_st[i] > bs) {
-			bi = i;
-			bs = score_st[i];
-		}
-	}
-	if(bi != start) {
-		MOVE tempm;
-		int temps;
-		tempm = move_st[start];
-		temps = score_st[start];
-		move_st[start] = move_st[bi];
-		score_st[start] = score_st[bi];
-		move_st[bi] = tempm;
-		score_st[bi] = temps;
-	}
+    register int i,bi = start,bs = score_st[start];
+    for (i = start + 1; i < end; i++) {
+        if(score_st[i] > bs) {
+            bi = i;
+            bs = score_st[i];
+        }
+    }
+    if(bi != start) {
+        MOVE tempm;
+        int temps;
+        tempm = move_st[start];
+        temps = score_st[start];
+        move_st[start] = move_st[bi];
+        score_st[start] = score_st[bi];
+        move_st[bi] = tempm;
+        score_st[bi] = temps;
+    }
 }
 /*
 PROCESSOR
 */
 enum thread_states {
-	PARK,WAIT,GO,KILL
+    PARK,WAIT,GO,KILL
 };
 typedef struct PROCESSOR {
-	/*searchers*/
-	SEARCHER searchers[MAX_SEARCHERS_PER_CPU];
-	PSEARCHER searcher;
-	VOLATILE int state;
+    /*searchers*/
+    SEARCHER searchers[MAX_SEARCHERS_PER_CPU];
+    PSEARCHER searcher;
+    VOLATILE int state;
 
-	/*processor count*/
-	static int n_processors;
-	static VOLATILE int n_idle_processors;
-	static int n_hosts;
+    /*processor count*/
+    static int n_processors;
+    static VOLATILE int n_idle_processors;
+    static int n_hosts;
 
-	/*cluster*/
+    /*cluster*/
 #ifdef CLUSTER
-	enum processor_states {
-		QUIT = 0,INIT,HELP,CANCEL,SPLIT,MERGE,PING,PONG,
-		GOROOT, RECORD_TT,PROBE_TT,PROBE_TT_RESULT
-	};
-	static const char *const message_str[12];
-	static int host_id;
-	static char host_name[256];
-	static int help_messages;
-	static int prev_dest;
-	static std::list<int> available_host_workers;
-	static VOLATILE int message_available;
-	static void cancel_idle_hosts();
-	static void quit_hosts();
-	static int MESSAGE_POLL_NODES;
-	static int CLUSTER_SPLIT_DEPTH;
+    enum processor_states {
+        QUIT = 0,INIT,HELP,CANCEL,SPLIT,MERGE,PING,PONG,
+        GOROOT, RECORD_TT,PROBE_TT,PROBE_TT_RESULT
+    };
+    static const char *const message_str[12];
+    static int host_id;
+    static char host_name[256];
+    static int help_messages;
+    static int prev_dest;
+    static std::list<int> available_host_workers;
+    static VOLATILE int message_available;
+    static void cancel_idle_hosts();
+    static void quit_hosts();
+    static int MESSAGE_POLL_NODES;
+    static int CLUSTER_SPLIT_DEPTH;
 #endif
 
-	/*functions*/
-	static void exit_scorpio(int);
+    /*functions*/
+    static void exit_scorpio(int);
 #ifdef PARALLEL
-	static int SMP_SPLIT_DEPTH;
-	static void create(int id);
-	static void kill(int id);
+    static int SMP_SPLIT_DEPTH;
+    static void create(int id);
+    static void kill(int id);
 #endif
-	static void set_main();
+    static void set_main();
 #ifdef CLUSTER
-	static void init(int argc, char* argv[]);
-	static void ISend(int dest,int message);
-	static void ISend(int dest,int message,void* data,int size,MPI_Request* = 0);
-	static void Recv(int dest,int message);
-	static void Recv(int dest,int message,void* data,int size);
-	static bool IProbe(int& dest,int& message_id);
-	static void Wait(MPI_Request*);
-	static void Barrier();
-	static void Sum(UBMP64* sendbuf,UBMP64* recvbuf);
-	static void handle_message(int dest,int message_id);
-	static void offer_help();
+    static void init(int argc, char* argv[]);
+    static void ISend(int dest,int message);
+    static void ISend(int dest,int message,void* data,int size,MPI_Request* = 0);
+    static void Recv(int dest,int message);
+    static void Recv(int dest,int message,void* data,int size);
+    static bool IProbe(int& dest,int& message_id);
+    static void Wait(MPI_Request*);
+    static void Barrier();
+    static void Sum(UBMP64* sendbuf,UBMP64* recvbuf);
+    static void handle_message(int dest,int message_id);
+    static void offer_help();
 #endif
 #if defined(PARALLEL) || defined(CLUSTER)
-	bool has_block();
-	void idle_loop();
-	static void message_idle_loop();
+    bool has_block();
+    void idle_loop();
+    static void message_idle_loop();
 #endif
 
-	/*hash tables*/
-	PHASH white_hash_tab;
-	PHASH black_hash_tab;
-	PPAWNHASH pawn_hash_tab;
-	PEVALHASH eval_hash_tab;
+    /*hash tables*/
+    PHASH white_hash_tab;
+    PHASH black_hash_tab;
+    PPAWNHASH pawn_hash_tab;
+    PEVALHASH eval_hash_tab;
 #ifdef CLUSTER
-	TT_MESSAGE ttmsg;
-	VOLATILE bool ttmsg_recieved;
+    TT_MESSAGE ttmsg;
+    VOLATILE bool ttmsg_recieved;
 #endif
-	static UBMP32 hash_tab_mask;
-	static UBMP32 pawn_hash_tab_mask;
-	static UBMP32 eval_hash_tab_mask;
-	static int age;
+    static UBMP32 hash_tab_mask;
+    static UBMP32 pawn_hash_tab_mask;
+    static UBMP32 eval_hash_tab_mask;
+    static int age;
 
-	void  reset_hash_tab(int id,UBMP32);
-	void  reset_pawn_hash_tab(UBMP32 = 0);
-	void  reset_eval_hash_tab(UBMP32 = 0);
-	void  delete_hash_tables();
-	static void  clear_hash_tables();
+    void  reset_hash_tab(int id,UBMP32);
+    void  reset_pawn_hash_tab(UBMP32 = 0);
+    void  reset_eval_hash_tab(UBMP32 = 0);
+    void  delete_hash_tables();
+    static void  clear_hash_tables();
 
-	/*constructor*/
-	PROCESSOR() {
-		state = KILL;
-		searcher = 0;
-		white_hash_tab = 0;
-		black_hash_tab = 0;
-		eval_hash_tab = 0;
-		pawn_hash_tab = 0;
-	}
+    /*constructor*/
+    PROCESSOR() {
+        state = KILL;
+        searcher = 0;
+        white_hash_tab = 0;
+        black_hash_tab = 0;
+        eval_hash_tab = 0;
+        pawn_hash_tab = 0;
+    }
 } *PPROCESSOR;
 
 extern PPROCESSOR processors[MAX_CPUS];
@@ -924,14 +924,14 @@ their respective authors.
 #   ifdef ARC_64BIT
 #if !defined(HAS_POPCNT)
 FORCEINLINE int popcnt(BITBOARD b) {
-	const BITBOARD k1 = UINT64(0x5555555555555555);
-	const BITBOARD k2 = UINT64(0x3333333333333333);
-	const BITBOARD k4 = UINT64(0x0f0f0f0f0f0f0f0f);
-	const BITBOARD kf = UINT64(0x0101010101010101);
-	b =  b       - ((b >> 1)  & k1); 
-	b = (b & k2) + ((b >> 2)  & k2); 
-	b = (b       +  (b >> 4)) & k4 ; 
-	return (int) ((b * kf) >> 56);
+    const BITBOARD k1 = UINT64(0x5555555555555555);
+    const BITBOARD k2 = UINT64(0x3333333333333333);
+    const BITBOARD k4 = UINT64(0x0f0f0f0f0f0f0f0f);
+    const BITBOARD kf = UINT64(0x0101010101010101);
+    b =  b       - ((b >> 1)  & k1); 
+    b = (b & k2) + ((b >> 2)  & k2); 
+    b = (b       +  (b >> 4)) & k4 ; 
+    return (int) ((b * kf) >> 56);
 }
 #endif
 /*
@@ -941,67 +941,67 @@ NB: Table contains squares in 0x88 format.
 */
 const BITBOARD magic = 0x021c9a5edd467e2b; /* The 01111981 => This Number is Copyrighted by BIRTH :) */
 const unsigned int table[64] =  {
-	0,  1,  2,  7,  3,103, 82, 16,
-	4, 22,112, 39, 83, 33, 17, 87,
-	5, 80, 37, 23, 70,113,115, 48,
-	117, 84, 34, 55, 18, 66, 50, 96,
-	119,  6,102, 81, 21, 38, 32, 86,
-	71, 36, 69,114,116, 54, 65, 49,
-	118,101, 20, 85, 35, 68, 53, 64,
-	100, 19, 67, 52, 99, 51, 98, 97
+    0,  1,  2,  7,  3,103, 82, 16,
+    4, 22,112, 39, 83, 33, 17, 87,
+    5, 80, 37, 23, 70,113,115, 48,
+    117, 84, 34, 55, 18, 66, 50, 96,
+    119,  6,102, 81, 21, 38, 32, 86,
+    71, 36, 69,114,116, 54, 65, 49,
+    118,101, 20, 85, 35, 68, 53, 64,
+    100, 19, 67, 52, 99, 51, 98, 97
 };
 FORCEINLINE unsigned int first_one(BITBOARD b) {
-	return table[((b & -b) * magic) >> 58];
+    return table[((b & -b) * magic) >> 58];
 }
 
-#	else
+#   else
 
 FORCEINLINE int popcnt(BITBOARD b) {
-	const UBMP32 k1 = (0x55555555);
-	const UBMP32 k2 = (0x33333333);
-	const UBMP32 k4 = (0x0f0f0f0f);
-	const UBMP32 kf = (0x01010101);
-	UBMP32 hi = (UBMP32) (b >> 32);
-	UBMP32 lo = (UBMP32) (b);
-	hi =  hi       - ((hi >> 1)  & k1); 
-	hi = (hi & k2) + ((hi >> 2)  & k2); 
-	hi = (hi       +  (hi >> 4)) & k4 ;
-	lo =  lo       - ((lo >> 1)  & k1); 
-	lo = (lo & k2) + ((lo >> 2)  & k2); 
-	lo = (lo       +  (lo >> 4)) & k4 ;
-	return (int) (((hi + lo) * kf) >> 24);
+    const UBMP32 k1 = (0x55555555);
+    const UBMP32 k2 = (0x33333333);
+    const UBMP32 k4 = (0x0f0f0f0f);
+    const UBMP32 kf = (0x01010101);
+    UBMP32 hi = (UBMP32) (b >> 32);
+    UBMP32 lo = (UBMP32) (b);
+    hi =  hi       - ((hi >> 1)  & k1); 
+    hi = (hi & k2) + ((hi >> 2)  & k2); 
+    hi = (hi       +  (hi >> 4)) & k4 ;
+    lo =  lo       - ((lo >> 1)  & k1); 
+    lo = (lo & k2) + ((lo >> 2)  & k2); 
+    lo = (lo       +  (lo >> 4)) & k4 ;
+    return (int) (((hi + lo) * kf) >> 24);
 }
 /*Matt taylor's bitscan , optimized for 32 bit systems*/
 const unsigned int table[64] = {
-	119, 54,  3, 64,115, 22, 19, 65,
-	116, 48, 98, 17,103, 35, 37, 66,
-	117, 53,  2,101, 99, 39, 81, 34,
-	112, 52,  1, 83, 86, 51,  0, 67,
-	118, 55,114,  4,  5, 97,102,  6,
-	23,100, 20, 80,  7, 82, 85, 32,
-	49,113, 96, 21, 18, 71, 16, 84,
-	36, 87, 70, 38, 33, 69, 68, 50
+    119, 54,  3, 64,115, 22, 19, 65,
+    116, 48, 98, 17,103, 35, 37, 66,
+    117, 53,  2,101, 99, 39, 81, 34,
+    112, 52,  1, 83, 86, 51,  0, 67,
+    118, 55,114,  4,  5, 97,102,  6,
+    23,100, 20, 80,  7, 82, 85, 32,
+    49,113, 96, 21, 18, 71, 16, 84,
+    36, 87, 70, 38, 33, 69, 68, 50
 };
 FORCEINLINE unsigned int first_one(BITBOARD b) {
-	unsigned int folded;
-	b ^= (b - 1);
-	folded = (int) (b ^ (b >> 32));
-	return table[folded * 0x78291ACF >> 26];
+    unsigned int folded;
+    b ^= (b - 1);
+    folded = (int) (b ^ (b >> 32));
+    return table[folded * 0x78291ACF >> 26];
 }
 
-#	endif
+#   endif
 /*
 Brian Kernighan's sparse bitboard population count
 Used for king attack pattern.
 */
 #if !defined(HAS_POPCNT)
 FORCEINLINE int popcnt_sparse(BITBOARD b) {
-	register int count = 0;
-	while (b) {
-		count++;
-		b &= b - 1;
-	}
-	return count;
+    register int count = 0;
+    while (b) {
+        count++;
+        b &= b - 1;
+    }
+    return count;
 }
 #endif
 
@@ -1010,17 +1010,17 @@ flip bitboard along a1h8.
 Used to rotate pawn bitboards.
 */
 FORCEINLINE BITBOARD Rotate(BITBOARD b) {
-	BITBOARD t;
-	const BITBOARD k1 = UINT64(0x5500550055005500);
-	const BITBOARD k2 = UINT64(0x3333000033330000);
-	const BITBOARD k4 = UINT64(0x0f0f0f0f00000000);
-	t  = k4 & (b ^ (b << 28));
-	b ^=       t ^ (t >> 28) ;
-	t  = k2 & (b ^ (b << 14));
-	b ^=       t ^ (t >> 14) ;
-	t  = k1 & (b ^ (b <<  7));
-	b ^=       t ^ (t >>  7) ;
-	return b;
+    BITBOARD t;
+    const BITBOARD k1 = UINT64(0x5500550055005500);
+    const BITBOARD k2 = UINT64(0x3333000033330000);
+    const BITBOARD k4 = UINT64(0x0f0f0f0f00000000);
+    t  = k4 & (b ^ (b << 28));
+    b ^=       t ^ (t >> 28) ;
+    t  = k2 & (b ^ (b << 14));
+    b ^=       t ^ (t >> 14) ;
+    t  = k1 & (b ^ (b <<  7));
+    b ^=       t ^ (t >>  7) ;
+    return b;
 }
 /*
 Some bitboards
