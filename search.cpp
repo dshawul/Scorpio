@@ -74,7 +74,7 @@ bool SEARCHER::hash_cutoff() {
 	/*cutoff*/
 	if(pstack->singular && pstack->hash_flags != HASH_GOOD)
 		pstack->singular = 0;
-	if((pstack->node_type != PV_NODE || (ply > 0 && pstack->hash_depth > pstack->depth))
+	if(pstack->node_type != PV_NODE
 		&& pstack->hash_flags >= EXACT
 		&& pstack->hash_flags <= LOWER
 		) {
@@ -301,7 +301,7 @@ int SEARCHER::be_selective() {
 	if(ply == 1) {
 		if(nmoves >= 4
 			&& !hstack[hply - 1].checks
-			&& !m_capture(move)
+			&& !is_cap_prom(move)
 			&& !is_passed(move,HALFR)
 			) {
 			reduce(UNITDEPTH);
@@ -313,10 +313,10 @@ int SEARCHER::be_selective() {
 	/*non-cap phase*/
 	bool avail_noncap = (pstack - 1)->gen_status == GEN_AVAIL && 
 		                (pstack - 1)->current_index - 1 >= (pstack - 1)->noncap_start;
-	int noncap_reduce = ((pstack - 1)->gen_status - 1 == GEN_NONCAPS ||
-		                 (avail_noncap && !m_capture(move)));
-	int loscap_reduce = ((pstack - 1)->gen_status - 1 == GEN_LOSCAPS ||
-		                 (avail_noncap && m_capture(move)));
+	bool noncap_reduce = ((pstack - 1)->gen_status - 1 == GEN_NONCAPS ||
+		                 (avail_noncap && !is_cap_prom(move)));
+	bool loscap_reduce = ((pstack - 1)->gen_status - 1 == GEN_LOSCAPS ||
+		                 (avail_noncap && is_cap_prom(move)));
 	/*
 	extend
 	*/
