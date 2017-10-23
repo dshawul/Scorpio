@@ -1574,7 +1574,7 @@ void SEARCHER::eval_win_chance(SCORE& w_score,SCORE& b_score,int& w_win_chance,i
             if(distance(ksq,H1) <= 1 ||
                 (rank(psq) > rank(ksq) && file(ksq) == FILEG)) {
                 bool is_draw = true;
-                for(int sq = psq + RR;sq > B1;sq += DD) {
+                for(int sq = psq + LL;sq > G1;sq += DD) {
                     if(board[sq] == wpawn) {
                         is_draw = false;
                         break;
