@@ -14,16 +14,32 @@ parameters = [
     ['TROPISM_WEIGHT',8],
     ['PAWN_GUARD',16],
     ['HANGING_PENALTY',15],
-    ['KNIGHT_OUTPOST',16],
-    ['BISHOP_OUTPOST',12],
-    ['KNIGHT_MOB',16],
-    ['BISHOP_MOB',16],
-    ['ROOK_MOB',16],
-    ['QUEEN_MOB',16],
+    ['KNIGHT_OUTPOST_MG',16],
+    ['KNIGHT_OUTPOST_EG',16],
+    ['BISHOP_OUTPOST_MG',12],
+    ['BISHOP_OUTPOST_EG',12],
+    ['KNIGHT_MOB_MG',16],
+    ['KNIGHT_MOB_EG',16],
+    ['BISHOP_MOB_MG',16],
+    ['BISHOP_MOB_EG',16],
+    ['ROOK_MOB_MG',16],
+    ['ROOK_MOB_EG',16],
+    ['QUEEN_MOB_MG',16],
+    ['QUEEN_MOB_EG',16],
     ['PASSER_MG',12],
     ['PASSER_EG',16],
-    ['PAWN_STRUCT_MG',12],
-    ['PAWN_STRUCT_EG',16],
+    ['CANDIDATE_PP_MG',10],
+    ['CANDIDATE_PP_EG',16],
+    ['PAWN_DOUBLED_MG',8],
+    ['PAWN_DOUBLED_EG',10],
+    ['PAWN_ISOLATED_ON_OPEN_MG',15],
+    ['PAWN_ISOLATED_ON_OPEN_EG',20],
+    ['PAWN_ISOLATED_ON_CLOSED_MG',10],
+    ['PAWN_ISOLATED_ON_CLOSED_EG',10],
+    ['PAWN_WEAK_ON_OPEN_MG',12],
+    ['PAWN_WEAK_ON_OPEN_EG', 8],
+    ['PAWN_WEAK_ON_CLOSED_MG',6],
+    ['PAWN_WEAK_ON_CLOSED_EG',6],
     ['ROOK_ON_7TH',12],
     ['ROOK_ON_OPEN',16],
     ['ROOK_SUPPORT_PASSED_MG',10],
@@ -48,12 +64,10 @@ parameters = [
     ['MINORS3_v_MAJOR',45],
     ['MINORS2_v_MAJOR',45],
     ['ROOK_v_MINOR',45],
-    # ['ELO_HOME',20],
-    # ['ELO_DRAW',50],
-    # ['ELO_HOME_SLOPE_PHASE',0],
-    # ['ELO_DRAW_SLOPE_PHASE',0],
-    # ['ELO_HOME_SLOPE_KSAFETY',0],
-    # ['ELO_DRAW_SLOPE_KSAFETY',0]
+    ['ELO_HOME',20],
+    ['ELO_DRAW',50],
+    ['ELO_HOME_SLOPE_PHASE',0],
+    ['ELO_DRAW_SLOPE_PHASE',0],
 ]
 
 #frac = fraction of positions to consider
@@ -61,8 +75,12 @@ parameters = [
 frac = 0.01
 prior = 0.1
 
+#print parameters every n seconds
+print_time = 10
+
 #lock for printing
 lock = threading.Lock()
+
 
 #class to handle engine
 class Engine(threading.Thread):
@@ -125,46 +143,84 @@ class Engine(threading.Thread):
         self.hasInput = False
         return E 
 
-    def getGradMSE(self,x0):
+    def getGradMSElinear(self,x0):
         delta = 1
         seed = randint(0,32767)
-        self.sendParams(x0)
-        U0 = self.getMSE(seed)
-        x1 = np.copy(x0)
+        self.sendParams(x0,False)
         grad = np.zeros(len(x0))
+
+        x1 = np.copy(x0)
+        U0 = self.getMSE(seed)
         for i in range(0,len(x0)): 
            # delta = x0[i] / 4
            # if delta < 1:
            #    delta = 1
            x1[i] = x0[i] + delta
-           self.sendParams(x1,False)
+           self.sendParam(x1,i,False)
            U1 = self.getMSE(seed)
            x1[i] = x0[i]
+           self.sendParam(x1,i,False)
            grad[i] = (U1 - U0) / delta
+        return grad
+
+    def getGradMSEblock(self,x0): 
+        seed = randint(0,32767)
+        self.sendParams(x0,False)
+        grad = np.zeros(len(x0))
+
+        s = 'gmse ' + str(frac) + ' ' + str(prior) + ' ' + str(seed)
+        lock.acquire()
+        self.line = ''
+        lock.release()
+        self.send(s)
+        while(not (self.hasInput and self.line != '')):
+            continue
+        grad = np.fromstring(self.line.rstrip(), dtype=np.float, sep=' ')
+        self.hasInput = False
         return grad
 
     def sendParams(self,x0,logging=True): 
         s = '' 
         for i in range(0,len(x0)): 
             s = s + parameters[i][0] + ' ' + str(int(round(x0[i]))) + '\n'
-            # s = s + parameters[i][0] + ' ' + str(x0[i]) + '\n'
         s= s[:-1]
         self.send(s,logging)
 
-def GradientDescent(grad_func,x0,niter,alpha):
+    def sendParam(self,x0,i,logging=True): 
+        s = parameters[i][0] + ' ' + str(int(round(x0[i]))) + '\n'
+        s= s[:-1]
+        self.send(s,logging)
+
+#print parameters
+def print_params(x0):
+    s = ''
+    for i in range(0,len(x0)): 
+        s = s + 'static PARAM ' + parameters[i][0] + ' = ' + str(int(round(x0[i]))) + ';\n'
+    print s
+
+    s = ''
+    for i in range(0,len(x0)): 
+        s = s + '[\'' + parameters[i][0] + '\',' + str(int(round(x0[i]))) + '],\n'
+    print s
+
+def GradientDescent(grad_func,x0,niter,alpha,start_t):
     gamma = 0.1
     gp = np.zeros(len(x0))
     d = np.zeros(len(x0))
     for i in range(0,niter): 
+        print "==== Iteration ", i, " ====="
         g = grad_func(x0)
         # if(i > 1):
         #   gamma = (la.norm(g)**2) / (la.norm(gp)**2)
         d = -g + gamma * d
         x0 = x0 + alpha * d
         # gp = np.copy(g)
+        if time.time() - start_t > print_time:
+            print_params(x0)
+            start_t = time.time()
 
 def main(argv): 
-       
+
     #launch engine
     myEngine = Engine()
     myEngine.start()
@@ -172,6 +228,9 @@ def main(argv):
     myEngine.prepareEngine()
     time.sleep(2)
     
+    start_t = time.time()
+    
+
     #optimize parameters
     val = []
     for a in parameters:
@@ -179,7 +238,7 @@ def main(argv):
     x0 = np.array(val)
 
     #stochastic gradient descent or conjugate gradient
-    GradientDescent(myEngine.getGradMSE, x0, 100000, 1e4)
+    GradientDescent(myEngine.getGradMSEblock, x0, 10000, 1e4,start_t)
 
     sys.exit(0)
 

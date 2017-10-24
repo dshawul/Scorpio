@@ -901,11 +901,18 @@ bool  check_search_params(char**,char*,int&);
 void  print_search_params();
 
 #ifdef TUNE
+extern int nParameters;
+extern int nModelParameters;
+void init_parameters();
 void allocate_jacobian(int);
 bool has_jacobian();
-float eval_jacobian(int,int&);
+double eval_jacobian(int,int&,double*);
 void compute_jacobian(PSEARCHER,int,int);
 double get_log_likelihood(int,double);
+void get_log_likelihood_all(int,double,double*,int);
+void readParams(double*);
+void writeParams(double*);
+void write_eval_params();
 bool  check_eval_params(char**,char*,int&);
 void  print_eval_params();
 #endif

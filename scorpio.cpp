@@ -307,6 +307,9 @@ void init_game() {
     SEARCHER::pv_print_style = 0;
     SEARCHER::resign_value = 600;
     SEARCHER::resign_count = 0;
+#ifdef TUNE
+    init_parameters();
+#endif
 #ifdef BOOK_PROBE
     load_book();
 #endif
@@ -703,48 +706,109 @@ bool parse_commands(char** commands) {
         } else if (!strcmp(command, "runeval") || 
                    !strcmp(command, "runsearch") ||
                    !strcmp(command, "jacobian") ||
-                   !strcmp(command, "mse")
+                   !strcmp(command, "mse") ||
+                   !strcmp(command, "gmse") ||
+                   !strcmp(command, "tune")
                    ) {
 
             char input[MAX_STR],fen[MAX_STR];
             char* words[100];
-            int sc, sce;
-            int test,visited = 0;
-            double frac,prior,mse = 0.0;
-            int result;
+            int sc,sce,test,visited,result;
+            double frac,prior,mse;
 
             if(!strcmp(command,"runeval")) test = 0;
             else if(!strcmp(command,"runsearch")) test = 1;
             else if(!strcmp(command,"jacobian")) test = 2;
-            else test = 3;
+            else if(!strcmp(command,"mse")) test = 3;
+            else if(!strcmp(command,"gmse")) test = 4;
+            else test = 5;
 
 #ifdef TUNE
-            if(test == 3) {
+            if(test >= 3) {
                 frac = atof(commands[command_num++]);
                 prior = atof(commands[command_num++]);
                 int randseed = atoi(commands[command_num++]);
                 srand(randseed);
 
                 if(has_jacobian()) {
-                    for(int cnt = 0;cnt < epdfile_count;cnt++) {
-                        /*sample a few*/
-                        double r = double(rand()) / RAND_MAX;
-                        if(r >= frac) continue;
-                        visited++;
 
-                        /*compute evaluation from the stored jacobian*/
-                        double se = eval_jacobian(cnt,result);
-
-                        /*log-likelihood*/
-                        se = get_log_likelihood(result,se);
-                        mse += (se - mse) / visited;
+                    double *gse, *gmse, *dmse, *params;
+                    const double gamma = 0.1, alpha = 1e4;
+                    int nSize = nParameters + nModelParameters;
+                    
+                    if(test >= 4) {
+                        gse = (double*) malloc(nSize * sizeof(double));
+                        gmse = (double*) malloc(nSize * sizeof(double));
+                        dmse = (double*) malloc(nSize * sizeof(double));
+                        params = (double*) malloc(nSize * sizeof(double));
+                        memset(dmse,0,nSize * sizeof(double));
+                        readParams(params);
                     }
-                    /*regularization in the form of prior*/
-                    int nprior = int(prior * visited);
-                    mse = (mse * visited + 0.0 * nprior) / (visited + nprior);
 
-                    /*print mse*/
-                    print("%.16f\n",mse);
+                    for(int iter = 0;;iter++) {
+
+                        /*loop through positions*/
+                        visited = 0;
+                        mse = 0.0;
+                        if(test >= 4)
+                            memset(gmse,0,nSize * sizeof(double));
+
+                        for(int cnt = 0;cnt < epdfile_count;cnt++) {
+                            /*sample a few*/
+                            double r = double(rand()) / RAND_MAX;
+                            if(r >= frac) continue;
+                            visited++;
+
+                            /*compute evaluation from the stored jacobian*/
+                            double se = eval_jacobian(cnt,result,params);
+                            if(se > WIN_SCORE) se = WIN_SCORE;
+                            if(se < -WIN_SCORE) se = -WIN_SCORE;
+
+                            /*log-likelihood*/
+                            if(test == 3) {
+                                se = get_log_likelihood(result,se);
+                                mse += (se - mse) / visited;
+                            } else  {
+                                get_log_likelihood_all(result,se,gse,cnt);
+                                for(int i = 0;i < nSize;i++)
+                                    gmse[i] += (gse[i] - gmse[i]) / visited;
+                            }
+                        }
+
+                        /*regularization in the form of prior*/
+                        int nprior = int(prior * visited);
+                        if(test == 3) {
+                            mse = (mse * visited + 0.0 * nprior) / (visited + nprior);
+                            print("%.9e\n",mse);
+                            break;
+                        } else if(test == 4) {
+                            for(int i = 0;i < nSize;i++)
+                                gmse[i] = (gmse[i] * visited + 0.0 * nprior) / (visited + nprior);
+                            for(int i = 0;i < nSize;i++)
+                                print("%.9e ",gmse[i]);
+                            print("\n");
+                            break;
+                        } else {
+                            double normg = 0;
+                            for(int i = 0;i < nSize;i++) {
+                                gmse[i] = (gmse[i] * visited + 0.0 * nprior) / (visited + nprior);
+                                dmse[i] = -gmse[i] + gamma * dmse[i];
+                                params[i] += alpha * dmse[i];
+                                normg += pow(gmse[i],2.0);
+                            }
+                            writeParams(params);
+                            print("%d. %.6e\n",iter,normg);
+                            if(iter % 20 == 0)
+                                write_eval_params();
+                        }
+                    }
+
+                    if(test >= 4) {
+                        free(gse);
+                        free(gmse);
+                        free(dmse);
+                        free(params);
+                    }
                     continue;
                 }
             }
@@ -771,22 +835,27 @@ bool parse_commands(char** commands) {
                 print("Computing jacobian matrix of evaluation function ...\n");
             }
 #endif
-            if(SEARCHER::pv_print_style == 0) 
-                print("******************************************\n");
-            else if(SEARCHER::pv_print_style == 1)
-                print("\n\t\tNodes     Time      NPS      splits     bad"
-                "\n\t\t=====     ====      ===      ======     ===\n");
-
+            if(test <= 1) {
+                if(SEARCHER::pv_print_style == 0) 
+                    print("******************************************\n");
+                else if(SEARCHER::pv_print_style == 1)
+                    print("\n\t\tNodes     Time      NPS      splits     bad"
+                    "\n\t\t=====     ====      ===      ======     ===\n");
+            }
             SEARCHER::pre_calculate();
             PROCESSOR::clear_hash_tables();
 
+            /*loop through positions*/
+            int cnt = 0;
+            visited = 0;
+            mse = 0.0;
             while(fgets(input,MAX_STR,fd)) {
                 /*sample a few*/
                 if(test == 3) {
                     double r = double(rand()) / RAND_MAX;
                     if(r >= frac) continue;
-                    visited++;
                 }
+                visited++;
                 /*decode fen*/
                 input[strlen(input) - 1] = 0;
                 int nwords = tokenize(input,words) - 1;
@@ -798,7 +867,6 @@ bool parse_commands(char** commands) {
                 strcat(fen," ");
                 strcat(fen,words[3]);
                 strcat(fen," ");
-                visited++;
                 searcher.set_board(fen);
 
                 switch(test) {
@@ -834,7 +902,7 @@ bool parse_commands(char** commands) {
                         result = -result;
 #ifdef TUNE
                     if(test == 2) {
-                        compute_jacobian(&searcher,visited-1,result);
+                        compute_jacobian(&searcher,cnt,result);
                     } else {
                         double se = get_search_score();
                         se = get_log_likelihood(result,se);
@@ -843,6 +911,7 @@ bool parse_commands(char** commands) {
 #endif
                     break;
                 }
+                cnt++;
             }
 
             if(test == 2) {
