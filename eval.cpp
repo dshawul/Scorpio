@@ -691,72 +691,18 @@ int SEARCHER::eval() {
 /*
 piece square tables - middle/endgame 
 */
-static int  king_pcsq[0x80] = {
- -7,  0,-15,-20,-20,-15,  0, -7,        -30,-20,-10,  0,  0,-10,-20,-30,
--17,-17,-25,-30,-30,-25,-17,-17,        -20,-10,  0, 10, 10,  0,-10,-20,
--40,-40,-40,-40,-40,-40,-40,-40,        -10,  0, 10, 20, 20, 10,  0,-10,
--60,-60,-60,-60,-60,-60,-60,-60,          0, 10, 20, 30, 30, 20, 10,  0,
--70,-80,-80,-80,-80,-80,-80,-70,          0, 10, 20, 30, 30, 20, 10,  0,
--80,-80,-80,-80,-80,-80,-80,-80,        -10,  0, 10, 20, 20, 10,  0,-10,
--80,-80,-80,-80,-80,-80,-80,-80,        -20,-10,  0, 10, 10,  0,-10,-20,
--80,-80,-80,-80,-80,-80,-80,-80,        -30,-20,-10,  0,  0,-10,-20,-30,
-};
-static int  queen_pcsq[0x80] = {
- -5, -5, -5, -5, -5, -5, -5, -5,         -5, -5, -5, -5, -5, -5, -5, -5,          
- -5,  0,  0,  0,  0,  0,  0, -5,         -5,  0,  0,  0,  0,  0,  0, -5,          
- -5,  0,  0,  0,  0,  0,  0, -5,         -5,  0,  4,  4,  4,  4,  0, -5,          
- -5,  0,  0,  0,  0,  0,  0, -5,         -5,  0,  4,  8,  8,  4,  0, -5,          
- -5,  0,  0,  0,  0,  0,  0, -5,        -10,  0,  4,  8,  8,  4,  0,-10,          
- -5,  0,  0,  0,  0,  0,  0, -5,        -20,  0,  4,  4,  4,  4,  0,-20,          
- -5,  0,  0,  0,  0,  0,  0, -5,        -20, -5, -5, -5, -5, -5, -5,-20,          
- -5, -5, -5, -5, -5, -5, -5, -5,        -20,-20,-10,-10,-10,-10,-20,-20,          
-};
-static int  rook_pcsq[0x80] = { 
- -5,  0,  2,  5,  5,  2,  0, -5,          0,  0,  0,  0,  0,  0,  0,  0,
- -5,  0,  2,  5,  5,  2,  0, -5,          0,  0,  0,  0,  0,  0,  0,  0,
- -5,  0,  2,  5,  5,  2,  0, -5,          0,  0,  0,  0,  0,  0,  0,  0,
- -5,  0,  2,  5,  5,  2,  0, -5,          0,  0,  0,  0,  0,  0,  0,  0,
- -5,  0,  2,  5,  5,  2,  0, -5,          0,  0,  0,  0,  0,  0,  0,  0,
- -5,  0,  2,  5,  5,  2,  0, -5,          0,  0,  0,  0,  0,  0,  0,  0,
- -5,  0,  2,  5,  5,  2,  0, -5,          0,  0,  0,  0,  0,  0,  0,  0,
- -5,  0,  2,  5,  5,  2,  0, -5,          0,  0,  0,  0,  0,  0,  0,  0,
-};
-static int  bishop_pcsq[0x80] = {
--15,-20,-20,-20,-20,-20,-20,-15,        -15,-20,-20,-20,-20,-20,-20,-15,
--10,  0, -5, -5, -5, -5,  0,-10,        -10,  0, -5, -5, -5, -5,  0,-10,
--10, -5,  5,  0,  0,  5, -5,-10,        -10, -5,  5,  0,  0,  5, -5,-10,
--10, -5,  0, 10, 10,  0, -5,-10,        -10, -5,  0, 10, 10,  0, -5,-10,
--15, -5,  0, 10, 10,  0, -5,-15,        -15, -5,  0, 10, 10,  0, -5,-15,
--10, -5,  5,  0,  0,  5, -5,-10,        -10, -5,  5,  0,  0,  5, -5,-10,
--10,-10, -5, -5, -5, -5,-10,-10,        -10,-10, -5, -5, -5, -5,-10,-10,
--10,-10,-10,-10,-10,-10,-10,-10,        -10,-10,-10,-10,-10,-10,-10,-10,
-};
-static int  knight_pcsq[0x80] = { 
--40,-30,-20,-20,-20,-20,-30,-40,        -30,-23,-15,-15,-15,-15,-23,-30,
--30, -5, -5, -5, -5, -5, -5,-30,        -23, -4, -4, -4, -4, -4, -4,-23,
--10, -5,  5, 10, 10,  5, -5,-10,         -8, -4,  3,  7,  7,  3, -4, -8,
--10, -5, 10, 15, 15, 10, -5,-10,         -8, -4,  7, 11, 11,  7, -4, -8,
--15, -5, 10, 15, 15, 10, -5,-15,        -12, -4,  7, 11, 11,  7, -4,-12,
--15, -5,  5, 10, 10,  5, -5,-15,        -12, -4,  3,  7,  7,  3, -4,-12,
--30,-10,-10,-10,-10,-10,-10,-30,        -23, -8, -8, -8, -8, -8, -8,-23,
--40,-30,-20,-20,-20,-20,-30,-40,        -30,-23,-15,-15,-15,-15,-23,-30,
-};
-static int  pawn_pcsq[0x80] = { 
-  0,  0,  0,  0,  0,  0,  0,  0,          0,  0,  0,  0,  0,  0,  0,  0,
- -8,  0,  7, 14, 14,  7,  0, -8,          0,  0,  0,  0,  0,  0,  0,  0,
- -8,  7, 14, 24, 24,  7,  7, -8,          0,  0,  0,  0,  0,  0,  0,  0,
- -8, 11, 15, 35, 35, 15, 11, -8,          0,  0,  0,  0,  0,  0,  0,  0,
- -8, 11, 15, 20, 20, 15, 11, -8,          0,  0,  0,  0,  0,  0,  0,  0,
- -8, 11, 15, 20, 20, 15, 11, -8,          0,  0,  0,  0,  0,  0,  0,  0,
- -8, 11, 15, 20, 20, 15, 11, -8,          0,  0,  0,  0,  0,  0,  0,  0,
-  0,  0,  0,  0,  0,  0,  0,  0,          0,  0,  0,  0,  0,  0,  0,  0,
-};
 void SEARCHER::pre_calculate() {
     int piece_value[] = {
-        0,0,QUEEN_MG,ROOK_MG,BISHOP_MG,KNIGHT_MG,PAWN_MG,0,QUEEN_MG,ROOK_MG,BISHOP_MG,KNIGHT_MG,PAWN_MG,0,
-        0,0,QUEEN_EG,ROOK_EG,BISHOP_EG,KNIGHT_EG,PAWN_EG,0,QUEEN_EG,ROOK_EG,BISHOP_EG,KNIGHT_EG,PAWN_EG,0,
+        0,
+        0,QUEEN_MG,ROOK_MG,BISHOP_MG,KNIGHT_MG,PAWN_MG,
+        0,QUEEN_MG,ROOK_MG,BISHOP_MG,KNIGHT_MG,PAWN_MG,
+        0,
+        0,
+        0,QUEEN_EG,ROOK_EG,BISHOP_EG,KNIGHT_EG,PAWN_EG,
+        0,QUEEN_EG,ROOK_EG,BISHOP_EG,KNIGHT_EG,PAWN_EG,
+        0
     };
-    int pic,sq;
+    int pic,sq,sq1,sq1r;
     for(pic = wking; pic <= bpawn; pic++) {
         for(sq = 0; sq <= 128; sq++) {
             if(sq & 0x88) pcsq[pic][sq] = piece_value[pic + 14];
@@ -764,18 +710,24 @@ void SEARCHER::pre_calculate() {
         }
     }
     for(sq = 0; sq < 128; sq++) {
-        pcsq[wking][sq] += king_pcsq[sq];
-        pcsq[bking][sq] += king_pcsq[MIRRORR(sq)];
-        pcsq[wknight][sq] += knight_pcsq[sq];
-        pcsq[bknight][sq] += knight_pcsq[MIRRORR(sq)];
-        pcsq[wbishop][sq] += bishop_pcsq[sq];
-        pcsq[bbishop][sq] += bishop_pcsq[MIRRORR(sq)];
-        pcsq[wrook][sq] += rook_pcsq[sq];
-        pcsq[brook][sq] += rook_pcsq[MIRRORR(sq)];
-        pcsq[wqueen][sq] += queen_pcsq[sq];
-        pcsq[bqueen][sq] += queen_pcsq[MIRRORR(sq)];
-        pcsq[wpawn][sq] += pawn_pcsq[sq];
-        pcsq[bpawn][sq] += pawn_pcsq[MIRRORR(sq)];
+        if(file(sq) >= FILEE) sq1 = MIRRORF(sq);
+        else sq1 = sq;
+        if(sq1 & 0x88) sq1 -= 4;
+        sq1 = SQ8864(sq1);
+        sq1r = MIRRORR64(sq1);
+
+        pcsq[wking][sq] += king_pcsq[sq1];
+        pcsq[bking][sq] += king_pcsq[sq1r];
+        pcsq[wknight][sq] += knight_pcsq[sq1];
+        pcsq[bknight][sq] += knight_pcsq[sq1r];
+        pcsq[wbishop][sq] += bishop_pcsq[sq1];
+        pcsq[bbishop][sq] += bishop_pcsq[sq1r];
+        pcsq[wrook][sq] += rook_pcsq[sq1];
+        pcsq[brook][sq] += rook_pcsq[sq1r];
+        pcsq[wqueen][sq] += queen_pcsq[sq1];
+        pcsq[bqueen][sq] += queen_pcsq[sq1r];
+        pcsq[wpawn][sq] += pawn_pcsq[sq1];
+        pcsq[bpawn][sq] += pawn_pcsq[sq1r];
     }
 }
 void SEARCHER::update_pcsq(int pic, int eg, int dval) {
@@ -791,6 +743,43 @@ void SEARCHER::update_pcsq(int pic, int eg, int dval) {
     } else {
         pcsq_score[white].add(dval * man_c[COMBINE(white,pic)], 0);
         pcsq_score[black].add(dval * man_c[COMBINE(black,pic)], 0);
+    }
+}
+void SEARCHER::update_pcsq_val(int pic, int sq0, int dval) {
+    PLIST current;
+    int sq1,sq2;
+
+    sq1 = SQ6488(sq0);
+    if(file(sq1) >= FILEE) sq1 += 8;
+    sq2 = MIRRORF(sq1);
+
+    //white
+    pcsq[COMBINE(white,pic)][sq1] += dval;
+    pcsq[COMBINE(white,pic)][sq2] += dval;
+
+    current = plist[COMBINE(white,pic)];
+    while(current) {
+        if(current->sq == sq1 || current->sq == sq2)
+            pcsq_score[white].addm(dval);       
+        else if(current->sq == sq1-8 || current->sq == sq2-8)
+            pcsq_score[white].adde(dval);
+        current = current->next;
+    }
+
+    sq1 = MIRRORR(sq1);
+    sq2 = MIRRORR(sq2);
+
+    //black
+    pcsq[COMBINE(black,pic)][sq1] += dval;
+    pcsq[COMBINE(black,pic)][sq2] += dval;
+
+    current = plist[COMBINE(black,pic)];
+    while(current) {
+        if(current->sq == sq1 || current->sq == sq2)
+            pcsq_score[black].addm(dval);       
+        else if(current->sq == sq1-8 || current->sq == sq2-8)
+            pcsq_score[black].adde(dval);
+        current = current->next;
     }
 }
 /*
@@ -1689,36 +1678,34 @@ double get_log_likelihood(int result, double se) {
 
 struct vPARAM{
     int* value;
+    int size;
     int minv;
     int maxv;
     int flags;
     char name[64];
-    vPARAM() {
-        value = 0;
-        flags = 0;
-        minv = 0;
-        maxv = 0;
-    }
-    vPARAM(int& x, int f, int mnv, int mxv,const char* n) {
+    vPARAM(int& x, int s, int f, 
+           int mnv, int mxv,const char* n) {
         value = &x;
+        size = s;
         flags = f;
         minv = mnv;
         maxv = mxv;
         strcpy(name,n);
     }
-    bool is_pval() {
-        return flags;
-    }
+    bool is_pval() { return ((flags > 0) && !size); }
+    bool is_pcsq() { return ((flags > 0) && size); }
 };
 
 int nParameters;
 int nModelParameters;
+static int nInactiveParameters;
 static std::vector<vPARAM> parameters;
 static std::vector<vPARAM> modelParameters;
+static std::vector<vPARAM> inactive_parameters;
 static double* jacobian = 0;
 
 void allocate_jacobian(int npos) {
-    int numbytes;
+    size_t numbytes;
     numbytes = npos * (nParameters + nPadJac) * sizeof(double);
     jacobian = (double*)malloc(numbytes);
     print("Allocated jacobian matrix of size %.2f MB ...\n",
@@ -1733,30 +1720,40 @@ void compute_jacobian(PSEARCHER ps, int pos, int result) {
     int sc,sce,delta;
     double se;
     double* J = jacobian + pos * (nParameters + nPadJac);
+    vPARAM* p;
 
     sc = ps->eval();
     J[nParameters+2] = material;
 
     for(int i = 0;i < nParameters;i++) {
-        delta = *(parameters[i].value) * 4;
+        p = &parameters[i];
+        delta = *(p->value) * 4;
         if(delta < 1) delta = 1;
 
-        *(parameters[i].value) += delta;
+        *(p->value) += delta;
 
-        if(parameters[i].is_pval()) {
-            int pic = parameters[i].flags;
-            if(pic > 5) ps->update_pcsq(pic+1-5,1,delta);
-            else        ps->update_pcsq(pic+1+0,0,delta);
+        if(p->is_pval()) {
+            int pic = p->flags;
+            if(pic >= bking) ps->update_pcsq(pic-6,1,delta);
+            else             ps->update_pcsq(pic+0,0,delta);
+        } else if(p->is_pcsq()) {
+            int pic = p->flags / 64 + 1;
+            int sq = p->flags & 63;
+            ps->update_pcsq_val(pic,sq,delta);
         }
 
         sce = ps->eval();
 
-        *(parameters[i].value) -= delta;
+        *(p->value) -= delta;
 
-        if(parameters[i].is_pval()) {
-            int pic = parameters[i].flags;
-            if(pic > 5) ps->update_pcsq(pic+1-5,1,-delta);
-            else        ps->update_pcsq(pic+1+0,0,-delta);
+        if(p->is_pval()) {
+            int pic = p->flags;
+            if(pic >= bking) ps->update_pcsq(pic-6,1,-delta);
+            else             ps->update_pcsq(pic+0,0,-delta);
+        } else if(p->is_pcsq()) {
+            int pic = p->flags / 64 + 1;
+            int sq = p->flags & 63;
+            ps->update_pcsq_val(pic,sq,-delta);
         }
 
         J[i] = double(sce - sc) / delta;
@@ -1811,70 +1808,90 @@ void writeParams(double* params) {
         *(modelParameters[i].value) = int(round(params[i + nParameters]));
 }
 void init_parameters() {
-#define ADD(x,f,minv,maxv) parameters.push_back(vPARAM(x,f,minv,maxv,#x))
-    ADD(ATTACK_WEIGHT,0,0,128);
-    ADD(TROPISM_WEIGHT,0,0,128);
-    ADD(PAWN_GUARD,0,0,128);
-    ADD(HANGING_PENALTY,0,0,100);
-    ADD(KNIGHT_OUTPOST_MG,0,0,128);
-    ADD(KNIGHT_OUTPOST_EG,0,0,128);
-    ADD(BISHOP_OUTPOST_MG,0,0,128);
-    ADD(BISHOP_OUTPOST_EG,0,0,128);
-    ADD(KNIGHT_MOB_MG,0,0,128);
-    ADD(KNIGHT_MOB_EG,0,0,128);
-    ADD(BISHOP_MOB_MG,0,0,128);
-    ADD(BISHOP_MOB_EG,0,0,128);
-    ADD(ROOK_MOB_MG,0,0,128);
-    ADD(ROOK_MOB_EG,0,0,128);
-    ADD(QUEEN_MOB_MG,0,0,128);
-    ADD(QUEEN_MOB_EG,0,0,128);
-    ADD(PASSER_MG,0,0,128);
-    ADD(PASSER_EG,0,0,128);
-    ADD(CANDIDATE_PP_MG,0,0,128);
-    ADD(CANDIDATE_PP_EG,0,0,128);
-    ADD(PAWN_DOUBLED_MG,0,0,128);
-    ADD(PAWN_DOUBLED_EG,0,0,128);
-    ADD(PAWN_ISOLATED_ON_OPEN_MG,0,0,128);
-    ADD(PAWN_ISOLATED_ON_OPEN_EG,0,0,128);
-    ADD(PAWN_ISOLATED_ON_CLOSED_MG,0,0,128);
-    ADD(PAWN_ISOLATED_ON_CLOSED_EG,0,0,128);
-    ADD(PAWN_WEAK_ON_OPEN_MG,0,0,128);
-    ADD(PAWN_WEAK_ON_OPEN_EG,0,0,128);
-    ADD(PAWN_WEAK_ON_CLOSED_MG,0,0,128);
-    ADD(PAWN_WEAK_ON_CLOSED_EG,0,0,128);
-    ADD(ROOK_ON_7TH,0,0,128);
-    ADD(ROOK_ON_OPEN,0,0,128);
-    ADD(ROOK_SUPPORT_PASSED_MG,0,0,128);
-    ADD(ROOK_SUPPORT_PASSED_EG,0,0,128);
-    ADD(TRAPPED_BISHOP,0,0,400);
-    ADD(TRAPPED_KNIGHT,0,0,400);
-    ADD(TRAPPED_ROOK,0,0,400);
-    ADD(QUEEN_MG,1,0,4000);
-    ADD(QUEEN_EG,6,0,4000);
-    ADD(ROOK_MG,2,0,2000);
-    ADD(ROOK_EG,7,0,2000);
-    ADD(BISHOP_MG,3,0,2000);
-    ADD(BISHOP_EG,8,0,2000);
-    ADD(KNIGHT_MG,4,0,2000);
-    ADD(KNIGHT_EG,9,0,2000);
-    ADD(PAWN_MG,5,0,1000);
-    ADD(PAWN_EG,10,0,1000);
-    ADD(BISHOP_PAIR_MG,0,0,128);
-    ADD(BISHOP_PAIR_EG,0,0,128);
-    ADD(MAJOR_v_P,0,0,400);
-    ADD(MINOR_v_P,0,0,400);
-    ADD(MINORS3_v_MAJOR,0,0,400);
-    ADD(MINORS2_v_MAJOR,0,0,400);
-    ADD(ROOK_v_MINOR,0,0,400);
+
+#define ADD(x,ln,f,minv,maxv,act)                                   \
+    if(act) parameters.push_back(vPARAM(x,ln,f,minv,maxv,#x));      \
+    else inactive_parameters.push_back(vPARAM(x,ln,f,minv,maxv,#x));
+#define ADDM(x,ln,f,minv,maxv,act)                                  \
+    if(act) modelParameters.push_back(vPARAM(x,ln,f,minv,maxv,#x)); \
+    else inactive_parameters.push_back(vPARAM(x,ln,f,minv,maxv,#x));
+#define ADD_ARRAY(x,ln,f,minv,maxv,act)                             \
+    for(int i = 0;i < ln; i++)                                      \
+        if(act) parameters.push_back(vPARAM(x[i],ln,(f-1)*ln+i,minv,maxv,#x));       \
+        else inactive_parameters.push_back(vPARAM(x[i],ln,(f-1)*ln+i,minv,maxv,#x));
+
+    ADD(ATTACK_WEIGHT,0,0,0,128,1);
+    ADD(TROPISM_WEIGHT,0,0,0,128,1);
+    ADD(PAWN_GUARD,0,0,0,128,1);
+    ADD(HANGING_PENALTY,0,0,0,100,1);
+    ADD(KNIGHT_OUTPOST_MG,0,0,0,128,1);
+    ADD(KNIGHT_OUTPOST_EG,0,0,0,128,1);
+    ADD(BISHOP_OUTPOST_MG,0,0,0,128,1);
+    ADD(BISHOP_OUTPOST_EG,0,0,0,128,1);
+    ADD(KNIGHT_MOB_MG,0,0,0,128,1);
+    ADD(KNIGHT_MOB_EG,0,0,0,128,1);
+    ADD(BISHOP_MOB_MG,0,0,0,128,1);
+    ADD(BISHOP_MOB_EG,0,0,0,128,1);
+    ADD(ROOK_MOB_MG,0,0,0,128,1);
+    ADD(ROOK_MOB_EG,0,0,0,128,1);
+    ADD(QUEEN_MOB_MG,0,0,0,128,1);
+    ADD(QUEEN_MOB_EG,0,0,0,128,1);
+    ADD(PASSER_MG,0,0,0,128,1);
+    ADD(PASSER_EG,0,0,0,128,1);
+    ADD(CANDIDATE_PP_MG,0,0,0,128,1);
+    ADD(CANDIDATE_PP_EG,0,0,0,128,1);
+    ADD(PAWN_DOUBLED_MG,0,0,0,128,1);
+    ADD(PAWN_DOUBLED_EG,0,0,0,128,1);
+    ADD(PAWN_ISOLATED_ON_OPEN_MG,0,0,0,128,1);
+    ADD(PAWN_ISOLATED_ON_OPEN_EG,0,0,0,128,1);
+    ADD(PAWN_ISOLATED_ON_CLOSED_MG,0,0,0,12,18);
+    ADD(PAWN_ISOLATED_ON_CLOSED_EG,0,0,0,128,1);
+    ADD(PAWN_WEAK_ON_OPEN_MG,0,0,0,128,1);
+    ADD(PAWN_WEAK_ON_OPEN_EG,0,0,0,128,1);
+    ADD(PAWN_WEAK_ON_CLOSED_MG,0,0,0,128,1);
+    ADD(PAWN_WEAK_ON_CLOSED_EG,0,0,0,128,1);
+    ADD(ROOK_ON_7TH,0,0,0,128,1);
+    ADD(ROOK_ON_OPEN,0,0,0,128,1);
+    ADD(ROOK_SUPPORT_PASSED_MG,0,0,0,128,1);
+    ADD(ROOK_SUPPORT_PASSED_EG,0,0,0,128,1);
+    ADD(TRAPPED_BISHOP,0,0,0,400,1);
+    ADD(TRAPPED_KNIGHT,0,0,0,400,1);
+    ADD(TRAPPED_ROOK,0,0,0,400,1);
+    ADD(QUEEN_MG,0,wqueen,0,4000,1);
+    ADD(QUEEN_EG,0,bqueen,0,4000,1);
+    ADD(ROOK_MG,0,wrook,0,2000,1);
+    ADD(ROOK_EG,0,brook,0,2000,1);
+    ADD(BISHOP_MG,0,wbishop,0,2000,1);
+    ADD(BISHOP_EG,0,bbishop,0,2000,1);
+    ADD(KNIGHT_MG,0,wknight,0,2000,1);
+    ADD(KNIGHT_EG,0,bknight,0,2000,1);
+    ADD(PAWN_MG,0,wpawn,0,1000,1);
+    ADD(PAWN_EG,0,bpawn,0,1000,1);
+    ADD(BISHOP_PAIR_MG,0,0,0,128,1);
+    ADD(BISHOP_PAIR_EG,0,0,0,128,1);
+    ADD(MAJOR_v_P,0,0,0,400,1);
+    ADD(MINOR_v_P,0,0,0,400,1);
+    ADD(MINORS3_v_MAJOR,0,0,0,400,1);
+    ADD(MINORS2_v_MAJOR,0,0,0,400,1);
+    ADD(ROOK_v_MINOR,0,0,0,400,1);
+    ADDM(ELO_HOME,0,0,0,500,1);
+    ADDM(ELO_DRAW,0,0,0,500,1);
+    ADDM(ELO_HOME_SLOPE_PHASE,0,0,0,500,1);
+    ADDM(ELO_DRAW_SLOPE_PHASE,0,0,0,500,1);
+    ADD_ARRAY(king_pcsq,64,wking,0,100,1);
+    ADD_ARRAY(queen_pcsq,64,wqueen,0,100,1);
+    ADD_ARRAY(rook_pcsq,64,wrook,0,100,1);
+    ADD_ARRAY(bishop_pcsq,64,wbishop,0,100,1);
+    ADD_ARRAY(knight_pcsq,64,wknight,0,100,1);
+    ADD_ARRAY(pawn_pcsq,64,wpawn,0,100,1);
+
 #undef ADD
+#undef ADDM
+#undef ADD_ARRAY
     nParameters = parameters.size();
-#define ADD(x,f,minv,maxv) modelParameters.push_back(vPARAM(x,f,minv,maxv,#x))
-    ADD(ELO_HOME,0,0,500);
-    ADD(ELO_DRAW,0,0,500);
-    ADD(ELO_HOME_SLOPE_PHASE,0,0,500);
-    ADD(ELO_DRAW_SLOPE_PHASE,0,0,500);
-#undef ADD
     nModelParameters = modelParameters.size();
+    nInactiveParameters = inactive_parameters.size();
+
 }
 bool check_eval_params(char** commands,char* command,int& command_num) {
     for(int i = 0;i < nParameters;i++) {
@@ -1896,11 +1913,29 @@ bool check_eval_params(char** commands,char* command,int& command_num) {
     }
     return true;
 }
+static void write_eval_param(FILE* fd, vPARAM* p) {
+    if(p->size == 0) {
+        fprintf(fd,"static PARAM %s = %d;\n",
+            p->name,*(p->value));
+    } else {
+        int nSize = p->size;
+        fprintf(fd,"static PARAM %s[%d] = {\n",
+            p->name,nSize);
+        for(int j = 0;j < nSize;j++) {
+            fprintf(fd,"%4d,",*((p+j)->value));
+            if((j + 1) % 8 == 0) fprintf(fd,"\n");
+        }
+        fprintf(fd,"};\n");
+    }
+}
 void write_eval_params() {
     FILE* fd = fopen(PARAMS_FILE,"w");
+    fprintf(fd,"//Automatically generated file. \n"
+        "//Any changes made will be lost after tuning. \n");
     for(int i = 0;i < nParameters;i++) {
-        fprintf(fd,"static PARAM %s = %d;\n",
-            parameters[i].name,*(parameters[i].value));
+        write_eval_param(fd,&parameters[i]);
+        int nSize = parameters[i].size;
+        if(nSize) i += (nSize - 1);
     }
     fprintf(fd,"#ifdef TUNE\n");
     for(int i = 0;i < nModelParameters;i++) {
@@ -1908,6 +1943,11 @@ void write_eval_params() {
             modelParameters[i].name,*(modelParameters[i].value));
     }
     fprintf(fd,"#endif\n");
+    for(int i = 0;i < nInactiveParameters;i++) {
+        write_eval_param(fd,&inactive_parameters[i]);
+        int nSize = inactive_parameters[i].size;
+        if(nSize) i += (nSize - 1);
+    }
     fclose(fd);
 }
 void print_eval_params() {

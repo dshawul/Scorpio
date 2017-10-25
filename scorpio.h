@@ -566,6 +566,7 @@ typedef struct SEARCHER{
     void  eval_win_chance(SCORE&,SCORE&,int&,int&);
     static void  pre_calculate();
     void  update_pcsq(int,int,int);
+    void  update_pcsq_val(int,int,int);
     void  record_hash(int,const HASHKEY&,int,int,int,int,MOVE,int,int);
     int   probe_hash(int,const HASHKEY&,int,int,int&,MOVE&,int,int,int&,int&,int&,bool);
     void  RECORD_HASH(int,const HASHKEY&,int,int,int,int,MOVE,int,int);
