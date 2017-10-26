@@ -16,51 +16,6 @@ static const UBMP8  updown_mask[8] = {
     254, 253, 251, 247, 239, 223, 191, 127
 };
 /*
-eval terms
-*/
-static const int outpost[] = { 
-    0,  0,  0,  0,  0,  0,  0,  0,
-    0,  0,  0,  0,  0,  0,  0,  0,
-    0,  0,  0,  0,  0,  0,  0,  0,
-    0,  0,  8, 10, 10,  8,  0,  0,
-    0,  0, 10, 16, 16, 10,  0,  0,
-    0,  0,  8, 10, 10,  8,  0,  0,
-    0,  0,  0,  0,  0,  0,  0,  0,
-    0,  0,  0,  0,  0,  0,  0,  0
-}; 
-static const int passed_bonus[] = {
-    0, 8, 14, 23, 45, 83, 113, 0
-};
-static const int qr_on_7thrank[] = {
-    0,  0,  30, 20, 80, 100, 200, 200, 200,
-    200, 200, 200, 200, 200, 200, 200, 200, 200
-};
-static const int rook_on_hopen[] = {
-    0,  10,  20,  30,  50, 60, 70, 90, 100, 110,
-    130, 140, 150
-};
-static const int king_to_pawns[] = {
-    0,  20,  60,  100, 140, 140, 140, 140
-};
-static const int king_on_hopen[] = {
-    0,  1,  4,  6,  4,  6,  7,  7
-};
-static const int king_on_file[] = {
-    2,  1,  3,  4,  4,  2,  0,  1
-};
-static const int king_on_rank[] = {
-    0,  1,  2,  3,  3,  3,  3,  3
-};
-static const int  piece_tropism[8] = {
-    0,  5, 15, 10,  5,  0,  0,  0
-};
-static const int  queen_tropism[8] = {
-    0,  0, 20, 20, 15,  5,  0,  0
-};
-static const int  file_tropism[8] = {
-    25, 25, 10, 5,  0,  0,  0,  0
-};
-/*
 * Tunable parameters
 */
 #ifdef TUNE
@@ -294,10 +249,13 @@ int SEARCHER::eval() {
         }
 
         /*knight outpost*/
-        if((temp = outpost[sq])
+        if(((r >= RANK4) && (r <= RANK7))
             && (f == FILEA || !(up_mask[r] & bf_pawns[f - 1]))
             && (f == FILEH || !(up_mask[r] & bf_pawns[f + 1]))
             ) {
+                if(f >= FILEE) sq = SQ32(r,FILEH - f);
+                else sq = SQ32(r,f);
+                temp = outpost[sq];
                 opost = temp;
                 if(!(up_mask[r] & bf_pawns[f])) {
                     if(board[c_sq + LD] == wpawn) opost += temp;
@@ -337,10 +295,13 @@ int SEARCHER::eval() {
             }
         }
         /*knight outpost*/
-        if((temp = outpost[MIRRORR64(sq)])
+        if(((r <= RANK5) && (r >= RANK2))
             && (f == FILEA || !(down_mask[r] & wf_pawns[f - 1]))
             && (f == FILEH || !(down_mask[r] & wf_pawns[f + 1]))
             ) {
+                if(f >= FILEE) sq = SQ32(RANK8 - r,FILEH - f);
+                else sq = SQ32(RANK8 - r,f);
+                temp = outpost[sq];
                 opost = temp;
                 if(!(down_mask[r] & wf_pawns[f])) {
                     if(board[c_sq + LU] == bpawn) opost += temp;
@@ -383,10 +344,13 @@ int SEARCHER::eval() {
         }
 
         /*bishop outpost*/
-        if((temp = outpost[sq])
+        if(((r >= RANK4) && (r <= RANK7))
             && (f == FILEA || !(up_mask[r] & bf_pawns[f - 1]))
             && (f == FILEH || !(up_mask[r] & bf_pawns[f + 1]))
             ) {
+                if(f >= FILEE) sq = SQ32(r,FILEH - f);
+                else sq = SQ32(r,f);
+                temp = outpost[sq];
                 opost = temp;
                 if(!(up_mask[r] & bf_pawns[f])) {
                     if(board[c_sq + LD] == wpawn) opost += temp;
@@ -426,10 +390,13 @@ int SEARCHER::eval() {
         }
 
         /*bishop outpost*/
-        if((temp = outpost[MIRRORR64(sq)])
+        if(((r <= RANK5) && (r >= RANK2))
             && (f == FILEA || !(down_mask[r] & wf_pawns[f - 1]))
             && (f == FILEH || !(down_mask[r] & wf_pawns[f + 1]))
             ) {
+                if(f >= FILEE) sq = SQ32(RANK8 - r,FILEH - f);
+                else sq = SQ32(RANK8 - r,f);
+                temp = outpost[sq];
                 opost = temp;
                 if(!(down_mask[r] & wf_pawns[f])) {
                     if(board[c_sq + LU] == bpawn) opost += temp;
@@ -785,6 +752,16 @@ void SEARCHER::update_pcsq_val(int pic, int sq0, int dval) {
 /*
 evaluate pawn cover
 */
+static const int king_on_hopen[] = {
+    0,  1,  4,  6,  4,  6,  7,  7
+};
+static const int king_on_file[] = {
+    2,  1,  3,  4,  4,  2,  0,  1
+};
+static const int king_on_rank[] = {
+    0,  1,  2,  3,  3,  3,  3,  3
+};
+
 void SEARCHER::eval_pawn_cover(int eval_w_attack,int eval_b_attack,
                          UBMP8* wf_pawns,UBMP8* bf_pawns
                          ) {
@@ -1286,8 +1263,10 @@ int SEARCHER::eval_passed_pawns(UBMP8* wf_pawns,UBMP8* bf_pawns,UBMP8& all_pawn_
     if(!piece_c[white] || !piece_c[black]) {
         int wclos = (7 - ABS(center_bit[all_pawn_f] - file(w_ksq)));
         int bclos = (7 - ABS(center_bit[all_pawn_f] - file(b_ksq)));
-        if(wclos > bclos) w_score += king_to_pawns[wclos - bclos];
-        else b_score += king_to_pawns[bclos - wclos];
+        if(wclos > bclos) 
+            w_score += king_to_pawns[wclos - bclos];
+        else if(bclos > wclos)
+            b_score += king_to_pawns[bclos - wclos];
     }
     /*defender is knight*/
     int strech,pawns;
@@ -1702,28 +1681,29 @@ static int nInactiveParameters;
 static std::vector<vPARAM> parameters;
 static std::vector<vPARAM> modelParameters;
 static std::vector<vPARAM> inactive_parameters;
-static double* jacobian = 0;
+static float* jacobian = 0;
+static float* jacobian_temp = 0;
 
 void allocate_jacobian(int npos) {
     size_t numbytes;
-    numbytes = npos * (nParameters + nPadJac) * sizeof(double);
-    jacobian = (double*)malloc(numbytes);
-    print("Allocated jacobian matrix of size %.2f MB ...\n",
-        double(numbytes)/(1024*1024));
+    numbytes = npos * (nParameters + nPadJac) * sizeof(float);
+    jacobian = (float*)malloc(numbytes);
+    if(jacobian) {
+        print("Allocated jacobian matrix of size %.2f MB ...\n",
+            double(numbytes)/(1024*1024));
+    } else {
+        print("Not enough memory.");
+        PROCESSOR::exit_scorpio(0);
+    }
 }
 
 bool has_jacobian() {
     return (jacobian != 0);
 }
 
-void compute_jacobian(PSEARCHER ps, int pos, int result) {
-    int sc,sce,delta;
-    double se;
-    double* J = jacobian + pos * (nParameters + nPadJac);
+static void compute_grad(PSEARCHER ps, float* J, double sc) {
+    int sce,delta;
     vPARAM* p;
-
-    sc = ps->eval();
-    J[nParameters+2] = material;
 
     for(int i = 0;i < nParameters;i++) {
         p = &parameters[i];
@@ -1742,7 +1722,7 @@ void compute_jacobian(PSEARCHER ps, int pos, int result) {
             ps->update_pcsq_val(pic,sq,delta);
         }
 
-        sce = ps->eval();
+        sce = ps->get_search_score();
 
         *(p->value) -= delta;
 
@@ -1758,6 +1738,13 @@ void compute_jacobian(PSEARCHER ps, int pos, int result) {
 
         J[i] = double(sce - sc) / delta;
     }
+}
+void compute_jacobian(PSEARCHER ps, int pos, int result) {
+    float* J = jacobian + pos * (nParameters + nPadJac);
+    double sc,se;
+
+    sc = ps->get_search_score();
+    compute_grad(ps,J,sc);
 
     se = 0;
     for(int i = 0;i < nParameters;i++) {
@@ -1766,9 +1753,10 @@ void compute_jacobian(PSEARCHER ps, int pos, int result) {
 
     J[nParameters] = sc - se;
     J[nParameters+1] = result;
+    J[nParameters+2] = material;
 }
 double eval_jacobian(int pos, int& result, double* params) {
-    double* J = jacobian + pos * (nParameters + nPadJac);
+    float* J = jacobian + pos * (nParameters + nPadJac);
     double se = J[nParameters];
     for(int i = 0;i < nParameters;i++) {
         se += params[i] * J[i];
@@ -1778,13 +1766,23 @@ double eval_jacobian(int pos, int& result, double* params) {
     material = (int) J[nParameters+2];
     return se;
 }
-void get_log_likelihood_all(int result, double se, double* gse, int pos) {
-    double* J = jacobian + pos * (nParameters + nPadJac);
-    double nse, mse = get_log_likelihood(result, se);
+void get_log_likelihood_grad(PSEARCHER ps, int result, double se, double* gse, int pos) {
+    double nse, mse;
+
+    mse = get_log_likelihood(result, se);
+
+    float* J;
+    if(has_jacobian()) {
+        J = jacobian + pos * (nParameters + nPadJac);
+    } else {
+        J = jacobian_temp;
+        compute_grad(ps,J,se);
+    }
     for(int i = 0;i < nParameters;i++) {
         nse = se + J[i];
         gse[i] = get_log_likelihood(result, nse) - mse;
     }
+
     int delta;
     for(int i = 0;i < nModelParameters;i++) {
         delta = *(modelParameters[i].value) / 4;
@@ -1808,6 +1806,7 @@ void writeParams(double* params) {
         *(modelParameters[i].value) = int(round(params[i + nParameters]));
 }
 void init_parameters() {
+    int act = 0, actp = 1, acta = 0;
 
 #define ADD(x,ln,f,minv,maxv,act)                                   \
     if(act) parameters.push_back(vPARAM(x,ln,f,minv,maxv,#x));      \
@@ -1820,78 +1819,85 @@ void init_parameters() {
         if(act) parameters.push_back(vPARAM(x[i],ln,(f-1)*ln+i,minv,maxv,#x));       \
         else inactive_parameters.push_back(vPARAM(x[i],ln,(f-1)*ln+i,minv,maxv,#x));
 
-    ADD(ATTACK_WEIGHT,0,0,0,128,1);
-    ADD(TROPISM_WEIGHT,0,0,0,128,1);
-    ADD(PAWN_GUARD,0,0,0,128,1);
-    ADD(HANGING_PENALTY,0,0,0,100,1);
-    ADD(KNIGHT_OUTPOST_MG,0,0,0,128,1);
-    ADD(KNIGHT_OUTPOST_EG,0,0,0,128,1);
-    ADD(BISHOP_OUTPOST_MG,0,0,0,128,1);
-    ADD(BISHOP_OUTPOST_EG,0,0,0,128,1);
-    ADD(KNIGHT_MOB_MG,0,0,0,128,1);
-    ADD(KNIGHT_MOB_EG,0,0,0,128,1);
-    ADD(BISHOP_MOB_MG,0,0,0,128,1);
-    ADD(BISHOP_MOB_EG,0,0,0,128,1);
-    ADD(ROOK_MOB_MG,0,0,0,128,1);
-    ADD(ROOK_MOB_EG,0,0,0,128,1);
-    ADD(QUEEN_MOB_MG,0,0,0,128,1);
-    ADD(QUEEN_MOB_EG,0,0,0,128,1);
-    ADD(PASSER_MG,0,0,0,128,1);
-    ADD(PASSER_EG,0,0,0,128,1);
-    ADD(CANDIDATE_PP_MG,0,0,0,128,1);
-    ADD(CANDIDATE_PP_EG,0,0,0,128,1);
-    ADD(PAWN_DOUBLED_MG,0,0,0,128,1);
-    ADD(PAWN_DOUBLED_EG,0,0,0,128,1);
-    ADD(PAWN_ISOLATED_ON_OPEN_MG,0,0,0,128,1);
-    ADD(PAWN_ISOLATED_ON_OPEN_EG,0,0,0,128,1);
-    ADD(PAWN_ISOLATED_ON_CLOSED_MG,0,0,0,12,18);
-    ADD(PAWN_ISOLATED_ON_CLOSED_EG,0,0,0,128,1);
-    ADD(PAWN_WEAK_ON_OPEN_MG,0,0,0,128,1);
-    ADD(PAWN_WEAK_ON_OPEN_EG,0,0,0,128,1);
-    ADD(PAWN_WEAK_ON_CLOSED_MG,0,0,0,128,1);
-    ADD(PAWN_WEAK_ON_CLOSED_EG,0,0,0,128,1);
-    ADD(ROOK_ON_7TH,0,0,0,128,1);
-    ADD(ROOK_ON_OPEN,0,0,0,128,1);
-    ADD(ROOK_SUPPORT_PASSED_MG,0,0,0,128,1);
-    ADD(ROOK_SUPPORT_PASSED_EG,0,0,0,128,1);
-    ADD(TRAPPED_BISHOP,0,0,0,400,1);
-    ADD(TRAPPED_KNIGHT,0,0,0,400,1);
-    ADD(TRAPPED_ROOK,0,0,0,400,1);
-    ADD(QUEEN_MG,0,wqueen,0,4000,1);
-    ADD(QUEEN_EG,0,bqueen,0,4000,1);
-    ADD(ROOK_MG,0,wrook,0,2000,1);
-    ADD(ROOK_EG,0,brook,0,2000,1);
-    ADD(BISHOP_MG,0,wbishop,0,2000,1);
-    ADD(BISHOP_EG,0,bbishop,0,2000,1);
-    ADD(KNIGHT_MG,0,wknight,0,2000,1);
-    ADD(KNIGHT_EG,0,bknight,0,2000,1);
-    ADD(PAWN_MG,0,wpawn,0,1000,1);
-    ADD(PAWN_EG,0,bpawn,0,1000,1);
-    ADD(BISHOP_PAIR_MG,0,0,0,128,1);
-    ADD(BISHOP_PAIR_EG,0,0,0,128,1);
-    ADD(MAJOR_v_P,0,0,0,400,1);
-    ADD(MINOR_v_P,0,0,0,400,1);
-    ADD(MINORS3_v_MAJOR,0,0,0,400,1);
-    ADD(MINORS2_v_MAJOR,0,0,0,400,1);
-    ADD(ROOK_v_MINOR,0,0,0,400,1);
+    ADD(ATTACK_WEIGHT,0,0,0,128,act);
+    ADD(TROPISM_WEIGHT,0,0,0,128,act);
+    ADD(PAWN_GUARD,0,0,0,128,act);
+    ADD(HANGING_PENALTY,0,0,0,100,act);
+    ADD(KNIGHT_OUTPOST_MG,0,0,0,128,act);
+    ADD(KNIGHT_OUTPOST_EG,0,0,0,128,act);
+    ADD(BISHOP_OUTPOST_MG,0,0,0,128,act);
+    ADD(BISHOP_OUTPOST_EG,0,0,0,128,act);
+    ADD(KNIGHT_MOB_MG,0,0,0,128,act);
+    ADD(KNIGHT_MOB_EG,0,0,0,128,act);
+    ADD(BISHOP_MOB_MG,0,0,0,128,act);
+    ADD(BISHOP_MOB_EG,0,0,0,128,act);
+    ADD(ROOK_MOB_MG,0,0,0,128,act);
+    ADD(ROOK_MOB_EG,0,0,0,128,act);
+    ADD(QUEEN_MOB_MG,0,0,0,128,act);
+    ADD(QUEEN_MOB_EG,0,0,0,128,act);
+    ADD(PASSER_MG,0,0,0,128,act);
+    ADD(PASSER_EG,0,0,0,128,act);
+    ADD(CANDIDATE_PP_MG,0,0,0,128,act);
+    ADD(CANDIDATE_PP_EG,0,0,0,128,act);
+    ADD(PAWN_DOUBLED_MG,0,0,0,128,act);
+    ADD(PAWN_DOUBLED_EG,0,0,0,128,act);
+    ADD(PAWN_ISOLATED_ON_OPEN_MG,0,0,0,128,act);
+    ADD(PAWN_ISOLATED_ON_OPEN_EG,0,0,0,128,act);
+    ADD(PAWN_ISOLATED_ON_CLOSED_MG,0,0,0,12,act);
+    ADD(PAWN_ISOLATED_ON_CLOSED_EG,0,0,0,128,act);
+    ADD(PAWN_WEAK_ON_OPEN_MG,0,0,0,128,act);
+    ADD(PAWN_WEAK_ON_OPEN_EG,0,0,0,128,act);
+    ADD(PAWN_WEAK_ON_CLOSED_MG,0,0,0,128,act);
+    ADD(PAWN_WEAK_ON_CLOSED_EG,0,0,0,128,act);
+    ADD(ROOK_ON_7TH,0,0,0,128,act);
+    ADD(ROOK_ON_OPEN,0,0,0,128,act);
+    ADD(ROOK_SUPPORT_PASSED_MG,0,0,0,128,act);
+    ADD(ROOK_SUPPORT_PASSED_EG,0,0,0,128,act);
+    ADD(TRAPPED_BISHOP,0,0,0,400,act);
+    ADD(TRAPPED_KNIGHT,0,0,0,400,act);
+    ADD(TRAPPED_ROOK,0,0,0,400,act);
+    ADD(QUEEN_MG,0,wqueen,0,4000,act);
+    ADD(QUEEN_EG,0,bqueen,0,4000,act);
+    ADD(ROOK_MG,0,wrook,0,2000,act);
+    ADD(ROOK_EG,0,brook,0,2000,act);
+    ADD(BISHOP_MG,0,wbishop,0,2000,act);
+    ADD(BISHOP_EG,0,bbishop,0,2000,act);
+    ADD(KNIGHT_MG,0,wknight,0,2000,act);
+    ADD(KNIGHT_EG,0,bknight,0,2000,act);
+    ADD(PAWN_MG,0,wpawn,0,1000,act);
+    ADD(PAWN_EG,0,bpawn,0,1000,act);
+    ADD(BISHOP_PAIR_MG,0,0,0,128,act);
+    ADD(BISHOP_PAIR_EG,0,0,0,128,act);
+    ADD(MAJOR_v_P,0,0,0,400,act);
+    ADD(MINOR_v_P,0,0,0,400,act);
+    ADD(MINORS3_v_MAJOR,0,0,0,400,act);
+    ADD(MINORS2_v_MAJOR,0,0,0,400,act);
+    ADD(ROOK_v_MINOR,0,0,0,400,act);
+    ADD_ARRAY(king_pcsq,64,wking,0,100,actp);
+    ADD_ARRAY(queen_pcsq,64,wqueen,0,100,actp);
+    ADD_ARRAY(rook_pcsq,64,wrook,0,100,actp);
+    ADD_ARRAY(bishop_pcsq,64,wbishop,0,100,actp);
+    ADD_ARRAY(knight_pcsq,64,wknight,0,100,actp);
+    ADD_ARRAY(pawn_pcsq,64,wpawn,0,100,actp);
+    ADD_ARRAY(outpost,32,0,0,100,acta);
+    ADD_ARRAY(passed_bonus,8,0,0,400,acta);
+    ADD_ARRAY(qr_on_7thrank,18,0,0,400,acta);
+    ADD_ARRAY(rook_on_hopen,13,0,0,400,acta);
+    ADD_ARRAY(king_to_pawns,8,0,0,600,acta);
+    ADD_ARRAY(piece_tropism,8,0,0,100,acta);
+    ADD_ARRAY(queen_tropism,8,0,0,100,acta);
+    ADD_ARRAY(file_tropism,8,0,0,100,acta);
     ADDM(ELO_HOME,0,0,0,500,1);
     ADDM(ELO_DRAW,0,0,0,500,1);
     ADDM(ELO_HOME_SLOPE_PHASE,0,0,0,500,1);
     ADDM(ELO_DRAW_SLOPE_PHASE,0,0,0,500,1);
-    ADD_ARRAY(king_pcsq,64,wking,0,100,1);
-    ADD_ARRAY(queen_pcsq,64,wqueen,0,100,1);
-    ADD_ARRAY(rook_pcsq,64,wrook,0,100,1);
-    ADD_ARRAY(bishop_pcsq,64,wbishop,0,100,1);
-    ADD_ARRAY(knight_pcsq,64,wknight,0,100,1);
-    ADD_ARRAY(pawn_pcsq,64,wpawn,0,100,1);
-
 #undef ADD
 #undef ADDM
 #undef ADD_ARRAY
     nParameters = parameters.size();
     nModelParameters = modelParameters.size();
     nInactiveParameters = inactive_parameters.size();
-
+    jacobian_temp = (float*) malloc(nParameters * sizeof(float));
 }
 bool check_eval_params(char** commands,char* command,int& command_num) {
     for(int i = 0;i < nParameters;i++) {
@@ -1922,8 +1928,12 @@ static void write_eval_param(FILE* fd, vPARAM* p) {
         fprintf(fd,"static PARAM %s[%d] = {\n",
             p->name,nSize);
         for(int j = 0;j < nSize;j++) {
-            fprintf(fd,"%4d,",*((p+j)->value));
-            if((j + 1) % 8 == 0) fprintf(fd,"\n");
+            fprintf(fd,"%4d",*((p+j)->value));
+            if(j < nSize - 1) {
+                fprintf(fd,",");
+                if((j + 1) % 8 == 0) 
+                    fprintf(fd,"\n");
+            } else fprintf(fd,"\n");
         }
         fprintf(fd,"};\n");
     }

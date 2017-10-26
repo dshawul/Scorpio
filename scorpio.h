@@ -221,6 +221,7 @@ Squares are of 0x88 type
 #define rank64(x)        ((x) >> 3)
 #define SQ(x,y)          (((x) << 4) | (y))
 #define SQ64(x,y)        (((x) << 3) | (y))
+#define SQ32(x,y)        (((x) << 2) | (y))
 #define SQ8864(x)        SQ64(rank(x),file(x))
 #define SQ6488(x)        SQ(rank64(x),file64(x))
 #define SQ6448(x)        ((x) - 8)
@@ -581,6 +582,7 @@ typedef struct SEARCHER{
     bool  build_book(char*,char*,int,int,int);
     void  update_history(MOVE);
     void  clear_history();
+    int   get_search_score();
     /*counts*/
     UBMP64 nodes;
     UBMP64 qnodes;
@@ -910,7 +912,7 @@ bool has_jacobian();
 double eval_jacobian(int,int&,double*);
 void compute_jacobian(PSEARCHER,int,int);
 double get_log_likelihood(int,double);
-void get_log_likelihood_all(int,double,double*,int);
+void get_log_likelihood_grad(PSEARCHER,int,double,double*,int);
 void readParams(double*);
 void writeParams(double*);
 void write_eval_params();

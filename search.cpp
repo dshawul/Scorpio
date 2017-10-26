@@ -1,5 +1,6 @@
 #include "scorpio.h"
 
+static const int PAWN_VALUE = 100;
 static const int CHECK_DEPTH = UNITDEPTH;
 static const int use_nullmove = 1;
 static const int use_selective = 1;
@@ -8,11 +9,11 @@ static const int use_aspiration = 1;
 static const int use_iid = 1;
 static int use_probcut = 0;
 static int use_singular = 0;
-static int futility_margin = 100;
-static int singular_margin = 30;
-static int probcut_margin = 150;
-static int contempt = 2;
-static int aspiration_window = 10;
+static int contempt = PAWN_VALUE / 50;
+static int futility_margin = PAWN_VALUE;
+static int singular_margin = PAWN_VALUE / 4;
+static int probcut_margin = 3 * PAWN_VALUE / 2;
+static int aspiration_window = PAWN_VALUE / 10;
 
 #define extend(value) {                      \
     extension += value;                      \
@@ -111,8 +112,8 @@ FORCEINLINE int SEARCHER::on_node_entry() {
         && pstack->node_type != PV_NODE
         ) {
             int score = eval();
-            int margin = futility_margin + 
-                50 * (DEPTH(pstack->depth) - 1) * (DEPTH(pstack->depth) - 1);
+            int margin = futility_margin + (futility_margin / 2) * 
+                (DEPTH(pstack->depth) - 1) * (DEPTH(pstack->depth) - 1);
             if(score + margin <= pstack->alpha
                 && pstack->depth <= 4 * UNITDEPTH
                 ) {

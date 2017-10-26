@@ -99,6 +99,7 @@ static void init_game();
 load epd file
 */
 static char* mem_epdfile = 0;
+static int epdfile_count = 0;
 
 static void load_epdfile(char* name) {
     FILE* fd = fopen(name, "r");
@@ -122,41 +123,6 @@ static void unload_epdfile() {
     mem_epdfile = 0;
     print("Unloaded epd!\n");
 }
-
-#ifdef TUNE
-static int epdfile_count = 0;
-static int get_search_score() {
-    int sce;
-    if(SEARCHER::chess_clock.max_sd == 0) {
-        //evaluation score
-        sce = searcher.eval();
-    } else if(SEARCHER::chess_clock.max_sd == 1) {
-        //quiescence search score
-        if((searcher.player == white && searcher.attacks(black,searcher.plist[wking]->sq)) ||
-           (searcher.player == black && searcher.attacks(white,searcher.plist[bking]->sq)) ){
-            sce = searcher.eval();
-        } else {
-            main_searcher->COPY(&searcher);
-            main_searcher->pstack->node_type = PV_NODE;
-            main_searcher->pstack->search_state = NORMAL_MOVE;
-            main_searcher->pstack->alpha = -MATE_SCORE;
-            main_searcher->pstack->beta = MATE_SCORE;
-            main_searcher->pstack->depth = 0;
-            main_searcher->pstack->qcheck_depth = 0;    
-            main_searcher->qsearch();
-            sce = main_searcher->pstack->best_score;
-        }
-    } else {
-        //regular search score
-        main_searcher->COPY(&searcher);
-        main_searcher->find_best();
-        sce = main_searcher->pstack->best_score;
-    }
-    if(sce > WIN_SCORE) sce = WIN_SCORE;
-    if(sce < -WIN_SCORE) sce = -WIN_SCORE;
-    return sce;
-}
-#endif
 
 /*
 load egbbs with a separate thread
@@ -340,6 +306,8 @@ static const char *const commands_recognized[] = {
     "exit -- Leave analysis mode.",
     "force -- Set the engine to play neither color ('force mode'). Stop clocks.",
     "go -- Leave force mode and set the engine to play the color that is on move.",
+    "gmse -- Compute gradient of mean squared error. Takes same arguments as mse.",
+    "jacobian -- Compute jacobian of evaluation.",
     "hard -- Turn on pondering (thinking on the opponent's time or permanent brain).",
     "help -- Produce this listing of supported commands.",
     "history -- Debugging command to print game history.",
@@ -351,7 +319,7 @@ static const char *const commands_recognized[] = {
     "moves -- Debugging command to print all possible moves for the current board.",
     "mse -- Calculate mean squared error of evaluaiton/search result with actual result.",
     "       <frac>  -- Fraction of positions to consider (1=all,...,0=none).",
-    "       <K>     -- Scalaing constant of the logistic formula 1/1+exp(-K*x).",
+    "       <seed>  -- Random number seed.",
     "mt/cores   <N>      -- Set the number of parallel threads of execution to N.",
     "          auto      -- Set to available logical cores.",
     "          auto-<R>  -- Set to (auto - R) logical cores.",
@@ -377,6 +345,7 @@ static const char *const commands_recognized[] = {
     "setboard -- setboard <FEN> is used to set up FEN position <FEN>.",
     "st -- st <TIME> {Set time controls search time in seconds.}",
     "time -- time <N> {Set a clock that belongs to the engine in centiseconds.}",
+    "tune -- Tune the evaluation function. Takes same arguments as mse.",
     "undo -- The user asks to back up one half move.",
     "xboard -- Request xboard mode (the default).",
     NULL
@@ -713,8 +682,8 @@ bool parse_commands(char** commands) {
 
             char input[MAX_STR],fen[MAX_STR];
             char* words[100];
-            int sc,sce,test,visited,result;
-            double frac,prior,mse;
+            double frac;
+            int sc,sce,test,visited,result,nwords;
 
             if(!strcmp(command,"runeval")) test = 0;
             else if(!strcmp(command,"runsearch")) test = 1;
@@ -723,116 +692,56 @@ bool parse_commands(char** commands) {
             else if(!strcmp(command,"gmse")) test = 4;
             else test = 5;
 
-#ifdef TUNE
-            if(test >= 3) {
-                frac = atof(commands[command_num++]);
-                prior = atof(commands[command_num++]);
-                int randseed = atoi(commands[command_num++]);
-                srand(randseed);
-
-                if(has_jacobian()) {
-
-                    double *gse, *gmse, *dmse, *params;
-                    const double gamma = 0.1, alpha = 1e4;
-                    int nSize = nParameters + nModelParameters;
-                    
-                    if(test >= 4) {
-                        gse = (double*) malloc(nSize * sizeof(double));
-                        gmse = (double*) malloc(nSize * sizeof(double));
-                        dmse = (double*) malloc(nSize * sizeof(double));
-                        params = (double*) malloc(nSize * sizeof(double));
-                        memset(dmse,0,nSize * sizeof(double));
-                        readParams(params);
-                    }
-
-                    for(int iter = 0;;iter++) {
-
-                        /*loop through positions*/
-                        visited = 0;
-                        mse = 0.0;
-                        if(test >= 4)
-                            memset(gmse,0,nSize * sizeof(double));
-
-                        for(int cnt = 0;cnt < epdfile_count;cnt++) {
-                            /*sample a few*/
-                            double r = double(rand()) / RAND_MAX;
-                            if(r >= frac) continue;
-                            visited++;
-
-                            /*compute evaluation from the stored jacobian*/
-                            double se = eval_jacobian(cnt,result,params);
-                            if(se > WIN_SCORE) se = WIN_SCORE;
-                            if(se < -WIN_SCORE) se = -WIN_SCORE;
-
-                            /*log-likelihood*/
-                            if(test == 3) {
-                                se = get_log_likelihood(result,se);
-                                mse += (se - mse) / visited;
-                            } else  {
-                                get_log_likelihood_all(result,se,gse,cnt);
-                                for(int i = 0;i < nSize;i++)
-                                    gmse[i] += (gse[i] - gmse[i]) / visited;
-                            }
-                        }
-
-                        /*regularization in the form of prior*/
-                        int nprior = int(prior * visited);
-                        if(test == 3) {
-                            mse = (mse * visited + 0.0 * nprior) / (visited + nprior);
-                            print("%.9e\n",mse);
-                            break;
-                        } else if(test == 4) {
-                            for(int i = 0;i < nSize;i++)
-                                gmse[i] = (gmse[i] * visited + 0.0 * nprior) / (visited + nprior);
-                            for(int i = 0;i < nSize;i++)
-                                print("%.9e ",gmse[i]);
-                            print("\n");
-                            break;
-                        } else {
-                            double normg = 0;
-                            for(int i = 0;i < nSize;i++) {
-                                gmse[i] = (gmse[i] * visited + 0.0 * nprior) / (visited + nprior);
-                                dmse[i] = -gmse[i] + gamma * dmse[i];
-                                params[i] += alpha * dmse[i];
-                                normg += pow(gmse[i],2.0);
-                            }
-                            writeParams(params);
-                            print("%d. %.6e\n",iter,normg);
-                            if(iter % 20 == 0)
-                                write_eval_params();
-                        }
-                    }
-
-                    if(test >= 4) {
-                        free(gse);
-                        free(gmse);
-                        free(dmse);
-                        free(params);
-                    }
-                    continue;
-                }
-            }
-#endif
-
             /*open file*/
-            FILE *fd;
-            if(mem_epdfile)
-                fd = fmemopen(mem_epdfile, strlen(mem_epdfile), "r");
-            else {
-                fd = fopen(commands[command_num++],"r");
-                if(!fd) {
-                    print("epd file not found!\n");
-                    continue;
+            bool getfen = ((test <= 2) 
+#ifdef TUNE
+                || (test >=3 && !has_jacobian())
+#endif
+                );
+
+            FILE *fd = 0;
+            if(getfen) {
+                if(mem_epdfile)
+                    fd = fmemopen(mem_epdfile, strlen(mem_epdfile), "r");
+                else {
+                    fd = fopen(commands[command_num++],"r");
+                    if(!fd) {
+                        print("epd file not found!\n");
+                        continue;
+                    }
                 }
             }
-
-#ifdef TUNE
-            if(test == 2) {
+            if(!epdfile_count) {
                 while(fgets(input,MAX_STR,fd))
                     epdfile_count++;
                 rewind(fd);
+            }
+#ifdef TUNE
+            /*set rand seed*/
+            if(test >= 3) {
+                frac = atof(commands[command_num++]);
+                int randseed = atoi(commands[command_num++]);
+                srand(randseed);
+            }
+
+            /*allocate jacobian*/
+            if(test == 2) {
                 allocate_jacobian(epdfile_count);
                 print("Computing jacobian matrix of evaluation function ...\n");
+            }
+
+            /*allocate arrays*/
+            double *gse, *gmse, *dmse, *params, mse;
+            const double gamma = 0.1, alpha = 1e4;
+            int nSize = nParameters + nModelParameters;
+            
+            if(test >= 4) {
+                gse = (double*) malloc(nSize * sizeof(double));
+                gmse = (double*) malloc(nSize * sizeof(double));
+                dmse = (double*) malloc(nSize * sizeof(double));
+                params = (double*) malloc(nSize * sizeof(double));
+                memset(dmse,0,nSize * sizeof(double));
+                readParams(params);
             }
 #endif
             if(test <= 1) {
@@ -845,90 +754,145 @@ bool parse_commands(char** commands) {
             SEARCHER::pre_calculate();
             PROCESSOR::clear_hash_tables();
 
-            /*loop through positions*/
-            int cnt = 0;
-            visited = 0;
-            mse = 0.0;
-            while(fgets(input,MAX_STR,fd)) {
-                /*sample a few*/
-                if(test == 3) {
-                    double r = double(rand()) / RAND_MAX;
-                    if(r >= frac) continue;
-                }
-                visited++;
-                /*decode fen*/
-                input[strlen(input) - 1] = 0;
-                int nwords = tokenize(input,words) - 1;
-                strcpy(fen,words[0]);
-                strcat(fen," ");
-                strcat(fen,words[1]);
-                strcat(fen," ");
-                strcat(fen,words[2]);
-                strcat(fen," ");
-                strcat(fen,words[3]);
-                strcat(fen," ");
-                searcher.set_board(fen);
+            for(int iter = 0;;iter++) {
 
-                switch(test) {
-                case 0:
-                    sc = searcher.eval();
-                    searcher.mirror();
-                    sce = searcher.eval();
-                    if(sc == sce)
-                        print("*%d* %d\n",visited,sc);
-                    else {
-                        print("*****WRONG RESULT*****\n");
-                        print("[ %s ] \nsc = %6d sc1 = %6d\n",fen,sc,sce);
-                        print("**********************\n");
-                    }
-                    break;
-                case 1:
-                    PROCESSOR::clear_hash_tables();
-                    main_searcher->COPY(&searcher);
-                    main_searcher->find_best();
-                    if(SEARCHER::pv_print_style == 0) 
-                        print("********** %d ************\n",visited);
-                    break;
-                case 2:
-                case 3:
-                    if(!strncmp(words[nwords - 1],"1-0",3)) result = 1;
-                    else if(!strncmp(words[nwords - 1],"0-1",3)) result = -1;
-                    else if(!strncmp(words[nwords - 1],"1/2-1/2",7)) result = 0;
-                    else {
-                        print("Position %d not labeled: fen %s\n",visited,fen);
-                        continue;
-                    }
-                    if(searcher.player == black) 
-                        result = -result;
+                /*loop through positions*/
+                visited = 0;
 #ifdef TUNE
-                    if(test == 2) {
-                        compute_jacobian(&searcher,cnt,result);
-                    } else {
-                        double se = get_search_score();
-                        se = get_log_likelihood(result,se);
-                        mse += (se - mse) / visited;
-                    }
+                mse = 0.0;
+                if(test >= 4)
+                    memset(gmse,0,nSize * sizeof(double));
 #endif
-                    break;
+                for(int cnt = 0;cnt < epdfile_count;cnt++) {
+                    /*read line*/
+                    if(getfen) {
+                        if(!fgets(input,MAX_STR,fd))
+                            continue;
+                    }
+                    /*sample a few*/
+                    if(test >= 3) {
+                        double r = double(rand()) / RAND_MAX;
+                        if(r >= frac) continue;
+                    }
+                    visited++;
+                    /*decode fen*/
+                    if(getfen) {
+                        input[strlen(input) - 1] = 0;
+                        nwords = tokenize(input,words) - 1;
+                        strcpy(fen,words[0]);
+                        strcat(fen," ");
+                        strcat(fen,words[1]);
+                        strcat(fen," ");
+                        strcat(fen,words[2]);
+                        strcat(fen," ");
+                        strcat(fen,words[3]);
+                        strcat(fen," ");
+                        searcher.set_board(fen);
+                    }
+
+                    switch(test) {
+                    case 0:
+                        sc = searcher.eval();
+                        searcher.mirror();
+                        sce = searcher.eval();
+                        if(sc == sce)
+                            print("*%d* %d\n",visited,sc);
+                        else {
+                            print("*****WRONG RESULT*****\n");
+                            print("[ %s ] \nsc = %6d sc1 = %6d\n",fen,sc,sce);
+                            print("**********************\n");
+                        }
+                        break;
+                    case 1:
+                        PROCESSOR::clear_hash_tables();
+                        main_searcher->COPY(&searcher);
+                        main_searcher->find_best();
+                        if(SEARCHER::pv_print_style == 0) 
+                            print("********** %d ************\n",visited);
+                        break;
+                    case 2:
+                    case 3:
+                    case 4:
+                    case 5:
+                        if(getfen) {
+                            if(!strncmp(words[nwords - 1],"1-0",3)) result = 1;
+                            else if(!strncmp(words[nwords - 1],"0-1",3)) result = -1;
+                            else if(!strncmp(words[nwords - 1],"1/2-1/2",7)) result = 0;
+                            else {
+                                print("Position %d not labeled: fen %s\n",visited,fen);
+                                continue;
+                            }
+                            if(searcher.player == black) 
+                                result = -result;
+                        }
+#ifdef TUNE
+                        if(test == 2) {
+                            compute_jacobian(&searcher,cnt,result);
+                        } else {
+                            /*compute evaluation from the stored jacobian*/
+                            double se;
+                            if(getfen) {
+                                se = searcher.get_search_score();
+                            } else {
+                                se = eval_jacobian(cnt,result,params);
+                            }
+                            if(se > WIN_SCORE) se = WIN_SCORE;
+                            if(se < -WIN_SCORE) se = -WIN_SCORE;
+
+                            /*log-likelihood*/
+                            if(test == 3) {
+                                se = get_log_likelihood(result,se);
+                                mse += (se - mse) / visited;
+                            } else  {
+                                get_log_likelihood_grad(&searcher,result,se,gse,cnt);
+                                for(int i = 0;i < nSize;i++)
+                                    gmse[i] += (gse[i] - gmse[i]) / visited;
+                            }
+                        }
+#endif
+                        break;
+                    }
                 }
-                cnt++;
+
+#ifdef TUNE
+                /*print*/
+                if(test == 2) {
+                    print("Computed jacobian for %d positions.\n",visited);
+                } else if(test == 3) {
+                    print("%.9e\n",mse);
+                } else if(test == 4) {
+                    for(int i = 0;i < nSize;i++)
+                        print("%.9e ",gmse[i]);
+                    print("\n");
+                } else if(test == 5) {
+                    double normg = 0;
+                    for(int i = 0;i < nSize;i++) {
+                        dmse[i] = -gmse[i] + gamma * dmse[i];
+                        params[i] += alpha * dmse[i];
+                        normg += pow(gmse[i],2.0);
+                    }
+                    writeParams(params);
+                    print("%d. %.6e\n",iter,normg);
+                    if(iter % 40 == 0)
+                        write_eval_params();
+                    if(getfen) {
+                        SEARCHER::pre_calculate();
+                        rewind(fd);
+                    }
+                }
+#endif
+                if(test != 5) break;
             }
-
-            if(test == 2) {
-                print("Finished computing jacobian for %d positions.\n",visited);
+#ifdef TUNE
+            if(test >= 4) {
+                free(gse);
+                free(gmse);
+                free(dmse);
+                free(params);
             }
-
-            if(test == 3) {
-                /*regularization in the form of prior*/
-                int nprior = int(prior * visited);
-                mse = (mse * visited + 0.0 * nprior) / (visited + nprior);
-
-                /*print mse*/
-                print("%.16f\n",mse);
-            }
-
+#endif
             searcher.new_board();
-            fclose(fd);
+            if(fd) fclose(fd);
             /*
             move
             */
@@ -1088,7 +1052,38 @@ REDO2:
     }
     return true;
 }
-
+/*
+Get search score
+*/
+int SEARCHER::get_search_score() {
+    int sce;
+    if(SEARCHER::chess_clock.max_sd == 0) {
+        //evaluation score
+        sce = eval();
+    } else if(SEARCHER::chess_clock.max_sd == 1) {
+        //quiescence search score
+        if((player == white && attacks(black,plist[wking]->sq)) ||
+           (player == black && attacks(white,plist[bking]->sq)) ){
+            sce = eval();
+        } else {
+            main_searcher->COPY(this);
+            main_searcher->pstack->node_type = PV_NODE;
+            main_searcher->pstack->search_state = NORMAL_MOVE;
+            main_searcher->pstack->alpha = -MATE_SCORE;
+            main_searcher->pstack->beta = MATE_SCORE;
+            main_searcher->pstack->depth = 0;
+            main_searcher->pstack->qcheck_depth = 0;    
+            main_searcher->qsearch();
+            sce = main_searcher->pstack->best_score;
+        }
+    } else {
+        //regular search score
+        main_searcher->COPY(this);
+        main_searcher->find_best();
+        sce = main_searcher->pstack->best_score;
+    }
+    return sce;
+}
 /*
 initilization file
 */
