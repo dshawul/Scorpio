@@ -263,31 +263,16 @@ FORCEINLINE int SEARCHER::on_qnode_entry() {
 
     return false;
 }
-/*passed pawn moves*/
-int SEARCHER::is_passed(MOVE move,int type) const {
-    if(PIECE(m_piece(move)) != pawn)
-        return 0;
-    int to = m_to(move),f = file(to),r = rank(to),sq;
-    if(opponent == white) {
-        if(r == RANK7) return 2;
-        if(type == LASTR) return 0;
-        if(type == HALFR && r <= RANK4) return 0;
-        if(r == RANK8) return 0;
-        for(sq = to + UU;sq < A8 + f;sq += UU) {
-            if(board[sq] == bpawn || board[sq + RR] == bpawn || board[sq + LL] == bpawn)
-                return 0;
-        }
-    } else {
-        if(r == RANK2) return 2;
-        if(type == LASTR) return 0;
-        if(type == HALFR && r >= RANK5) return 0;
-        if(r == RANK1) return 0;
-        for(sq = to + DD;sq > A1 + f;sq += DD) {
-            if(board[sq] == wpawn || board[sq + RR] == wpawn || board[sq + LL] == wpawn)
-                return 0;
+/*pawn push*/
+int SEARCHER::is_pawn_push(MOVE move) const {
+    if(PIECE(m_piece(move)) == pawn) {
+        if(opponent == white) {
+            if(rank(m_from(move)) >= RANK5) return 1;
+        } else {
+            if(rank(m_from(move)) <= RANK4) return 1;
         }
     }
-    return 1;
+    return 0;
 }
 /*selective search*/
 int SEARCHER::be_selective() {
@@ -303,7 +288,7 @@ int SEARCHER::be_selective() {
         if(nmoves >= 4
             && !hstack[hply - 1].checks
             && !is_cap_prom(move)
-            && !is_passed(move,HALFR)
+            && !is_pawn_push(move)
             ) {
             reduce(UNITDEPTH);
             if(nmoves >= 8 && pstack->depth > UNITDEPTH)
@@ -314,29 +299,22 @@ int SEARCHER::be_selective() {
     /*non-cap phase*/
     bool avail_noncap = (pstack - 1)->gen_status == GEN_AVAIL && 
                         (pstack - 1)->current_index - 1 >= (pstack - 1)->noncap_start;
-    bool noncap_reduce = ((pstack - 1)->gen_status - 1 == GEN_NONCAPS ||
+    bool noncap_reduce = ((pstack - 1)->gen_status - 1 == GEN_KILLERS ||
+                         (pstack - 1)->gen_status - 1 == GEN_NONCAPS ||
                          (avail_noncap && !is_cap_prom(move)));
     bool loscap_reduce = ((pstack - 1)->gen_status - 1 == GEN_LOSCAPS ||
                          (avail_noncap && is_cap_prom(move)));
     /*
     extend
     */
-    if(node_t == PV_NODE) {
-        if(hstack[hply - 1].checks) {
-            extend(UNITDEPTH);
-        }
-        if(is_passed(move,HALFR)) { 
-            extend(UNITDEPTH);
-        }
-    } else {
-        if(hstack[hply - 1].checks) {
-            extend(0);
-        }
-        if(depth >= 6 && is_passed(move,HALFR)) { 
-            extend(0);
-        }
+    if(hstack[hply - 1].checks) {
+        if(node_t == PV_NODE) { extend(UNITDEPTH); }
+        else { extend(0); }
     }
-    if (depth <= 6 && hply >= 2
+    if(is_pawn_push(move)) { 
+        extend(0);
+    }
+    if (depth <= 4 && hply >= 2
         && m_capture(move)
         && m_capture(hstack[hply - 2].move)
         && m_to(move) == m_to(hstack[hply - 2].move)
@@ -370,17 +348,21 @@ int SEARCHER::be_selective() {
         && noncap_reduce
         && node_t != PV_NODE
         ) {
+            //late move
             if((depth <= 2 && nmoves >= 8) || 
                (depth == 3 && nmoves >= 12) || 
                (depth == 4 && nmoves >= 18) || 
                (depth == 5 && nmoves >= 28) )
                 return true;
 
+            //see
+            if(see(move) < 0)
+                return true;
+
+            //futility
             int margin = futility_margin * depth;
             margin = MAX(margin / 4, margin - 10 * nmoves);
-
             score = -eval();
-            
             if(score + margin < (pstack - 1)->alpha) {
                 if(score > (pstack - 1)->best_score) {
                     (pstack - 1)->best_score = score;
@@ -388,39 +370,31 @@ int SEARCHER::be_selective() {
                 }
                 return true;
             }
-
     }
     /*
     late move reduction
     */
     if(!pstack->extension && noncap_reduce) {
-        if(nmoves >= 2 && pstack->depth > UNITDEPTH) { 
-            reduce(UNITDEPTH);
-            if(nmoves >= ((node_t == PV_NODE) ? 8 : 4) && pstack->depth > UNITDEPTH) {
-                reduce(UNITDEPTH);
-                if(node_t != PV_NODE && nmoves >= 10 && pstack->depth >= 4 * UNITDEPTH)
-                    reduce(UNITDEPTH);
-                if(nmoves >= 16 && pstack->depth >= 4 * UNITDEPTH) {
-                    reduce(UNITDEPTH);
-                    if(nmoves >= 20 && pstack->depth >= 4 * UNITDEPTH) {
-                        reduce(UNITDEPTH);
-                        if(nmoves >= 24 && pstack->depth >= 4 * UNITDEPTH) {
-                            reduce(2 * UNITDEPTH);
-                            if(nmoves >= 32 && pstack->depth >= 4 * UNITDEPTH) {
-                                reduce(2 * UNITDEPTH);
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        if(nmoves >=  2 && pstack->depth > UNITDEPTH) reduce(UNITDEPTH);
+        if(nmoves >=  4 && pstack->depth > UNITDEPTH) reduce(UNITDEPTH);
+        if(nmoves >=  6 && pstack->depth > UNITDEPTH) reduce(UNITDEPTH);
+        if(nmoves >=  8 && pstack->depth > UNITDEPTH) reduce(UNITDEPTH);
+        if(nmoves >= 10 && pstack->depth > UNITDEPTH) reduce(UNITDEPTH);
+        if(nmoves >= 20 && pstack->depth > UNITDEPTH) reduce(UNITDEPTH);
+        if(nmoves >= 24 && pstack->depth > UNITDEPTH) reduce(UNITDEPTH);
+        if(nmoves >= 32 && pstack->depth > UNITDEPTH) reduce(UNITDEPTH);
+        if(nmoves >=  2 && pstack->depth > UNITDEPTH && node_t == CUT_NODE) reduce(UNITDEPTH);
     }
     /*losing captures*/
     if(!pstack->extension && loscap_reduce) {
         if(nmoves >= 2) {
             if(pstack->depth <= 2 * UNITDEPTH)
                 return true;
-            reduce(UNITDEPTH);
+            if(pstack->depth > 4 * UNITDEPTH) {
+                reduce(pstack->depth / 2);
+            } else {
+                reduce(2 * UNITDEPTH);
+            }
         }
     }
     /*
@@ -566,7 +540,7 @@ START:
                         /* Smooth scaling from Dann Corbit based on score and depth*/
                         sb->pstack->depth = (sb->pstack - 1)->depth - 3 * UNITDEPTH - (sb->pstack - 1)->depth / 4;
                         if(score >= (sb->pstack - 1)->beta)
-                            sb->pstack->depth -= (MIN(3 , (score - (sb->pstack - 1)->beta) / 32) * (UNITDEPTH / 2));
+                            sb->pstack->depth -= (MIN(3 , (score - (sb->pstack - 1)->beta) / 64) * UNITDEPTH);
                         sb->pstack->search_state = NORMAL_MOVE;
                         goto NEW_NODE;
                 }

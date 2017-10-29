@@ -697,58 +697,6 @@ void SEARCHER::pre_calculate() {
         pcsq[bpawn][sq] += pawn_pcsq[sq1r];
     }
 }
-void SEARCHER::update_pcsq(int pic, int eg, int dval) {
-    for(int sq = 0; sq < 128; sq++) {
-        if( ((sq & 0x88) && eg) || (!(sq & 0x88) && !eg) ) {
-            pcsq[COMBINE(white,pic)][sq] += dval;
-            pcsq[COMBINE(black,pic)][sq] += dval;
-        }
-    }
-    if(eg) {
-        pcsq_score[white].add(0, dval * man_c[COMBINE(white,pic)]);
-        pcsq_score[black].add(0, dval * man_c[COMBINE(black,pic)]);
-    } else {
-        pcsq_score[white].add(dval * man_c[COMBINE(white,pic)], 0);
-        pcsq_score[black].add(dval * man_c[COMBINE(black,pic)], 0);
-    }
-}
-void SEARCHER::update_pcsq_val(int pic, int sq0, int dval) {
-    PLIST current;
-    int sq1,sq2;
-
-    sq1 = SQ6488(sq0);
-    if(file(sq1) >= FILEE) sq1 += 8;
-    sq2 = MIRRORF(sq1);
-
-    //white
-    pcsq[COMBINE(white,pic)][sq1] += dval;
-    pcsq[COMBINE(white,pic)][sq2] += dval;
-
-    current = plist[COMBINE(white,pic)];
-    while(current) {
-        if(current->sq == sq1 || current->sq == sq2)
-            pcsq_score[white].addm(dval);       
-        else if(current->sq == sq1-8 || current->sq == sq2-8)
-            pcsq_score[white].adde(dval);
-        current = current->next;
-    }
-
-    sq1 = MIRRORR(sq1);
-    sq2 = MIRRORR(sq2);
-
-    //black
-    pcsq[COMBINE(black,pic)][sq1] += dval;
-    pcsq[COMBINE(black,pic)][sq2] += dval;
-
-    current = plist[COMBINE(black,pic)];
-    while(current) {
-        if(current->sq == sq1 || current->sq == sq2)
-            pcsq_score[black].addm(dval);       
-        else if(current->sq == sq1-8 || current->sq == sq2-8)
-            pcsq_score[black].adde(dval);
-        current = current->next;
-    }
-}
 /*
 evaluate pawn cover
 */
@@ -1973,5 +1921,56 @@ void print_eval_params() {
     }
     print("feature option=\"ELO_MODEL -spin %d 0 2\"\n",ELO_MODEL);
 }
+void SEARCHER::update_pcsq(int pic, int eg, int dval) {
+    for(int sq = 0; sq < 128; sq++) {
+        if( ((sq & 0x88) && eg) || (!(sq & 0x88) && !eg) ) {
+            pcsq[COMBINE(white,pic)][sq] += dval;
+            pcsq[COMBINE(black,pic)][sq] += dval;
+        }
+    }
+    if(eg) {
+        pcsq_score[white].add(0, dval * man_c[COMBINE(white,pic)]);
+        pcsq_score[black].add(0, dval * man_c[COMBINE(black,pic)]);
+    } else {
+        pcsq_score[white].add(dval * man_c[COMBINE(white,pic)], 0);
+        pcsq_score[black].add(dval * man_c[COMBINE(black,pic)], 0);
+    }
+}
+void SEARCHER::update_pcsq_val(int pic, int sq0, int dval) {
+    PLIST current;
+    int sq1,sq2;
 
+    sq1 = SQ6488(sq0);
+    if(file(sq1) >= FILEE) sq1 += 8;
+    sq2 = MIRRORF(sq1);
+
+    //white
+    pcsq[COMBINE(white,pic)][sq1] += dval;
+    pcsq[COMBINE(white,pic)][sq2] += dval;
+
+    current = plist[COMBINE(white,pic)];
+    while(current) {
+        if(current->sq == sq1 || current->sq == sq2)
+            pcsq_score[white].addm(dval);       
+        else if(current->sq == sq1-8 || current->sq == sq2-8)
+            pcsq_score[white].adde(dval);
+        current = current->next;
+    }
+
+    sq1 = MIRRORR(sq1);
+    sq2 = MIRRORR(sq2);
+
+    //black
+    pcsq[COMBINE(black,pic)][sq1] += dval;
+    pcsq[COMBINE(black,pic)][sq2] += dval;
+
+    current = plist[COMBINE(black,pic)];
+    while(current) {
+        if(current->sq == sq1 || current->sq == sq2)
+            pcsq_score[black].addm(dval);       
+        else if(current->sq == sq1-8 || current->sq == sq2-8)
+            pcsq_score[black].adde(dval);
+        current = current->next;
+    }
+}
 #endif

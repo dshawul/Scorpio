@@ -1459,6 +1459,7 @@ DO_AGAIN:
                 }
             }
         } else if(pstack->gen_status == GEN_KILLERS) {
+            pstack->noncap_start = pstack->count;
             pstack->sortm = 0;
             move = pstack->killer[0];
             if(move 
@@ -1493,7 +1494,6 @@ DO_AGAIN:
             }
         } else if(pstack->gen_status == GEN_NONCAPS) {
             start = pstack->count;
-            pstack->noncap_start = start;
             gen_noncaps();
             pstack->sortm = 2;
             for(i = start; i < pstack->count;i++) {
@@ -1599,7 +1599,8 @@ DO_AGAIN:
                 }
                 pstack->gen_status = GEN_END;
             } else {
-                const bool recap = (hply >= 1 && pstack->depth <= -4 * UNITDEPTH);
+                const bool recap = (hply >= 1 && 
+                    pstack->qcheck_depth <= -4 * UNITDEPTH);
                 gen_caps(recap);
                 pstack->sortm = 1;
                 for(int i = 0; i < pstack->count;i++) {

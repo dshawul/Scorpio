@@ -188,8 +188,8 @@ enum square_names {
 /*
 Depth
 */
-#define UNITDEPTH           4
-#define DEPTH(x)            ((x) >> 2)
+#define UNITDEPTH           1
+#define DEPTH(x)            (x)
 /*
 Scorpio moves are 32bit long
 */
@@ -531,7 +531,7 @@ typedef struct SEARCHER{
     int   in_check(MOVE) const;
     int   is_legal(MOVE&);
     int   is_legal_fast(MOVE) const;
-    int   is_passed(MOVE,int) const;
+    int   is_pawn_push(MOVE move) const;
     int   pinned_on_king(int,int) const;
     void  print_board() const;
     void  print_history();
@@ -566,8 +566,10 @@ typedef struct SEARCHER{
     int   eval_passed_pawns(UBMP8*,UBMP8*,UBMP8&);
     void  eval_win_chance(SCORE&,SCORE&,int&,int&);
     static void  pre_calculate();
+#ifdef TUNE
     void  update_pcsq(int,int,int);
     void  update_pcsq_val(int,int,int);
+#endif
     void  record_hash(int,const HASHKEY&,int,int,int,int,MOVE,int,int);
     int   probe_hash(int,const HASHKEY&,int,int,int&,MOVE&,int,int,int&,int&,int&,bool);
     void  RECORD_HASH(int,const HASHKEY&,int,int,int,int,MOVE,int,int);
