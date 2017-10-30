@@ -1754,7 +1754,7 @@ void writeParams(double* params) {
         *(modelParameters[i].value) = int(round(params[i + nParameters]));
 }
 void init_parameters() {
-    int act = 0, actp = 1, acta = 0;
+    int act = 1, actp = 0, acta = 0;
 
 #define ADD(x,ln,f,minv,maxv,act)                                   \
     if(act) parameters.push_back(vPARAM(x,ln,f,minv,maxv,#x));      \

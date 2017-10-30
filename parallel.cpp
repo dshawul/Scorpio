@@ -566,6 +566,8 @@ void PROCESSOR::idle_loop() {
 exit scorpio 
 */
 void PROCESSOR::exit_scorpio(int status) {
+    if(!log_on)
+        remove_log_file();
 #ifdef CLUSTER
     print("Process [%d/%d] terminated.\n",host_id,n_hosts);
     scorpio_ending=true;

@@ -1376,7 +1376,7 @@ incremental move generator
 */
 
 #define HISTORY(move) (history[m_piece(move)][SQ8864(m_to(move))])
-#define REFUTE(move) (refutation[m_piece(move)][SQ8864(m_to(move))])
+#define REFUTATION(move) (refutation[m_piece(move)][SQ8864(m_to(move))])
 
 MOVE SEARCHER::get_move() {
     register MOVE move;
@@ -1394,11 +1394,6 @@ MOVE SEARCHER::get_move() {
         pstack->gen_status = GEN_AVAIL;
         pstack->legal_moves = 0;
         pstack->sortm = 0;
-    } else if(pstack->gen_status == GEN_RESET_SORT) {
-        pstack->current_index = 0;
-        pstack->gen_status = GEN_AVAIL;
-        pstack->legal_moves = 0;
-        pstack->sortm = 1;
     }
 
 DO_AGAIN:
@@ -1429,9 +1424,11 @@ DO_AGAIN:
                         *pscore = 90;
                     else if(move == pstack->killer[1])
                         *pscore = 80;
+                    else if(move == REFUTATION(move))
+                        *pscore = 70;
                     else if(is_cap_prom(move)) {
                         *pscore = see(move);
-                        if(*pscore < 0) *pscore -= MAX_HIST;
+                        if(*pscore < 0) *pscore -= 2 * MAX_HIST;
                     } else {
                         *pscore = HISTORY(move) - MAX_HIST;
                     }
@@ -1477,10 +1474,10 @@ DO_AGAIN:
                 pstack->score_st[pstack->count] = 1000;
                 pstack->move_st[pstack->count++] = move;
             }
-            pstack->killer[2] = 0;
+            pstack->refutation = 0;
             if(hply >= 1) {
                 move = hstack[hply - 1].move;
-                move = REFUTE(move);
+                move = REFUTATION(move);
                 if(move 
                     && move != pstack->hash_move
                     && move != pstack->killer[0]
@@ -1489,7 +1486,7 @@ DO_AGAIN:
                     ) {
                         pstack->score_st[pstack->count] = 900;
                         pstack->move_st[pstack->count++] = move;
-                        pstack->killer[2] = move;
+                        pstack->refutation = move;
                 }
             }
         } else if(pstack->gen_status == GEN_NONCAPS) {
@@ -1501,7 +1498,7 @@ DO_AGAIN:
                 if(move == pstack->hash_move
                     || (move == pstack->killer[0]) 
                     || (move == pstack->killer[1]) 
-                    || (move == pstack->killer[2]) 
+                    || (move == pstack->refutation)
                     ) {
                         pstack->score_st[i] = -MAX_NUMBER;
                 } else {
@@ -1592,7 +1589,9 @@ DO_AGAIN:
                     pscore = &pstack->score_st[i];
                     if(is_cap_prom(move)) {
                         *pscore = see(move);
-                        if(*pscore < 0) *pscore -= MAX_HIST;
+                        if(*pscore < 0) *pscore -= 2 * MAX_HIST;
+                    } else if(move == REFUTATION(move)) {
+                        *pscore = 70;
                     } else {
                         *pscore = HISTORY(move) - MAX_HIST;
                     }
@@ -1650,10 +1649,17 @@ DO_AGAIN:
 * History and killers
 */
 void SEARCHER::update_history(MOVE move) {
-    register int i,j,temp;
+    register int i,j,temp,maxh,maxh1;
     temp = (pstack->depth);
-    temp = (HISTORY(move) += (temp * temp));
-    if(temp >= MAX_HIST) {
+    maxh = (HISTORY(move) += (temp * temp));
+    for(int i = 0; i < pstack->current_index - 1;i++) {
+        MOVE mv = pstack->move_st[i];
+        if(!is_cap_prom(mv)) {
+            maxh1 = -(HISTORY(mv) -= (temp * temp));
+            if(maxh1 > maxh) maxh = maxh1;
+        }
+    }
+    if(maxh >= MAX_HIST) {
         for(i = 0;i < 14;i++)
             for(j = 0;j < 64;j++)
                 history[i][j] >>= 1;
@@ -1665,7 +1671,7 @@ void SEARCHER::update_history(MOVE move) {
     MOVE cMove;
     if(hply >= 1 && (cMove = hstack[hply - 1].move) 
         && pstack->depth > UNITDEPTH) {
-        REFUTE(cMove) = move;
+        REFUTATION(cMove) = move;
     }
 }
 void SEARCHER::clear_history() {
@@ -1677,5 +1683,5 @@ void SEARCHER::clear_history() {
 }
 
 #undef HISTORY
-#undef REFUTE
+#undef REFUTATION
 

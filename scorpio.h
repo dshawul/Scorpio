@@ -113,7 +113,7 @@ enum search_states {
     NULL_MOVE = 1,NORMAL_MOVE = 2,MOVE_MASK = 3,PROBCUT_SEARCH = 4,IID_SEARCH = 8,SINGULAR_SEARCH = 16
 };
 enum move_gen_status {
-    GEN_START, GEN_RESET, GEN_RESET_SORT, GEN_AVAIL, GEN_HASHM, GEN_CAPS, GEN_QNONCAPS, 
+    GEN_START, GEN_RESET, GEN_AVAIL, GEN_HASHM, GEN_CAPS, GEN_QNONCAPS, 
     GEN_KILLERS = 6, GEN_NONCAPS, GEN_LOSCAPS, GEN_END
 };
 enum square_names {
@@ -400,7 +400,8 @@ typedef struct STACK{
     int noncap_start;
     bool all_done;
     bool second_pass;
-    MOVE killer[3];
+    MOVE killer[2];
+    MOVE refutation;
     int qcheck_depth;
     int actual_score;
     UBMP64 start_nodes;
@@ -642,7 +643,7 @@ typedef struct SEARCHER{
     static int resign_count;
     static CHESS_CLOCK chess_clock;
     static UBMP64 root_score_st[MAX_MOVES];
-    static CACHE_ALIGN unsigned int history[14][64];
+    static CACHE_ALIGN int history[14][64];
     static CACHE_ALIGN MOVE refutation[14][64];
     /*
     Bitbases

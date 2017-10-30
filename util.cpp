@@ -778,7 +778,8 @@ void SEARCHER::COPY(SEARCHER* srcSearcher) {
     /*killers*/
     for(i = 0;i < MAX_PLY;i++) {
         stack[i].killer[0] = srcSearcher->stack[i].killer[0];
-        stack[i].killer[1] = srcSearcher->stack[i].killer[1]; 
+        stack[i].killer[1] = srcSearcher->stack[i].killer[1];
+        stack[i].refutation = srcSearcher->stack[i].refutation;
     }
 
     /*stack copying: only important staff*/
@@ -854,13 +855,13 @@ void init_io() {
     const int MAX_LOGS = 1000;
 TOP:
     for(i = 0;i < MAX_LOGS; i++){
-        sprintf(log_name,"./log/log%03d.txt",i);
+        sprintf(log_name,"log/log%03d.txt",i);
         if((log_file = fopen(log_name ,"r")) == 0) break;
         fclose(log_file);
     }
     if(i >= MAX_LOGS) {
         for(i = 0;i < MAX_LOGS; i++){
-            sprintf(log_name,"./log/log%03d.txt",i);
+            sprintf(log_name,"log/log%03d.txt",i);
             remove(log_name);
         }
         goto TOP;

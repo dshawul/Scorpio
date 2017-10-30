@@ -13,7 +13,7 @@ static int contempt = PAWN_VALUE / 50;
 static int futility_margin = PAWN_VALUE;
 static int singular_margin = PAWN_VALUE / 4;
 static int probcut_margin = 3 * PAWN_VALUE / 2;
-static int aspiration_window = PAWN_VALUE / 10;
+static int aspiration_window = PAWN_VALUE / 20;
 
 #define extend(value) {                      \
     extension += value;                      \
@@ -375,6 +375,7 @@ int SEARCHER::be_selective() {
     late move reduction
     */
     if(!pstack->extension && noncap_reduce) {
+        //by number of moves searched so far including current move
         if(nmoves >=  2 && pstack->depth > UNITDEPTH) reduce(UNITDEPTH);
         if(nmoves >=  4 && pstack->depth > UNITDEPTH) reduce(UNITDEPTH);
         if(nmoves >=  6 && pstack->depth > UNITDEPTH) reduce(UNITDEPTH);
@@ -383,7 +384,14 @@ int SEARCHER::be_selective() {
         if(nmoves >= 20 && pstack->depth > UNITDEPTH) reduce(UNITDEPTH);
         if(nmoves >= 24 && pstack->depth > UNITDEPTH) reduce(UNITDEPTH);
         if(nmoves >= 32 && pstack->depth > UNITDEPTH) reduce(UNITDEPTH);
-        if(nmoves >=  2 && pstack->depth > UNITDEPTH && node_t == CUT_NODE) reduce(UNITDEPTH);
+        //lets find more excuses to reduce
+        if(pstack->depth > UNITDEPTH) {
+            if(node_t == ALL_NODE && nmoves >= 2) { reduce(UNITDEPTH); }
+            else if(node_t == CUT_NODE && nmoves >=4 ) { reduce(UNITDEPTH); }
+        }
+        //we'r not done yet
+        if(nmoves >= 2 && is_cap_prom((pstack-1)->hash_move) && pstack->depth > UNITDEPTH ) 
+            reduce(UNITDEPTH);
     }
     /*losing captures*/
     if(!pstack->extension && loscap_reduce) {
@@ -470,7 +478,7 @@ START:
                     else
                         sb->pstack->alpha = sb->pstack->alpha - probcut_margin;
                     sb->pstack->beta = sb->pstack->alpha + 1;
-                    sb->pstack->depth -= 3 * UNITDEPTH;
+                    sb->pstack->depth -= 4 * UNITDEPTH;
                     sb->pstack->search_state |= NORMAL_MOVE; 
                 } else {
                     sb->pstack->search_state = IID_SEARCH;
@@ -833,11 +841,9 @@ IDLE_START:
                 break;
             }
 #endif
-            /*save nodes count in score*/
-            sb->pstack->score_st[sb->pstack->current_index - 1] = 
-                5000 + int(sb->nodes - sb->pstack->start_nodes);
             /*update best move at root and non-root nodes differently*/
             if(!sb->ply) {
+
                 l_lock(lock_smp);
                 sb->root_score_st[sb->pstack->current_index - 1] 
                       += (sb->nodes - sb->pstack->start_nodes);
@@ -900,6 +906,8 @@ IDLE_START:
 SPECIAL:
         switch(sb->pstack->search_state & ~MOVE_MASK) {
         case PROBCUT_SEARCH:
+            if(!sb->pstack->hash_move)
+                sb->pstack->hash_move = sb->pstack->best_move;
             if((sb->pstack->flag == LOWER && sb->pstack->node_type == CUT_NODE) ||
                (sb->pstack->flag == UPPER && sb->pstack->node_type == ALL_NODE) )
                 goto POP;
@@ -914,30 +922,7 @@ SPECIAL:
             if(sb->pstack->flag == EXACT || sb->pstack->flag == LOWER)
                 sb->pstack->hash_flags = HASH_GOOD;
             sb->pstack->search_state = SINGULAR_SEARCH;
-            /*Sort moves and reset move generation status*/
-            if(sb->pstack->flag == LOWER) {
-                /*put two moves with highest nodes count in killers*/
-                sb->pstack->gen_status = GEN_START;
-                int kcount = 0;
-                for(int i = 0;i < sb->pstack->count;i++) {
-                    sb->pstack->sort(i,sb->pstack->count);
-                    move = sb->pstack->move_st[i];
-                    if(!is_cap_prom(move) && move != sb->pstack->best_move) {
-                        sb->pstack->killer[kcount++] = move;
-                        if(kcount == 2) break;
-                    }
-                }
-            } else {
-                /*put best move first*/
-                sb->pstack->gen_status = GEN_RESET_SORT;
-                for(int i = 0;i < sb->pstack->count;i++) {
-                    if(sb->pstack->hash_move == sb->pstack->move_st[i]) {
-                        sb->pstack->score_st[i] = MAX_NUMBER;
-                        break;
-                    }
-                }
-            }
-            /*end*/
+            sb->pstack->gen_status = GEN_START;
             break;
         case SINGULAR_SEARCH:
             if(sb->pstack->flag == UPPER)
