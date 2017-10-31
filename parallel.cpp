@@ -724,7 +724,7 @@ int SEARCHER::get_smp_move() {
 * Create/kill search thread
 */
 void CDECL thread_proc(void* id) {
-    long tid = (long)id;
+    long tid = *((long*)id);
     PPROCESSOR proc = new PROCESSOR();
     proc->searcher = NULL;
     proc->state = PARK;
@@ -736,7 +736,7 @@ void CDECL thread_proc(void* id) {
 }
 void PROCESSOR::create(int id) {
     long tid = id;
-    t_create(thread_proc,tid);
+    t_create(thread_proc,&tid);
     int nidx = n_idle_processors;
     while(n_idle_processors == nidx) 
         t_yield();

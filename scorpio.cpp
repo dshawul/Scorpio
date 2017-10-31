@@ -682,7 +682,7 @@ bool parse_commands(char** commands) {
 
             char input[MAX_STR],fen[MAX_STR];
             char* words[100];
-            double frac;
+            double frac = 1;
             int sc,sce,test,visited,result,nwords;
 
             if(!strcmp(command,"runeval")) test = 0;
@@ -701,9 +701,12 @@ bool parse_commands(char** commands) {
 
             FILE *fd = 0;
             if(getfen) {
+#ifndef _WIN32
                 if(mem_epdfile)
                     fd = fmemopen(mem_epdfile, strlen(mem_epdfile), "r");
-                else {
+                else 
+#endif
+                {
                     fd = fopen(commands[command_num++],"r");
                     if(!fd) {
                         print("epd file not found!\n");

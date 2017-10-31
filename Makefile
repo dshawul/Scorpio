@@ -71,6 +71,9 @@ else ifeq ($(COMP),icpc)
 else ifeq ($(COMP),arm)
 	CXX=arm-linux-androideabi-g++
 	STRIP=arm-linux-androideabi-strip
+else ifeq ($(COMP),win)
+	CXX=x86_64-w64-mingw32-g++
+	STRIP=x86_64-w64-mingw32-strip
 endif
 
 STRIP += $(EXE)
@@ -83,7 +86,12 @@ ifeq ($(COMP),pgcc)
         LXXFLAGS = -lm -ldl -lpthread
 else
         CXXFLAGS = -Wall -fstrict-aliasing -fno-exceptions -fno-rtti -Wno-unused-result
-        LXXFLAGS = -lm -ldl
+        LXXFLAGS = -lm
+        ifneq ($(COMP),win)
+        	LXXFLAGS += -ldl
+        else
+        	LXXFLAGS += -static
+        endif
 endif
 
 ifeq ($(COMP),gcc)
@@ -92,8 +100,6 @@ ifeq ($(COMP),gcc)
 else ifeq ($(COMP),icpc)
         CXXFLAGS += -wd128 -wd981 -wd869 -wd2259 -wd383 -wd1418
         LXXFLAGS += -lpthread
-else ifeq ($COMP),pgcc)
-
 endif
 
 ifeq ($(DEBUG),3)

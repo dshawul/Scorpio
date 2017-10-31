@@ -44,14 +44,19 @@ Os stuff
 #    include <windows.h>
 #    undef CDECL
 #    define CDECL __cdecl
-#    define UINT64(x) (x##ui64)
-#    define FMTU64   "%016I64x"
-#    define FMT64    "%I64d"
-#    define FMT64W   "%20I64d"
 #    define GETPID()  _getpid()
 #else
 #    include <unistd.h>
 #    define CDECL
+#    define GETPID()  getpid()
+#endif
+
+#ifdef _MSC_VER
+#    define UINT64(x) (x##ui64)
+#    define FMTU64   "%016I64x"
+#    define FMT64    "%I64d"
+#    define FMT64W   "%20I64d"
+#else
 #    ifdef ARC_64BIT
 #        define UINT64
 #    else
@@ -60,13 +65,13 @@ Os stuff
 #    define FMTU64     "%016llx"
 #    define FMT64      "%lld"
 #    define FMT64W     "%20lld"
-#    define GETPID()  getpid()
 #endif
-
 /*
 Force inline
 */
 #if defined (_MSC_VER)
+#  define FORCEINLINE  __forceinline
+#elif defined (__MINGW32__)
 #  define FORCEINLINE  __forceinline
 #elif defined (__GNUC__)
 #  define FORCEINLINE  __inline __attribute__((always_inline))
