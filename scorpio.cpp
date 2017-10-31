@@ -769,8 +769,10 @@ bool parse_commands(char** commands) {
                         if(!fgets(input,MAX_STR,fd))
                             continue;
                     }
-                    /*sample a few*/
-                    if(test >= 3) {
+                    /*sample a few: This is called a mini-batch gradient descent
+                     with bootstrap sampling. In the standard mini-batch GD the sampling
+                     of training positions is done without replacement.*/
+                    if(test >= 3 && frac > 1e-6) {
                         double r = double(rand()) / RAND_MAX;
                         if(r >= frac) continue;
                     }
