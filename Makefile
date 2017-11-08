@@ -66,6 +66,8 @@ else ifeq ($(COMP),pgcc)
 	CXX=pgc++
 else ifeq ($(COMP),gcc)
 	CXX=g++
+else ifeq ($(COMP),clang)
+	CXX=clang++
 else ifeq ($(COMP),icpc)
 	CXX=icpc
 else ifeq ($(COMP),arm)
@@ -94,11 +96,11 @@ else
         endif
 endif
 
-ifeq ($(COMP),gcc)
-        CXXFLAGS += -msse
-        LXXFLAGS += -lpthread
-else ifeq ($(COMP),icpc)
+ifeq ($(COMP),icpc)
         CXXFLAGS += -wd128 -wd981 -wd869 -wd2259 -wd383 -wd1418
+        LXXFLAGS += -lpthread
+else
+        CXXFLAGS += -msse
         LXXFLAGS += -lpthread
 endif
 
@@ -135,7 +137,10 @@ else
         else ifeq ($(COMP),pgcc)
                 CXXFLAGS += -fast noframe
         else
-                CXXFLAGS += -Ofast -fomit-frame-pointer -flto
+                CXXFLAGS += -Ofast -fomit-frame-pointer
+                ifneq ($(COMP),clang)
+                    CXXFLAGS += -flto
+                endif
         endif
 endif
 

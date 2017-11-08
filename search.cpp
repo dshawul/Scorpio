@@ -1,6 +1,6 @@
 #include "scorpio.h"
 
-static const int PAWN_VALUE = 100;
+static const int PAWN_VALUE = 130;
 static const int CHECK_DEPTH = UNITDEPTH;
 static const int use_nullmove = 1;
 static const int use_selective = 1;
@@ -75,7 +75,7 @@ bool SEARCHER::hash_cutoff() {
     /*cutoff*/
     if(pstack->singular && pstack->hash_flags != HASH_GOOD)
         pstack->singular = 0;
-    if(pstack->node_type != PV_NODE
+    if((pstack->node_type != PV_NODE || (ply > 0 && pstack->hash_depth > pstack->depth))
         && pstack->hash_flags >= EXACT
         && pstack->hash_flags <= LOWER
         ) {
@@ -387,7 +387,7 @@ int SEARCHER::be_selective() {
         //lets find more excuses to reduce
         if(pstack->depth > UNITDEPTH) {
             if(node_t == ALL_NODE && nmoves >= 2) { reduce(UNITDEPTH); }
-            else if(node_t == CUT_NODE && nmoves >=4 ) { reduce(UNITDEPTH); }
+            else if(node_t == CUT_NODE && nmoves >= 4 ) { reduce(UNITDEPTH); }
         }
         //we'r not done yet
         if(nmoves >= 2 && is_cap_prom((pstack-1)->hash_move) && pstack->depth > UNITDEPTH ) 
