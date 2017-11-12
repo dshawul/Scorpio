@@ -385,13 +385,16 @@ int SEARCHER::be_selective() {
         if(nmoves >= 24 && pstack->depth > UNITDEPTH) reduce(UNITDEPTH);
         if(nmoves >= 32 && pstack->depth > UNITDEPTH) reduce(UNITDEPTH);
         //lets find more excuses to reduce
-        if(pstack->depth > UNITDEPTH) {
-            if(node_t == ALL_NODE && nmoves >= 2) { reduce(UNITDEPTH); }
-            else if(node_t == CUT_NODE && nmoves >= 4 ) { reduce(UNITDEPTH); }
+        //all and cut nodes
+        if( (node_t == ALL_NODE && nmoves >= 2) ||
+            (node_t == CUT_NODE && nmoves >= 4) ) { 
+            if(pstack->depth > UNITDEPTH) { reduce(UNITDEPTH); }
         }
-        //we'r not done yet
-        if(nmoves >= 2 && is_cap_prom((pstack-1)->hash_move) && pstack->depth > UNITDEPTH ) 
+        //pv is capture move
+        if(nmoves >= 2 && (pstack-1)->hash_move == (pstack-1)->best_move &&
+            is_cap_prom((pstack-1)->hash_move) && pstack->depth > UNITDEPTH) {
             reduce(UNITDEPTH);
+        }
     }
     /*losing captures*/
     if(!pstack->extension && loscap_reduce) {
