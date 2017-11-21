@@ -222,8 +222,8 @@ Squares are of 0x88 type
 #define SQ(x,y)          (((x) << 4) | (y))
 #define SQ64(x,y)        (((x) << 3) | (y))
 #define SQ32(x,y)        (((x) << 2) | (y))
-#define SQ8864(x)        SQ64(rank(x),file(x))
-#define SQ6488(x)        SQ(rank64(x),file64(x))
+#define SQ8864(x)        (((x) + ((x) & 7)) >> 1)
+#define SQ6488(x)        ((x) + ((x) & 070))
 #define SQ6448(x)        ((x) - 8)
 #define SQ4864(x)        ((x) + 8)   
 #define MIRRORF(sq)      ((sq) ^ 0x07)
@@ -947,6 +947,7 @@ FORCEINLINE int popcnt(BITBOARD b) {
     return (int) ((b * kf) >> 56);
 }
 #endif
+#if !defined(HAS_BSF)
 /*
 64bit LSB bitscan from Lieserson etal. 
 Private bitscan routine (64bit deBruijin) generated using Gerd Isenberg's code.
@@ -966,6 +967,12 @@ const unsigned int table[64] =  {
 FORCEINLINE unsigned int first_one(BITBOARD b) {
     return table[((b & -b) * magic) >> 58];
 }
+#else
+FORCEINLINE unsigned int first_one(BITBOARD b) {
+    unsigned int x = bsf(b);
+    return SQ6488(x);
+}
+#endif
 
 #   else
 

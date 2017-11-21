@@ -12,6 +12,7 @@ For others, they are set in Makefile
 #define PARALLEL
 #define USE_SPINLOCK
 #endif
+#define HAS_BSF HAS_POPCNT
 /*
 int types
 */
@@ -66,48 +67,71 @@ Os stuff
 #    define FMT64      "%lld"
 #    define FMT64W     "%20lld"
 #endif
+
 /*
 Force inline
 */
+#if !defined(FORCEINLINE)
 #if defined (_MSC_VER)
-#  define FORCEINLINE  __forceinline
-#elif defined (__MINGW32__)
 #  define FORCEINLINE  __forceinline
 #elif defined (__GNUC__)
 #  define FORCEINLINE  __inline __attribute__((always_inline))
 #else
 #  define FORCEINLINE  __inline
 #endif
+#endif
 
 /*
 Intrinsic popcnt
 */
 #if defined(HAS_POPCNT) && defined(ARC_64BIT)
-#   if defined (__GNUC__)
+#   if defined(__GNUC__)
 #       define popcnt(x)                                \
     ({                                                  \
     typeof(x) __ret;                                    \
     __asm__("popcnt %1, %0" : "=r" (__ret) : "r" (x));  \
     __ret;                                              \
 })
-#   elif defined(_MSC_VER) && defined(__INTEL_COMPILER)
+#   elif defined(__INTEL_COMPILER)
 #       include <nmmintrin.h>
 #       define popcnt(b) _mm_popcnt_u64(b)
-#   else
-#       include<intrin.h>
+#   elif defined(_MSC_VER)
+#       include <intrin.h>
 #       define popcnt(b) __popcnt64(b)
 #   endif
 #   define popcnt_sparse(b) popcnt(b)
 #endif 
 
 /*
+Intrinsic bsf
+*/
+#if defined(HAS_BSF) && defined(ARC_64BIT)
+#   if defined(__GNUC__)
+#       define bsf(b) __builtin_ctzll(b)
+#       define bsr(b) (63 - __builtin_clzll(b))
+#   elif defined(_MSC_VER)
+#       include <intrin.h>
+        FORCEINLINE int bsf() {
+            unsigned long x;
+            _BitScanForward64(&x, b);
+            return (int) x;
+        }
+        FORCEINLINE int bsr() {
+            unsigned long x;
+            _BitScanReverse64(&x, b);
+            return (int) x;
+        }
+#   endif
+#endif
+
+/*
 Byte swap
 */
-#if defined (__GNUC__)
+#if defined(__GNUC__)
 #   define bswap32(x)  __builtin_bswap32(x)
-#elif defined(_MSC_VER) && defined(__INTEL_COMPILER)
+#elif defined(__INTEL_COMPILER)
 #   define bswap32(x)  _bswap(x)
-#else
+#elif defined(_MSC_VER)
 #   define bswap32(x)  _byteswap_ulong(x)
 #endif
 
