@@ -50,6 +50,8 @@ static evaluator
 #define   MAX_MATERIAL    64
 
 int SEARCHER::eval() {
+    int phase = piece_c[white] + piece_c[black];
+    phase = MIN(phase,MAX_MATERIAL);
     /*
     check_eval hash table
     */
@@ -57,6 +59,8 @@ int SEARCHER::eval() {
     if(probe_eval_hash(hash_key,pstack->actual_score)) {
         if(player == black)
             pstack->actual_score = -pstack->actual_score;
+        
+        pstack->actual_score += (TEMPO_BONUS + (phase * TEMPO_SLOPE) / MAX_MATERIAL);
         return pstack->actual_score;
     }
 #endif
@@ -69,9 +73,7 @@ int SEARCHER::eval() {
     int fw_ksq = file(w_ksq), rw_ksq = rank(w_ksq);
     int fb_ksq = file(b_ksq), rb_ksq = rank(b_ksq);
     int w_win_chance = 8,b_win_chance = 8,temp;
-    int phase = piece_c[white] + piece_c[black];
 
-    phase = MIN(phase,MAX_MATERIAL);
 #ifdef TUNE
     material = phase;
 #endif
@@ -175,10 +177,10 @@ int SEARCHER::eval() {
 
     /*king attack/defence*/
     if(eval_b_attack) {
-        b_score.addm((PAWN_GUARD * pawnrec.b_s_attack) / 16);
+        b_score.addm(pawnrec.b_s_attack);
     }
     if(eval_w_attack) {
-        w_score.addm((PAWN_GUARD * pawnrec.w_s_attack) / 16);
+        w_score.addm(pawnrec.w_s_attack);
     }
     /*
     pieces
@@ -627,6 +629,20 @@ int SEARCHER::eval() {
     }
 
     /*
+    attacked pieces
+    */
+    bb = wattacks_bb & pieces_bb[black];
+    if(bb) {
+        temp = popcnt_sparse(bb);
+        w_score.add(ATTACKED_PIECE * temp * temp);
+    }
+    bb = battacks_bb & pieces_bb[white];
+    if(bb) {
+        temp = popcnt_sparse(bb);
+        b_score.add(ATTACKED_PIECE * temp * temp);
+    }
+
+    /*
     adjust score and save in tt
     */
     if(player == white) {
@@ -653,6 +669,7 @@ int SEARCHER::eval() {
 #endif
     }
 
+    pstack->actual_score += (TEMPO_BONUS + (phase * TEMPO_SLOPE) / MAX_MATERIAL);
     return pstack->actual_score;
 }
 /*
@@ -791,7 +808,7 @@ void SEARCHER::eval_pawn_cover(int eval_w_attack,int eval_b_attack,
                 }
             }
         }
-        pawnrec.b_s_attack -= (10 * defence); 
+        pawnrec.b_s_attack -= (PAWN_GUARD * defence); 
         
         /*pawn storm on white king*/
         if(f_distance(w_ksq,b_ksq) > 2)  {
@@ -799,13 +816,13 @@ void SEARCHER::eval_pawn_cover(int eval_w_attack,int eval_b_attack,
             if(((r1 = first_bit[bf_pawns[f]]) == 8) || (r1 <= r + 1)) r1 = RANK8;
             if(((r2 = (f == FILEA ? 8 : first_bit[bf_pawns[f - 1]])) == 8) || (r2 <= r + 1)) r2 = RANK8;
             if(((r3 = (f == FILEH ? 8 : first_bit[bf_pawns[f + 1]])) == 8) || (r3 <= r + 1)) r3 = RANK8;
-            pawnrec.b_s_attack += (21 - (r1 + r2 + r3)) * 8;
+            pawnrec.b_s_attack += (21 - (r1 + r2 + r3)) * PAWN_STORM;
         }
         
         /*open files around king*/
-        if(!(all_pawn_f & mask[f])) pawnrec.b_s_attack += 20;
-        if(f > FILEA && !(all_pawn_f & mask[f - 1])) pawnrec.b_s_attack += 10;
-        if(f < FILEH && !(all_pawn_f & mask[f + 1])) pawnrec.b_s_attack += 10;
+        if(!(all_pawn_f & mask[f])) pawnrec.b_s_attack += KING_ON_OPEN;
+        if(f > FILEA && !(all_pawn_f & mask[f - 1])) pawnrec.b_s_attack += KING_ON_OPEN / 2;
+        if(f < FILEH && !(all_pawn_f & mask[f + 1])) pawnrec.b_s_attack += KING_ON_OPEN / 2;
         
         /*penalize king sitting on half open files,and centre squares*/
         pawnrec.b_attack += (king_on_file[f] +
@@ -879,7 +896,7 @@ void SEARCHER::eval_pawn_cover(int eval_w_attack,int eval_b_attack,
                 }
             }
         }
-        pawnrec.w_s_attack -= (10 * defence);
+        pawnrec.w_s_attack -= (PAWN_GUARD * defence);
         
         /*pawn storm on black king*/
         if(f_distance(w_ksq,b_ksq) > 2)  {
@@ -887,13 +904,13 @@ void SEARCHER::eval_pawn_cover(int eval_w_attack,int eval_b_attack,
             if(((r1 = last_bit[wf_pawns[f]]) == 8) || (r1 >= r - 1)) r1 = RANK1;
             if(((r2 = (f == FILEA ? 8 : last_bit[wf_pawns[f - 1]])) == 8) || (r2 >= r - 1)) r2 = RANK1;
             if(((r3 = (f == FILEH ? 8 : last_bit[wf_pawns[f + 1]])) == 8) || (r3 >= r - 1)) r3 = RANK1;
-            pawnrec.w_s_attack += (r1 + r2 + r3) * 8;
+            pawnrec.w_s_attack += (r1 + r2 + r3) * PAWN_STORM;
         }
         
         /*open files around king*/
-        if(!(all_pawn_f & mask[f])) pawnrec.w_s_attack += 20;
-        if(f > FILEA && !(all_pawn_f & mask[f - 1])) pawnrec.w_s_attack += 10;
-        if(f < FILEH && !(all_pawn_f & mask[f + 1])) pawnrec.w_s_attack += 10;
+        if(!(all_pawn_f & mask[f])) pawnrec.w_s_attack += KING_ON_OPEN;
+        if(f > FILEA && !(all_pawn_f & mask[f - 1])) pawnrec.w_s_attack += KING_ON_OPEN / 2;
+        if(f < FILEH && !(all_pawn_f & mask[f + 1])) pawnrec.w_s_attack += KING_ON_OPEN / 2;
         
         /*penalize king sitting on half open files and centre squares*/
         pawnrec.w_attack += (king_on_file[f] +
@@ -1024,7 +1041,7 @@ SCORE SEARCHER::eval_pawns(int eval_w_attack,int eval_b_attack,
             if(updown_mask[r] & bf_pawns[f]) {
                 score.add(PAWN_DOUBLED_MG,PAWN_DOUBLED_EG);
             }
-            /*duo/weak/isolated pawns*/
+            /*weak/isolated pawns*/
             if((f == FILEA || !bf_pawns[f - 1]) &&
                       (f == FILEH || !bf_pawns[f + 1]) ) {
                 if(!(down_mask[r] & (bf_pawns[f] | wf_pawns[f])))
@@ -1120,25 +1137,15 @@ int SEARCHER::eval_passed_pawns(UBMP8* wf_pawns,UBMP8* bf_pawns,UBMP8& all_pawn_
 
         passed_score = rank_score = passed_bonus[r];
 
-        /*Support/Attack*/
-        if(wp_attacks(sq + UU))
-            passed_score += rank_score;
-
+        //blocked
         if(board[sq + UU] != blank)
-            passed_score -= rank_score / 2;
+            passed_score -= (PASSER_BLOCKED * rank_score) / 32;
 
-        if(wp_attacks(sq))
-            passed_score += rank_score / 4;
+        //distance to kings
+        passed_score += (PASSER_KING_ATTACK * rank_score * distance(b_ksq,sq + UU)) / 128;
+        passed_score += (PASSER_KING_SUPPORT * rank_score * (9 - distance(sq,w_ksq))) / 256;
         
-        if(piece_c[black] < 9) {
-            passed_score += (rank_score * distance(b_ksq,sq + UU)) / 8;
-            passed_score += (rank_score * (9 - distance(sq,w_ksq))) / 12;
-        } else {
-            passed_score += (rank_score * distance(b_ksq,sq + UU)) / 12;
-            passed_score += (rank_score * (9 - distance(sq,w_ksq))) / 16;
-        }
-        
-        /*opponent has no pieces*/
+        //opponent has no pieces
         if(piece_c[black] == 0) {
             qdist = RANK8 - r;
             if(player == black) qdist++;
@@ -1151,7 +1158,7 @@ int SEARCHER::eval_passed_pawns(UBMP8* wf_pawns,UBMP8* bf_pawns,UBMP8& all_pawn_
                 w_best_qdist = MIN(qdist,w_best_qdist);
             }
         }
-        /*end*/
+        
         w_score += passed_score;
 
         passed ^= mask[f];
@@ -1163,26 +1170,16 @@ int SEARCHER::eval_passed_pawns(UBMP8* wf_pawns,UBMP8* bf_pawns,UBMP8& all_pawn_
         sq = SQ(r,f);
 
         passed_score = rank_score = passed_bonus[7 - r];
-
-        /*Support/Attack*/
-        if(bp_attacks(sq + DD))
-            passed_score += rank_score;
         
+        //blocked
         if(board[sq + DD] != blank)
-            passed_score -= rank_score / 2;
+            passed_score -= (PASSER_BLOCKED * rank_score) / 32;
 
-        if(bp_attacks(sq))
-            passed_score += rank_score / 4;
-        
-        if(piece_c[white] < 9) {
-            passed_score += (rank_score * distance(w_ksq,sq + DD)) / 8;
-            passed_score += (rank_score * (9 - distance(b_ksq,sq))) / 12;
-        } else {
-            passed_score += (rank_score * distance(w_ksq,sq + DD)) / 12;
-            passed_score += (rank_score * (9 - distance(b_ksq,sq))) / 16;
-        }
+        //distance to kings
+        passed_score += (PASSER_KING_ATTACK * rank_score * distance(w_ksq,sq + DD)) / 128;
+        passed_score += (PASSER_KING_SUPPORT * rank_score * (9 - distance(b_ksq,sq))) / 256;
             
-        /*opponent has no pieces*/
+        //opponent has no pieces
         if(piece_c[white] == 0) {
             qdist = r;
             if(player == white) qdist++;
@@ -1195,7 +1192,7 @@ int SEARCHER::eval_passed_pawns(UBMP8* wf_pawns,UBMP8* bf_pawns,UBMP8& all_pawn_
                 b_best_qdist = MIN(qdist,b_best_qdist);
             }
         }
-        /*end*/
+
         b_score += passed_score;
 
         passed ^= mask[f];
@@ -1207,6 +1204,7 @@ int SEARCHER::eval_passed_pawns(UBMP8* wf_pawns,UBMP8* bf_pawns,UBMP8& all_pawn_
     } else if(b_best_qdist < w_best_qdist) {
         b_score += 600;
     }
+    
     /*king close to pawn center*/
     if(!piece_c[white] || !piece_c[black]) {
         int wclos = (7 - ABS(center_bit[all_pawn_f] - file(w_ksq)));
@@ -1221,21 +1219,21 @@ int SEARCHER::eval_passed_pawns(UBMP8* wf_pawns,UBMP8* bf_pawns,UBMP8& all_pawn_
     if((pawns = pawnrec.w_pawn_f) != 0 && piece_c[black] == 3 && man_c[bknight] == 1) {
         strech = last_bit[pawns] - first_bit[pawns];
         if(pawnrec.w_passed) {
-            if(strech > 2) w_score += 50;
-            else w_score += 25;
+            if(strech > 2) w_score += PAWNS_VS_KNIGHT;
+            else w_score += PAWNS_VS_KNIGHT / 2;
         } else {
-            if(strech > 2) w_score += 25;
-            else w_score += 12;
+            if(strech > 2) w_score += PAWNS_VS_KNIGHT / 2;
+            else w_score += PAWNS_VS_KNIGHT / 4;
         }
     }
     if((pawns = pawnrec.b_pawn_f) != 0 && piece_c[white] == 3 && man_c[wknight] == 1) {
         strech = last_bit[pawns] - first_bit[pawns];
         if(pawnrec.b_passed) {
-            if(strech > 2) b_score += 50;
-            else b_score += 25;
+            if(strech > 2) b_score += PAWNS_VS_KNIGHT;
+            else b_score += PAWNS_VS_KNIGHT / 2;
         } else {
-            if(strech > 2) b_score += 25;
-            else b_score += 12;
+            if(strech > 2) b_score += PAWNS_VS_KNIGHT / 2;
+            else b_score += PAWNS_VS_KNIGHT / 4;
         }
     }
     /*end*/
@@ -1331,8 +1329,8 @@ void SEARCHER::eval_win_chance(SCORE& w_score,SCORE& b_score,int& w_win_chance,i
     pawn endgames
     */
     if(w_piece_value_c + b_piece_value_c == 0) {
-        if(w_pawn_c > b_pawn_c) w_score.adde(100);
-        else if(b_pawn_c > w_pawn_c) b_score.adde(100);
+        if(w_pawn_c > b_pawn_c) w_score.adde(EXTRA_PAWN);
+        else if(b_pawn_c > w_pawn_c) b_score.adde(EXTRA_PAWN);
     }
     /*
     mating lone king
@@ -1470,6 +1468,7 @@ void SEARCHER::eval_win_chance(SCORE& w_score,SCORE& b_score,int& w_win_chance,i
     one pawn
     */
     if(w_pawn_c == 1
+        && w_piece_value_c
         && w_piece_value_c <= b_piece_value_c
         ) {
         if(w_piece_value_c == 3) {
@@ -1483,6 +1482,7 @@ void SEARCHER::eval_win_chance(SCORE& w_score,SCORE& b_score,int& w_win_chance,i
         }
     }
     if(b_pawn_c == 1
+        && b_piece_value_c
         && b_piece_value_c <= w_piece_value_c
         ) {
         if(b_piece_value_c == 3) {
@@ -1591,7 +1591,7 @@ static double get_scale(double eloD, double eloH) {
 }
 double get_log_likelihood(int result, double se) {
     double factor_m = double(material) / MAX_MATERIAL;
-    int eloH = ELO_HOME + factor_m * ELO_HOME_SLOPE_PHASE;
+    int eloH = 0; //we have stm bonus
     int eloD = ELO_DRAW + factor_m * ELO_DRAW_SLOPE_PHASE;
     double scale = get_scale(eloD,eloH);
     se = se / scale;
@@ -1754,7 +1754,7 @@ void writeParams(double* params) {
         *(modelParameters[i].value) = int(round(params[i + nParameters]));
 }
 void init_parameters() {
-    int act = 1, actp = 0, acta = 0;
+    int act = 0, actp = 0, acta = 0, actm = 0, actn = 0;
 
 #define ADD(x,ln,f,minv,maxv,act)                                   \
     if(act) parameters.push_back(vPARAM(x,ln,f,minv,maxv,#x));      \
@@ -1770,7 +1770,10 @@ void init_parameters() {
     ADD(ATTACK_WEIGHT,0,0,0,128,act);
     ADD(TROPISM_WEIGHT,0,0,0,128,act);
     ADD(PAWN_GUARD,0,0,0,128,act);
+    ADD(PAWN_STORM,0,0,0,128,act);
+    ADD(KING_ON_OPEN,0,0,0,128,act);
     ADD(HANGING_PENALTY,0,0,0,100,act);
+    ADD(ATTACKED_PIECE,0,0,0,100,act);
     ADD(KNIGHT_OUTPOST_MG,0,0,0,128,act);
     ADD(KNIGHT_OUTPOST_EG,0,0,0,128,act);
     ADD(BISHOP_OUTPOST_MG,0,0,0,128,act);
@@ -1783,8 +1786,12 @@ void init_parameters() {
     ADD(ROOK_MOB_EG,0,0,0,128,act);
     ADD(QUEEN_MOB_MG,0,0,0,128,act);
     ADD(QUEEN_MOB_EG,0,0,0,128,act);
-    ADD(PASSER_MG,0,0,0,128,act);
-    ADD(PASSER_EG,0,0,0,128,act);
+    ADD(PASSER_MG,0,0,0,128,actn);
+    ADD(PASSER_EG,0,0,0,128,actn);
+    ADD(PASSER_BLOCKED,0,0,0,128,act);
+    ADD(PASSER_KING_SUPPORT,0,0,0,128,act);
+    ADD(PASSER_KING_ATTACK,0,0,0,128,act);
+    ADD(PAWNS_VS_KNIGHT,0,0,0,128,act);
     ADD(CANDIDATE_PP_MG,0,0,0,128,act);
     ADD(CANDIDATE_PP_EG,0,0,0,128,act);
     ADD(PAWN_DOUBLED_MG,0,0,0,128,act);
@@ -1804,6 +1811,7 @@ void init_parameters() {
     ADD(TRAPPED_BISHOP,0,0,0,400,act);
     ADD(TRAPPED_KNIGHT,0,0,0,400,act);
     ADD(TRAPPED_ROOK,0,0,0,400,act);
+    ADD(EXTRA_PAWN,0,0,0,400,act);
     ADD(QUEEN_MG,0,wqueen,0,4000,act);
     ADD(QUEEN_EG,0,bqueen,0,4000,act);
     ADD(ROOK_MG,0,wrook,0,2000,act);
@@ -1821,6 +1829,8 @@ void init_parameters() {
     ADD(MINORS3_v_MAJOR,0,0,0,400,act);
     ADD(MINORS2_v_MAJOR,0,0,0,400,act);
     ADD(ROOK_v_MINOR,0,0,0,400,act);
+    ADD(TEMPO_BONUS,0,0,0,400,act);
+    ADD(TEMPO_SLOPE,0,0,0,400,act);
     ADD_ARRAY(king_pcsq,64,wking,0,100,actp);
     ADD_ARRAY(queen_pcsq,64,wqueen,0,100,actp);
     ADD_ARRAY(rook_pcsq,64,wrook,0,100,actp);
@@ -1835,10 +1845,8 @@ void init_parameters() {
     ADD_ARRAY(piece_tropism,8,0,0,100,acta);
     ADD_ARRAY(queen_tropism,8,0,0,100,acta);
     ADD_ARRAY(file_tropism,8,0,0,100,acta);
-    ADDM(ELO_HOME,0,0,0,500,1);
-    ADDM(ELO_DRAW,0,0,0,500,1);
-    ADDM(ELO_HOME_SLOPE_PHASE,0,0,0,500,1);
-    ADDM(ELO_DRAW_SLOPE_PHASE,0,0,0,500,1);
+    ADDM(ELO_DRAW,0,0,0,500,actm);
+    ADDM(ELO_DRAW_SLOPE_PHASE,0,0,0,500,actm);
 #undef ADD
 #undef ADDM
 #undef ADD_ARRAY
@@ -1895,12 +1903,10 @@ void write_eval_params() {
         int nSize = parameters[i].size;
         if(nSize) i += (nSize - 1);
     }
-    fprintf(fd,"#ifdef TUNE\n");
     for(int i = 0;i < nModelParameters;i++) {
         fprintf(fd,"static PARAM %s = %d;\n",
             modelParameters[i].name,*(modelParameters[i].value));
     }
-    fprintf(fd,"#endif\n");
     for(int i = 0;i < nInactiveParameters;i++) {
         write_eval_param(fd,&inactive_parameters[i]);
         int nSize = inactive_parameters[i].size;
