@@ -32,6 +32,8 @@ static const UBMP8  updown_mask[8] = {
 static int material = 0;
 #endif
 
+const BITBOARD lsquares = UINT64(0x55aa55aa55aa55aa);
+const BITBOARD dsquares = UINT64(0xaa55aa55aa55aa55);
 /*
 king safety
 */
@@ -363,6 +365,14 @@ int SEARCHER::eval() {
                 }
                 w_score.add(BISHOP_OUTPOST_MG * opost / 16, BISHOP_OUTPOST_EG * opost / 16);
         }
+
+        /*bad bishop*/
+        if(is_light(c_sq))
+            temp = popcnt_sparse(lsquares & pawns_bb[white]);
+        else
+            temp = popcnt_sparse(dsquares & pawns_bb[white]);
+
+        w_score.sub(BAD_BISHOP_MG * temp, BAD_BISHOP_EG * temp);
         /*end*/
 
         current = current->next;
@@ -409,6 +419,13 @@ int SEARCHER::eval() {
                 }
                 b_score.add(BISHOP_OUTPOST_MG * opost / 16, BISHOP_OUTPOST_EG * opost / 16);
         }
+        /*bad bishop*/
+        if(is_light(c_sq))
+            temp = popcnt_sparse(lsquares & pawns_bb[black]);
+        else
+            temp = popcnt_sparse(dsquares & pawns_bb[black]);
+
+        b_score.sub(BAD_BISHOP_MG * temp, BAD_BISHOP_EG * temp);
         /*end*/
 
         current = current->next;
@@ -808,15 +825,16 @@ void SEARCHER::eval_pawn_cover(int eval_w_attack,int eval_b_attack,
                 }
             }
         }
-        pawnrec.b_s_attack -= (PAWN_GUARD * defence); 
+        pawnrec.b_s_attack -= (PAWN_GUARD * 10 * defence) / 16; 
         
         /*pawn storm on white king*/
         if(f_distance(w_ksq,b_ksq) > 2)  {
             register int r1,r2,r3;
-            if(((r1 = first_bit[bf_pawns[f]]) == 8) || (r1 <= r + 1)) r1 = RANK8;
-            if(((r2 = (f == FILEA ? 8 : first_bit[bf_pawns[f - 1]])) == 8) || (r2 <= r + 1)) r2 = RANK8;
-            if(((r3 = (f == FILEH ? 8 : first_bit[bf_pawns[f + 1]])) == 8) || (r3 <= r + 1)) r3 = RANK8;
-            pawnrec.b_s_attack += (21 - (r1 + r2 + r3)) * PAWN_STORM;
+            if(((r1 = first_bit[bf_pawns[f]]) == 8) || (r1 <= r - 1)) r1 = RANK8;
+            if(((r2 = (f == FILEA ? 8 : first_bit[bf_pawns[f - 1]])) == 8) || (r2 <= r - 1)) r2 = RANK8;
+            if(((r3 = (f == FILEH ? 8 : first_bit[bf_pawns[f + 1]])) == 8) || (r3 <= r - 1)) r3 = RANK8;
+            r1 = RANK8 - r1; r2 = RANK8 - r2; r3 = RANK8 - r3;
+            pawnrec.b_s_attack += ((r1*r1 + r2*r2 + r3*r3) * PAWN_STORM) / 16;
         }
         
         /*open files around king*/
@@ -896,15 +914,15 @@ void SEARCHER::eval_pawn_cover(int eval_w_attack,int eval_b_attack,
                 }
             }
         }
-        pawnrec.w_s_attack -= (PAWN_GUARD * defence);
+        pawnrec.w_s_attack -= (PAWN_GUARD * 10 * defence) / 16;
         
         /*pawn storm on black king*/
         if(f_distance(w_ksq,b_ksq) > 2)  {
             register int r1,r2,r3;
-            if(((r1 = last_bit[wf_pawns[f]]) == 8) || (r1 >= r - 1)) r1 = RANK1;
-            if(((r2 = (f == FILEA ? 8 : last_bit[wf_pawns[f - 1]])) == 8) || (r2 >= r - 1)) r2 = RANK1;
-            if(((r3 = (f == FILEH ? 8 : last_bit[wf_pawns[f + 1]])) == 8) || (r3 >= r - 1)) r3 = RANK1;
-            pawnrec.w_s_attack += (r1 + r2 + r3) * PAWN_STORM;
+            if(((r1 = last_bit[wf_pawns[f]]) == 8) || (r1 >= r + 1)) r1 = RANK1;
+            if(((r2 = (f == FILEA ? 8 : last_bit[wf_pawns[f - 1]])) == 8) || (r2 >= r + 1)) r2 = RANK1;
+            if(((r3 = (f == FILEH ? 8 : last_bit[wf_pawns[f + 1]])) == 8) || (r3 >= r + 1)) r3 = RANK1;
+            pawnrec.w_s_attack += ((r1*r1 + r2*r2 + r3*r3) * PAWN_STORM) / 16;
         }
         
         /*open files around king*/
@@ -967,8 +985,12 @@ SCORE SEARCHER::eval_pawns(int eval_w_attack,int eval_b_attack,
             if(updown_mask[r] & wf_pawns[f]) {
                 score.sub(PAWN_DOUBLED_MG,PAWN_DOUBLED_EG);
             }
-            /*weak/isolated pawns*/
-            if((f == FILEA || !wf_pawns[f - 1]) &&
+            /*duo/supported/weak/isolated pawns*/
+            if(wp_attacks(sq + UU)) {
+                score.add(PAWN_DUO_MG, PAWN_DUO_EG);
+            } else if(wp_attacks(sq)) {
+                score.add(PAWN_SUPPORTED_MG,PAWN_SUPPORTED_EG);
+            } else if((f == FILEA || !wf_pawns[f - 1]) &&
                       (f == FILEH || !wf_pawns[f + 1]) ) {
                 if(!(up_mask[r] & (bf_pawns[f] | wf_pawns[f]))) 
                     score.sub(PAWN_ISOLATED_ON_OPEN_MG,PAWN_ISOLATED_ON_OPEN_EG);
@@ -1041,8 +1063,12 @@ SCORE SEARCHER::eval_pawns(int eval_w_attack,int eval_b_attack,
             if(updown_mask[r] & bf_pawns[f]) {
                 score.add(PAWN_DOUBLED_MG,PAWN_DOUBLED_EG);
             }
-            /*weak/isolated pawns*/
-            if((f == FILEA || !bf_pawns[f - 1]) &&
+            /*duo/supported/weak/isolated pawns*/
+            if(bp_attacks(sq + DD)) {
+                score.sub(PAWN_DUO_MG, PAWN_DUO_EG);
+            } else if(bp_attacks(sq)) {
+                score.sub(PAWN_SUPPORTED_MG,PAWN_SUPPORTED_EG);
+            } else if((f == FILEA || !bf_pawns[f - 1]) &&
                       (f == FILEH || !bf_pawns[f + 1]) ) {
                 if(!(down_mask[r] & (bf_pawns[f] | wf_pawns[f])))
                     score.add(PAWN_ISOLATED_ON_OPEN_MG,PAWN_ISOLATED_ON_OPEN_EG);
@@ -1786,8 +1812,8 @@ void init_parameters() {
     ADD(ROOK_MOB_EG,0,0,0,128,act);
     ADD(QUEEN_MOB_MG,0,0,0,128,act);
     ADD(QUEEN_MOB_EG,0,0,0,128,act);
-    ADD(PASSER_MG,0,0,0,128,actn);
-    ADD(PASSER_EG,0,0,0,128,actn);
+    ADD(BAD_BISHOP_MG,0,0,0,128,act);
+    ADD(BAD_BISHOP_EG,0,0,0,128,act);
     ADD(PASSER_BLOCKED,0,0,0,128,act);
     ADD(PASSER_KING_SUPPORT,0,0,0,128,act);
     ADD(PASSER_KING_ATTACK,0,0,0,128,act);
@@ -1804,6 +1830,10 @@ void init_parameters() {
     ADD(PAWN_WEAK_ON_OPEN_EG,0,0,0,128,act);
     ADD(PAWN_WEAK_ON_CLOSED_MG,0,0,0,128,act);
     ADD(PAWN_WEAK_ON_CLOSED_EG,0,0,0,128,act);
+    ADD(PAWN_DUO_MG,0,0,0,128,1);
+    ADD(PAWN_DUO_EG,0,0,0,128,1);
+    ADD(PAWN_SUPPORTED_MG,0,0,0,128,1);
+    ADD(PAWN_SUPPORTED_EG,0,0,0,128,1);
     ADD(ROOK_ON_7TH,0,0,0,128,act);
     ADD(ROOK_ON_OPEN,0,0,0,128,act);
     ADD(ROOK_SUPPORT_PASSED_MG,0,0,0,128,act);
@@ -1847,6 +1877,8 @@ void init_parameters() {
     ADD_ARRAY(file_tropism,8,0,0,100,acta);
     ADDM(ELO_DRAW,0,0,0,500,actm);
     ADDM(ELO_DRAW_SLOPE_PHASE,0,0,0,500,actm);
+    ADD(PASSER_MG,0,0,0,128,actn);
+    ADD(PASSER_EG,0,0,0,128,actn);
 #undef ADD
 #undef ADDM
 #undef ADD_ARRAY
