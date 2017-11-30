@@ -537,7 +537,7 @@ START:
                 if(use_nullmove
                     && !sb->hstack[sb->hply - 1].checks
                     && sb->pstack->hash_flags != AVOID_NULL
-                    && sb->pstack->depth >= 2 * UNITDEPTH
+                    && sb->pstack->depth >= 4 * UNITDEPTH
                     && sb->pstack->node_type != PV_NODE
                     && sb->piece_c[sb->player]
                     && (score = sb->eval()) >= sb->pstack->beta
