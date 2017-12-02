@@ -1,9 +1,5 @@
 //Automatically generated file. 
 //Any changes made will be lost after tuning. 
-static PARAM PAWN_DUO_MG = 6;
-static PARAM PAWN_DUO_EG = -5;
-static PARAM PAWN_SUPPORTED_MG = 10;
-static PARAM PAWN_SUPPORTED_EG = 5;
 static PARAM ATTACK_WEIGHT = 21;
 static PARAM TROPISM_WEIGHT = 13;
 static PARAM PAWN_GUARD = 12;
@@ -11,6 +7,7 @@ static PARAM PAWN_STORM = 6;
 static PARAM KING_ON_OPEN = 21;
 static PARAM HANGING_PENALTY = 13;
 static PARAM ATTACKED_PIECE = 4;
+static PARAM DEFENDED_PIECE = 5;
 static PARAM KNIGHT_OUTPOST_MG = 40;
 static PARAM KNIGHT_OUTPOST_EG = 6;
 static PARAM BISHOP_OUTPOST_MG = 34;
@@ -41,6 +38,10 @@ static PARAM PAWN_WEAK_ON_OPEN_MG = 22;
 static PARAM PAWN_WEAK_ON_OPEN_EG = 8;
 static PARAM PAWN_WEAK_ON_CLOSED_MG = 3;
 static PARAM PAWN_WEAK_ON_CLOSED_EG = -1;
+static PARAM PAWN_DUO_MG = 6;
+static PARAM PAWN_DUO_EG = -5;
+static PARAM PAWN_SUPPORTED_MG = 10;
+static PARAM PAWN_SUPPORTED_EG = 5;
 static PARAM ROOK_ON_7TH = 16;
 static PARAM ROOK_ON_OPEN = 15;
 static PARAM ROOK_SUPPORT_PASSED_MG = -28;
@@ -134,8 +135,11 @@ static PARAM outpost[32] = {
   13,  13,   6,  15,   5,  21,   8,  12,
  -22,  -6,   6,   1,   0,   0,   0,   0
 };
-static PARAM passed_bonus[8] = {
-   0,  10,  11,  21,  41,  86, 134,   0
+static PARAM passed_rank_bonus[8] = {
+   0,   5,   7,  19,  41,  81, 145,   0
+};
+static PARAM passed_file_bonus[4] = {
+   6,   5,  -2,  -7
 };
 static PARAM qr_on_7thrank[18] = {
  -24,   0,   1, -29, 139,  83, 199, 200,

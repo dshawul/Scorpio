@@ -225,6 +225,10 @@ int SEARCHER::eval() {
     bk_bb = bkattacks_bb;
     bk_bb |= (bk_bb >> 8);
 
+    /*exclude unsafe empty squares*/
+    noccupancyw ^= (bpattacks_bb & ~occupancy);
+    noccupancyb ^= (wpattacks_bb & ~occupancy);
+
     /*
     knights
     */
@@ -550,6 +554,7 @@ int SEARCHER::eval() {
         f = file(c_sq);
         r = rank(c_sq);
 
+        /*mobility*/
         sq = SQ64(r,f);
         bb =  queen_attacks(sq,occupancy);
         wattacks_bb |= bb;
@@ -579,7 +584,8 @@ int SEARCHER::eval() {
         c_sq = current->sq;
         f = file(c_sq);
         r = rank(c_sq);
-       
+
+        /*mobility*/
         sq = SQ64(r,f);
         bb =  queen_attacks(sq,occupancy);
         battacks_bb |= bb;
@@ -657,6 +663,20 @@ int SEARCHER::eval() {
     if(bb) {
         temp = popcnt_sparse(bb);
         b_score.add(ATTACKED_PIECE * temp * temp);
+    }
+
+    /*
+    Defended pieces
+    */
+    bb = wattacks_bb & (pieces_bb[white] ^ BB(w_ksq));
+    if(bb) {
+        temp = popcnt_sparse(bb);
+        w_score.add(DEFENDED_PIECE * temp);
+    }
+    bb = battacks_bb & (pieces_bb[black] ^ BB(b_ksq));
+    if(bb) {
+        temp = popcnt_sparse(bb);
+        b_score.add(DEFENDED_PIECE * temp);
     }
 
     /*
@@ -1043,8 +1063,8 @@ SCORE SEARCHER::eval_pawns(int eval_w_attack,int eval_b_attack,
                     }
                 }
                 if(is_candidate)
-                    score.add(CANDIDATE_PP_MG * passed_bonus[r] / 32,
-                              CANDIDATE_PP_EG * passed_bonus[r] / 32);
+                    score.add(CANDIDATE_PP_MG * passed_rank_bonus[r] / 32,
+                              CANDIDATE_PP_EG * passed_rank_bonus[r] / 32);
             }
             /*end*/
             pawnl = pawnl->next;
@@ -1121,8 +1141,8 @@ SCORE SEARCHER::eval_pawns(int eval_w_attack,int eval_b_attack,
                     }
                 }
                 if(is_candidate) 
-                    score.sub(CANDIDATE_PP_MG * passed_bonus[7 - r] / 32,
-                              CANDIDATE_PP_EG * passed_bonus[7 - r] / 32);
+                    score.sub(CANDIDATE_PP_MG * passed_rank_bonus[7 - r] / 32,
+                              CANDIDATE_PP_EG * passed_rank_bonus[7 - r] / 32);
             }
             /*end*/
             pawnl = pawnl->next;
@@ -1161,7 +1181,8 @@ int SEARCHER::eval_passed_pawns(UBMP8* wf_pawns,UBMP8* bf_pawns,UBMP8& all_pawn_
         r = last_bit[wf_pawns[f]];
         sq = SQ(r,f);
 
-        passed_score = rank_score = passed_bonus[r];
+        passed_score = rank_score = 
+            passed_rank_bonus[r] + passed_file_bonus[(f >= FILEE) ? (FILEH - f) : f];
 
         //blocked
         if(board[sq + UU] != blank)
@@ -1195,7 +1216,8 @@ int SEARCHER::eval_passed_pawns(UBMP8* wf_pawns,UBMP8* bf_pawns,UBMP8& all_pawn_
         r = first_bit[bf_pawns[f]];
         sq = SQ(r,f);
 
-        passed_score = rank_score = passed_bonus[7 - r];
+        passed_score = rank_score = 
+            passed_rank_bonus[7 - r] + passed_file_bonus[(f >= FILEE) ? (FILEH - f) : f];
         
         //blocked
         if(board[sq + DD] != blank)
@@ -1800,6 +1822,7 @@ void init_parameters() {
     ADD(KING_ON_OPEN,0,0,0,128,act);
     ADD(HANGING_PENALTY,0,0,0,100,act);
     ADD(ATTACKED_PIECE,0,0,0,100,act);
+    ADD(DEFENDED_PIECE,0,0,0,100,act);
     ADD(KNIGHT_OUTPOST_MG,0,0,0,128,act);
     ADD(KNIGHT_OUTPOST_EG,0,0,0,128,act);
     ADD(BISHOP_OUTPOST_MG,0,0,0,128,act);
@@ -1830,10 +1853,10 @@ void init_parameters() {
     ADD(PAWN_WEAK_ON_OPEN_EG,0,0,0,128,act);
     ADD(PAWN_WEAK_ON_CLOSED_MG,0,0,0,128,act);
     ADD(PAWN_WEAK_ON_CLOSED_EG,0,0,0,128,act);
-    ADD(PAWN_DUO_MG,0,0,0,128,1);
-    ADD(PAWN_DUO_EG,0,0,0,128,1);
-    ADD(PAWN_SUPPORTED_MG,0,0,0,128,1);
-    ADD(PAWN_SUPPORTED_EG,0,0,0,128,1);
+    ADD(PAWN_DUO_MG,0,0,0,128,act);
+    ADD(PAWN_DUO_EG,0,0,0,128,act);
+    ADD(PAWN_SUPPORTED_MG,0,0,0,128,act);
+    ADD(PAWN_SUPPORTED_EG,0,0,0,128,act);
     ADD(ROOK_ON_7TH,0,0,0,128,act);
     ADD(ROOK_ON_OPEN,0,0,0,128,act);
     ADD(ROOK_SUPPORT_PASSED_MG,0,0,0,128,act);
@@ -1868,7 +1891,8 @@ void init_parameters() {
     ADD_ARRAY(knight_pcsq,64,wknight,0,100,actp);
     ADD_ARRAY(pawn_pcsq,64,wpawn,0,100,actp);
     ADD_ARRAY(outpost,32,0,0,100,acta);
-    ADD_ARRAY(passed_bonus,8,0,0,400,acta);
+    ADD_ARRAY(passed_rank_bonus,8,0,0,400,acta);
+    ADD_ARRAY(passed_file_bonus,4,0,0,400,acta);
     ADD_ARRAY(qr_on_7thrank,18,0,0,400,acta);
     ADD_ARRAY(rook_on_hopen,13,0,0,400,acta);
     ADD_ARRAY(king_to_pawns,8,0,0,600,acta);
