@@ -1,10 +1,14 @@
 //Automatically generated file. 
 //Any changes made will be lost after tuning. 
-static PARAM ATTACK_WEIGHT = 21;
-static PARAM TROPISM_WEIGHT = 13;
 static PARAM PAWN_GUARD = 12;
 static PARAM PAWN_STORM = 6;
 static PARAM KING_ON_OPEN = 21;
+static PARAM PAWN_ATTACK = 16;
+static PARAM KNIGHT_ATTACK = 16;
+static PARAM BISHOP_ATTACK = 16;
+static PARAM ROOK_ATTACK = 32;
+static PARAM QUEEN_ATTACK = 64;
+static PARAM UNDEFENDED_ATTACK = 32;
 static PARAM HANGING_PENALTY = 13;
 static PARAM ATTACKED_PIECE = 4;
 static PARAM DEFENDED_PIECE = 5;
@@ -153,6 +157,15 @@ static PARAM rook_on_hopen[13] = {
 static PARAM king_to_pawns[8] = {
    0,   5,  32,  60, 130, 158, 175, 144
 };
+static PARAM king_on_hopen[8] = {
+   0,  16,  64,  96,  64,  96, 112, 112
+};
+static PARAM king_on_file[8] = {
+  32,  16,  48,  64,  64,  32,   0,  16
+};
+static PARAM king_on_rank[8] = {
+   0,  16,  32,  48,  48,  48,  48,  48
+};
 static PARAM piece_tropism[8] = {
    0,  61,  60,  21,  -5,   3,   6, -18
 };
@@ -164,5 +177,7 @@ static PARAM file_tropism[8] = {
 };
 static PARAM ELO_DRAW = 197;
 static PARAM ELO_DRAW_SLOPE_PHASE = -40;
-static PARAM PASSER_MG = 10;
-static PARAM PASSER_EG = 20;
+static PARAM PASSER_WEIGHT_MG = 10;
+static PARAM PASSER_WEIGHT_EG = 20;
+static PARAM ATTACK_WEIGHT = 21;
+static PARAM TROPISM_WEIGHT = 13;

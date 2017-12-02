@@ -39,7 +39,7 @@ king safety
 */
 static int KING_ATTACK(int attack,int attackers,int tropism) {
     if(attackers == 0) return 0;
-    int score = ((9 * ATTACK_WEIGHT * attack + 1 * TROPISM_WEIGHT * tropism) >> 4);
+    int score = ((9 * ATTACK_WEIGHT * (attack >> 4) + 1 * TROPISM_WEIGHT * tropism) >> 4);
     if(attackers == 1) return (score >> 2);
     int geometric = 2 << (attackers - 2);
     return ((score) * (geometric - 1)) / geometric;
@@ -174,7 +174,7 @@ int SEARCHER::eval() {
     /*passed pawns*/
     if(pawnrec.w_passed | pawnrec.b_passed) {
         temp = eval_passed_pawns(wf_pawns,bf_pawns,all_pawn_f);
-        w_score.add((PASSER_MG * temp) / 16,(PASSER_EG * temp) / 16); 
+        w_score.add((PASSER_WEIGHT_MG * temp) / 16,(PASSER_WEIGHT_EG * temp) / 16); 
     }
 
     /*king attack/defence*/
@@ -251,7 +251,7 @@ int SEARCHER::eval() {
             w_tropism += piece_tropism[DISTANCE(f,r,fb_ksq,rb_ksq)];
             bb &= bk_bb;
             if(bb) {
-                w_attack += popcnt_sparse(bb);
+                w_attack += KNIGHT_ATTACK * popcnt_sparse(bb);
                 w_attackers++;
             }
         }
@@ -298,7 +298,7 @@ int SEARCHER::eval() {
             b_tropism += piece_tropism[DISTANCE(f,r,fw_ksq,rw_ksq)];
             bb &= wk_bb;
             if(bb) {
-                b_attack += popcnt_sparse(bb);
+                b_attack += KNIGHT_ATTACK * popcnt_sparse(bb);
                 b_attackers++;
             }
         }
@@ -346,7 +346,7 @@ int SEARCHER::eval() {
             w_tropism += piece_tropism[DISTANCE(f,r,fb_ksq,rb_ksq)];
             bb &= bk_bb;
             if(bb) {
-                w_attack += popcnt_sparse(bb);
+                w_attack += BISHOP_ATTACK * popcnt_sparse(bb);
                 w_attackers++;
             }
         }
@@ -400,7 +400,7 @@ int SEARCHER::eval() {
             b_tropism += piece_tropism[DISTANCE(f,r,fw_ksq,rw_ksq)];
             bb &= wk_bb;
             if(bb) {
-                b_attack += popcnt_sparse(bb);
+                b_attack += BISHOP_ATTACK * popcnt_sparse(bb);
                 b_attackers++;
             }
         }
@@ -457,7 +457,7 @@ int SEARCHER::eval() {
             w_tropism += piece_tropism[DISTANCE(f,r,fb_ksq,rb_ksq)];
             bb &= bk_bb;
             if(bb) {
-                w_attack += (popcnt_sparse(bb) * 2);
+                w_attack += (ROOK_ATTACK * popcnt_sparse(bb));
                 w_attackers++;
             }
         }
@@ -510,7 +510,7 @@ int SEARCHER::eval() {
             b_tropism += piece_tropism[DISTANCE(f,r,fw_ksq,rw_ksq)];
             bb &= wk_bb;
             if(bb) {
-                b_attack += (popcnt_sparse(bb) * 2);
+                b_attack += (ROOK_ATTACK * popcnt_sparse(bb));
                 b_attackers++;
             }
         }
@@ -567,7 +567,7 @@ int SEARCHER::eval() {
             w_tropism += queen_tropism[DISTANCE(f,r,fb_ksq,rb_ksq)];
             bb &= bk_bb;
             if(bb) {
-                w_attack += (popcnt_sparse(bb) * 4);
+                w_attack += (QUEEN_ATTACK * popcnt_sparse(bb));
                 w_attackers++;
             }
         }
@@ -598,7 +598,7 @@ int SEARCHER::eval() {
             b_tropism += queen_tropism[DISTANCE(f,r,fw_ksq,rw_ksq)]; 
             bb &= wk_bb;
             if(bb) {
-                b_attack += (popcnt_sparse(bb) * 4);
+                b_attack += (QUEEN_ATTACK * popcnt_sparse(bb));
                 b_attackers++;
             }
         }
@@ -623,13 +623,13 @@ int SEARCHER::eval() {
 
     if(eval_b_attack) {
         b_attack += pawnrec.b_attack;
-        b_attack += 2 * popcnt_sparse(battacks_bb & ~wattacks_bb & wk_bb);
+        b_attack += UNDEFENDED_ATTACK * popcnt_sparse(battacks_bb & ~wattacks_bb & wk_bb);
         temp = KING_ATTACK(b_attack,b_attackers,b_tropism);
         b_score.addm(temp);
     }
     if(eval_w_attack) {
         w_attack += pawnrec.w_attack;
-        w_attack += 2 * popcnt_sparse(wattacks_bb & ~battacks_bb & bk_bb);
+        w_attack += UNDEFENDED_ATTACK * popcnt_sparse(wattacks_bb & ~battacks_bb & bk_bb);
         temp = KING_ATTACK(w_attack,w_attackers,w_tropism);
         w_score.addm(temp);
     }
@@ -754,16 +754,6 @@ void SEARCHER::pre_calculate() {
 /*
 evaluate pawn cover
 */
-static const int king_on_hopen[] = {
-    0,  1,  4,  6,  4,  6,  7,  7
-};
-static const int king_on_file[] = {
-    2,  1,  3,  4,  4,  2,  0,  1
-};
-static const int king_on_rank[] = {
-    0,  1,  2,  3,  3,  3,  3,  3
-};
-
 void SEARCHER::eval_pawn_cover(int eval_w_attack,int eval_b_attack,
                          UBMP8* wf_pawns,UBMP8* bf_pawns
                          ) {
@@ -792,7 +782,7 @@ void SEARCHER::eval_pawn_cover(int eval_w_attack,int eval_b_attack,
         BITBOARD bb = (((pawns_bb[black] & ~file_mask[FILEH]) >> 7) |
                        ((pawns_bb[black] & ~file_mask[FILEA]) >> 9) ) &
                        king_attacks(SQ8864(w_ksq));
-        pawnrec.b_attack = popcnt_sparse(bb);
+        pawnrec.b_attack = PAWN_ATTACK * popcnt_sparse(bb);
 
 
         /*pawn cover*/
@@ -882,7 +872,7 @@ void SEARCHER::eval_pawn_cover(int eval_w_attack,int eval_b_attack,
         BITBOARD bb = (((pawns_bb[white] & ~file_mask[FILEA]) << 7) |
                        ((pawns_bb[white] & ~file_mask[FILEH]) << 9) ) &
                        king_attacks(SQ8864(b_ksq));
-        pawnrec.w_attack = popcnt_sparse(bb);
+        pawnrec.w_attack = PAWN_ATTACK * popcnt_sparse(bb);
         
         /*pawn cover*/
         if(f < FILED) {
@@ -1802,7 +1792,7 @@ void writeParams(double* params) {
         *(modelParameters[i].value) = int(round(params[i + nParameters]));
 }
 void init_parameters() {
-    int act = 0, actp = 0, acta = 0, actm = 0, actn = 0;
+    int act = 0, actp = 0, acta = 0, actm = 0, acts = 0, actn = 0;
 
 #define ADD(x,ln,f,minv,maxv,act)                                   \
     if(act) parameters.push_back(vPARAM(x,ln,f,minv,maxv,#x));      \
@@ -1815,11 +1805,15 @@ void init_parameters() {
         if(act) parameters.push_back(vPARAM(x[i],ln,(f-1)*ln+i,minv,maxv,#x));       \
         else inactive_parameters.push_back(vPARAM(x[i],ln,(f-1)*ln+i,minv,maxv,#x));
 
-    ADD(ATTACK_WEIGHT,0,0,0,128,act);
-    ADD(TROPISM_WEIGHT,0,0,0,128,act);
     ADD(PAWN_GUARD,0,0,0,128,act);
     ADD(PAWN_STORM,0,0,0,128,act);
     ADD(KING_ON_OPEN,0,0,0,128,act);
+    ADD(PAWN_ATTACK,0,0,0,128,acts);
+    ADD(KNIGHT_ATTACK,0,0,0,128,acts);
+    ADD(BISHOP_ATTACK,0,0,0,128,acts);
+    ADD(ROOK_ATTACK,0,0,0,128,acts);
+    ADD(QUEEN_ATTACK,0,0,0,128,acts);
+    ADD(UNDEFENDED_ATTACK,0,0,0,128,act);
     ADD(HANGING_PENALTY,0,0,0,100,act);
     ADD(ATTACKED_PIECE,0,0,0,100,act);
     ADD(DEFENDED_PIECE,0,0,0,100,act);
@@ -1896,13 +1890,19 @@ void init_parameters() {
     ADD_ARRAY(qr_on_7thrank,18,0,0,400,acta);
     ADD_ARRAY(rook_on_hopen,13,0,0,400,acta);
     ADD_ARRAY(king_to_pawns,8,0,0,600,acta);
-    ADD_ARRAY(piece_tropism,8,0,0,100,acta);
-    ADD_ARRAY(queen_tropism,8,0,0,100,acta);
-    ADD_ARRAY(file_tropism,8,0,0,100,acta);
+    ADD_ARRAY(king_on_hopen,8,0,0,500,acta);
+    ADD_ARRAY(king_on_file,8,0,0,500,acta);
+    ADD_ARRAY(king_on_rank,8,0,0,500,acta);
+    ADD_ARRAY(piece_tropism,8,0,0,500,acta);
+    ADD_ARRAY(queen_tropism,8,0,0,500,acta);
+    ADD_ARRAY(file_tropism,8,0,0,500,acta);
     ADDM(ELO_DRAW,0,0,0,500,actm);
     ADDM(ELO_DRAW_SLOPE_PHASE,0,0,0,500,actm);
-    ADD(PASSER_MG,0,0,0,128,actn);
-    ADD(PASSER_EG,0,0,0,128,actn);
+    ADD(PASSER_WEIGHT_MG,0,0,0,128,actn);
+    ADD(PASSER_WEIGHT_EG,0,0,0,128,actn);
+    ADD(ATTACK_WEIGHT,0,0,0,128,actn);
+    ADD(TROPISM_WEIGHT,0,0,0,128,actn);
+
 #undef ADD
 #undef ADDM
 #undef ADD_ARRAY
