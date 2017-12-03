@@ -171,12 +171,6 @@ int SEARCHER::eval() {
     w_score.add(eval_pawns(eval_w_attack,eval_b_attack,wf_pawns,bf_pawns));
     all_pawn_f = pawnrec.w_pawn_f | pawnrec.b_pawn_f;
 
-    /*passed pawns*/
-    if(pawnrec.w_passed | pawnrec.b_passed) {
-        temp = eval_passed_pawns(wf_pawns,bf_pawns,all_pawn_f);
-        w_score.add((PASSER_WEIGHT_MG * temp) / 16,(PASSER_WEIGHT_EG * temp) / 16); 
-    }
-
     /*king attack/defence*/
     if(eval_b_attack) {
         b_score.addm(pawnrec.b_s_attack);
@@ -680,6 +674,14 @@ int SEARCHER::eval() {
     }
 
     /*
+    passed pawns
+    */
+    if(pawnrec.w_passed | pawnrec.b_passed) {
+        temp = eval_passed_pawns(wf_pawns,bf_pawns,all_pawn_f,wattacks_bb,battacks_bb);
+        w_score.add((PASSER_WEIGHT_MG * temp) / 16,(PASSER_WEIGHT_EG * temp) / 16); 
+    }
+
+    /*
     adjust score and save in tt
     */
     if(player == white) {
@@ -1153,18 +1155,32 @@ SCORE SEARCHER::eval_pawns(int eval_w_attack,int eval_b_attack,
 /*
 passed pawn evaluation
 */
-
-int SEARCHER::eval_passed_pawns(UBMP8* wf_pawns,UBMP8* bf_pawns,UBMP8& all_pawn_f) {
+static BITBOARD northFill(BITBOARD b) {
+   b |= (b <<  8);
+   b |= (b << 16);
+   b |= (b << 32);
+   return b;
+}
+static BITBOARD southFill(BITBOARD b) {
+   b |= (b >>  8);
+   b |= (b >> 16);
+   b |= (b >> 32);
+   return b;
+}
+int SEARCHER::eval_passed_pawns(UBMP8* wf_pawns,UBMP8* bf_pawns,UBMP8& all_pawn_f,
+                const BITBOARD& wattacks_bb, const BITBOARD& battacks_bb) {
     register UBMP8 passed;
     register int sq,f,r;
-    int w_score,b_score,passed_score,rank_score;
+    int w_score,b_score,passed_score,rank_score, temp;
     int qdist,w_best_qdist = RANK8,b_best_qdist = RANK8;
     int w_ksq = plist[wking]->sq;
     int b_ksq = plist[bking]->sq;
+    BITBOARD passer_bb;
 
     w_score = 0;
     b_score = 0;
     
+    passer_bb = UINT64(0);
     passed = pawnrec.w_passed;
     while(passed) {
         f = first_bit[passed];
@@ -1177,6 +1193,8 @@ int SEARCHER::eval_passed_pawns(UBMP8* wf_pawns,UBMP8* bf_pawns,UBMP8& all_pawn_
         //blocked
         if(board[sq + UU] != blank)
             passed_score -= (PASSER_BLOCKED * rank_score) / 32;
+        else
+            passer_bb |= BB(sq);
 
         //distance to kings
         passed_score += (PASSER_KING_ATTACK * rank_score * distance(b_ksq,sq + UU)) / 128;
@@ -1200,6 +1218,16 @@ int SEARCHER::eval_passed_pawns(UBMP8* wf_pawns,UBMP8* bf_pawns,UBMP8& all_pawn_
 
         passed ^= mask[f];
     }
+    if(passer_bb) {
+        passer_bb = northFill(passer_bb);
+        temp = popcnt_sparse(passer_bb & (battacks_bb | pieces_bb[black]));
+        if(!temp) temp = -4; //all free passers
+        w_score -= (PASSER_ATTACK * temp) / 16;
+        temp = popcnt_sparse(passer_bb & (wattacks_bb & battacks_bb));
+        w_score += (PASSER_SUPPORT * temp) / 16;
+    }
+
+    passer_bb = UINT64(0);
     passed = pawnrec.b_passed;
     while(passed) {
         f = first_bit[passed];
@@ -1212,6 +1240,8 @@ int SEARCHER::eval_passed_pawns(UBMP8* wf_pawns,UBMP8* bf_pawns,UBMP8& all_pawn_
         //blocked
         if(board[sq + DD] != blank)
             passed_score -= (PASSER_BLOCKED * rank_score) / 32;
+        else
+            passer_bb |= BB(sq);
 
         //distance to kings
         passed_score += (PASSER_KING_ATTACK * rank_score * distance(w_ksq,sq + DD)) / 128;
@@ -1234,6 +1264,14 @@ int SEARCHER::eval_passed_pawns(UBMP8* wf_pawns,UBMP8* bf_pawns,UBMP8& all_pawn_
         b_score += passed_score;
 
         passed ^= mask[f];
+    }
+    if(passer_bb) {
+        passer_bb = southFill(passer_bb);
+        temp = popcnt_sparse(passer_bb & (wattacks_bb | pieces_bb[white]));
+        if(!temp) temp = -4; //all free passers
+        b_score -= (PASSER_ATTACK * temp) / 16;
+        temp = popcnt_sparse(passer_bb & (wattacks_bb & battacks_bb));
+        b_score += (PASSER_SUPPORT * temp) / 16;
     }
 
     /*unstoppable passer*/
@@ -1834,6 +1872,8 @@ void init_parameters() {
     ADD(PASSER_BLOCKED,0,0,0,128,act);
     ADD(PASSER_KING_SUPPORT,0,0,0,128,act);
     ADD(PASSER_KING_ATTACK,0,0,0,128,act);
+    ADD(PASSER_SUPPORT,0,0,0,128,act);
+    ADD(PASSER_ATTACK,0,0,0,128,act);
     ADD(PAWNS_VS_KNIGHT,0,0,0,128,act);
     ADD(CANDIDATE_PP_MG,0,0,0,128,act);
     ADD(CANDIDATE_PP_EG,0,0,0,128,act);

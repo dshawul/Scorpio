@@ -564,7 +564,7 @@ typedef struct SEARCHER{
     int   eval();
     void  eval_pawn_cover(int,int,UBMP8*,UBMP8*);
     SCORE eval_pawns(int,int,UBMP8*,UBMP8*);
-    int   eval_passed_pawns(UBMP8*,UBMP8*,UBMP8&);
+    int   eval_passed_pawns(UBMP8*,UBMP8*,UBMP8&,const BITBOARD&,const BITBOARD&);
     void  eval_win_chance(SCORE&,SCORE&,int&,int&);
     static void  pre_calculate();
 #ifdef TUNE
