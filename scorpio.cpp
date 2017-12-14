@@ -388,6 +388,7 @@ bool parse_commands(char** commands) {
             print("feature option=\"egbb_depth_limit -spin %d 0 %d\"\n", SEARCHER::egbb_depth_limit, MAX_PLY);
             print("feature option=\"egbb_ply_limit_percent -spin %d 0 100\"\n", SEARCHER::egbb_ply_limit_percent);
             print_search_params();
+            print_mcts_params();
 #ifdef TUNE
             print_eval_params();
 #endif
@@ -626,6 +627,7 @@ bool parse_commands(char** commands) {
             command_num++;
 #endif
         } else if(check_search_params(commands,command,command_num)) {
+        } else if(check_mcts_params(commands,command,command_num)) {
 #ifdef TUNE
         } else if(check_eval_params(commands,command,command_num)) {
 #endif

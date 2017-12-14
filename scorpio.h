@@ -37,8 +37,8 @@ Some definitions to include/remove code
 #else
 #   include <sys/time.h>
 #endif
-#ifdef CLUSTER
 #  include <list>
+#ifdef CLUSTER
 #  include "mpi.h"
 #endif
 #ifdef TUNE
@@ -348,6 +348,42 @@ typedef struct tagEVALHASH {
     BMP16   age;
 } EVALHASH,*PEVALHASH;
 /*
+* In-memory tree
+*/
+struct Node {
+    double prior;
+    double uct_wins;
+    unsigned int uct_visits;
+    unsigned int nchildren;
+    MOVE move;
+    Node* child;
+    Node* next;
+#ifdef PARALLEL
+    LOCK lock;
+#endif
+    void clear() {
+        uct_wins = 0;
+        uct_visits = 0;
+        prior = 0;
+        child = 0;
+        next = 0;
+        nchildren = 0;
+        move = MOVE();
+        l_create(lock);
+    }
+    static int total;
+    static int maxuct;
+    static int maxply;
+    static LOCK mem_lock;
+    static std::list<Node*> mem_;
+    static Node* allocate();
+    static void release(Node*);
+    static Node* reclaim(Node*,MOVE* = 0);
+    static Node* MAX_select(Node*,int,int = 0,int = 0);
+    static Node* UCT_select(Node*);
+    static void print_xml(Node*,int);
+};
+/*
 stacks
 */
 typedef struct HIST_STACK{
@@ -549,6 +585,8 @@ typedef struct SEARCHER{
     MOVE  get_qmove();
     int   draw() const;
     MOVE  find_best();
+    MOVE  alphabeta();
+    MOVE  mcts();
     int   be_selective();
     int   on_node_entry();
     int   on_qnode_entry();
@@ -586,11 +624,20 @@ typedef struct SEARCHER{
     void  update_history(MOVE);
     void  clear_history();
     int   get_search_score();
+    /*mcts stuff*/
+    void  print_mc_pv(Node* n);
+    void  extract_pv(Node*);
+    void  create_children(Node*);
+    void  manage_tree(Node*&,HASHKEY&);
+    double  play_simulation(Node*);
+    void  search_mc();
+    void  evaluate_search(int);
     /*counts*/
     UBMP64 nodes;
     UBMP64 qnodes;
     UBMP64 time_check;
     UBMP64 message_check;
+    UBMP32 search_calls;
     UBMP32 splits;
     UBMP32 bad_splits;
     UBMP32 egbb_probes;
@@ -645,6 +692,8 @@ typedef struct SEARCHER{
     static UBMP64 root_score_st[MAX_MOVES];
     static CACHE_ALIGN int history[14][64];
     static CACHE_ALIGN MOVE refutation[14][64];
+    static Node* VOLATILE root_node;
+    static HASHKEY root_key;
     /*
     Bitbases
     */
@@ -905,6 +954,8 @@ void  merge_books(char*,char*,char*,double,double);
 int   get_number_of_cpus();
 bool  check_search_params(char**,char*,int&);
 void  print_search_params();
+bool  check_mcts_params(char**,char*,int&);
+void  print_mcts_params();
 
 #ifdef TUNE
 extern int nParameters;

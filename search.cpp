@@ -14,6 +14,7 @@ static int futility_margin = PAWN_VALUE;
 static int singular_margin = PAWN_VALUE / 4;
 static int probcut_margin = 3 * PAWN_VALUE / 2;
 static int aspiration_window = PAWN_VALUE / 20;
+static int montecarlo = 0;
 
 #define extend(value) {                      \
     extension += value;                      \
@@ -672,7 +673,7 @@ POP:
                 /*
                 * Is this processor a slave?
                 */
-                if(sb->master) {
+                if(sb->master && !montecarlo) {
                     l_lock(lock_smp);
                     l_lock(sb->master->lock);
                     sb->update_master(use_abdada_smp);
@@ -745,8 +746,16 @@ IDLE_START:
                         }
                         if(proc->state == GO) {
                             sb = proc->searcher;
-                            if(!use_abdada_smp) goto START;
-                            else goto NEW_NODE;
+                            if(montecarlo) {
+                                sb->search_mc();
+                                proc->state = WAIT;
+                                goto IDLE_START;
+                            } else {
+                                if(!use_abdada_smp) 
+                                    goto START;
+                                else 
+                                    goto NEW_NODE;
+                            }
                         } else if(proc->state == KILL) {
                             proc->state = GO;
                             return;
@@ -758,7 +767,7 @@ IDLE_START:
                     * processor reached here first, switch to processor[0] and return from there. 
                     * Also send the current processor to sleep.
                     */
-                    if(sb->processor_id == 0) {
+                    if(sb->processor_id == 0 || montecarlo) {
                         return;
                     } else {
                         l_lock(lock_smp);
@@ -895,7 +904,7 @@ IDLE_START:
 #ifdef PARALLEL 
             /* Check for split here since at least one move is searched now.
              * Reset the sb pointer to the child block pointed to by this processor.*/
-            if(!use_abdada_smp 
+            if(!use_abdada_smp && !montecarlo
                 && (sb->ply || sb->pstack->legal_moves >= 4) 
                 && sb->check_split())
                 sb = proc->searcher;
@@ -1034,25 +1043,9 @@ POP_Q:
     }
 }
 /*
-gets best move of position
+Find best move using alpha-beta
 */
-MOVE SEARCHER::find_best() {
-    
-#ifdef CLUSTER
-    /*send initial position to helper hosts*/
-    if(PROCESSOR::host_id == 0) {
-        INIT_MESSAGE init;
-        get_init_pos(&init);
-        for(int i = 0;i < PROCESSOR::n_hosts;i++) {
-            if(i != PROCESSOR::host_id) {
-                PROCESSOR::ISend(i,PROCESSOR::INIT,&init,INIT_MESSAGE_SIZE(init));
-                /*start iterative deepening searcher for ABDADA/SHT*/
-                if(use_abdada_cluster)
-                    PROCESSOR::ISend(i,PROCESSOR::GOROOT);
-            }
-        }
-    }
-#endif
+MOVE SEARCHER::alphabeta() {
     
     /*start search*/
     int legal_moves,i,score,time_used;
@@ -1388,7 +1381,33 @@ MOVE SEARCHER::find_best() {
 
     return stack[0].pv[0];
 }
+/*
+* Find best move using alpha-beta or mcts
+*/
+MOVE SEARCHER::find_best() {
 
+#ifdef CLUSTER
+    /*send initial position to helper hosts*/
+    if(PROCESSOR::host_id == 0) {
+        INIT_MESSAGE init;
+        get_init_pos(&init);
+        for(int i = 0;i < PROCESSOR::n_hosts;i++) {
+            if(i != PROCESSOR::host_id) {
+                PROCESSOR::ISend(i,PROCESSOR::INIT,&init,INIT_MESSAGE_SIZE(init));
+                /*start iterative deepening searcher for ABDADA/SHT*/
+                if(use_abdada_cluster || montecarlo)
+                    PROCESSOR::ISend(i,PROCESSOR::GOROOT);
+            }
+        }
+    }
+#endif
+
+    if(montecarlo) {
+        return mcts();
+    } else {
+        return alphabeta();
+    }
+}
 /*
 * Search parameters
 */
@@ -1405,6 +1424,8 @@ bool check_search_params(char** commands,char* command,int& command_num) {
         probcut_margin = atoi(commands[command_num++]);
     } else if(!strcmp(command, "contempt")) {
         contempt = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "montecarlo")) {
+        montecarlo = atoi(commands[command_num++]);
     } else if(!strcmp(command, "smp_type")) {
         command = commands[command_num++];
 #ifdef PARALLEL
@@ -1446,4 +1467,5 @@ void print_search_params() {
     print("feature option=\"futility_margin -spin %d 0 1000\"\n",futility_margin);
     print("feature option=\"aspiration_window -spin %d 0 1000\"\n",aspiration_window);
     print("feature option=\"contempt -spin %d -100 100\"\n",contempt);
+    print("feature option=\"montecarlo -check %d\"\n",montecarlo);
 }
