@@ -351,10 +351,9 @@ typedef struct tagEVALHASH {
 * In-memory tree
 */
 struct Node {
-    double prior;
     double uct_wins;
     unsigned int uct_visits;
-    unsigned int nchildren;
+    float prior;
     MOVE move;
     Node* child;
     Node* next;
@@ -367,7 +366,6 @@ struct Node {
         prior = 0;
         child = 0;
         next = 0;
-        nchildren = 0;
         move = MOVE();
         l_create(lock);
     }
@@ -381,6 +379,7 @@ struct Node {
     static Node* reclaim(Node*,MOVE* = 0);
     static Node* MAX_select(Node*,int,int = 0,int = 0);
     static Node* UCT_select(Node*);
+    static Node* Best_select(Node*);
     static void print_xml(Node*,int);
 };
 /*

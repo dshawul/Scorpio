@@ -1402,6 +1402,12 @@ MOVE SEARCHER::find_best() {
     }
 #endif
 
+    /*fen*/
+    char fen[MAX_FEN_STR];
+    get_fen(fen);
+    print_log("%s\n",fen);
+
+    /*mcts or alphabeta*/
     if(montecarlo) {
         return mcts();
     } else {

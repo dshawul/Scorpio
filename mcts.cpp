@@ -62,7 +62,7 @@ Node* Node::UCT_select(Node* n) {
         if(current->uct_visits)
             uct = current->uct_wins / (2.0 * current->uct_visits);
         else
-            uct = current->prior;
+            uct = current->prior / 2.0;
         uct += dUCTK * sqrt(logn / (current->uct_visits + 1));
 
         if(uct > bvalue) {
@@ -74,6 +74,18 @@ Node* Node::UCT_select(Node* n) {
     }
 
     return bnode;
+}
+Node* Node::Best_select(Node* n) {
+    unsigned int max_visits = 0;
+    Node* current = n->child, *best = n->child;
+    while(current) {
+        if(current->uct_visits > max_visits) {
+            max_visits = current->uct_visits;
+            best = current;
+        }
+        current = current->next;
+    }
+    return best;
 }
 void SEARCHER::create_children(Node* n) {
     /*lock*/
@@ -117,7 +129,6 @@ void SEARCHER::create_children(Node* n) {
         else last->next = node;
         last = node;
     }
-    n->nchildren = legal_moves;
 
     /*unlock*/
     l_unlock(n->lock);
@@ -274,37 +285,28 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
 MOVE SEARCHER::mcts() {
 
     /*init*/
-    int i;
     ply = 0;
     pstack = stack + 0;
     abort_search = 0;
     root_failed_low = 0;
+    search_calls = 0;
+    start_time = get_time();
 
     /*set search time*/
     if(!chess_clock.infinite_mode)
         chess_clock.set_stime(hply);
 
-    /*fen*/
-    char fen[MAX_FEN_STR];
-    get_fen(fen);
-    print_log("%s\n",fen);
-
-    start_time = get_time();
-
 #ifdef PARALLEL
     /*wakeup threads*/
-    for(i = 1;i < PROCESSOR::n_processors;i++) {
+    for(int i = 1;i < PROCESSOR::n_processors;i++) {
         processors[i]->state = WAIT;
     }
     while(PROCESSOR::n_idle_processors < PROCESSOR::n_processors - 1);
 #endif
 
     /* manage tree*/
-    search_calls = 0;
     Node* root = root_node;
     manage_tree(root,root_key);
-    if(!root->child) 
-        create_children(root);
     root_node = root;
     Node::maxply = 0;
     Node::maxuct = 0;
@@ -336,7 +338,7 @@ MOVE SEARCHER::mcts() {
 
 #ifdef PARALLEL
     /*park threads*/
-    for(i = 1;i < PROCESSOR::n_processors;i++) {
+    for(int i = 1;i < PROCESSOR::n_processors;i++) {
         processors[i]->state = PARK;
     }
 #endif
@@ -344,13 +346,14 @@ MOVE SEARCHER::mcts() {
 #ifdef CLUSTER
     /*park hosts*/
     if(PROCESSOR::host_id == 0 && use_abdada_cluster) {
-        for(i = 1;i < PROCESSOR::n_hosts;i++)
+        for(int i = 1;i < PROCESSOR::n_hosts;i++)
             PROCESSOR::ISend(i,PROCESSOR::QUIT);
     }
 #endif
 
     /*last pv*/
     print_mc_pv(root);
+    Node::MAX_select(root_node,1,MAX_PLY);
 
     /* print result*/
     int time_used = MAX(1,get_time() - start_time);
@@ -358,16 +361,6 @@ MOVE SEARCHER::mcts() {
     print("nodes = %d depth = %d/%d time = %dms pps = %d visits = %d search calls = %d\n",
         Node::total,Node::maxply / root->uct_visits,
         Node::maxuct,time_used,nps,root->uct_visits,search_calls);
-
-    /*best move*/
-    Node* best = Node::MAX_select(root_node,1,MAX_PLY);
-    stack[0].pv[0] = best->move;
-    stack[0].pv_length = 1;
-    if(best->child) {
-        best = Node::MAX_select(best,0);
-        stack[0].pv[1] = best->move;
-        stack[0].pv_length = 2;
-    }
 
     /*return*/
     return stack[0].pv[0];
@@ -391,15 +384,7 @@ void Node::print_xml(Node* n,int depth) {
     print_log("</node>\n");
 }
 void SEARCHER::extract_pv(Node* n) {
-    unsigned int max_visits = 0;
-    Node* current = n->child, *best = 0;
-    while(current) {
-        if(current->uct_visits > max_visits) {
-            max_visits = current->uct_visits;
-            best = current;
-        }
-        current = current->next;
-    }
+    Node* best = Node::Best_select(n);
     if(best) {
         pstack->pv[ply] = best->move;
         pstack->pv_length = ply+1;
@@ -438,21 +423,10 @@ void SEARCHER::print_mc_pv(Node* n) {
 }
 Node* Node::MAX_select(Node* root,int output,int max_depth,int depth) {
     char str[16];
-    int bvisits = -1;
-    Node* bnode = 0;
-    Node* current = 0;
     int considered = 0,total = 0;
+    Node* bnode = Node::Best_select(root);
+    Node* current = root->child;
 
-    current = root->child;
-    while(current) {
-        if(int(current->uct_visits) > bvisits) {
-            bvisits = current->uct_visits;
-            bnode = current;
-        }
-        current = current->next;
-    }
-
-    current = root->child;
     while(current) {
         if(current->uct_visits && (depth == 0 || bnode == current) ) {
             considered++;
