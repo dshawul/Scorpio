@@ -1043,40 +1043,44 @@ POP_Q:
     }
 }
 /*
-Find best move using alpha-beta
+Evaluate moves with search
 */
-MOVE SEARCHER::alphabeta() {
-    
-    /*start search*/
-    int legal_moves,i,score,time_used;
-    int easy = false,easy_score = 0;
-    MOVE easy_move = 0;
+void SEARCHER::evaluate_moves(int depth) {
+    int rootf = root_failed_low;
+    root_failed_low = 1;
+    for(int i = 0;i < pstack->count; i++) {
+        pstack->current_move = pstack->move_st[i];
+        PUSH_MOVE(pstack->current_move);
 
-    ply = 0;
-    pstack = stack + 0;
-    nodes = 0;
-    qnodes = 0;
-    time_check = 0;
-    message_check = 0;
-    splits = 0;
-    bad_splits = 0;
-    stop_searcher = 0;
-    abort_search = 0;
-    search_depth = 1;
-#ifdef CLUSTER
-    if(PROCESSOR::n_hosts > 1 && use_abdada_cluster) 
-        search_depth = 1 - (PROCESSOR::host_id & 1);
-#endif
-    poll_nodes = 5000;
-    egbb_probes = 0;
-    start_time = get_time();
-    PROCESSOR::age = (hply & AGE_MASK);
+        search_calls++;
+
+        pstack->node_type = PV_NODE;
+        pstack->search_state = NORMAL_MOVE;
+        pstack->extension = 0;
+        pstack->reduction = 0;
+        pstack->alpha = -MATE_SCORE;
+        pstack->beta = MATE_SCORE;
+        pstack->depth = depth;
+        pstack->qcheck_depth = UNITDEPTH; 
+        ::search(processors[processor_id]);
+
+        POP_MOVE();
+        pstack->score_st[i] = -(pstack+1)->best_score;
+    }
+    root_failed_low = rootf;
+
+    for(int i = 0;i < pstack->count; i++)
+        pstack->sort(i,pstack->count);
+}
+/*
+Generate all moves
+*/
+void SEARCHER::generate_and_score_moves(int depth) {
+    int legal_moves, score;
+
     in_egbb = (egbb_is_loaded && all_man_c <= MAX_EGBB);
-    show_full_pv = false;
-    pre_calculate();
-    clear_history();
-    
-    /*generate root moves here*/
+
+    /*generate moves here*/
     if(in_egbb) {
         if(probe_bitbases(score));
         else in_egbb = false;
@@ -1085,7 +1089,7 @@ MOVE SEARCHER::alphabeta() {
     pstack->count = 0;
     gen_all();
     legal_moves = 0;
-    for(i = 0;i < pstack->count; i++) {
+    for(int i = 0;i < pstack->count; i++) {
         pstack->current_move = pstack->move_st[i];
         PUSH_MOVE(pstack->current_move);
         if(attacks(player,plist[COMBINE(opponent,king)]->sq)) {
@@ -1102,7 +1106,6 @@ MOVE SEARCHER::alphabeta() {
 
         pstack->move_st[legal_moves] = pstack->current_move;
         pstack->score_st[legal_moves] = score;
-        root_score_st[legal_moves] = 0;
         legal_moves++;
     }
 
@@ -1110,7 +1113,7 @@ MOVE SEARCHER::alphabeta() {
 
     /*play fast egbb loss and draws*/
     if(in_egbb && legal_moves) {
-        for(i = 0;i < pstack->count; i++) {
+        for(int i = 0;i < pstack->count; i++) {
             pstack->sort(i,pstack->count);
             if(pstack->score_st[i] <= 0) {
                 if(i == 0) pstack->count = 1;
@@ -1121,63 +1124,27 @@ MOVE SEARCHER::alphabeta() {
         }
     }
 
-    /*no move*/
-    if(pstack->count == 0) {
-        return 0;
-    }
-    /*only one move*/
-    if(pstack->count == 1) {
-        pstack->pv_length = 1;
-        pstack->pv[0] = pstack->move_st[0];
-        print_pv(0);
-        return pstack->move_st[0];
-    }
-
-#ifdef BOOK_PROBE
-    /*find book move*/
-    if(book_loaded 
-        && hply <= last_book_move + 6 
-        ) {
-            MOVE move = get_book_move();
-            if(move) {
-                last_book_move = hply;
-                pstack->pv_length = 1;
-                pstack->pv[0] = move;
-                print_pv(0);
-                return move;
-            }
-    }
-#endif
-
-    /*set search time*/
-    if(!chess_clock.infinite_mode)
-        chess_clock.set_stime(hply);
-
-#ifdef PARALLEL
-    /*wakeup threads*/
-    for(i = 1;i < PROCESSOR::n_processors;i++) {
-        processors[i]->state = WAIT;
-    }
-    while(PROCESSOR::n_idle_processors < PROCESSOR::n_processors - 1);
-#endif
-    
     /*score non-egbb moves*/
-    if(!in_egbb) {
-        for(i = 0;i < pstack->count; i++) {
-            pstack->current_move = pstack->move_st[i];
-            PUSH_MOVE(pstack->current_move);
-            pstack->alpha = -MATE_SCORE;
-            pstack->beta = MATE_SCORE;
-            pstack->depth = 0;
-            pstack->qcheck_depth = CHECK_DEPTH; 
-            qsearch();
-            POP_MOVE();
-            pstack->score_st[i] = -(pstack + 1)->best_score;
-        }
-        for(i = 0;i < pstack->count; i++) {
-            pstack->sort(i,pstack->count);
-        }
-    }
+    if(!in_egbb)
+        evaluate_moves(depth);
+}
+/*
+Find best move using alpha-beta
+*/
+MOVE SEARCHER::alphabeta() {
+    int score;
+    int easy = false,easy_score = 0;
+    MOVE easy_move = 0;
+
+    search_depth = 1;
+#ifdef CLUSTER
+    if(PROCESSOR::n_hosts > 1 && use_abdada_cluster) 
+        search_depth = 1 - (PROCESSOR::host_id & 1);
+#endif
+    poll_nodes = 5000;
+    PROCESSOR::age = (hply & AGE_MASK);
+    clear_history();
+    show_full_pv = false;
 
     /*easy move*/
     if(pstack->score_st[0] > pstack->score_st[1] + 175
@@ -1188,9 +1155,6 @@ MOVE SEARCHER::alphabeta() {
             easy_score = pstack->score_st[0];
             chess_clock.search_time /= 4;
     }
-
-    stack[0].pv[0] = pstack->move_st[0];
-    stack[0].best_score = pstack->score_st[0];
 
     /*iterative deepening*/
     int alpha,beta,WINDOW = 3*aspiration_window/2;
@@ -1239,7 +1203,7 @@ MOVE SEARCHER::alphabeta() {
 
         /*Is there enough time to search the first move?*/
         if(!root_failed_low && chess_clock.is_timed()) {
-            time_used = get_time() - start_time;
+            int time_used = get_time() - start_time;
             if(time_used >= 0.75 * chess_clock.search_time) {
                 abort_search = 1;
                 if(score > alpha)
@@ -1251,27 +1215,26 @@ MOVE SEARCHER::alphabeta() {
         /*install fake pv into TT table so that it is searched
         first incase it was overwritten*/   
         if(pstack->pv_length) {
-            for(i = 0;i < stack[0].pv_length;i++) {
+            for(int i = 0;i < stack[0].pv_length;i++) {
                 RECORD_HASH(player,hash_key,0,0,HASH_HIT,0,stack[0].pv[i],0,0);
                 PUSH_MOVE(stack[0].pv[i]);
             }
-            for(i = 0;i < stack[0].pv_length;i++)
+            for(int i = 0;i < stack[0].pv_length;i++)
                 POP_MOVE();
         }
 
         /*sort moves*/
-        int j;
         MOVE tempm;
         UBMP64 temps,bests = 0;
 
-        for(i = 0;i < pstack->count; i++) {
+        for(int i = 0;i < pstack->count; i++) {
             if(pstack->pv[0] == pstack->move_st[i]) {
                 bests = root_score_st[i];
                 root_score_st[i] = MAX_UBMP64;
             }
         }
-        for(i = 0;i < pstack->count; i++) {
-            for(j = i + 1;j < pstack->count;j++) {
+        for(int i = 0;i < pstack->count; i++) {
+            for(int j = i + 1;j < pstack->count;j++) {
                 if(root_score_st[i] < root_score_st[j]) {
                     tempm = pstack->move_st[i];
                     temps = root_score_st[i];
@@ -1282,7 +1245,7 @@ MOVE SEARCHER::alphabeta() {
                 }
             }
         }
-        for(i = 0;i < pstack->count; i++) {
+        for(int i = 0;i < pstack->count; i++) {
             if(pstack->pv[0] == pstack->move_st[i]) {
                 root_score_st[i] = bests;
             }
@@ -1333,50 +1296,6 @@ MOVE SEARCHER::alphabeta() {
             prev_depth = search_depth;
         }
         /*end*/
-
-    }
-
-#ifdef PARALLEL
-    /*park threads*/
-    for(i = 1;i < PROCESSOR::n_processors;i++) {
-        processors[i]->state = PARK;
-    }
-#endif
-
-#ifdef CLUSTER
-    /*park hosts*/
-    if(PROCESSOR::host_id == 0 && use_abdada_cluster) {
-        for(i = 1;i < PROCESSOR::n_hosts;i++)
-            PROCESSOR::ISend(i,PROCESSOR::QUIT);
-    }
-#endif
-    
-#ifdef CLUSTER
-    /*total nps*/
-    if(use_abdada_cluster) {
-        UBMP64 tnodes;
-        PROCESSOR::Sum(&nodes, &tnodes);
-        nodes = (UBMP64)tnodes;
-    }
-#endif
-
-    /*search has ended. display some info*/
-    time_used = get_time() - start_time;
-    if(!time_used) time_used = 1;
-    if(pv_print_style == 1) {
-        print(" " FMT64W " %8.2f %10d %8d %8d\n",nodes,float(time_used) / 1000,
-            int(BMP64(nodes) / (time_used / 1000.0f)),splits,bad_splits);
-    } else if(pv_print_style == 0) {
-        print("splits = %d badsplits = %d egbb_probes = %d\n",
-            splits,bad_splits,egbb_probes);
-        print("nodes = " FMT64 " <%d qnodes> time = %dms nps = %d\n",nodes,
-            int(BMP64(qnodes) / (BMP64(nodes) / 100.0f)),
-            time_used,int(BMP64(nodes) / (time_used / 1000.0f)));
-    }
-
-    /*was this first search?*/
-    if(first_search) {
-        first_search = false;
     }
 
     return stack[0].pv[0];
@@ -1402,17 +1321,142 @@ MOVE SEARCHER::find_best() {
     }
 #endif
 
+    /*init*/
+    ply = 0;
+    pstack = stack + 0;
+    stop_searcher = 0;
+    abort_search = 0;
+    time_check = 0;
+    message_check = 0;
+    nodes = 0;
+    qnodes = 0;
+    splits = 0;
+    bad_splits = 0;
+    root_failed_low = 0;
+    search_calls = 0;
+    start_time = get_time();
+    egbb_probes = 0;
+
     /*fen*/
     char fen[MAX_FEN_STR];
     get_fen(fen);
     print_log("%s\n",fen);
 
-    /*mcts or alphabeta*/
-    if(montecarlo) {
-        return mcts();
-    } else {
-        return alphabeta();
+    /*generate and score moves*/
+    generate_and_score_moves(0);
+
+    /*no move*/
+    if(pstack->count == 0) {
+        return 0;
     }
+    /*only one move*/
+    if(pstack->count == 1) {
+        pstack->pv_length = 1;
+        pstack->pv[0] = pstack->move_st[0];
+        print_pv(0);
+        return pstack->move_st[0];
+    }
+
+#ifdef BOOK_PROBE
+    /*find book move*/
+    if(book_loaded 
+        && hply <= last_book_move + 6 
+        ) {
+            MOVE move = get_book_move();
+            if(move) {
+                last_book_move = hply;
+                pstack->pv_length = 1;
+                pstack->pv[0] = move;
+                print_pv(0);
+                return move;
+            }
+    }
+#endif
+
+    stack[0].pv[0] = pstack->move_st[0];
+    stack[0].best_score = pstack->score_st[0];
+
+    /*set search time*/
+    if(!chess_clock.infinite_mode)
+        chess_clock.set_stime(hply);
+
+#ifdef PARALLEL
+    /*wakeup threads*/
+    for(int i = 1;i < PROCESSOR::n_processors;i++) {
+        processors[i]->state = WAIT;
+    }
+    while(PROCESSOR::n_idle_processors < PROCESSOR::n_processors - 1);
+#endif
+
+    /*mcts or alphabeta*/
+    MOVE bmove;
+    if(montecarlo)
+        bmove = mcts();
+    else
+        bmove = alphabeta();
+
+#ifdef PARALLEL
+    /*park threads*/
+    for(int i = 1;i < PROCESSOR::n_processors;i++) {
+        processors[i]->state = PARK;
+    }
+#endif
+
+#ifdef CLUSTER
+    /*park hosts*/
+    if(PROCESSOR::host_id == 0 && use_abdada_cluster) {
+        for(int i = 1;i < PROCESSOR::n_hosts;i++)
+            PROCESSOR::ISend(i,PROCESSOR::QUIT);
+    }
+#endif
+    
+    /*search info*/
+    if(montecarlo) {
+
+        /*last pv*/
+        print_mc_pv(root_node);
+        Node::print_tree(root_node,1,MAX_PLY);
+
+        /* print result*/
+        int time_used = MAX(1,get_time() - start_time);
+        int nps = int(root_node->uct_visits / (time_used / 1000.0f));
+        print("nodes = %d depth = %d/%d time = %dms pps = %d visits = %d search calls = %d\n",
+            Node::total,Node::maxply / root_node->uct_visits,
+            Node::maxuct,time_used,nps,root_node->uct_visits,search_calls);
+
+    } else {
+
+#ifdef CLUSTER
+        /*total nps*/
+        if(use_abdada_cluster) {
+            UBMP64 tnodes;
+            PROCESSOR::Sum(&nodes, &tnodes);
+            nodes = (UBMP64)tnodes;
+        }
+#endif
+
+        /*search has ended. display some info*/
+        int time_used = get_time() - start_time;
+        if(!time_used) time_used = 1;
+        if(pv_print_style == 1) {
+            print(" " FMT64W " %8.2f %10d %8d %8d\n",nodes,float(time_used) / 1000,
+                int(BMP64(nodes) / (time_used / 1000.0f)),splits,bad_splits);
+        } else if(pv_print_style == 0) {
+            print("splits = %d badsplits = %d egbb_probes = %d\n",
+                splits,bad_splits,egbb_probes);
+            print("nodes = " FMT64 " <%d qnodes> time = %dms nps = %d\n",nodes,
+                int(BMP64(qnodes) / (BMP64(nodes) / 100.0f)),
+                time_used,int(BMP64(nodes) / (time_used / 1000.0f)));
+        }
+
+    }
+
+    /*was this first search?*/
+    if(first_search) {
+        first_search = false;
+    }
+
+    return bmove;
 }
 /*
 * Search parameters

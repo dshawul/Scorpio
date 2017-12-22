@@ -265,7 +265,103 @@ void SEARCHER::print_allmoves() {
         print("\n");
     }
 }
+/*
+* MCTS IO functions
+*/
+void Node::print_xml(Node* n,int depth) {
+    char mvstr[32];
+    mov_str(n->move,mvstr);
 
+    print_log("<node depth=\"%d\" move=\"%s\" visits=\"%d\" wins=\"%d\" prior=\"%e\">\n",
+        depth,mvstr,n->uct_visits,int(n->uct_wins/(n->uct_visits+1)),n->prior);
+
+    Node* current = n->child;
+    while(current) {
+        print_xml(current,depth+1);
+        current = current->next;
+    }
+
+    print_log("</node>\n");
+}
+void SEARCHER::extract_pv(Node* n) {
+    Node* best = Node::Best_select(n);
+    if(best) {
+        pstack->pv[ply] = best->move;
+        pstack->pv_length = ply+1;
+        ply++;
+        extract_pv(best);
+        ply--;
+    }
+}
+void SEARCHER::print_mc_pv(Node* n) {
+    MOVE  move;
+    char mv_str[64];
+    int i,j;
+
+    /*extract pv from tree*/
+    extract_pv(n);
+
+    /*print info*/
+    int score = -n->uct_wins / n->uct_visits;
+    print("%d %d %d " FMT64 " ",stack[0].pv_length, 
+        score,(get_time() - start_time) / 10,n->uct_visits);
+
+    /*print what we have*/
+    for(i = 0;i < stack[0].pv_length;i++) {
+        move = stack[0].pv[i];
+        strcpy(mv_str,"");
+        mov_str(move,mv_str);
+        print(" %s",mv_str);
+
+        PUSH_MOVE(move);
+    }
+    /*undo moves*/
+    for (j = 0; j < i ; j++)
+        POP_MOVE();
+    print("\n");
+}
+Node* Node::print_tree(Node* root,int output,int max_depth,int depth) {
+    char str[16];
+    int considered = 0,total = 0;
+    Node* bnode = Node::Best_select(root);
+    Node* current = root->child;
+
+    while(current) {
+        if(current->uct_visits && (depth == 0 || bnode == current) ) {
+            considered++;
+            if(depth <= max_depth && bnode == current) {
+                print_tree(current,output,max_depth,depth+1);
+            }
+            if(output) {
+                mov_str(current->move,str);
+                for(int i = 0;i < depth;i++)
+                    print_log("\t");
+                print_log("%d %2d.%7s  | %6d  %6d | %6d\n",
+                    depth+1,
+                    total+1,
+                    str,
+                    int(current->uct_wins / current->uct_visits),
+                    current->uct_visits,
+                    int(current->prior)
+                    );
+            }
+        }
+        total++;
+
+        current = current->next;
+    }
+
+    if(depth == 0 && output) {
+            mov_str(bnode->move,str);
+            print_log("Bestmove : %s from %d out of %d moves [%.2f%%]\n",
+                str, considered,total,considered * 100.0f / total);
+    }
+
+    return bnode;
+}
+/*
+Check if move is legal
+*/
 int SEARCHER::is_legal(MOVE& move) {
     if(m_promote(move)) {
         int prom = COMBINE(player,m_promote(move));

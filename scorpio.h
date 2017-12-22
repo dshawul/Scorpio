@@ -377,7 +377,7 @@ struct Node {
     static Node* allocate();
     static void release(Node*);
     static Node* reclaim(Node*,MOVE* = 0);
-    static Node* MAX_select(Node*,int,int = 0,int = 0);
+    static Node* print_tree(Node*,int,int = 0,int = 0);
     static Node* UCT_select(Node*);
     static Node* Best_select(Node*);
     static void print_xml(Node*,int);
@@ -623,14 +623,16 @@ typedef struct SEARCHER{
     void  update_history(MOVE);
     void  clear_history();
     int   get_search_score();
+    void  evaluate_moves(int);
+    void  generate_and_score_moves(int);
     /*mcts stuff*/
     void  print_mc_pv(Node* n);
     void  extract_pv(Node*);
     void  create_children(Node*);
+    void  add_children(Node*);
     void  manage_tree(Node*&,HASHKEY&);
     double  play_simulation(Node*);
     void  search_mc();
-    void  evaluate_search(int);
     /*counts*/
     UBMP64 nodes;
     UBMP64 qnodes;

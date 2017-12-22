@@ -267,7 +267,7 @@ void init_game() {
     main_searcher = processors[0]->searcher;
     SEARCHER::egbb_is_loaded = false;
     initmagicmoves();
-    searcher.pre_calculate();
+    SEARCHER::pre_calculate();
     searcher.new_board();
     SEARCHER::scorpio = black;
     SEARCHER::pv_print_style = 0;
