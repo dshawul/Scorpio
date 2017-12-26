@@ -1458,6 +1458,27 @@ MOVE SEARCHER::find_best() {
 
     return bmove;
 }
+void SEARCHER::print_status() {
+    if(!SEARCHER::abort_search) {
+        char mv_str[16];
+        int time_used = get_time() - SEARCHER::start_time;
+        if(!montecarlo) {
+            mov_str(stack[0].current_move,mv_str);
+            print("stat01: %d " FMT64 " %d %d %d %s\n",time_used / 10,nodes,
+                search_depth,
+                stack[0].count - stack[0].current_index,
+                stack[0].count,
+                mv_str);
+        } else {
+            mov_str(stack[0].pv[0],mv_str);
+            print("stat01: %d " FMT64 " %d %d %d %s\n",time_used / 10,root_node->uct_visits,
+                stack[0].pv_length,
+                0,
+                1,
+                mv_str);
+        }
+    }
+}
 /*
 * Search parameters
 */

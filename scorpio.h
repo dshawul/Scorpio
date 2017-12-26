@@ -353,7 +353,6 @@ typedef struct tagEVALHASH {
 struct Node {
     double uct_wins;
     unsigned int uct_visits;
-    float prior;
     MOVE move;
     Node* child;
     Node* next;
@@ -363,7 +362,6 @@ struct Node {
     void clear() {
         uct_wins = 0;
         uct_visits = 0;
-        prior = 0;
         child = 0;
         next = 0;
         move = MOVE();
@@ -379,6 +377,8 @@ struct Node {
     static Node* reclaim(Node*,MOVE* = 0);
     static Node* print_tree(Node*,int,int = 0,int = 0);
     static Node* UCT_select(Node*);
+    static Node* Max_score_select(Node*);
+    static Node* Max_visits_select(Node*);
     static Node* Best_select(Node*);
     static void print_xml(Node*,int);
 };
@@ -631,8 +631,9 @@ typedef struct SEARCHER{
     void  create_children(Node*);
     void  add_children(Node*);
     void  manage_tree(Node*&,HASHKEY&);
-    double  play_simulation(Node*);
+    void  play_simulation(Node*,double&,int&);
     void  search_mc();
+    void  print_status();
     /*counts*/
     UBMP64 nodes;
     UBMP64 qnodes;

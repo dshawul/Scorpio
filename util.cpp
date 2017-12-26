@@ -272,8 +272,8 @@ void Node::print_xml(Node* n,int depth) {
     char mvstr[32];
     mov_str(n->move,mvstr);
 
-    print_log("<node depth=\"%d\" move=\"%s\" visits=\"%d\" wins=\"%d\" prior=\"%e\">\n",
-        depth,mvstr,n->uct_visits,int(n->uct_wins/(n->uct_visits+1)),n->prior);
+    print_log("<node depth=\"%d\" move=\"%s\" visits=\"%d\" wins=\"%d\">\n",
+        depth,mvstr,n->uct_visits,int(n->uct_wins/n->uct_visits));
 
     Node* current = n->child;
     while(current) {
@@ -301,8 +301,13 @@ void SEARCHER::print_mc_pv(Node* n) {
     /*extract pv from tree*/
     extract_pv(n);
 
-    /*print info*/
+    /*convert to correct mate score*/
     int score = -n->uct_wins / n->uct_visits;
+    if(score > MATE_SCORE - WIN_PLY * MAX_PLY) 
+        score = 10000 - ((MATE_SCORE - score) * (ply + 1)) / WIN_PLY;
+    else if(score < -MATE_SCORE + WIN_PLY * MAX_PLY) 
+        score = -10000 + ((MATE_SCORE + score) * (ply + 1)) / WIN_PLY;
+
     print("%d %d %d " FMT64 " ",stack[0].pv_length, 
         score,(get_time() - start_time) / 10,n->uct_visits);
 
@@ -336,13 +341,12 @@ Node* Node::print_tree(Node* root,int output,int max_depth,int depth) {
                 mov_str(current->move,str);
                 for(int i = 0;i < depth;i++)
                     print_log("\t");
-                print_log("%d %2d.%7s  | %6d  %6d | %6d\n",
+                print_log("%d %2d.%7s  | %6d  %6d \n",
                     depth+1,
                     total+1,
                     str,
                     int(current->uct_wins / current->uct_visits),
-                    current->uct_visits,
-                    int(current->prior)
+                    current->uct_visits
                     );
             }
         }

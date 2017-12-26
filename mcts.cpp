@@ -5,6 +5,7 @@ static double  UCTKmin = 0.1;
 static double  dUCTK = UCTKmax;
 static int  reuse_tree = 1;
 static int  evaluate_depth = 0;
+static int  backup_type = 0;
 
 static const double K = -log(10.0) / 400.0;
 static inline float logistic(float eloDelta) {
@@ -54,29 +55,37 @@ Node* Node::reclaim(Node* n,MOVE* except) {
     return rn;
 }
 Node* Node::UCT_select(Node* n) {
-    double logn = log(double(n->uct_visits)), uct;
-    double bvalue = -1;
-    Node* bnode = 0;
-    Node* current = n->child;
+    double logn = log(double(n->uct_visits)), uct, bvalue = -1;
+    Node* current = n->child, *bnode = n->child;
 
     while(current) {
-        if(current->uct_visits)
-            uct = current->uct_wins / current->uct_visits;
-        else
-            uct = current->prior;
-        uct = logistic(uct) + dUCTK * sqrt(logn / (current->uct_visits + 1));
-
+        uct = logistic(current->uct_wins / current->uct_visits) +
+              dUCTK * sqrt(logn / current->uct_visits);
         if(uct > bvalue) {
             bvalue = uct;
             bnode = current;
         }
-
         current = current->next;
     }
 
     return bnode;
 }
-Node* Node::Best_select(Node* n) {
+Node* Node::Max_score_select(Node* n) {
+    double bvalue = -MAX_NUMBER, uct;
+    Node* current = n->child, *bnode = n->child;
+
+    while(current) {
+        uct = current->uct_wins / current->uct_visits;
+        if(uct > bvalue) {
+            bvalue = uct;
+            bnode = current;
+        }
+        current = current->next;
+    }
+
+    return bnode;
+}
+Node* Node::Max_visits_select(Node* n) {
     unsigned int max_visits = 0;
     Node* current = n->child, *best = n->child;
     while(current) {
@@ -87,6 +96,12 @@ Node* Node::Best_select(Node* n) {
         current = current->next;
     }
     return best;
+}
+Node* Node::Best_select(Node* n) {
+    if(backup_type == 0)
+        return Max_score_select(n);
+    else
+        return Max_visits_select(n);
 }
 void SEARCHER::create_children(Node* n) {
     /*lock*/
@@ -114,15 +129,14 @@ void SEARCHER::add_children(Node* n) {
     for(int i = 0;i < pstack->count; i++) {
         Node* node = Node::allocate();
         node->move = pstack->move_st[i];
-        node->prior = pstack->score_st[i];
+        node->uct_wins = pstack->score_st[i];
+        node->uct_visits = 1;
         if(last == n) last->child = node;
         else last->next = node;
         last = node;
     }
 }
-double SEARCHER::play_simulation(Node* n) {
-
-    double result;
+void SEARCHER::play_simulation(Node* n, double& result, int& visits) {
 
     /*virtual loss*/
     l_lock(n->lock);
@@ -131,10 +145,13 @@ double SEARCHER::play_simulation(Node* n) {
 
     /*uct tree policy*/
     if(!n->child) {
+        visits = 1;
         if(draw()) {
             result = 0;
+        } else if(bitbase_cutoff()) {
+            result = pstack->best_score;
         } else if(ply >= MAX_PLY - 1) {
-            result = -n->prior;
+            result = -n->uct_wins;
         } else {
             create_children(n);
             if(!n->child) {
@@ -143,33 +160,40 @@ double SEARCHER::play_simulation(Node* n) {
                 else 
                     result = 0;
             } else {
-                n->child->uct_visits++;
-                n->child->uct_wins += n->child->prior;
                 Node::maxply += (ply + 1);
-                result = n->child->prior;
+                result = n->child->uct_wins;
+                visits = pstack->count;
             }
         }
     } else {
+        /*select and simulate move*/
         Node* next = Node::UCT_select(n);
         PUSH_MOVE(next->move);
-        result = play_simulation(next);
+        play_simulation(next,result,visits);
         POP_MOVE();
-        result = -result;
+
+        /*Average or Minmax style backup*/
+        if(backup_type == 0) {
+            Node* best = Node::Max_score_select(n);
+            result = best->uct_wins / best->uct_visits;
+        } else {
+            result = -result;
+        }
     }
 
     /*update node's score*/
     l_lock(n->lock);
-    n->uct_wins += -result;
+    n->uct_visits += (visits - 1);
+    n->uct_wins += -result * visits;
     l_unlock(n->lock);
-
-    return (result);
 }
 void SEARCHER::search_mc() {
-    double pfrac = 0;
+    double pfrac = 0,result;
+    int visits;
     Node* root = root_node;
     while(!abort_search) {
 
-        play_simulation(root);
+        play_simulation(root,result,visits);
 
         if(processor_id == 0) {
 
@@ -184,7 +208,7 @@ void SEARCHER::search_mc() {
             /*rank 0*/
             if(true CLUSTER_CODE(&& PROCESSOR::host_id == 0)) { 
                 /*check quit*/
-                if(root->uct_visits % 100 == 0) {
+                if(root->uct_visits % 1000 == 0) {
                     check_quit();
                     double frac = double(get_time() - start_time) / 
                             chess_clock.search_time;
@@ -282,6 +306,8 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         evaluate_depth = atoi(commands[command_num++]);
     } else if(!strcmp(command, "reuse_tree")) {
         reuse_tree = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "backup_type")) {
+        backup_type = atoi(commands[command_num++]);
     } else {
         return false;
     }
@@ -292,4 +318,5 @@ void print_mcts_params() {
     print("feature option=\"UCTKmax -spin %d 0 100\"\n",int(UCTKmax*100));
     print("feature option=\"evaluate_depth -spin %d 0 100\"\n",evaluate_depth);
     print("feature option=\"reuse_tree -check %d\"\n",reuse_tree);
+    print("feature option=\"backup_type -spin %d 0 1\"\n",backup_type);
 }

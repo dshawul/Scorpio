@@ -404,15 +404,7 @@ bool parse_commands(char** commands) {
         } else if (!strcmp(command, "?")) {
             SEARCHER::abort_search = 1;
         } else if (!strcmp(command, ".")) {
-            if(!SEARCHER::abort_search) {
-                int time_used = get_time() - SEARCHER::start_time; 
-                mov_str(main_searcher->stack[0].current_move,mv_str);
-                print("stat01: %d " FMT64 " %d %d %d %s\n",time_used / 10,main_searcher->nodes,
-                    main_searcher->search_depth,
-                    main_searcher->stack[0].count - main_searcher->stack[0].current_index,
-                    main_searcher->stack[0].count,
-                    mv_str);
-            }
+            main_searcher->print_status();
         } else if (!strcmp(command, "accepted")
             || !strcmp(command, "rejected")
             ) {
