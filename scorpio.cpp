@@ -677,7 +677,7 @@ bool parse_commands(char** commands) {
             char input[MAX_STR],fen[MAX_STR];
             char* words[100];
             double frac = 1;
-            int sc,sce,test,visited,result,nwords;
+            int sc,sce,test,visited,result,nwords = 0;
 
             if(!strcmp(command,"runeval")) test = 0;
             else if(!strcmp(command,"runsearch")) test = 1;

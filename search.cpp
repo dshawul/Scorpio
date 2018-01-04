@@ -43,9 +43,7 @@ bool SEARCHER::hash_cutoff() {
     bool exclusiveP = false;
 #ifdef PARALLEL
     if((use_abdada_smp == 1)
-        && ply > 1
         && DEPTH((pstack - 1)->depth) > PROCESSOR::SMP_SPLIT_DEPTH  
-        && (pstack - 1)->search_state != NULL_MOVE
         && !(pstack - 1)->second_pass
         && (pstack - 1)->legal_moves > 1
         ) {
@@ -582,12 +580,12 @@ START:
                                 sb->pstack->flag = EXACT;
                             }  
 #ifdef PARALLEL
-                            else if(use_abdada_smp
+                            else if((use_abdada_smp == 1)
                                 && !sb->pstack->all_done
                                 && !sb->pstack->second_pass
-                                && DEPTH(sb->pstack->depth) > PROCESSOR::SMP_SPLIT_DEPTH 
                                 ) {
                                     sb->pstack->second_pass = true;
+                                    sb->pstack->all_done = true;
                                     sb->pstack->gen_status = GEN_RESET;
                                     continue;
                             }
@@ -595,7 +593,7 @@ START:
                             GOBACK(true);
                         } else {
 #ifdef PARALLEL
-                            if(use_abdada_smp
+                            if((use_abdada_smp == 1)
                                 && !sb->pstack->all_done
                                 && sb->pstack->second_pass
                                 && sb->pstack->score_st[sb->pstack->current_index - 1] != -SKIP_SCORE
@@ -845,7 +843,7 @@ IDLE_START:
             move = sb->pstack->current_move;
 #ifdef PARALLEL
             /*remeber skipped moves*/
-            if(use_abdada_smp
+            if((use_abdada_smp == 1)
                 && score == -SKIP_SCORE
                 ) {
                 sb->pstack->all_done = false;

@@ -180,7 +180,7 @@ int SEARCHER::probe_hash(
 
             if(exclusiveP) {
                 slot.hash_key ^= slot.data_key;
-                slot.flags |= 3;
+                slot.flags |= (CRAP - EXACT);
                 slot.depth = 255;
                 slot.hash_key ^= slot.data_key;
                 *pslot = slot;

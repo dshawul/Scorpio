@@ -51,7 +51,7 @@ parallel search options
 */
 #ifdef  PARALLEL
 #   if !defined(MAX_CPUS)
-#       define MAX_CPUS              32
+#       define MAX_CPUS              64
 #   endif
 #   define MAX_SEARCHERS_PER_CPU     32
 #   define MAX_CPUS_PER_SPLIT         8
@@ -170,7 +170,7 @@ enum square_names {
 #define MAX_PLY             64
 #define MAX_HSTACK        1024
 #define MATE_SCORE       20000
-#define SKIP_SCORE       10000
+#define SKIP_SCORE       15000
 #define WIN_SCORE         3000
 #define WIN_PLY             20
 #define MAX_NUMBER    16777216
