@@ -15,15 +15,15 @@ static const UBMP8  down_mask[8] = {
 static const UBMP8  updown_mask[8] = {
     254, 253, 251, 247, 239, 223, 191, 127
 };
-/*
-* Tunable parameters
-*/
+/* parameter */
 #ifdef TUNE
 #   define PARAM int
 #else
 #   define PARAM const int
 #endif
-
+/*
+* Tunable parameters
+*/
 #define PARAMS_FILE "params.h"
 
 #include PARAMS_FILE

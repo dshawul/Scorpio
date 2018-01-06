@@ -1,6 +1,5 @@
 #include "scorpio.h"
 
-static const int PAWN_VALUE = 130;
 static const int CHECK_DEPTH = UNITDEPTH;
 static const int use_nullmove = 1;
 static const int use_selective = 1;
@@ -9,22 +8,30 @@ static const int use_aspiration = 1;
 static const int use_iid = 1;
 static int use_probcut = 0;
 static int use_singular = 0;
-static int contempt = PAWN_VALUE / 50;
-static int futility_margin = PAWN_VALUE;
-static int singular_margin = PAWN_VALUE / 4;
-static int probcut_margin = 3 * PAWN_VALUE / 2;
-static int aspiration_window = PAWN_VALUE / 20;
 static int montecarlo = 0;
+static int singular_margin = 32;
+static int probcut_margin = 195;
+static int contempt = 2;
 
-#define extend(value) {                      \
-    extension += value;                      \
-    pstack->extension = 1;                   \
-}
+/* parameter */
+#ifdef TUNE
+#   define PARAM int
+#else
+#   define PARAM const int
+#endif
 
-#define reduce(value) {                      \
-    pstack->depth -= value;                  \
-    pstack->reduction += value;              \
-}
+/*
+* Search parameters to tune
+*/
+static PARAM aspiration_window = 6;
+static PARAM futility_margin[] = {0, 143, 232, 307, 615, 703, 703, 960};
+static PARAM failhigh_margin[] = {0, 126, 304, 382, 620, 725, 1280, 0};
+static PARAM razor_margin[] = {0, 136, 181, 494, 657, 0, 0, 0};
+static PARAM lmp_count[] = {0, 10, 10, 15, 21, 24, 44, 49};
+static PARAM lmr_count[] = {4, 6, 7, 8, 13, 20, 25, 31};
+static PARAM lmr_all_count = 3;
+static PARAM lmr_cut_count = 5;
+static PARAM lmr_root_count = 8;
 
 /*
 * Update pv
@@ -111,9 +118,10 @@ FORCEINLINE int SEARCHER::on_node_entry() {
         && pstack->node_type != PV_NODE
         ) {
             int score = eval();
-            int margin = futility_margin + (futility_margin / 2) * 
-                (DEPTH(pstack->depth) - 1) * (DEPTH(pstack->depth) - 1);
-            if(score + margin <= pstack->alpha
+            int rmargin = razor_margin[DEPTH(pstack->depth)];
+            int fhmargin = failhigh_margin[DEPTH(pstack->depth)];
+
+            if(score + rmargin <= pstack->alpha
                 && pstack->depth <= 4 * UNITDEPTH
                 ) {
                 pstack->qcheck_depth = CHECK_DEPTH;
@@ -121,17 +129,17 @@ FORCEINLINE int SEARCHER::on_node_entry() {
                 {
                     int palpha = pstack->alpha;
                     int pbeta = pstack->beta;
-                    pstack->alpha -= margin;
+                    pstack->alpha -= rmargin;
                     pstack->beta = pstack->alpha + 1;
                     qsearch();
                     pstack->alpha = palpha;
                     pstack->beta = pbeta;
                 }
                 score = pstack->best_score;
-                if(score + margin <= pstack->alpha)
+                if(score + rmargin <= pstack->alpha)
                     return true;
-            } else if(score - margin >= pstack->beta) {
-                pstack->best_score = score - margin;
+            } else if(score - fhmargin >= pstack->beta) {
+                pstack->best_score = score - fhmargin;
                 return true;
             }
     }
@@ -273,6 +281,18 @@ int SEARCHER::is_pawn_push(MOVE move) const {
     }
     return 0;
 }
+
+/* Extend/reduce macros */
+#define extend(value) {                      \
+    extension += value;                      \
+    pstack->extension = 1;                   \
+}
+
+#define reduce(value) {                      \
+    pstack->depth -= value;                  \
+    pstack->reduction += value;              \
+}
+
 /*selective search*/
 int SEARCHER::be_selective() {
     register MOVE move = (pstack - 1)->current_move; 
@@ -290,7 +310,7 @@ int SEARCHER::be_selective() {
             && !is_pawn_push(move)
             ) {
             reduce(UNITDEPTH);
-            if(nmoves >= 8 && pstack->depth > UNITDEPTH)
+            if(nmoves >= lmr_root_count && pstack->depth > UNITDEPTH)
                 reduce(UNITDEPTH);
         }
         return false;
@@ -348,10 +368,7 @@ int SEARCHER::be_selective() {
         && node_t != PV_NODE
         ) {
             //late move
-            if((depth <= 2 && nmoves >= 8) || 
-               (depth == 3 && nmoves >= 12) || 
-               (depth == 4 && nmoves >= 18) || 
-               (depth == 5 && nmoves >= 28) )
+            if(nmoves >= lmp_count[depth])
                 return true;
 
             //see
@@ -359,7 +376,7 @@ int SEARCHER::be_selective() {
                 return true;
 
             //futility
-            int margin = futility_margin * depth;
+            int margin = futility_margin[depth];
             margin = MAX(margin / 4, margin - 10 * nmoves);
             score = -eval();
             if(score + margin < (pstack - 1)->alpha) {
@@ -375,18 +392,15 @@ int SEARCHER::be_selective() {
     */
     if(!pstack->extension && noncap_reduce) {
         //by number of moves searched so far including current move
-        if(nmoves >=  2 && pstack->depth > UNITDEPTH) reduce(UNITDEPTH);
-        if(nmoves >=  4 && pstack->depth > UNITDEPTH) reduce(UNITDEPTH);
-        if(nmoves >=  6 && pstack->depth > UNITDEPTH) reduce(UNITDEPTH);
-        if(nmoves >=  8 && pstack->depth > UNITDEPTH) reduce(UNITDEPTH);
-        if(nmoves >= 10 && pstack->depth > UNITDEPTH) reduce(UNITDEPTH);
-        if(nmoves >= 20 && pstack->depth > UNITDEPTH) reduce(UNITDEPTH);
-        if(nmoves >= 24 && pstack->depth > UNITDEPTH) reduce(UNITDEPTH);
-        if(nmoves >= 32 && pstack->depth > UNITDEPTH) reduce(UNITDEPTH);
+        for(int i = 0;i < 8;i++) {
+            if(nmoves >= lmr_count[i] && pstack->depth > UNITDEPTH) {
+                reduce(UNITDEPTH);
+            }
+        }
         //lets find more excuses to reduce
         //all and cut nodes
-        if( (node_t == ALL_NODE && nmoves >= 2) ||
-            (node_t == CUT_NODE && nmoves >= 4) ) { 
+        if( (node_t == ALL_NODE && nmoves >= lmr_all_count) ||
+            (node_t == CUT_NODE && nmoves >= lmr_cut_count) ) { 
             if(pstack->depth > UNITDEPTH) { reduce(UNITDEPTH); }
         }
         //pv is capture move
@@ -1481,9 +1495,7 @@ void SEARCHER::print_status() {
 * Search parameters
 */
 bool check_search_params(char** commands,char* command,int& command_num) {
-    if(!strcmp(command, "futility_margin")) {
-        futility_margin = atoi(commands[command_num++]);
-    } else if(!strcmp(command, "use_singular")) {
+    if(!strcmp(command, "use_singular")) {
         use_singular = atoi(commands[command_num++]);
     } else if(!strcmp(command, "use_probcut")) {
         use_probcut = atoi(commands[command_num++]);
@@ -1495,6 +1507,26 @@ bool check_search_params(char** commands,char* command,int& command_num) {
         contempt = atoi(commands[command_num++]);
     } else if(!strcmp(command, "montecarlo")) {
         montecarlo = atoi(commands[command_num++]);
+#ifdef TUNE
+    } else if(!strncmp(command, "futility_margin",15)) {
+        futility_margin[atoi(&command[15])] = atoi(commands[command_num++]);
+    } else if(!strncmp(command, "razor_margin",12)) {
+        razor_margin[atoi(&command[12])] = atoi(commands[command_num++]);
+    } else if(!strncmp(command, "failhigh_margin",15)) {
+        failhigh_margin[atoi(&command[15])] = atoi(commands[command_num++]);
+    } else if(!strncmp(command, "lmp_count",9)) {
+        lmp_count[atoi(&command[9])] = atoi(commands[command_num++]);
+    } else if(!strncmp(command, "lmr_count",9)) {
+        lmr_count[atoi(&command[9])] = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "lmr_all_count")) {
+        lmr_all_count = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "lmr_cut_count")) {
+        lmr_cut_count = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "lmr_root_count")) {
+        lmr_root_count = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "aspiration_window")) {
+        aspiration_window = atoi(commands[command_num++]);
+#endif
     } else if(!strcmp(command, "smp_type")) {
         command = commands[command_num++];
 #ifdef PARALLEL
@@ -1533,8 +1565,7 @@ void print_search_params() {
     print("feature option=\"use_probcut -check %d\"\n",use_probcut);
     print("feature option=\"singular_margin -spin %d 0 1000\"\n",singular_margin);
     print("feature option=\"probcut_margin -spin %d 0 1000\"\n",probcut_margin);
-    print("feature option=\"futility_margin -spin %d 0 1000\"\n",futility_margin);
-    print("feature option=\"aspiration_window -spin %d 0 1000\"\n",aspiration_window);
+    print("feature option=\"aspiration_window -spin %d 0 100\"\n",aspiration_window);
     print("feature option=\"contempt -spin %d -100 100\"\n",contempt);
     print("feature option=\"montecarlo -check %d\"\n",montecarlo);
 }
