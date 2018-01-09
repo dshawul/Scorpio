@@ -347,12 +347,8 @@ int SEARCHER::be_selective() {
         ) {
         extend(UNITDEPTH);
     }
-    if((pstack - 1)->singular) {
-        if(nmoves == 1) {
-            extend(UNITDEPTH);
-        } else {
-            reduce(UNITDEPTH);
-        }
+    if((pstack - 1)->singular && nmoves == 1) {
+        extend(UNITDEPTH);
     }
     if(extension > UNITDEPTH)
         extension = UNITDEPTH;
@@ -390,7 +386,7 @@ int SEARCHER::be_selective() {
     /*
     late move reduction
     */
-    if(!pstack->extension && noncap_reduce) {
+    if(noncap_reduce) {
         //by number of moves searched so far including current move
         for(int i = 0;i < 8;i++) {
             if(nmoves >= lmr_count[i] && pstack->depth > UNITDEPTH) {
@@ -408,13 +404,19 @@ int SEARCHER::be_selective() {
             is_cap_prom((pstack-1)->hash_move) && pstack->depth > UNITDEPTH) {
             reduce(UNITDEPTH);
         }
+        //reduce extended moves less
+        if(nmoves >= 2 && pstack->extension) {
+            reduce(-pstack->reduction / 2);
+        }
     }
     /*losing captures*/
-    if(!pstack->extension && loscap_reduce) {
+    if(loscap_reduce) {
         if(nmoves >= 2) {
-            if(pstack->depth <= 2 * UNITDEPTH)
+            if(pstack->extension) {
+                reduce(UNITDEPTH);
+            } else if(pstack->depth <= 2 * UNITDEPTH)
                 return true;
-            if(pstack->depth > 4 * UNITDEPTH) {
+            else if(pstack->depth > 4 * UNITDEPTH) {
                 reduce(pstack->depth / 2);
             } else {
                 reduce(2 * UNITDEPTH);
@@ -553,7 +555,7 @@ START:
                     && sb->pstack->depth >= 4 * UNITDEPTH
                     && sb->pstack->node_type != PV_NODE
                     && sb->piece_c[sb->player]
-                    && (score = sb->eval()) >= sb->pstack->beta
+                    && (score = (sb->eval() - sb->pstack->beta)) >= 0
                     ) {
                         sb->PUSH_NULL();
                         sb->pstack->extension = 0;
@@ -562,9 +564,10 @@ START:
                         sb->pstack->beta = -(sb->pstack - 1)->beta + 1;
                         sb->pstack->node_type = (sb->pstack - 1)->next_node_type;
                         /* Smooth scaling from Dann Corbit based on score and depth*/
-                        sb->pstack->depth = (sb->pstack - 1)->depth - 3 * UNITDEPTH - (sb->pstack - 1)->depth / 4;
-                        if(score >= (sb->pstack - 1)->beta)
-                            sb->pstack->depth -= (MIN(3 , (score - (sb->pstack - 1)->beta) / 64) * UNITDEPTH);
+                        sb->pstack->depth = (sb->pstack - 1)->depth - 3 * UNITDEPTH - 
+                                            (sb->pstack - 1)->depth / 4 -
+                                            (MIN(3 , score / 64) * UNITDEPTH);
+                        /*search normal move after null*/
                         sb->pstack->search_state = NORMAL_MOVE;
                         goto NEW_NODE;
                 }
