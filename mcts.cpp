@@ -1,11 +1,15 @@
 #include "scorpio.h"
 
+enum {
+    MINMAX, AVERAGE, NODETYPE
+};
+
 static double  UCTKmax = 0.3;
 static double  UCTKmin = 0.1;
 static double  dUCTK = UCTKmax;
 static int  reuse_tree = 1;
 static int  evaluate_depth = 0;
-static int  backup_type = 0;
+static int  backup_type = MINMAX;
 
 static const double K = -log(10.0) / 400.0;
 static inline float logistic(float eloDelta) {
@@ -54,7 +58,7 @@ Node* Node::reclaim(Node* n,MOVE* except) {
     Node::release(n);
     return rn;
 }
-Node* Node::UCT_select(Node* n) {
+Node* Node::Max_UCB_select(Node* n) {
     double logn = log(double(n->uct_visits)), uct, bvalue = -1;
     Node* current = n->child, *bnode = n->child;
 
@@ -98,10 +102,10 @@ Node* Node::Max_visits_select(Node* n) {
     return best;
 }
 Node* Node::Best_select(Node* n) {
-    if(backup_type == 0)
-        return Max_score_select(n);
-    else
+    if(backup_type == AVERAGE)
         return Max_visits_select(n);
+    else
+        return Max_score_select(n);  
 }
 void SEARCHER::create_children(Node* n) {
     /*lock*/
@@ -136,7 +140,7 @@ void SEARCHER::add_children(Node* n) {
         last = node;
     }
 }
-void SEARCHER::play_simulation(Node* n, double& result, int& visits) {
+void SEARCHER::play_simulation(Node* n, double& result, int& visits, int node_t) {
 
     /*virtual loss*/
     l_lock(n->lock);
@@ -166,18 +170,38 @@ void SEARCHER::play_simulation(Node* n, double& result, int& visits) {
             }
         }
     } else {
-        /*select and simulate move*/
-        Node* next = Node::UCT_select(n);
+        /*select move based on UCB*/
+        Node* next = Node::Max_UCB_select(n);
+
+        /*Determin node type*/
+        int next_node_t;
+        if(backup_type == NODETYPE) {
+            if(node_t == ALL_NODE)
+                next_node_t = PV_NODE;
+            else if(node_t == CUT_NODE)
+                next_node_t = ALL_NODE;
+            else {
+                Node* best = Node::Max_score_select(n);
+                if(best != next)
+                    next_node_t = CUT_NODE;
+                else
+                    next_node_t = PV_NODE;
+            }
+        }
+
+        /*Play simulation*/
         PUSH_MOVE(next->move);
-        play_simulation(next,result,visits);
+        play_simulation(next,result,visits,next_node_t);
         POP_MOVE();
 
-        /*Average or Minmax style backup*/
-        if(backup_type == 0) {
+        /*Average/Minmax/Mixed style backups*/
+        if(backup_type == AVERAGE || 
+          (backup_type == NODETYPE && node_t != CUT_NODE)
+          ) {
+            result = -result;
+        } else {
             Node* best = Node::Max_score_select(n);
             result = best->uct_wins / best->uct_visits;
-        } else {
-            result = -result;
         }
     }
 
@@ -193,7 +217,7 @@ void SEARCHER::search_mc() {
     Node* root = root_node;
     while(!abort_search) {
 
-        play_simulation(root,result,visits);
+        play_simulation(root,result,visits,PV_NODE);
 
         if(processor_id == 0) {
 
@@ -318,5 +342,5 @@ void print_mcts_params() {
     print("feature option=\"UCTKmax -spin %d 0 100\"\n",int(UCTKmax*100));
     print("feature option=\"evaluate_depth -spin %d 0 100\"\n",evaluate_depth);
     print("feature option=\"reuse_tree -check %d\"\n",reuse_tree);
-    print("feature option=\"backup_type -spin %d 0 1\"\n",backup_type);
+    print("feature option=\"backup_type -combo *MINMAX AVERAGE NODETYPE\"\n");
 }

@@ -376,7 +376,7 @@ struct Node {
     static void release(Node*);
     static Node* reclaim(Node*,MOVE* = 0);
     static Node* print_tree(Node*,int,int = 0,int = 0);
-    static Node* UCT_select(Node*);
+    static Node* Max_UCB_select(Node*);
     static Node* Max_score_select(Node*);
     static Node* Max_visits_select(Node*);
     static Node* Best_select(Node*);
@@ -631,7 +631,7 @@ typedef struct SEARCHER{
     void  create_children(Node*);
     void  add_children(Node*);
     void  manage_tree(Node*&,HASHKEY&);
-    void  play_simulation(Node*,double&,int&);
+    void  play_simulation(Node*,double&,int&,int);
     void  search_mc();
     void  print_status();
     /*counts*/
