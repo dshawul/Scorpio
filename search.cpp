@@ -891,7 +891,7 @@ IDLE_START:
                         sb->root_score = score;
 
                     if(score <= sb->pstack->alpha) {
-                        SEARCHER::root_failed_low = 2;
+                        SEARCHER::root_failed_low = 3;
                         GOBACK(true);
                     }
                 }
@@ -1214,12 +1214,17 @@ MOVE SEARCHER::alphabeta() {
             root_failed_low--;
             if(root_failed_low && prev_root_score - root_score < 50) 
                 root_failed_low--;
+            if(root_failed_low && prev_root_score - root_score < 25) 
+                root_failed_low--;
         }
 
-        /*Is there enough time to search the first move?*/
+        /* Is there enough time to search the first move?
+         * First move taking lot more time than second. */
         if(!root_failed_low && chess_clock.is_timed()) {
             int time_used = get_time() - start_time;
-            if(time_used >= 0.75 * chess_clock.search_time) {
+            double ratio = double(root_score_st[0]) / root_score_st[1];
+            if((time_used >= 0.75 * chess_clock.search_time) || 
+               (time_used >= 0.5 * chess_clock.search_time && ratio >= 2.0)  ) {
                 abort_search = 1;
                 if(score > alpha)
                     print_pv(root_score);
