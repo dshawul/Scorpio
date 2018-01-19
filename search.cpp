@@ -566,7 +566,7 @@ START:
                         /* Smooth scaling from Dann Corbit based on score and depth*/
                         sb->pstack->depth = (sb->pstack - 1)->depth - 3 * UNITDEPTH - 
                                             (sb->pstack - 1)->depth / 4 -
-                                            (MIN(3 , score / 64) * UNITDEPTH);
+                                            (MIN(3 , score / 128) * UNITDEPTH);
                         /*search normal move after null*/
                         sb->pstack->search_state = NORMAL_MOVE;
                         goto NEW_NODE;
