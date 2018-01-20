@@ -359,12 +359,16 @@ struct Node {
 #ifdef PARALLEL
     LOCK lock;
 #endif
+    int alpha;
+    int beta;
     void clear() {
         uct_wins = 0;
         uct_visits = 0;
         child = 0;
         next = 0;
         move = MOVE();
+        alpha = -MATE_SCORE;
+        beta = MATE_SCORE;
         l_create(lock);
     }
     static int total;
@@ -375,10 +379,12 @@ struct Node {
     static Node* allocate();
     static void release(Node*);
     static Node* reclaim(Node*,MOVE* = 0);
+    static void  reset_bounds(Node*);
     static Node* print_tree(Node*,int,int = 0,int = 0);
     static Node* Max_UCB_select(Node*);
     static Node* Max_score_select(Node*);
     static Node* Max_visits_select(Node*);
+    static Node* Max_AB_select(Node*,int,int);
     static Node* Best_select(Node*);
     static void print_xml(Node*,int);
 };
@@ -623,15 +629,15 @@ typedef struct SEARCHER{
     void  update_history(MOVE);
     void  clear_history();
     int   get_search_score();
-    void  evaluate_moves(int);
-    void  generate_and_score_moves(int);
+    void  evaluate_moves(int,int,int);
+    void  generate_and_score_moves(int,int,int);
     /*mcts stuff*/
     void  print_mc_pv(Node* n);
     void  extract_pv(Node*);
-    void  create_children(Node*);
+    void  create_children(Node*,int,int);
     void  add_children(Node*);
     void  manage_tree(Node*&,HASHKEY&);
-    void  play_simulation(Node*,double&,int&,int);
+    void  play_simulation(Node*,double&,int&);
     void  search_mc();
     void  print_status();
     /*counts*/

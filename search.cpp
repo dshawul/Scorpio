@@ -6,6 +6,8 @@ static const int use_selective = 1;
 static const int use_tt = 1;
 static const int use_aspiration = 1;
 static const int use_iid = 1;
+static const int use_ab = 1;
+static const int use_pvs = 1;
 static int use_probcut = 0;
 static int use_singular = 1;
 static int montecarlo = 0;
@@ -646,14 +648,19 @@ START:
                         continue;
                     }
                     /*next ply's window*/
-                    if((sb->pstack - 1)->node_type == PV_NODE && (sb->pstack - 1)->legal_moves > 1) {
+                    if(use_pvs && (sb->pstack - 1)->node_type == PV_NODE && (sb->pstack - 1)->legal_moves > 1) {
                         sb->pstack->alpha = -(sb->pstack - 1)->alpha - 1;
                         sb->pstack->beta = -(sb->pstack - 1)->alpha;
                         sb->pstack->node_type = CUT_NODE;
                         sb->pstack->search_state = NULL_MOVE;
                     } else {
-                        sb->pstack->alpha = -(sb->pstack - 1)->beta;
-                        sb->pstack->beta = -(sb->pstack - 1)->alpha;
+                        if(use_ab) {
+                            sb->pstack->alpha = -(sb->pstack - 1)->beta;
+                            sb->pstack->beta = -(sb->pstack - 1)->alpha;
+                        } else {
+                            sb->pstack->alpha = -MATE_SCORE;
+                            sb->pstack->beta = MATE_SCORE;
+                        }
                         if((sb->pstack - 1)->legal_moves > 3)
                             sb->pstack->node_type = CUT_NODE;
                         else
@@ -1062,7 +1069,7 @@ POP_Q:
 /*
 Evaluate moves with search
 */
-void SEARCHER::evaluate_moves(int depth) {
+void SEARCHER::evaluate_moves(int depth, int alpha, int beta) {
     int rootf = root_failed_low;
     root_failed_low = 1;
     for(int i = 0;i < pstack->count; i++) {
@@ -1075,8 +1082,8 @@ void SEARCHER::evaluate_moves(int depth) {
         pstack->search_state = NORMAL_MOVE;
         pstack->extension = 0;
         pstack->reduction = 0;
-        pstack->alpha = -MATE_SCORE;
-        pstack->beta = MATE_SCORE;
+        pstack->alpha = alpha;
+        pstack->beta = beta;
         pstack->depth = depth;
         pstack->qcheck_depth = UNITDEPTH; 
         ::search(processors[processor_id]);
@@ -1092,7 +1099,7 @@ void SEARCHER::evaluate_moves(int depth) {
 /*
 Generate all moves
 */
-void SEARCHER::generate_and_score_moves(int depth) {
+void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta) {
     int legal_moves, score;
 
     in_egbb = (egbb_is_loaded && all_man_c <= MAX_EGBB);
@@ -1143,7 +1150,7 @@ void SEARCHER::generate_and_score_moves(int depth) {
 
     /*score non-egbb moves*/
     if(!in_egbb)
-        evaluate_moves(depth);
+        evaluate_moves(depth,alpha,beta);
 }
 /*
 Find best move using alpha-beta
@@ -1365,7 +1372,7 @@ MOVE SEARCHER::find_best() {
     print_log("%s\n",fen);
 
     /*generate and score moves*/
-    generate_and_score_moves(0);
+    generate_and_score_moves(0,-MATE_SCORE,MATE_SCORE);
 
     /*no move*/
     if(pstack->count == 0) {
