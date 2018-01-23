@@ -31,7 +31,7 @@ static PARAM lmp_count[] = {0, 10, 10, 15, 21, 24, 44, 49};
 static PARAM lmr_count[] = {4, 6, 7, 8, 13, 20, 25, 31};
 static PARAM lmr_all_count = 3;
 static PARAM lmr_cut_count = 5;
-static PARAM lmr_root_count = 8;
+static PARAM lmr_root_count[] = {4, 8};
 
 /*
 * Update pv
@@ -304,13 +304,13 @@ int SEARCHER::be_selective() {
 
     /*root*/
     if(ply == 1) {
-        if(nmoves >= 4
+        if(nmoves >= lmr_root_count[0]
             && !hstack[hply - 1].checks
             && !is_cap_prom(move)
             && !is_pawn_push(move)
             ) {
             reduce(UNITDEPTH);
-            if(nmoves >= lmr_root_count && pstack->depth > UNITDEPTH)
+            if(nmoves >= lmr_root_count[1] && pstack->depth > UNITDEPTH)
                 reduce(UNITDEPTH);
         }
         return false;
@@ -386,7 +386,7 @@ int SEARCHER::be_selective() {
     /*
     late move reduction
     */
-    if(noncap_reduce) {
+    if(noncap_reduce && nmoves >= 2) {
         //by number of moves searched so far including current move
         for(int i = 0;i < 8;i++) {
             if(nmoves >= lmr_count[i] && pstack->depth > UNITDEPTH) {
@@ -400,27 +400,29 @@ int SEARCHER::be_selective() {
             if(pstack->depth > UNITDEPTH) { reduce(UNITDEPTH); }
         }
         //pv is capture move
-        if(nmoves >= 2 && (pstack-1)->hash_move == (pstack-1)->best_move &&
+        if((pstack-1)->hash_move == (pstack-1)->best_move &&
             is_cap_prom((pstack-1)->hash_move) && pstack->depth > UNITDEPTH) {
             reduce(UNITDEPTH);
         }
+        //see reduction
+        if(depth > 7 && see(move) < 0) {
+            if(pstack->depth > UNITDEPTH) { reduce(UNITDEPTH); }
+        }
         //reduce extended moves less
-        if(nmoves >= 2 && pstack->extension) {
+        if(pstack->extension) {
             reduce(-pstack->reduction / 2);
         }
     }
     /*losing captures*/
-    if(loscap_reduce) {
-        if(nmoves >= 2) {
-            if(pstack->extension) {
-                reduce(UNITDEPTH);
-            } else if(pstack->depth <= 2 * UNITDEPTH)
-                return true;
-            else if(pstack->depth > 4 * UNITDEPTH) {
-                reduce(pstack->depth / 2);
-            } else {
-                reduce(2 * UNITDEPTH);
-            }
+    if(loscap_reduce && nmoves >= 2) {
+        if(pstack->extension) {
+            reduce(UNITDEPTH);
+        } else if(pstack->depth <= 2 * UNITDEPTH)
+            return true;
+        else if(pstack->depth > 4 * UNITDEPTH) {
+            reduce(pstack->depth / 2);
+        } else {
+            reduce(2 * UNITDEPTH);
         }
     }
     /*
@@ -1526,12 +1528,12 @@ bool check_search_params(char** commands,char* command,int& command_num) {
         lmp_count[atoi(&command[9])] = atoi(commands[command_num++]);
     } else if(!strncmp(command, "lmr_count",9)) {
         lmr_count[atoi(&command[9])] = atoi(commands[command_num++]);
+    } else if(!strncmp(command, "lmr_root_count",14)) {
+        lmr_root_count[atoi(&command[14])] = atoi(commands[command_num++]);
     } else if(!strcmp(command, "lmr_all_count")) {
         lmr_all_count = atoi(commands[command_num++]);
     } else if(!strcmp(command, "lmr_cut_count")) {
         lmr_cut_count = atoi(commands[command_num++]);
-    } else if(!strcmp(command, "lmr_root_count")) {
-        lmr_root_count = atoi(commands[command_num++]);
     } else if(!strcmp(command, "aspiration_window")) {
         aspiration_window = atoi(commands[command_num++]);
 #endif
