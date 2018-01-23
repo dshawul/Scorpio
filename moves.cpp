@@ -1675,8 +1675,14 @@ void SEARCHER::update_history(MOVE move) {
     }
 }
 void SEARCHER::clear_history() {
-    memset(history,0,sizeof(history));
-    memset(refutation,0,sizeof(refutation));
+    if(first_search) {
+        memset(history,0,sizeof(history));
+        memset(refutation,0,sizeof(refutation));
+    } else {
+        for(int i = 0;i < 14;i++)
+            for(int j = 0;j < 64;j++)
+                history[i][j] >>= 2;
+    }
     for(int i = 0;i < MAX_PLY;i++) {
         stack[i].killer[0] = stack[i].killer[1] = 0;
     }
