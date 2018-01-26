@@ -384,7 +384,7 @@ struct Node {
     static Node* Max_UCB_select(Node*);
     static Node* Max_score_select(Node*);
     static Node* Max_visits_select(Node*);
-    static Node* Max_AB_select(Node*,int,int);
+    static Node* Max_AB_select(Node*,int,int,int&);
     static Node* Best_select(Node*);
     static void print_xml(Node*,int);
 };

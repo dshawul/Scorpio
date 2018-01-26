@@ -1,12 +1,26 @@
 #include "scorpio.h"
 
+/* parameter */
+#ifdef TUNE
+#   define PARAM int
+#else
+#   define PARAM const int
+#endif
+
+/*search parameters*/
+#include "params_search.h"
+
+/** Backup operator type */
 enum BACKUP_TYPE {
     MINMAX, AVERAGE, NODETYPE
 };
+
+/** Rollout type */
 enum ROLLOUT_TYPE {
     MCTS, ALPHABETA
 };
 
+/*mcts parameters*/
 static double  UCTKmax = 0.3;
 static double  UCTKmin = 0.1;
 static double  dUCTK = UCTKmax;
@@ -14,12 +28,10 @@ static int  reuse_tree = 1;
 static int  evaluate_depth = 0;
 static int  backup_type = MINMAX;
 static int  rollout_type = ALPHABETA;
+static double frac_alphabeta = 0.5; 
+static int  mcts_strategy_depth = 10;
 
-static const double K = -log(10.0) / 400.0;
-static inline float logistic(float eloDelta) {
-    return 1 / (1 + exp(K * eloDelta));
-}
-
+/*Node*/
 LOCK Node::mem_lock;
 std::list<Node*> Node::mem_;
 int Node::total = 0;
@@ -71,6 +83,12 @@ void Node::reset_bounds(Node* n) {
     n->alpha = -MATE_SCORE;
     n->beta = MATE_SCORE;
 }
+
+static inline float logistic(float eloDelta) {
+    static const double K = -log(10.0) / 400.0;
+    return 1 / (1 + exp(K * eloDelta));
+}
+
 Node* Node::Max_UCB_select(Node* n) {
     double logn = log(double(n->uct_visits));
     double uct, bvalue = -1;
@@ -89,7 +107,7 @@ Node* Node::Max_UCB_select(Node* n) {
 
     return bnode;
 }
-Node* Node::Max_AB_select(Node* n,int alpha,int beta) {
+Node* Node::Max_AB_select(Node* n,int alpha,int beta,int& rank) {
     double uct, bvalue = -MATE_SCORE;
     Node* current, *bnode = 0;
     int alphac, betac;
@@ -111,7 +129,16 @@ Node* Node::Max_AB_select(Node* n,int alpha,int beta) {
         current = current->next;
     }
 
-    return bnode;
+   int brank = 0;
+   current = n->child;
+   while(current) {
+       uct = current->uct_wins / current->uct_visits;
+       if(uct >= bvalue) brank++;
+       current = current->next;
+   }
+   rank = brank;
+
+   return bnode;
 }
 Node* Node::Max_score_select(Node* n) {
     double bvalue = -MAX_NUMBER, uct;
@@ -181,6 +208,7 @@ void SEARCHER::add_children(Node* n) {
         last = node;
     }
 }
+
 void SEARCHER::play_simulation(Node* n, double& result, int& visits) {
 
     /*virtual loss*/
@@ -228,10 +256,11 @@ void SEARCHER::play_simulation(Node* n, double& result, int& visits) {
         }
     } else {
         Node* next;
+        int nmoves = 0;
 
         /*select move*/
         if(rollout_type == ALPHABETA) {
-            next = Node::Max_AB_select(n,-pstack->beta,-pstack->alpha);
+            next = Node::Max_AB_select(n,-pstack->beta,-pstack->alpha,nmoves);
             if(!next) {
                 visits = 1;
                 result = n->uct_wins / n->uct_visits;
@@ -262,13 +291,27 @@ void SEARCHER::play_simulation(Node* n, double& result, int& visits) {
         if(next->alpha > alphac) alphac = next->alpha;
         if(next->beta < betac)    betac = next->beta;
 
-        /*Play simulation*/
+        /*Make move*/
         PUSH_MOVE(next->move);
         pstack->depth = (pstack - 1)->depth - UNITDEPTH;
         pstack->alpha = alphac;
         pstack->beta = betac;
         pstack->node_type = next_node_t;
+        /*Late move reductions*/
+        if(rollout_type == ALPHABETA && !is_cap_prom(next->move)) {
+            for(int i = 0;i < 8;i++) {
+                if(nmoves >= lmr_count[i] && pstack->depth > UNITDEPTH) {
+                    pstack->depth -= UNITDEPTH;
+                }
+            }
+            if( ((pstack-1)->node_type == ALL_NODE && nmoves >= lmr_all_count) ||
+                ((pstack-1)->node_type == CUT_NODE && nmoves >= lmr_cut_count) ) { 
+                if(pstack->depth > UNITDEPTH) { pstack->depth -= UNITDEPTH; }
+            }
+        }
+        /*Simulate selected move*/
         play_simulation(next,result,visits);
+        /*Undo move*/
         POP_MOVE();
 
 END:
@@ -314,6 +357,7 @@ void SEARCHER::search_mc() {
             root->alpha >= root->beta)
             break;
 
+        /*switch rollout type*/
         play_simulation(root,result,visits);
 
         if(processor_id == 0) {
@@ -339,6 +383,13 @@ void SEARCHER::search_mc() {
                         print_mc_pv(root);
                         pfrac = frac;
                     }
+                    /*Switching rollouts type*/
+                    if(rollout_type == ALPHABETA && frac >= frac_alphabeta) {
+                        print("Switching rollout type to MCTS.\n");
+                        rollout_type = MCTS;
+                        search_depth = search_depth + mcts_strategy_depth;
+                        pstack->depth = search_depth * UNITDEPTH;
+                    }
                 }
 #ifdef CLUSTER
                 /*quit hosts*/
@@ -348,40 +399,6 @@ void SEARCHER::search_mc() {
             }
         }
     }
-}
-void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
-    /*find root node*/
-    if(root) {
-        int i,j;
-        bool found = false;
-        for(i = 0;i < 2;i++) {
-            if(hstack[hply - 1 - i].hash_key == root_key) {
-                found = true;
-                break;
-            }
-        }
-        if(found && reuse_tree) {
-            MOVE move;
-            for(j = i;j >= 0;--j) {
-                move = hstack[hply - 1 - j].move;
-                root = Node::reclaim(root,&move);
-                if(!root) break;
-            }
-        } else {
-            Node::reclaim(root);
-            root = 0;
-        }
-    }
-    if(!root) {
-        print_log("[Tree not found]\n");
-        root = Node::allocate();
-    } else {
-        print_log("[Tree found : visits %d wins %6.2f%%]\n",
-            root->uct_visits,root->uct_wins / (root->uct_visits + 1));
-    }
-    if(!root->child) 
-        create_children(root,-MATE_SCORE,MATE_SCORE);
-    root_key = hash_key;
 }
 /*
 * Find best move using MCTS
@@ -454,6 +471,43 @@ MOVE SEARCHER::mcts() {
     return stack[0].pv[0];
 }
 /*
+Manage search tree
+*/
+void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
+    /*find root node*/
+    if(root) {
+        int i,j;
+        bool found = false;
+        for(i = 0;i < 2;i++) {
+            if(hstack[hply - 1 - i].hash_key == root_key) {
+                found = true;
+                break;
+            }
+        }
+        if(found && reuse_tree) {
+            MOVE move;
+            for(j = i;j >= 0;--j) {
+                move = hstack[hply - 1 - j].move;
+                root = Node::reclaim(root,&move);
+                if(!root) break;
+            }
+        } else {
+            Node::reclaim(root);
+            root = 0;
+        }
+    }
+    if(!root) {
+        print_log("[Tree not found]\n");
+        root = Node::allocate();
+    } else {
+        print_log("[Tree found : visits %d wins %6.2f%%]\n",
+            root->uct_visits,root->uct_wins / (root->uct_visits + 1));
+    }
+    if(!root->child) 
+        create_children(root,-MATE_SCORE,MATE_SCORE);
+    root_key = hash_key;
+}
+/*
 * Search parameters
 */
 bool check_mcts_params(char** commands,char* command,int& command_num) {
@@ -469,6 +523,10 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         backup_type = atoi(commands[command_num++]);
     } else if(!strcmp(command, "rollout_type")) {
         rollout_type = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "frac_alphabeta")) {
+        frac_alphabeta = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "mcts_strategy_depth")) {
+        mcts_strategy_depth = atoi(commands[command_num++]) / 100.0;
     } else {
         return false;
     }
@@ -481,4 +539,6 @@ void print_mcts_params() {
     print("feature option=\"reuse_tree -check %d\"\n",reuse_tree);
     print("feature option=\"backup_type -combo *MINMAX AVERAGE NODETYPE\"\n");
     print("feature option=\"rollout_type -combo MCTS *ALPHABETA\"\n");
+    print("feature option=\"frac_alphabeta -spin %d 0 100\"\n",int(frac_alphabeta*100));
+    print("feature option=\"mcts_strategy_depth -spin %d 0 100\"\n",mcts_strategy_depth);
 }
