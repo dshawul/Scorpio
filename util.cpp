@@ -308,7 +308,7 @@ void SEARCHER::print_mc_pv(Node* n) {
     else if(score < -MATE_SCORE + WIN_PLY * MAX_PLY) 
         score = -10000 + ((MATE_SCORE + score) * (ply + 1)) / WIN_PLY;
 
-    print("%d %d %d " FMT64 " ",stack[0].pv_length, 
+    print("%d %d %d " FMT64 " ",search_depth, 
         score,(get_time() - start_time) / 10,n->uct_visits);
 
     /*print what we have*/
@@ -317,12 +317,16 @@ void SEARCHER::print_mc_pv(Node* n) {
         strcpy(mv_str,"");
         mov_str(move,mv_str);
         print(" %s",mv_str);
-
-        PUSH_MOVE(move);
+        if(move)
+            PUSH_MOVE(move);
+        else
+            PUSH_NULL();
     }
     /*undo moves*/
-    for (j = 0; j < i ; j++)
-        POP_MOVE();
+    for(i = 0;i < stack[0].pv_length;i++) {
+        if(hstack[hply - 1].move) POP_MOVE();
+        else POP_NULL();
+    }
     print("\n");
 }
 Node* Node::print_tree(Node* root,int output,int max_depth,int depth) {

@@ -361,11 +361,13 @@ struct Node {
 #endif
     int alpha;
     int beta;
+    bool active;
     void clear() {
         uct_wins = 0;
         uct_visits = 0;
         child = 0;
         next = 0;
+        active = true;
         move = MOVE();
         alpha = -MATE_SCORE;
         beta = MATE_SCORE;
@@ -384,7 +386,7 @@ struct Node {
     static Node* Max_UCB_select(Node*);
     static Node* Max_score_select(Node*);
     static Node* Max_visits_select(Node*);
-    static Node* Max_AB_select(Node*,int,int,int&);
+    static Node* Max_AB_select(Node*,int,int,int,int&);
     static Node* Best_select(Node*);
     static void print_xml(Node*,int);
 };
@@ -636,10 +638,12 @@ typedef struct SEARCHER{
     void  extract_pv(Node*);
     void  create_children(Node*,int,int);
     void  add_children(Node*);
+    void  add_null_child(Node*);
     void  manage_tree(Node*&,HASHKEY&);
     void  play_simulation(Node*,double&,int&);
     void  search_mc();
     void  print_status();
+    int   be_selective_mc(int);
     /*counts*/
     UBMP64 nodes;
     UBMP64 qnodes;

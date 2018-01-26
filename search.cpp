@@ -288,7 +288,7 @@ int SEARCHER::is_pawn_push(MOVE move) const {
 int SEARCHER::be_selective() {
     register MOVE move = (pstack - 1)->current_move; 
     register int extension = 0,score,depth = DEPTH((pstack - 1)->depth);
-    int node_t = (pstack - 1)->node_type,nmoves = (pstack - 1)->legal_moves;
+    int node_t = (pstack - 1)->node_type, nmoves = (pstack - 1)->legal_moves;
 
     pstack->extension = 0;
     pstack->reduction = 0;
@@ -414,6 +414,74 @@ int SEARCHER::be_selective() {
             reduce(pstack->depth / 2);
         } else {
             reduce(2 * UNITDEPTH);
+        }
+    }
+    /*
+    end
+    */
+    return false;
+}
+/* for MCTS search */
+int SEARCHER::be_selective_mc(int nmoves) {
+    register MOVE move = hstack[hply - 1].move; 
+    register int extension = 0,score,depth = DEPTH((pstack - 1)->depth);
+
+    pstack->extension = 0;
+    pstack->reduction = 0;
+
+    /*non-cap phase*/
+    bool noncap_reduce = (!is_cap_prom(move));
+
+    /*
+    extend
+    */
+    if(hstack[hply - 1].checks) {
+        extend(0);
+    }
+    if(is_pawn_push(move)) { 
+        extend(0);
+    }
+    if (depth <= 4 && hply >= 2
+        && m_capture(move)
+        && m_capture(hstack[hply - 2].move)
+        && m_to(move) == m_to(hstack[hply - 2].move)
+        && piece_cv[m_capture(move)] == piece_cv[m_capture(hstack[hply - 2].move)]
+    ) {
+        extend(UNITDEPTH);
+    }
+    if(m_capture(move)
+        && piece_c[white] + piece_c[black] == 0
+        && PIECE(m_capture(move)) != pawn
+        ) {
+        extend(UNITDEPTH);
+    }
+    if((pstack - 1)->singular && nmoves == 1) {
+        extend(UNITDEPTH);
+    }
+    if(extension > UNITDEPTH)
+        extension = UNITDEPTH;
+
+    pstack->depth += extension; 
+
+    /*
+    late move reduction
+    */
+    if(noncap_reduce && nmoves >= 2) {
+
+        //second move onwards
+        if(pstack->depth > 2 * UNITDEPTH) { reduce(2 * UNITDEPTH); }
+        else if(pstack->depth >= 2 * UNITDEPTH) { reduce(UNITDEPTH); }
+
+        //by number of moves searched so far including current move
+        for(int i = 0;i < 8;i++) {
+            if(nmoves >= lmr_count[i] && pstack->depth > UNITDEPTH) {
+                reduce(UNITDEPTH);
+            }
+        }
+
+        //reduce extended moves less
+        if(pstack->extension) {
+            reduce(-pstack->reduction / 2);
         }
     }
     /*
