@@ -12,7 +12,7 @@ enum ROLLOUT_TYPE {
 
 /*mcts parameters*/
 static double  UCTKmax = 0.3;
-static double  UCTKmin = 0.1;
+static double  UCTKmin = 0.3;
 static double  dUCTK = UCTKmax;
 static int  reuse_tree = 1;
 static int  evaluate_depth = 0;
@@ -387,7 +387,10 @@ END:
     /*update node's score*/
     l_lock(n->lock);
     n->uct_visits += (visits - 1);
-    n->uct_wins += -result * visits;
+    if(rollout_type == ALPHABETA)
+        n->uct_wins = -result * n->uct_visits;
+    else
+        n->uct_wins += -result * visits;
     l_unlock(n->lock);
 }
 void SEARCHER::search_mc() {
