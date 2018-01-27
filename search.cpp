@@ -462,7 +462,31 @@ int SEARCHER::be_selective_mc(int nmoves) {
         extension = UNITDEPTH;
 
     pstack->depth += extension; 
+    /*
+    pruning
+    */
+    if(depth <= 7
+        && all_man_c > MAX_EGBB
+        && !pstack->extension
+        && noncap_reduce
+        ) {
+            //late move
+            if(nmoves >= lmp_count[depth])
+                return true;
 
+            //see
+            if(see(move) < 0)
+                return true;
+
+            //futility
+            int margin = futility_margin[depth];
+            margin = MAX(margin / 4, margin - 10 * nmoves);
+            score = -eval();
+            if(score + margin < (pstack - 1)->alpha) {
+                return true;
+            }
+
+    }
     /*
     late move reduction
     */
@@ -478,7 +502,7 @@ int SEARCHER::be_selective_mc(int nmoves) {
                 reduce(UNITDEPTH);
             }
         }
-
+        
         //reduce extended moves less
         if(pstack->extension) {
             reduce(-pstack->reduction / 2);
@@ -1505,10 +1529,13 @@ MOVE SEARCHER::find_best() {
 
         /* print result*/
         int time_used = MAX(1,get_time() - start_time);
-        int nps = int(root_node->uct_visits / (time_used / 1000.0f));
-        print("nodes = %d depth = %d/%d time = %dms pps = %d visits = %d search calls = %d\n",
+        int pps = int(root_node->uct_visits / (time_used / 1000.0f));
+        print("nodes = " FMT64 " <%d qnodes> time = %dms nps = %d\n",nodes,
+            int(BMP64(qnodes) / (BMP64(nodes) / 100.0f)),
+            time_used,int(BMP64(nodes) / (time_used / 1000.0f)));
+        print("Tree: nodes = %d depth = %d/%d pps = %d visits = %d leaf_qsearch_calls = %d\n",
             Node::total,Node::maxply / root_node->uct_visits,
-            Node::maxuct,time_used,nps,root_node->uct_visits,search_calls);
+            Node::maxuct,pps,root_node->uct_visits,search_calls);
 
     } else {
 

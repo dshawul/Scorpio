@@ -361,13 +361,19 @@ struct Node {
 #endif
     int alpha;
     int beta;
-    bool active;
+
+    unsigned char flag;
+    enum {
+        INVALID = 0, ACTIVE = 1
+    };
+    int is_active() { return (flag & ACTIVE); }
+
     void clear() {
         uct_wins = 0;
         uct_visits = 0;
         child = 0;
         next = 0;
-        active = true;
+        flag = ACTIVE;
         move = MOVE();
         alpha = -MATE_SCORE;
         beta = MATE_SCORE;

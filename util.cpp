@@ -272,8 +272,8 @@ void Node::print_xml(Node* n,int depth) {
     char mvstr[32];
     mov_str(n->move,mvstr);
 
-    print_log("<node depth=\"%d\" move=\"%s\" visits=\"%d\" wins=\"%d\">\n",
-        depth,mvstr,n->uct_visits,int(n->uct_wins/n->uct_visits));
+    print_log("<node depth=\"%d\" move=\"%s\" alpha=\"%d\" beta=\"%d\" visits=\"%d\" wins=\"%d\">\n",
+        depth,mvstr,n->alpha,n->beta,n->uct_visits,int(n->uct_wins/n->uct_visits));
 
     Node* current = n->child;
     while(current) {
@@ -296,7 +296,7 @@ void SEARCHER::extract_pv(Node* n) {
 void SEARCHER::print_mc_pv(Node* n) {
     MOVE  move;
     char mv_str[64];
-    int i,j;
+    int i;
 
     /*extract pv from tree*/
     extract_pv(n);
@@ -345,10 +345,12 @@ Node* Node::print_tree(Node* root,int output,int max_depth,int depth) {
                 mov_str(current->move,str);
                 for(int i = 0;i < depth;i++)
                     print_log("\t");
-                print_log("%d %2d.%7s  | %6d  %6d \n",
+                print_log("%d %2d.%7s  | %6d  %6d | %6d  %6d \n",
                     depth+1,
                     total+1,
                     str,
+                    current->alpha,
+                    current->beta,
                     int(current->uct_wins / current->uct_visits),
                     current->uct_visits
                     );
