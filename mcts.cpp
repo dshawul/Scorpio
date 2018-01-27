@@ -438,13 +438,6 @@ MOVE SEARCHER::mcts() {
     Node::maxply = 0;
     Node::maxuct = 0;
 
-#ifdef PARALLEL
-    /*attach helper processor here once*/
-    for(int i = 1;i < PROCESSOR::n_processors;i++) {
-        attach_processor(i);
-        processors[i]->state = GO;
-    }
-#endif
     /*search*/
     rollout_type = ALPHABETA;
     search_depth = 3;
@@ -470,8 +463,24 @@ MOVE SEARCHER::mcts() {
         pstack->depth = search_depth * UNITDEPTH;
         pstack->alpha = -MATE_SCORE;
         pstack->beta = MATE_SCORE;
+
+#ifdef PARALLEL
+        /*attach helper processor here once*/
+        for(int i = 1;i < PROCESSOR::n_processors;i++) {
+            attach_processor(i);
+            processors[i]->state = GO;
+        }
+#endif
+        
+        /*montecarlo search*/
         search_mc();
 
+#ifdef PARALLEL
+        /*wait till all helpers become idle*/
+        stop_workers();
+        while(PROCESSOR::n_idle_processors < PROCESSOR::n_processors - 1)
+            t_yield(); 
+#endif
         /*abort search?*/
         if(abort_search)
             break;
@@ -482,13 +491,6 @@ MOVE SEARCHER::mcts() {
         /*check time*/
         check_quit();
     }
-
-#ifdef PARALLEL
-    /*wait till all helpers become idle*/
-    stop_workers();
-    while(PROCESSOR::n_idle_processors < PROCESSOR::n_processors - 1)
-        t_yield(); 
-#endif
 
     /*return*/
     return stack[0].pv[0];
