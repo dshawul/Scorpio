@@ -132,7 +132,7 @@ Node* Node::Max_AB_select(Node* n,int alpha,int beta,int depth) {
         if(alphac < betac) {
             uct = current->uct_wins / current->uct_visits;
             if(!current->move) {
-                if(depth >= 4 * UNITDEPTH && -uct >= -alpha) {
+                if(depth >= 4 * UNITDEPTH && uct >= -alpha) {
                     uct = MATE_SCORE - 1;
                     current->flag = ACTIVE;
                 } else {
@@ -346,13 +346,16 @@ void SEARCHER::play_simulation(Node* n, double& result, int& visits) {
             /*Undo move*/
             POP_MOVE();
         } else {
+            /*evaluation of node*/
+            int score = next->uct_wins / next->uct_visits;
             /*Make nullmove*/
             PUSH_NULL();
             pstack->alpha = alphac;
             pstack->beta = betac;
             /*Next ply depth*/
             pstack->depth = (pstack - 1)->depth - 3 * UNITDEPTH - 
-                            (pstack - 1)->depth / 4;
+                            (pstack - 1)->depth / 4 -
+                            (MIN(3 , (score - (pstack - 1)->beta) / 128) * UNITDEPTH);
             /*Simulate nullmove*/
             play_simulation(next,result,visits);
             /*Undo nullmove*/
