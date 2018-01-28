@@ -1,5 +1,14 @@
 #include "scorpio.h"
 
+/* parameter */
+#ifdef TUNE
+#   define PARAM int
+#else
+#   define PARAM const int
+#endif
+
+#include "params_search.h"
+
 /** Backup operator type */
 enum BACKUP_TYPE {
     MINMAX, AVERAGE
@@ -398,18 +407,27 @@ END:
     l_unlock(n->lock);
 }
 void SEARCHER::search_mc() {
+    Node* root = root_node;
     double pfrac = 0,result;
     int visits;
-    Node* root = root_node;
+    int oalpha = root->alpha;
+    int obeta = root->beta;
+
     while(!abort_search) {
 
+        /*exit when window closes*/
         if(rollout_type == ALPHABETA &&
-            root->alpha >= root->beta)
+            (root->alpha >= root->beta || 
+             root->alpha >= obeta ||
+             root->beta  <= oalpha)
+            ) {
             break;
+        }
 
-        /*switch rollout type*/
+        /*simulate*/
         play_simulation(root,result,visits);
 
+        /*book keeping*/
         if(processor_id == 0) {
 
             /*check for messages from other hosts*/
@@ -456,16 +474,30 @@ void SEARCHER::search_mc() {
 */
 MOVE SEARCHER::mcts() {
 
+    /*start with alphabeta rollouts*/
+    rollout_type = ALPHABETA;
+    search_depth = 3;
+#ifdef CLUSTER
+    if(PROCESSOR::n_hosts > 1 && use_abdada_cluster) 
+        search_depth = 1 - (PROCESSOR::host_id & 1);
+#endif
+
     /* manage tree*/
     Node* root = root_node;
     manage_tree(root,root_key);
     root_node = root;
     Node::maxply = 0;
     Node::maxuct = 0;
-print("size of node %d %d\n",sizeof(Node),sizeof(Node*));
-    /*search*/
-    rollout_type = ALPHABETA;
-    search_depth = 3;
+
+    /*iterative deepening*/
+    int score=0,alpha,beta,WINDOW = 3*aspiration_window/2;
+    int prev_depth = search_depth;
+    int prev_root_score = 0;
+    alpha = -MATE_SCORE; 
+    beta = MATE_SCORE;
+    root_failed_low = 0;
+    pstack->extension = 0;
+    pstack->reduction = 0;
 
     while(search_depth < chess_clock.max_sd) {
 
@@ -481,13 +513,17 @@ print("size of node %d %d\n",sizeof(Node),sizeof(Node*));
         SEARCHER::egbb_ply_limit = 
             SEARCHER::egbb_ply_limit_percent * search_depth / 100;
 
-        if(rollout_type == ALPHABETA)
-            Node::rank_children(root);
-
         /*call monte-carlo rollouts*/
         pstack->depth = search_depth * UNITDEPTH;
-        pstack->alpha = -MATE_SCORE;
-        pstack->beta = MATE_SCORE;
+        pstack->alpha = alpha;
+        pstack->beta = beta;
+
+        /*rank children*/
+        if(rollout_type == ALPHABETA) {
+            Node::rank_children(root);
+            root->alpha = alpha;
+            root->beta = beta;
+        }
 
 #ifdef PARALLEL
         /*attach helper processor here once*/
@@ -510,11 +546,49 @@ print("size of node %d %d\n",sizeof(Node),sizeof(Node*));
         if(abort_search)
             break;
 
+        score = -root->uct_wins;
+
         /*print pv*/
         print_mc_pv(root);
 
+        /*aspiration search*/
+        if(in_egbb || 
+            ABS(score) >= 1000 || 
+            search_depth <= 3
+            ) {
+            alpha = -MATE_SCORE;
+            beta = MATE_SCORE;
+        } else if(score <= alpha) {
+            WINDOW = MIN(200, 3 * WINDOW / 2);
+            alpha = MAX(-MATE_SCORE,score - WINDOW);
+            search_depth--;
+#ifdef CLUSTER
+            if(use_abdada_cluster && PROCESSOR::n_hosts > 1) 
+                search_depth--;
+#endif
+        } else if (score >= beta){
+            WINDOW = MIN(200, 3 * WINDOW / 2);
+            beta = MIN(MATE_SCORE,score + WINDOW);
+            search_depth--;
+#ifdef CLUSTER
+            if(use_abdada_cluster && PROCESSOR::n_hosts > 1) 
+                search_depth--;
+#endif
+        } else {
+            WINDOW = aspiration_window;
+            alpha = score - WINDOW;
+            beta = score + WINDOW;
+        }
         /*check time*/
         check_quit();
+
+        /*store info*/
+        if(search_depth > prev_depth) {
+            prev_root_score = root_score;
+            prev_depth = search_depth;
+        }
+        /*end*/
+
     }
 
     /*return*/

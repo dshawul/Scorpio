@@ -309,7 +309,7 @@ void SEARCHER::print_mc_pv(Node* n) {
         score = -10000 + ((MATE_SCORE + score) * (ply + 1)) / WIN_PLY;
 
     print("%d %d %d " FMT64 " ",search_depth, 
-        score,(get_time() - start_time) / 10,n->uct_visits);
+        score,(get_time() - start_time) / 10,nodes);
 
     /*print what we have*/
     for(i = 0;i < stack[0].pv_length;i++) {
