@@ -351,23 +351,26 @@ typedef struct tagEVALHASH {
 * In-memory tree
 */
 struct Node {
-    double uct_wins;
-    unsigned int uct_visits;
-    MOVE move;
     Node* child;
     Node* next;
+    float uct_wins;
+    unsigned int uct_visits;
+    MOVE move;
 #ifdef PARALLEL
     LOCK lock;
 #endif
-    int alpha;
-    int beta;
-
+    short alpha;
+    short beta;
     unsigned char flag;
     unsigned char rank;
+    
+    /*accessors*/
     enum {
         INVALID = 0, ACTIVE = 1
     };
-    int is_active() { return (flag & ACTIVE); }
+    int is_active() { 
+        return (flag & ACTIVE); 
+    }
 
     void clear() {
         uct_wins = 0;

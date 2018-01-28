@@ -72,10 +72,10 @@ void Node::rank_children(Node* n) {
         
         /*find rank of child*/
         int rank = 1;
-        double val = current->uct_wins / current->uct_visits;
+        double val = current->uct_wins;
         Node* cur = n->child;
         while(cur) {
-            double val1 = cur->uct_wins / cur->uct_visits;
+            double val1 = cur->uct_wins;
             if(val1 > val) rank++;
             cur = cur->next;
         }
@@ -105,7 +105,7 @@ Node* Node::Max_UCB_select(Node* n) {
         if(!current->move) {
             current->flag = INVALID;
         } else {
-            uct = logistic(current->uct_wins / current->uct_visits) +
+            uct = logistic(current->uct_wins) +
                   dUCTK * sqrt(logn / current->uct_visits);
             if(uct > bvalue) {
                 bvalue = uct;
@@ -130,7 +130,7 @@ Node* Node::Max_AB_select(Node* n,int alpha,int beta,int depth) {
         if(beta  < betac)   betac = beta;
 
         if(alphac < betac) {
-            uct = current->uct_wins / current->uct_visits;
+            uct = current->uct_wins;
             if(!current->move) {
                 if(depth >= 4 * UNITDEPTH && uct >= -alpha) {
                     uct = MATE_SCORE - 1;
@@ -157,7 +157,7 @@ Node* Node::Max_score_select(Node* n) {
 
     while(current) {
         if(current->is_active()) {
-            uct = current->uct_wins / current->uct_visits;
+            uct = current->uct_wins;
             if(uct > bvalue) {
                 bvalue = uct;
                 bnode = current;
@@ -269,9 +269,9 @@ void SEARCHER::play_simulation(Node* n, double& result, int& visits) {
         } else if(bitbase_cutoff()) {
             result = pstack->best_score;
         } else if(ply >= MAX_PLY - 1) {
-            result = -n->uct_wins / n->uct_visits;
+            result = -n->uct_wins;
         } else if(pstack->depth <= 0) {
-            result = -n->uct_wins / n->uct_visits;
+            result = -n->uct_wins;
         } else {
             create_children(n,pstack->alpha,pstack->beta);
             if(!n->child) {
@@ -308,7 +308,7 @@ void SEARCHER::play_simulation(Node* n, double& result, int& visits) {
             next = Node::Max_AB_select(n,-pstack->beta,-pstack->alpha,pstack->depth);
             if(!next) {
                 visits = 1;
-                result = n->uct_wins / n->uct_visits;
+                result = n->uct_wins;
                 Node::maxply += ply;
                 goto END;
             }
@@ -333,7 +333,7 @@ void SEARCHER::play_simulation(Node* n, double& result, int& visits) {
             if(rollout_type == ALPHABETA) {
                 if(be_selective_mc(next->rank)) {
                     visits = 1;
-                    result = n->uct_wins / n->uct_visits;
+                    result = n->uct_wins;
                     next->alpha = betac;
                     next->beta = betac;
                     Node::maxply += ply;
@@ -346,8 +346,6 @@ void SEARCHER::play_simulation(Node* n, double& result, int& visits) {
             /*Undo move*/
             POP_MOVE();
         } else {
-            /*evaluation of node*/
-            int score = next->uct_wins / next->uct_visits;
             /*Make nullmove*/
             PUSH_NULL();
             pstack->alpha = alphac;
@@ -355,7 +353,7 @@ void SEARCHER::play_simulation(Node* n, double& result, int& visits) {
             /*Next ply depth*/
             pstack->depth = (pstack - 1)->depth - 3 * UNITDEPTH - 
                             (pstack - 1)->depth / 4 -
-                            (MIN(3 , (score - (pstack - 1)->beta) / 128) * UNITDEPTH);
+                            (MIN(3 , (next->uct_wins - (pstack - 1)->beta) / 128) * UNITDEPTH);
             /*Simulate nullmove*/
             play_simulation(next,result,visits);
             /*Undo nullmove*/
@@ -367,7 +365,7 @@ END:
             result = -result;
         } else {
             Node* best = Node::Max_score_select(n);
-            result = best->uct_wins / best->uct_visits;
+            result = best->uct_wins;
 
             /*update alpha-beta bounds*/
             if(rollout_type == ALPHABETA) {
@@ -390,11 +388,13 @@ END:
     }
     /*update node's score*/
     l_lock(n->lock);
-    n->uct_visits += (visits - 1);
+    n->uct_visits--;
     if(rollout_type == ALPHABETA)
-        n->uct_wins = -result * n->uct_visits;
+        n->uct_wins = -result;
     else
-        n->uct_wins += -result * visits;
+        n->uct_wins = (n->uct_wins * n->uct_visits - result * visits) /
+                      (n->uct_visits  + visits);
+    n->uct_visits += visits;
     l_unlock(n->lock);
 }
 void SEARCHER::search_mc() {
@@ -462,7 +462,7 @@ MOVE SEARCHER::mcts() {
     root_node = root;
     Node::maxply = 0;
     Node::maxuct = 0;
-
+print("size of node %d %d\n",sizeof(Node),sizeof(Node*));
     /*search*/
     rollout_type = ALPHABETA;
     search_depth = 3;
@@ -551,7 +551,7 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
         root = Node::allocate();
     } else {
         print_log("[Tree found : visits %d wins %6.2f%%]\n",
-            root->uct_visits,root->uct_wins / (root->uct_visits + 1));
+            root->uct_visits,root->uct_wins);
 
         /*remove null moves from root*/
         Node* current = root->child, *prev;

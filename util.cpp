@@ -273,7 +273,7 @@ void Node::print_xml(Node* n,int depth) {
     mov_str(n->move,mvstr);
 
     print_log("<node depth=\"%d\" move=\"%s\" alpha=\"%d\" beta=\"%d\" visits=\"%d\" wins=\"%d\">\n",
-        depth,mvstr,n->alpha,n->beta,n->uct_visits,int(n->uct_wins/n->uct_visits));
+        depth,mvstr,n->alpha,n->beta,n->uct_visits,int(n->uct_wins));
 
     Node* current = n->child;
     while(current) {
@@ -302,7 +302,7 @@ void SEARCHER::print_mc_pv(Node* n) {
     extract_pv(n);
 
     /*convert to correct mate score*/
-    int score = -n->uct_wins / n->uct_visits;
+    int score = -n->uct_wins;
     if(score > MATE_SCORE - WIN_PLY * MAX_PLY) 
         score = 10000 - ((MATE_SCORE - score) * (ply + 1)) / WIN_PLY;
     else if(score < -MATE_SCORE + WIN_PLY * MAX_PLY) 
@@ -351,7 +351,7 @@ Node* Node::print_tree(Node* root,int output,int max_depth,int depth) {
                     str,
                     current->alpha,
                     current->beta,
-                    int(current->uct_wins / current->uct_visits),
+                    int(current->uct_wins),
                     current->uct_visits
                     );
             }
