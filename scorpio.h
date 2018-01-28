@@ -363,6 +363,7 @@ struct Node {
     int beta;
 
     unsigned char flag;
+    unsigned char rank;
     enum {
         INVALID = 0, ACTIVE = 1
     };
@@ -373,6 +374,7 @@ struct Node {
         uct_visits = 0;
         child = 0;
         next = 0;
+        rank = 0;
         flag = ACTIVE;
         move = MOVE();
         alpha = -MATE_SCORE;
@@ -387,12 +389,12 @@ struct Node {
     static Node* allocate();
     static void release(Node*);
     static Node* reclaim(Node*,MOVE* = 0);
-    static void  reset_bounds(Node*);
+    static void  rank_children(Node*);
     static Node* print_tree(Node*,int,int = 0,int = 0);
     static Node* Max_UCB_select(Node*);
     static Node* Max_score_select(Node*);
     static Node* Max_visits_select(Node*);
-    static Node* Max_AB_select(Node*,int,int,int,int&);
+    static Node* Max_AB_select(Node*,int,int,int);
     static Node* Best_select(Node*);
     static void print_xml(Node*,int);
 };

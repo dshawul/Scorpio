@@ -494,7 +494,7 @@ int SEARCHER::be_selective_mc(int nmoves) {
 
         //second move onwards
         if(pstack->depth > 2 * UNITDEPTH) { reduce(2 * UNITDEPTH); }
-        else if(pstack->depth >= 2 * UNITDEPTH) { reduce(UNITDEPTH); }
+        else if(pstack->depth > UNITDEPTH) { reduce(UNITDEPTH); }
 
         //by number of moves searched so far including current move
         for(int i = 0;i < 8;i++) {
@@ -502,7 +502,7 @@ int SEARCHER::be_selective_mc(int nmoves) {
                 reduce(UNITDEPTH);
             }
         }
-        
+
         //reduce extended moves less
         if(pstack->extension) {
             reduce(-pstack->reduction / 2);
