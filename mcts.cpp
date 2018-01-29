@@ -74,10 +74,10 @@ Node* Node::reclaim(Node* n,MOVE* except) {
     return rn;
 }
 
-void Node::rank_children(Node* n) {
+void Node::rank_children(Node* n,int alpha,int beta) {
     Node* current = n->child;
     while(current) {
-        rank_children(current);
+        rank_children(current,-beta,-alpha);
         
         /*find rank of child*/
         int rank = 1;
@@ -96,8 +96,8 @@ void Node::rank_children(Node* n) {
         current = current->next;
     }
     /*reset bounds*/
-    n->alpha = -MATE_SCORE;
-    n->beta = MATE_SCORE;
+    n->alpha = alpha;
+    n->beta = beta;
     n->flag = ACTIVE;
 }
 
@@ -143,7 +143,8 @@ Node* Node::Max_AB_select(Node* n,int alpha,int beta,int depth) {
         if(alphac < betac) {
             uct = current->uct_wins;
             if(!current->move) {
-                if(depth >= 4 * UNITDEPTH && uct >= -alpha) {
+                if(depth >= 4 * UNITDEPTH && 
+                    current->uct_wins >= -alpha) {
                     uct = MATE_SCORE - 1;
                     current->flag = ACTIVE;
                 } else {
@@ -420,7 +421,6 @@ void SEARCHER::search_mc() {
     int visits;
     int oalpha = root->alpha;
     int obeta = root->beta;
-
     while(!abort_search) {
 
         /*exit when window closes*/
@@ -456,6 +456,10 @@ void SEARCHER::search_mc() {
                     dUCTK = UCTKmax - frac * (UCTKmax - UCTKmin);
                     if(dUCTK < UCTKmin) dUCTK = UCTKmin;
                     if(frac - pfrac >= 0.05) {
+#if 0
+                        print("[%d %d][%d %d]\n",
+                            root->alpha,root->beta,oalpha,obeta);
+#endif
                         print_mc_pv(root);
                         pfrac = frac;
                     }
@@ -519,9 +523,9 @@ MOVE SEARCHER::mcts() {
 
         /*rank children*/
         if(rollout_type == ALPHABETA) {
-            Node::rank_children(root);
             root->alpha = alpha;
             root->beta = beta;
+            Node::rank_children(root,alpha,beta);
         }
 
 #ifdef PARALLEL
