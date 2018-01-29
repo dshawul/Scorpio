@@ -81,10 +81,12 @@ void Node::rank_children(Node* n) {
         
         /*find rank of child*/
         int rank = 1;
-        double val = current->uct_wins;
+        double val = current->uct_wins + 
+                    double(current->uct_visits)/n->uct_visits;
         Node* cur = n->child;
         while(cur) {
-            double val1 = cur->uct_wins;
+            double val1 = cur->uct_wins +
+                          double(cur->uct_visits)/n->uct_visits;
             if(val1 > val) rank++;
             cur = cur->next;
         }
@@ -166,7 +168,8 @@ Node* Node::Max_score_select(Node* n) {
 
     while(current) {
         if(current->is_active()) {
-            uct = current->uct_wins;
+            uct = current->uct_wins  + 
+                double(current->uct_visits)/n->uct_visits;
             if(uct > bvalue) {
                 bvalue = uct;
                 bnode = current;
@@ -289,11 +292,15 @@ void SEARCHER::play_simulation(Node* n, double& result, int& visits) {
                 else 
                     result = 0;
             } else {
-                Node::maxply++;
-                result = n->child->uct_wins;
-                visits = pstack->count;
-                leaf = false;
-                nodes += visits;
+                if(rollout_type == ALPHABETA) {
+                    goto SELECT;
+                } else {
+                    Node::maxply++;
+                    result = n->child->uct_wins;
+                    visits = pstack->count;
+                    leaf = false;
+                    nodes += visits;
+                }
             }
         }
         Node::maxply += ply;
@@ -311,6 +318,7 @@ void SEARCHER::play_simulation(Node* n, double& result, int& visits) {
         }
     } else {
 
+SELECT:
         /*select move*/
         Node* next;
         if(rollout_type == ALPHABETA) {
@@ -476,11 +484,7 @@ MOVE SEARCHER::mcts() {
 
     /*start with alphabeta rollouts*/
     rollout_type = ALPHABETA;
-    search_depth = 3;
-#ifdef CLUSTER
-    if(PROCESSOR::n_hosts > 1 && use_abdada_cluster) 
-        search_depth = 1 - (PROCESSOR::host_id & 1);
-#endif
+    search_depth = 0;
 
     /* manage tree*/
     Node* root = root_node;
@@ -503,11 +507,6 @@ MOVE SEARCHER::mcts() {
 
         /*search with the current depth*/
         search_depth++;
-#ifdef CLUSTER
-        if(use_abdada_cluster && PROCESSOR::n_hosts > 1 && 
-           search_depth < chess_clock.max_sd) 
-            search_depth++;
-#endif
 
         /*egbb ply limit*/
         SEARCHER::egbb_ply_limit = 
@@ -548,8 +547,24 @@ MOVE SEARCHER::mcts() {
 
         score = -root->uct_wins;
 
+        /*fail low at root*/
+        if(root_failed_low && score > alpha) {
+            root_failed_low--;
+            if(root_failed_low && prev_root_score - root_score < 50) 
+                root_failed_low--;
+            if(root_failed_low && prev_root_score - root_score < 25) 
+                root_failed_low--;
+        }
+
         /*print pv*/
         print_mc_pv(root);
+
+#if 0
+        if(score <= alpha) print("--");
+        else if(score > beta) print("++");
+        else print("==");
+        print(" %d = [%d %d]\n",score,alpha,beta);
+#endif
 
         /*aspiration search*/
         if(in_egbb || 
@@ -559,21 +574,14 @@ MOVE SEARCHER::mcts() {
             alpha = -MATE_SCORE;
             beta = MATE_SCORE;
         } else if(score <= alpha) {
+            root_failed_low = 3;
             WINDOW = MIN(200, 3 * WINDOW / 2);
             alpha = MAX(-MATE_SCORE,score - WINDOW);
             search_depth--;
-#ifdef CLUSTER
-            if(use_abdada_cluster && PROCESSOR::n_hosts > 1) 
-                search_depth--;
-#endif
         } else if (score >= beta){
             WINDOW = MIN(200, 3 * WINDOW / 2);
             beta = MIN(MATE_SCORE,score + WINDOW);
             search_depth--;
-#ifdef CLUSTER
-            if(use_abdada_cluster && PROCESSOR::n_hosts > 1) 
-                search_depth--;
-#endif
         } else {
             WINDOW = aspiration_window;
             alpha = score - WINDOW;
