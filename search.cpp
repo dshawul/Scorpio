@@ -476,10 +476,8 @@ int SEARCHER::be_selective_mc(int nmoves) {
             int margin = futility_margin[depth];
             margin = MAX(margin / 4, margin - 10 * nmoves);
             score = -eval();
-            if(score + margin < (pstack - 1)->alpha) {
+            if(score + margin < (pstack - 1)->alpha)
                 return true;
-            }
-
     }
     /*
     late move reduction

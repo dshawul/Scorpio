@@ -397,7 +397,7 @@ struct Node {
     static Node* Max_UCB_select(Node*);
     static Node* Max_score_select(Node*);
     static Node* Max_visits_select(Node*);
-    static Node* Max_AB_select(Node*,int,int,int);
+    static Node* Max_AB_select(Node*,int,int,bool);
     static Node* Best_select(Node*);
     static void print_xml(Node*,int);
 };
@@ -647,7 +647,7 @@ typedef struct SEARCHER{
     /*mcts stuff*/
     void  print_mc_pv(Node* n);
     void  extract_pv(Node*);
-    void  create_children(Node*,int,int);
+    void  create_children(Node*);
     void  add_children(Node*);
     void  add_null_child(Node*);
     void  manage_tree(Node*&,HASHKEY&);
