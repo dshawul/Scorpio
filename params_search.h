@@ -11,4 +11,13 @@ static PARAM lmr_all_count = 3;
 static PARAM lmr_cut_count = 5;
 static PARAM lmr_root_count[] = {4, 8};
 
+static const int use_nullmove = 1;
+static const int use_selective = 1;
+static const int use_tt = 1;
+static const int use_aspiration = 1;
+static const int use_iid = 1;
+static const int use_ab = 1;
+static const int use_pvs = 1;
+static const int contempt = 2;
+
 #endif

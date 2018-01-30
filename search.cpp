@@ -1,19 +1,13 @@
 #include "scorpio.h"
 
 static const int CHECK_DEPTH = UNITDEPTH;
-static const int use_nullmove = 1;
-static const int use_selective = 1;
-static const int use_tt = 1;
-static const int use_aspiration = 1;
-static const int use_iid = 1;
-static const int use_ab = 1;
-static const int use_pvs = 1;
+
 static int use_probcut = 0;
 static int use_singular = 1;
 static int montecarlo = 0;
 static int singular_margin = 32;
 static int probcut_margin = 195;
-static int contempt = 2;
+
 
 /* parameter */
 #ifdef TUNE
@@ -1604,8 +1598,6 @@ bool check_search_params(char** commands,char* command,int& command_num) {
         singular_margin = atoi(commands[command_num++]);
     } else if(!strcmp(command, "probcut_margin")) {
         probcut_margin = atoi(commands[command_num++]);
-    } else if(!strcmp(command, "contempt")) {
-        contempt = atoi(commands[command_num++]);
     } else if(!strcmp(command, "montecarlo")) {
         montecarlo = atoi(commands[command_num++]);
 #ifdef TUNE
@@ -1667,6 +1659,5 @@ void print_search_params() {
     print("feature option=\"singular_margin -spin %d 0 1000\"\n",singular_margin);
     print("feature option=\"probcut_margin -spin %d 0 1000\"\n",probcut_margin);
     print("feature option=\"aspiration_window -spin %d 0 100\"\n",aspiration_window);
-    print("feature option=\"contempt -spin %d -100 100\"\n",contempt);
     print("feature option=\"montecarlo -check %d\"\n",montecarlo);
 }

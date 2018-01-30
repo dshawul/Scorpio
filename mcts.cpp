@@ -214,7 +214,7 @@ void SEARCHER::create_children(Node* n,int alpha, int beta) {
         Node::maxuct = ply;
 
     /*generate and score moves*/
-    generate_and_score_moves(evaluate_depth * UNITDEPTH,alpha,beta);
+    generate_and_score_moves(evaluate_depth * UNITDEPTH,-MATE_SCORE,MATE_SCORE);
 
     /*add nodes to tree*/
     add_children(n);
@@ -275,14 +275,15 @@ void SEARCHER::play_simulation(Node* n, double& result, int& visits) {
 
     /*uct tree policy*/
     if(!n->child) {
-        bool leaf = true;
         visits = 1;
         if(draw()) {
-            result = 0;
+            result = ((scorpio == player) ? -contempt : contempt);
         } else if(bitbase_cutoff()) {
             result = pstack->best_score;
         } else if(ply >= MAX_PLY - 1) {
             result = -n->uct_wins;
+        } else if(pstack->alpha > MATE_SCORE - WIN_PLY * ply) {
+            result = pstack->alpha;
         } else if(pstack->depth <= 0) {
             result = -n->uct_wins;
         } else {
@@ -299,7 +300,6 @@ void SEARCHER::play_simulation(Node* n, double& result, int& visits) {
                     Node::maxply++;
                     result = n->child->uct_wins;
                     visits = pstack->count;
-                    leaf = false;
                     nodes += visits;
                 }
             }
@@ -308,13 +308,8 @@ void SEARCHER::play_simulation(Node* n, double& result, int& visits) {
         /*update alpha-beta bounds*/
         if(rollout_type == ALPHABETA) {
             l_lock(n->lock);
-            if(leaf) {
-                n->alpha = result;
-                n->beta = result;
-            } else {
-                n->alpha = -MATE_SCORE;
-                n->beta = MATE_SCORE;
-            }
+            n->alpha = result;
+            n->beta = result;
             l_unlock(n->lock);
         }
     } else {
@@ -324,12 +319,6 @@ SELECT:
         Node* next;
         if(rollout_type == ALPHABETA) {
             next = Node::Max_AB_select(n,-pstack->beta,-pstack->alpha,pstack->depth);
-            if(!next) {
-                visits = 1;
-                result = n->uct_wins;
-                Node::maxply += ply;
-                goto END;
-            }
         } else {
             next = Node::Max_UCB_select(n);
         }
@@ -419,8 +408,8 @@ void SEARCHER::search_mc() {
     Node* root = root_node;
     double pfrac = 0,result;
     int visits;
-    int oalpha = root->alpha;
-    int obeta = root->beta;
+    int oalpha = pstack->alpha;
+    int obeta = pstack->beta;
     while(!abort_search) {
 
         /*exit when window closes*/
@@ -522,11 +511,8 @@ MOVE SEARCHER::mcts() {
         pstack->beta = beta;
 
         /*rank children*/
-        if(rollout_type == ALPHABETA) {
-            root->alpha = alpha;
-            root->beta = beta;
+        if(rollout_type == ALPHABETA)
             Node::rank_children(root,alpha,beta);
-        }
 
 #ifdef PARALLEL
         /*attach helper processor here once*/
