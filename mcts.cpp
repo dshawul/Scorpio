@@ -327,9 +327,16 @@ SELECT:
         if(rollout_type == ALPHABETA) {
             bool try_null = pstack->depth >= 4 * UNITDEPTH && eval() >= pstack->beta;
             next = Node::Max_AB_select(n,-pstack->beta,-pstack->alpha,try_null);
-        }
-        else
+        } else {
             next = Node::Max_UCB_select(n);
+        }
+
+        /*could happen in parallel search*/
+        if(!next) {
+            visits = 1;
+            result = -n->uct_wins;
+            goto BACKUP;
+        }
 
         /*Determine next alpha-beta bound*/
         int alphac, betac;
@@ -349,8 +356,10 @@ SELECT:
                 if(use_selective && be_selective_mc(next->rank)) {
                     visits = 1;
                     result = n->uct_wins;
+                    l_lock(next->lock);
                     next->alpha = betac;
                     next->beta = betac;
+                    l_unlock(next->lock);
                     Node::maxply += ply;
                     POP_MOVE();
                     goto BACKUP;
@@ -421,6 +430,7 @@ void SEARCHER::search_mc() {
     int visits;
     int oalpha = pstack->alpha;
     int obeta = pstack->beta;
+
     while(!abort_search) {
 
         /*exit when window closes*/
@@ -440,6 +450,11 @@ void SEARCHER::search_mc() {
 
         /*simulate*/
         play_simulation(root,result,visits);
+        
+        /*exit when fail low is resolved at root*/
+        root_score = -root->uct_wins;
+        if(root_failed_low && root_score > oalpha)
+            break;
 
         /*book keeping*/
         if(processor_id == 0) {
@@ -461,11 +476,7 @@ void SEARCHER::search_mc() {
                             chess_clock.search_time;
                     dUCTK = UCTKmax - frac * (UCTKmax - UCTKmin);
                     if(dUCTK < UCTKmin) dUCTK = UCTKmin;
-                    if(frac - pfrac >= 0.05) {
-#if 0
-                        print("[%d %d][%d %d]\n",
-                            root->alpha,root->beta,oalpha,obeta);
-#endif
+                    if(frac - pfrac >= 0.1) {
                         pfrac = frac;
                         print_mc_pv(root);
                     }
@@ -486,6 +497,15 @@ void SEARCHER::search_mc() {
             }
         }
     }
+
+    /*update statistics of parent*/
+    if(master) {
+        l_lock(lock_smp);
+        l_lock(master->lock);
+        update_master(1);
+        l_unlock(master->lock);
+        l_unlock(lock_smp);
+    }
 }
 /*
 * Find best move using MCTS
@@ -504,11 +524,12 @@ MOVE SEARCHER::mcts() {
     Node::maxuct = 0;
 
     /*iterative deepening*/
-    int score=0,alpha,beta,WINDOW = 3*aspiration_window/2;
+    int score,alpha,beta,WINDOW = 3*aspiration_window/2;
     int prev_depth = search_depth;
     int prev_root_score = 0;
     alpha = -MATE_SCORE; 
     beta = MATE_SCORE;
+    root_failed_low = 0;
     pstack->extension = 0;
     pstack->reduction = 0;
 
@@ -551,17 +572,20 @@ MOVE SEARCHER::mcts() {
         if(abort_search)
             break;
 
+        /*root score*/
         score = -root->uct_wins;
+
+        /*handle fail low on root*/
+        if(root_failed_low && root_score > alpha) {
+            root_failed_low--;
+            if(root_failed_low && prev_root_score - root_score < 50) 
+                root_failed_low--;
+            if(root_failed_low && prev_root_score - root_score < 25) 
+                root_failed_low--;
+        }
 
         /*print pv*/
         print_mc_pv(root);
-
-#if 0
-        if(score <= alpha) print("--");
-        else if(score > beta) print("++");
-        else print("==");
-        print(" %d = [%d %d]\n",score,alpha,beta);
-#endif
 
         /*aspiration search*/
         if(!use_aspiration ||
@@ -572,6 +596,7 @@ MOVE SEARCHER::mcts() {
             alpha = -MATE_SCORE;
             beta = MATE_SCORE;
         } else if(score <= alpha) {
+            root_failed_low = 3;
             WINDOW = MIN(200, 3 * WINDOW / 2);
             alpha = MAX(-MATE_SCORE,score - WINDOW);
             search_depth--;
@@ -584,6 +609,7 @@ MOVE SEARCHER::mcts() {
             alpha = score - WINDOW;
             beta = score + WINDOW;
         }
+        
         /*check time*/
         check_quit();
 
