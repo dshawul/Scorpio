@@ -324,8 +324,10 @@ void SEARCHER::play_simulation(Node* n, double& result, int& visits) {
 SELECT:
         /*select move*/
         Node* next;
+        int eval_score = eval();
         if(rollout_type == ALPHABETA) {
-            bool try_null = pstack->depth >= 4 * UNITDEPTH && eval() >= pstack->beta;
+            bool try_null = pstack->depth >= 4 * UNITDEPTH 
+                            && eval_score >= pstack->beta;
             next = Node::Max_AB_select(n,-pstack->beta,-pstack->alpha,try_null);
         } else {
             next = Node::Max_UCB_select(n);
@@ -377,7 +379,7 @@ SELECT:
             /*Next ply depth*/
             pstack->depth = (pstack - 1)->depth - 3 * UNITDEPTH - 
                             (pstack - 1)->depth / 4 -
-                            (MIN(3 , (next->uct_wins - (pstack - 1)->beta) / 128) * UNITDEPTH);
+                            (MIN(3 , (eval_score - (pstack - 1)->beta) / 128) * UNITDEPTH);
             /*Simulate nullmove*/
             play_simulation(next,result,visits);
             /*Undo nullmove*/
