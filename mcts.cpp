@@ -358,11 +358,11 @@ SELECT:
                 if(use_selective && be_selective_mc(next->rank)) {
                     visits = 1;
                     result = n->uct_wins;
+                    Node::maxply += ply;
                     l_lock(next->lock);
                     next->alpha = betac;
                     next->beta = betac;
                     l_unlock(next->lock);
-                    Node::maxply += ply;
                     POP_MOVE();
                     goto BACKUP;
                 }
@@ -375,7 +375,7 @@ SELECT:
             /*Make nullmove*/
             PUSH_NULL();
             pstack->alpha = alphac;
-            pstack->beta = betac;
+            pstack->beta = alphac + 1;
             /*Next ply depth*/
             pstack->depth = (pstack - 1)->depth - 3 * UNITDEPTH - 
                             (pstack - 1)->depth / 4 -
@@ -393,6 +393,19 @@ BACKUP:
         } else {
             Node* best = Node::Max_score_select(n);
             result = best->uct_wins;
+
+            /*check for null move fail high*/
+            if(!best->move && best->alpha >= best->beta) {
+                if(result >= pstack->beta) {
+                    l_lock(n->lock);
+                    n->alpha = result;
+                    n->beta = result;
+                    l_unlock(n->lock);
+                    goto UPDATE;
+                } else {
+                    best->flag = Node::INVALID;
+                }
+            }
 
             /*update alpha-beta bounds*/
             if(rollout_type == ALPHABETA) {
