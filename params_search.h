@@ -1,7 +1,7 @@
 #ifndef __PARAMS_SEARCH__
 #define __PARAMS_SEARCH__
 
-static PARAM aspiration_window = 6;
+static PARAM aspiration_window = 10;
 static PARAM futility_margin[] = {0, 143, 232, 307, 615, 703, 703, 960};
 static PARAM failhigh_margin[] = {0, 126, 304, 382, 620, 725, 1280, 0};
 static PARAM razor_margin[] = {0, 136, 181, 494, 657, 0, 0, 0};

@@ -31,7 +31,7 @@ static double frac_alphabeta = 1.0;
 static int  mcts_strategy_depth = 15;
 
 /*Node*/
-LOCK Node::mem_lock;
+LOCK Node::mem_lock = 0;
 std::list<Node*> Node::mem_;
 int Node::total = 0;
 int Node::maxuct = 0;
@@ -324,10 +324,10 @@ void SEARCHER::play_simulation(Node* n, double& result, int& visits) {
 SELECT:
         /*select move*/
         Node* next;
-        int eval_score = eval();
+        int eval_score = 0;
         if(rollout_type == ALPHABETA) {
             bool try_null = pstack->depth >= 4 * UNITDEPTH 
-                            && eval_score >= pstack->beta;
+                            && (eval_score = eval()) >= pstack->beta;
             next = Node::Max_AB_select(n,-pstack->beta,-pstack->alpha,try_null);
         } else {
             next = Node::Max_UCB_select(n);
