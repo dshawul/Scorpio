@@ -384,7 +384,8 @@ struct Node {
         beta = MATE_SCORE;
         l_create(lock);
     }
-    static int total;
+    static unsigned int total_nodes;
+    static unsigned int max_tree_nodes;
     static int maxuct;
     static int maxply;
     static LOCK mem_lock;
@@ -641,9 +642,10 @@ typedef struct SEARCHER{
     bool  build_book(char*,char*,int,int,int);
     void  update_history(MOVE);
     void  clear_history();
+    int   get_root_search_score();
     int   get_search_score();
     void  evaluate_moves(int,int,int);
-    void  generate_and_score_moves(int,int,int);
+    void  generate_and_score_moves(int,int,int,bool=false);
     /*mcts stuff*/
     void  print_mc_pv(Node* n);
     void  extract_pv(Node*);

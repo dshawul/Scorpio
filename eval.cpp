@@ -1746,7 +1746,7 @@ static void compute_grad(PSEARCHER ps, float* J, double sc) {
             ps->update_pcsq_val(pic,sq,delta);
         }
 
-        sce = ps->get_search_score();
+        sce = ps->get_root_search_score();
 
         *(p->value) -= delta;
 
@@ -1767,7 +1767,7 @@ void compute_jacobian(PSEARCHER ps, int pos, int result) {
     float* J = jacobian + pos * (nParameters + nPadJac);
     double sc,se;
 
-    sc = ps->get_search_score();
+    sc = ps->get_root_search_score();
     compute_grad(ps,J,sc);
 
     se = 0;

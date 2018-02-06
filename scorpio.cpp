@@ -379,7 +379,7 @@ bool parse_commands(char** commands) {
             print("feature option=\"clear_hash -button\"\n");
             print("feature option=\"resign -spin %d 100 30000\"\n",SEARCHER::resign_value);
             print("feature option=\"cores -spin 1 1 %d\"\n", MAX_CPUS);
-            print("feature option=\"ht -spin %d 1 32768\"\n",ht);
+            print("feature option=\"ht -spin %d 1 131072\"\n",ht);
             print("feature option=\"eht -spin %d 1 16384\"\n",eht);
             print("feature option=\"pht -spin %d 1 256\"\n",pht);
             print("feature option=\"egbb_path -path %s\"\n", SEARCHER::egbb_path);
@@ -831,7 +831,7 @@ bool parse_commands(char** commands) {
                             /*compute evaluation from the stored jacobian*/
                             double se;
                             if(getfen) {
-                                se = searcher.get_search_score();
+                                se = searcher.get_root_search_score();
                             } else {
                                 se = eval_jacobian(cnt,result,params);
                             }
@@ -1054,7 +1054,7 @@ REDO2:
 /*
 Get search score
 */
-int SEARCHER::get_search_score() {
+int SEARCHER::get_root_search_score() {
     int sce;
     if(SEARCHER::chess_clock.max_sd == 0) {
         //evaluation score

@@ -1140,31 +1140,39 @@ POP_Q:
     }
 }
 /*
+Evaluate position
+*/
+int SEARCHER::get_search_score() {
+    int rootf = root_failed_low;
+    root_failed_low = 1;
+
+    search_calls++;
+
+    pstack->node_type = PV_NODE;
+    pstack->search_state = NORMAL_MOVE;
+    pstack->extension = 0;
+    pstack->reduction = 0;
+    pstack->qcheck_depth = UNITDEPTH; 
+    ::search(processors[processor_id]);
+
+    root_failed_low = rootf;
+
+    return pstack->best_score;
+}
+/*
 Evaluate moves with search
 */
 void SEARCHER::evaluate_moves(int depth, int alpha, int beta) {
-    int rootf = root_failed_low;
-    root_failed_low = 1;
     for(int i = 0;i < pstack->count; i++) {
         pstack->current_move = pstack->move_st[i];
         PUSH_MOVE(pstack->current_move);
-
-        search_calls++;
-
-        pstack->node_type = PV_NODE;
-        pstack->search_state = NORMAL_MOVE;
-        pstack->extension = 0;
-        pstack->reduction = 0;
-        pstack->alpha = alpha;
-        pstack->beta = beta;
+        pstack->alpha = -beta;
+        pstack->beta = -alpha;
         pstack->depth = depth;
-        pstack->qcheck_depth = UNITDEPTH; 
-        ::search(processors[processor_id]);
-
+        get_search_score();
         POP_MOVE();
         pstack->score_st[i] = -(pstack+1)->best_score;
     }
-    root_failed_low = rootf;
 
     for(int i = 0;i < pstack->count; i++)
         pstack->sort(i,pstack->count);
@@ -1172,7 +1180,7 @@ void SEARCHER::evaluate_moves(int depth, int alpha, int beta) {
 /*
 Generate all moves
 */
-void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta) {
+void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta, bool skip_eval) {
     int legal_moves, score;
 
     in_egbb = (egbb_is_loaded && all_man_c <= MAX_EGBB);
@@ -1197,7 +1205,7 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta) {
             score = -score;
         } else {
             in_egbb = false;
-            score = 0;
+            score = (alpha + beta) / 2;
         }
         POP_MOVE();
 
@@ -1222,7 +1230,7 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta) {
     }
 
     /*score non-egbb moves*/
-    if(!in_egbb)
+    if(!in_egbb && !skip_eval)
         evaluate_moves(depth,alpha,beta);
 }
 /*
@@ -1526,7 +1534,7 @@ MOVE SEARCHER::find_best() {
             int(BMP64(qnodes) / (BMP64(nodes) / 100.0f)),
             time_used,int(BMP64(nodes) / (time_used / 1000.0f)));
         print("Tree: nodes = %d depth = %d/%d pps = %d visits = %d qsearch_calls = %d\n",
-            Node::total,Node::maxply / root_node->uct_visits,
+            Node::total_nodes,Node::maxply / root_node->uct_visits,
             Node::maxuct,pps,root_node->uct_visits,search_calls);
 
     } else {

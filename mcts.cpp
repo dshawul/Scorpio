@@ -33,7 +33,8 @@ static int  mcts_strategy_depth = 15;
 /*Node*/
 LOCK Node::mem_lock = 0;
 std::list<Node*> Node::mem_;
-int Node::total = 0;
+unsigned int Node::total_nodes = 0;
+unsigned int Node::max_tree_nodes = 0;
 int Node::maxuct = 0;
 int Node::maxply = 0;
 Node* VOLATILE SEARCHER::root_node = 0;
@@ -52,7 +53,7 @@ Node* Node::allocate() {
     }
     n = mem_.front();
     mem_.pop_front();
-    total++;
+    total_nodes++;
     l_unlock(mem_lock);
 
     n->clear();
@@ -61,6 +62,7 @@ Node* Node::allocate() {
 void Node::release(Node* n) {
     l_lock(mem_lock);
     mem_.push_front(n);
+    total_nodes--;
     l_unlock(mem_lock);
 }
 Node* Node::reclaim(Node* n,MOVE* except) {
@@ -282,10 +284,13 @@ void SEARCHER::play_simulation(Node* n, double& result, int& visits) {
         } else if(bitbase_cutoff()) {
             result = pstack->best_score;
         } else if(ply >= MAX_PLY - 1) {
-            result = -n->uct_wins;
+            result = eval();
         } else if(pstack->alpha > MATE_SCORE - WIN_PLY * ply) {
             result = pstack->alpha;
-        } else if(pstack->depth <= 0) {
+        } else if(pstack->depth <= 0) {                        //run out of depth
+            result = -n->uct_wins;
+        } else if(Node::total_nodes >= Node::max_tree_nodes) { //run out of memory
+            n->uct_wins = -get_search_score();
             result = -n->uct_wins;
         } else {
             create_children(n);
@@ -357,7 +362,6 @@ SELECT:
             if(rollout_type == ALPHABETA) {
                 if(use_selective && be_selective_mc(next->rank)) {
                     visits = 1;
-                    result = n->uct_wins;
                     Node::maxply += ply;
                     l_lock(next->lock);
                     next->alpha = betac;
@@ -708,6 +712,12 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         frac_alphabeta = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "mcts_strategy_depth")) {
         mcts_strategy_depth = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "treeht")) {
+        UBMP32 ht = atoi(commands[command_num++]);
+        UBMP32 size = ht * ((1024 * 1024) / sizeof(Node));
+        print("treeht %d X %d = %.1f MB\n",size,sizeof(Node),
+            (size * sizeof(Node)) / double(1024 * 1024));
+        Node::max_tree_nodes = size;
     } else {
         return false;
     }
@@ -721,4 +731,6 @@ void print_mcts_params() {
     print("feature option=\"backup_type -combo *MINMAX AVERAGE NODETYPE\"\n");
     print("feature option=\"frac_alphabeta -spin %d 0 100\"\n",int(frac_alphabeta*100));
     print("feature option=\"mcts_strategy_depth -spin %d 0 100\"\n",mcts_strategy_depth);
+    print("feature option=\"treeht -spin %d 0 131072\"\n",
+        int((Node::max_tree_nodes * sizeof(Node)) / double(1024*1024)));
 }
