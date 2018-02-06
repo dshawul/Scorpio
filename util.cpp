@@ -293,42 +293,6 @@ void SEARCHER::extract_pv(Node* n) {
         ply--;
     }
 }
-void SEARCHER::print_mc_pv(Node* n) {
-    MOVE  move;
-    char mv_str[64];
-    int i;
-
-    /*extract pv from tree*/
-    extract_pv(n);
-
-    /*convert to correct mate score*/
-    int score = -n->uct_wins;
-    if(score > MATE_SCORE - WIN_PLY * MAX_PLY) 
-        score = 10000 - ((MATE_SCORE - score) * (ply + 1)) / WIN_PLY;
-    else if(score < -MATE_SCORE + WIN_PLY * MAX_PLY) 
-        score = -10000 + ((MATE_SCORE + score) * (ply + 1)) / WIN_PLY;
-
-    print("%d %d %d " FMT64 " ",search_depth, 
-        score,(get_time() - start_time) / 10,nodes);
-
-    /*print what we have*/
-    for(i = 0;i < stack[0].pv_length;i++) {
-        move = stack[0].pv[i];
-        strcpy(mv_str,"");
-        mov_str(move,mv_str);
-        print(" %s",mv_str);
-        if(move)
-            PUSH_MOVE(move);
-        else
-            PUSH_NULL();
-    }
-    /*undo moves*/
-    for(i = 0;i < stack[0].pv_length;i++) {
-        if(hstack[hply - 1].move) POP_MOVE();
-        else POP_NULL();
-    }
-    print("\n");
-}
 Node* Node::print_tree(Node* root,int output,int max_depth,int depth) {
     char str[16];
     int considered = 0,total = 0;
@@ -405,6 +369,10 @@ void SEARCHER::print_pv(int score) {
     char mv_str[10];
     char pv[1024];
 
+    /*montecarlo*/
+    if(root_node && root_node->child)
+       extract_pv(root_node);
+
     /*convert to correct mate score*/
     if(score > MATE_SCORE - WIN_PLY * MAX_PLY) 
         score = 10000 - ((MATE_SCORE - score) * (ply + 1)) / WIN_PLY;
@@ -422,7 +390,8 @@ void SEARCHER::print_pv(int score) {
         mov_str(move,mv_str);
         strcat(pv," ");
         strcat(pv,mv_str);
-        PUSH_MOVE(move);
+        if(move) PUSH_MOVE(move);
+        else PUSH_NULL();
     }
     /*add moves from hash table*/
     int dummy;
@@ -437,16 +406,21 @@ void SEARCHER::print_pv(int score) {
         mov_str(move,mv_str);
         strcat(pv, " ");
         strcat(pv, mv_str);
-        PUSH_MOVE(move);
+        if(move) PUSH_MOVE(move);
+        else PUSH_NULL();
         i++;
     }
     /*print it now*/
     strcat(pv,"\n");
     print(pv);
     /*undo moves*/
-    for (int j = 0; j < i ; j++)
-        POP_MOVE();
+    for (int j = 0; j < i ; j++) {
+        move = hstack[hply - 1].move;
+        if(move) POP_MOVE();
+        else POP_NULL();
+    }
 }
+
 /*repeatition inside tree and fifty move draws*/
 int SEARCHER::draw() const {
 

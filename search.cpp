@@ -1524,7 +1524,7 @@ MOVE SEARCHER::find_best() {
     if(montecarlo) {
 
         /*last pv*/
-        print_mc_pv(root_node);
+        print_pv(-root_node->uct_wins);
         Node::print_tree(root_node,1,MAX_PLY);
 
         /* print result*/

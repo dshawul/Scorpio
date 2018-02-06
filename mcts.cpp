@@ -497,7 +497,7 @@ void SEARCHER::search_mc() {
                     if(dUCTK < UCTKmin) dUCTK = UCTKmin;
                     if(frac - pfrac >= 0.1) {
                         pfrac = frac;
-                        print_mc_pv(root);
+                        print_pv(-root->uct_wins);
                     }
                     /*Switching rollouts type*/
                     if(rollout_type == ALPHABETA && frac_alphabeta != 1.0 
@@ -604,7 +604,7 @@ MOVE SEARCHER::mcts() {
         }
 
         /*print pv*/
-        print_mc_pv(root);
+        print_pv(-root->uct_wins);
 
         /*aspiration search*/
         if(!use_aspiration ||
