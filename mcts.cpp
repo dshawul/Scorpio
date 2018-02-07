@@ -1,24 +1,5 @@
 #include "scorpio.h"
 
-/* parameter */
-#ifdef TUNE
-#   define PARAM int
-#else
-#   define PARAM const int
-#endif
-
-#include "params_search.h"
-
-/** Backup operator type */
-enum BACKUP_TYPE {
-    MINMAX, AVERAGE
-};
-
-/** Rollout type */
-enum ROLLOUT_TYPE {
-    MCTS, ALPHABETA
-};
-
 /*mcts parameters*/
 static double  UCTKmax = 0.3;
 static double  UCTKmin = 0.3;
@@ -26,9 +7,11 @@ static double  dUCTK = UCTKmax;
 static int  reuse_tree = 1;
 static int  evaluate_depth = 0;
 static int  backup_type = MINMAX;
-static int  rollout_type = ALPHABETA;
 static double frac_alphabeta = 1.0; 
 static int  mcts_strategy_depth = 15;
+
+int montecarlo = 0;
+int rollout_type = ALPHABETA;
 
 /*Node*/
 LOCK Node::mem_lock = 0;
@@ -358,6 +341,7 @@ SELECT:
             pstack->alpha = alphac;
             pstack->beta = betac;
             pstack->depth = (pstack - 1)->depth - UNITDEPTH;
+            pstack->search_state = NULL_MOVE;
             /*Next ply depth*/
             if(rollout_type == ALPHABETA) {
                 if(use_selective && be_selective_mc(next->rank)) {
@@ -380,6 +364,7 @@ SELECT:
             PUSH_NULL();
             pstack->alpha = alphac;
             pstack->beta = alphac + 1;
+            pstack->search_state = NORMAL_MOVE;
             /*Next ply depth*/
             pstack->depth = (pstack - 1)->depth - 3 * UNITDEPTH - 
                             (pstack - 1)->depth / 4 -
@@ -525,124 +510,10 @@ void SEARCHER::search_mc() {
         l_unlock(master->lock);
         l_unlock(lock_smp);
     }
-}
-/*
-* Find best move using MCTS
-*/
-MOVE SEARCHER::mcts() {
 
-    /*start with alphabeta rollouts*/
-    rollout_type = ALPHABETA;
-    search_depth = 1;
-
-    /* manage tree*/
-    Node* root = root_node;
-    manage_tree(root,root_key);
-    root_node = root;
-    Node::maxply = 0;
-    Node::maxuct = 0;
-
-    /*iterative deepening*/
-    int score,alpha,beta,WINDOW = 3*aspiration_window/2;
-    int prev_depth = search_depth;
-    int prev_root_score = 0;
-    alpha = -MATE_SCORE; 
-    beta = MATE_SCORE;
-    root_failed_low = 0;
-    pstack->extension = 0;
-    pstack->reduction = 0;
-
-    while(search_depth < chess_clock.max_sd) {
-
-        /*search with the current depth*/
-        search_depth++;
-
-        /*egbb ply limit*/
-        SEARCHER::egbb_ply_limit = 
-            SEARCHER::egbb_ply_limit_percent * search_depth / 100;
-
-        /*call monte-carlo rollouts*/
-        pstack->depth = search_depth * UNITDEPTH;
-        pstack->alpha = alpha;
-        pstack->beta = beta;
-
-        /*rank children*/
-        if(rollout_type == ALPHABETA)
-            Node::rank_children(root,alpha,beta);
-
-#ifdef PARALLEL
-        /*attach helper processor here once*/
-        for(int i = 1;i < PROCESSOR::n_processors;i++) {
-            attach_processor(i);
-            processors[i]->state = GO;
-        }
-#endif
-
-        /*montecarlo search*/
-        search_mc();
-
-#ifdef PARALLEL
-        /*wait till all helpers become idle*/
-        stop_workers();
-        while(PROCESSOR::n_idle_processors < PROCESSOR::n_processors - 1)
-            t_yield(); 
-#endif
-        /*abort search?*/
-        if(abort_search)
-            break;
-
-        /*root score*/
-        score = -root->uct_wins;
-
-        /*handle fail low on root*/
-        if(root_failed_low && root_score > alpha) {
-            root_failed_low--;
-            if(root_failed_low && prev_root_score - root_score < 50) 
-                root_failed_low--;
-            if(root_failed_low && prev_root_score - root_score < 25) 
-                root_failed_low--;
-        }
-
-        /*print pv*/
-        print_pv(-root->uct_wins);
-
-        /*aspiration search*/
-        if(!use_aspiration ||
-            in_egbb || 
-            ABS(score) >= 1000 || 
-            search_depth <= 3
-            ) {
-            alpha = -MATE_SCORE;
-            beta = MATE_SCORE;
-        } else if(score <= alpha) {
-            root_failed_low = 3;
-            WINDOW = MIN(200, 3 * WINDOW / 2);
-            alpha = MAX(-MATE_SCORE,score - WINDOW);
-            search_depth--;
-        } else if (score >= beta){
-            WINDOW = MIN(200, 3 * WINDOW / 2);
-            beta = MIN(MATE_SCORE,score + WINDOW);
-            search_depth--;
-        } else {
-            WINDOW = aspiration_window;
-            alpha = score - WINDOW;
-            beta = score + WINDOW;
-        }
-        
-        /*check time*/
-        check_quit();
-
-        /*store info*/
-        if(search_depth > prev_depth) {
-            prev_root_score = root_score;
-            prev_depth = search_depth;
-        }
-        /*end*/
-
-    }
-
-    /*return*/
-    return stack[0].pv[0];
+    /*print pv*/
+    print_pv(-root->uct_wins);
+    pstack->best_score = -root->uct_wins;
 }
 /*
 Manage search tree
@@ -712,6 +583,8 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         frac_alphabeta = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "mcts_strategy_depth")) {
         mcts_strategy_depth = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "montecarlo")) {
+        montecarlo = atoi(commands[command_num++]);
     } else if(!strcmp(command, "treeht")) {
         UBMP32 ht = atoi(commands[command_num++]);
         UBMP32 size = ht * ((1024 * 1024) / sizeof(Node));
@@ -731,6 +604,7 @@ void print_mcts_params() {
     print("feature option=\"backup_type -combo *MINMAX AVERAGE NODETYPE\"\n");
     print("feature option=\"frac_alphabeta -spin %d 0 100\"\n",int(frac_alphabeta*100));
     print("feature option=\"mcts_strategy_depth -spin %d 0 100\"\n",mcts_strategy_depth);
+    print("feature option=\"montecarlo -check %d\"\n",montecarlo);
     print("feature option=\"treeht -spin %d 0 131072\"\n",
         int((Node::max_tree_nodes * sizeof(Node)) / double(1024*1024)));
 }

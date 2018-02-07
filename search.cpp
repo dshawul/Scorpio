@@ -1,13 +1,20 @@
 #include "scorpio.h"
 
 static const int CHECK_DEPTH = UNITDEPTH;
-
 static int use_probcut = 0;
 static int use_singular = 1;
-static int montecarlo = 0;
 static int singular_margin = 32;
 static int probcut_margin = 195;
 
+/* search options */
+const int use_nullmove = 1;
+const int use_selective = 1;
+const int use_tt = 1;
+const int use_aspiration = 1;
+const int use_iid = 1;
+const int use_ab = 1;
+const int use_pvs = 1;
+const int contempt = 2;
 
 /* parameter */
 #ifdef TUNE
@@ -16,7 +23,15 @@ static int probcut_margin = 195;
 #   define PARAM const int
 #endif
 
-#include "params_search.h"
+static PARAM aspiration_window = 10;
+static PARAM futility_margin[] = {0, 143, 232, 307, 615, 703, 703, 960};
+static PARAM failhigh_margin[] = {0, 126, 304, 382, 620, 725, 1280, 0};
+static PARAM razor_margin[] = {0, 136, 181, 494, 657, 0, 0, 0};
+static PARAM lmp_count[] = {0, 10, 10, 15, 21, 24, 44, 49};
+static PARAM lmr_count[] = {4, 6, 7, 8, 13, 20, 25, 31};
+static PARAM lmr_all_count = 3;
+static PARAM lmr_cut_count = 5;
+static PARAM lmr_root_count[] = {4, 8};
 
 /*
 * Update pv
@@ -1055,30 +1070,55 @@ SPECIAL:
 searcher's search function
 */
 void SEARCHER::search() {
+
+    /*mcts*/
+    if(montecarlo) {
 #ifdef PARALLEL
-    /*attach helper processor here once for abdada*/
-    if(use_abdada_smp) {
-        for(int i = 1;i < PROCESSOR::n_processors;i++) {
-            attach_processor(i);
-            PSEARCHER sb = processors[i]->searcher;
-            memcpy(&sb->pstack->move_st[0],&pstack->move_st[0], 
-                pstack->count * sizeof(MOVE));
-            processors[i]->state = GO;
-        }
-    }
+            /*attach helper processor here once*/
+            for(int i = 1;i < PROCESSOR::n_processors;i++) {
+                attach_processor(i);
+                processors[i]->state = GO;
+            }
 
-    /*do the search*/
-    ::search(processors[0]);
+            /*montecarlo search*/
+            search_mc();
 
-    /*wait till all helpers become idle*/
-    if(use_abdada_smp) {
-        stop_workers();
-        while(PROCESSOR::n_idle_processors < PROCESSOR::n_processors - 1)
-            t_yield(); 
-    }
+            /*wait till all helpers become idle*/
+            stop_workers();
+            while(PROCESSOR::n_idle_processors < PROCESSOR::n_processors - 1)
+                t_yield(); 
 #else
-    ::search(this);
+            search_mc();
 #endif
+
+    /*alphabeta*/
+    } else {
+
+#ifdef PARALLEL
+        /*attach helper processor here once for abdada*/
+        if(use_abdada_smp) {
+            for(int i = 1;i < PROCESSOR::n_processors;i++) {
+                attach_processor(i);
+                PSEARCHER sb = processors[i]->searcher;
+                memcpy(&sb->pstack->move_st[0],&pstack->move_st[0], 
+                    pstack->count * sizeof(MOVE));
+                processors[i]->state = GO;
+            }
+        }
+
+        /*do the search*/
+        ::search(processors[0]);
+
+        /*wait till all helpers become idle*/
+        if(use_abdada_smp) {
+            stop_workers();
+            while(PROCESSOR::n_idle_processors < PROCESSOR::n_processors - 1)
+                t_yield(); 
+        }
+#else
+        ::search(this);
+#endif
+    }
 }
 /*
 quiescent search
@@ -1234,9 +1274,9 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta, bool ski
         evaluate_moves(depth,alpha,beta);
 }
 /*
-Find best move using alpha-beta
+Find best move using alpha-beta or mcts
 */
-MOVE SEARCHER::alphabeta() {
+MOVE SEARCHER::iterative_deepening() {
     int score;
     int easy = false,easy_score = 0;
     MOVE easy_move = 0;
@@ -1273,7 +1313,19 @@ MOVE SEARCHER::alphabeta() {
     pstack->extension = 0;
     pstack->reduction = 0;
 
+    /* manage tree*/
+    if(montecarlo) {
+        Node* root = root_node;
+        manage_tree(root,root_key);
+        root_node = root;
+        Node::maxply = 0;
+        Node::maxuct = 0;
+        rollout_type = ALPHABETA;
+    }
+
+    /*iterative deepening*/
     while(search_depth < chess_clock.max_sd) {
+
         /*search with the current depth*/
         search_depth++;
 #ifdef CLUSTER
@@ -1290,14 +1342,19 @@ MOVE SEARCHER::alphabeta() {
         pstack->alpha = alpha;
         pstack->beta = beta;
 
+        /*search*/
         search();
         
-        /*abort search?*/
+        /*check if search is aborted*/
         if(abort_search)
             break;
 
-        /*score*/
+        /*best score*/
         score = pstack->best_score;
+
+        /*fail low*/
+        if(score <= alpha)
+            root_failed_low = 3;
 
         /*fail low at root*/
         if(root_failed_low && score > alpha) {
@@ -1308,57 +1365,64 @@ MOVE SEARCHER::alphabeta() {
                 root_failed_low--;
         }
 
-        /* Is there enough time to search the first move?
-         * First move taking lot more time than second. */
-        if(!root_failed_low && chess_clock.is_timed()) {
-            int time_used = get_time() - start_time;
-            double ratio = double(root_score_st[0]) / root_score_st[1];
-            if((time_used >= 0.75 * chess_clock.search_time) || 
-               (time_used >= 0.5 * chess_clock.search_time && ratio >= 2.0)  ) {
-                abort_search = 1;
-                if(score > alpha)
-                    print_pv(root_score);
-                break;
-            }
-        }
-
-        /*install fake pv into TT table so that it is searched
-        first incase it was overwritten*/   
-        if(pstack->pv_length) {
-            for(int i = 0;i < stack[0].pv_length;i++) {
-                RECORD_HASH(player,hash_key,0,0,HASH_HIT,0,stack[0].pv[i],0,0);
-                PUSH_MOVE(stack[0].pv[i]);
-            }
-            for(int i = 0;i < stack[0].pv_length;i++)
-                POP_MOVE();
-        }
-
         /*sort moves*/
-        MOVE tempm;
-        UBMP64 temps,bests = 0;
-
-        for(int i = 0;i < pstack->count; i++) {
-            if(pstack->pv[0] == pstack->move_st[i]) {
-                bests = root_score_st[i];
-                root_score_st[i] = MAX_UBMP64;
-            }
-        }
-        for(int i = 0;i < pstack->count; i++) {
-            for(int j = i + 1;j < pstack->count;j++) {
-                if(root_score_st[i] < root_score_st[j]) {
-                    tempm = pstack->move_st[i];
-                    temps = root_score_st[i];
-                    pstack->move_st[i] = pstack->move_st[j];
-                    root_score_st[i] = root_score_st[j];
-                    pstack->move_st[j] = tempm;
-                    root_score_st[j] = temps;
+        if(!montecarlo) {
+            /* Is there enough time to search the first move?
+             * First move taking lot more time than second. */
+            if(!root_failed_low && chess_clock.is_timed()) {
+                int time_used = get_time() - start_time;
+                double ratio = double(root_score_st[0]) / root_score_st[1];
+                if((time_used >= 0.75 * chess_clock.search_time) || 
+                   (time_used >= 0.5 * chess_clock.search_time && ratio >= 2.0)  ) {
+                    abort_search = 1;
+                    if(score > alpha)
+                        print_pv(root_score);
+                    break;
                 }
             }
-        }
-        for(int i = 0;i < pstack->count; i++) {
-            if(pstack->pv[0] == pstack->move_st[i]) {
-                root_score_st[i] = bests;
+
+            /*install fake pv into TT table so that it is searched
+            first incase it was overwritten*/
+            if(pstack->pv_length) {
+                for(int i = 0;i < stack[0].pv_length;i++) {
+                    RECORD_HASH(player,hash_key,0,0,HASH_HIT,0,stack[0].pv[i],0,0);
+                    PUSH_MOVE(stack[0].pv[i]);
+                }
+                for(int i = 0;i < stack[0].pv_length;i++)
+                    POP_MOVE();
             }
+
+            /*sort moves*/
+            MOVE tempm;
+            UBMP64 temps,bests = 0;
+
+            for(int i = 0;i < pstack->count; i++) {
+                if(pstack->pv[0] == pstack->move_st[i]) {
+                    bests = root_score_st[i];
+                    root_score_st[i] = MAX_UBMP64;
+                }
+            }
+            for(int i = 0;i < pstack->count; i++) {
+                for(int j = i + 1;j < pstack->count;j++) {
+                    if(root_score_st[i] < root_score_st[j]) {
+                        tempm = pstack->move_st[i];
+                        temps = root_score_st[i];
+                        pstack->move_st[i] = pstack->move_st[j];
+                        root_score_st[i] = root_score_st[j];
+                        pstack->move_st[j] = tempm;
+                        root_score_st[j] = temps;
+                    }
+                }
+            }
+            for(int i = 0;i < pstack->count; i++) {
+                if(pstack->pv[0] == pstack->move_st[i]) {
+                    root_score_st[i] = bests;
+                }
+            }
+        } else {
+            /*rank children*/
+            if(rollout_type == ALPHABETA)
+                Node::rank_children(root_node,-MATE_SCORE,MATE_SCORE);
         }
 
         /*check if "easy" move is really easy*/
@@ -1499,11 +1563,7 @@ MOVE SEARCHER::find_best() {
 #endif
 
     /*mcts or alphabeta*/
-    MOVE bmove;
-    if(montecarlo)
-        bmove = mcts();
-    else
-        bmove = alphabeta();
+    MOVE bmove = iterative_deepening();
 
 #ifdef PARALLEL
     /*park threads*/
@@ -1604,8 +1664,6 @@ bool check_search_params(char** commands,char* command,int& command_num) {
         singular_margin = atoi(commands[command_num++]);
     } else if(!strcmp(command, "probcut_margin")) {
         probcut_margin = atoi(commands[command_num++]);
-    } else if(!strcmp(command, "montecarlo")) {
-        montecarlo = atoi(commands[command_num++]);
 #ifdef TUNE
     } else if(!strncmp(command, "futility_margin",15)) {
         futility_margin[atoi(&command[15])] = atoi(commands[command_num++]);
@@ -1665,5 +1723,4 @@ void print_search_params() {
     print("feature option=\"singular_margin -spin %d 0 1000\"\n",singular_margin);
     print("feature option=\"probcut_margin -spin %d 0 1000\"\n",probcut_margin);
     print("feature option=\"aspiration_window -spin %d 0 100\"\n",aspiration_window);
-    print("feature option=\"montecarlo -check %d\"\n",montecarlo);
 }

@@ -116,6 +116,12 @@ enum move_gen_status {
     GEN_START, GEN_RESET, GEN_AVAIL, GEN_HASHM, GEN_CAPS, GEN_QNONCAPS, 
     GEN_KILLERS = 6, GEN_NONCAPS, GEN_LOSCAPS, GEN_END
 };
+enum BACKUP_TYPE {
+    MINMAX, AVERAGE
+};
+enum ROLLOUT_TYPE {
+    MCTS, ALPHABETA
+};
 enum square_names {
     A1 = 0,B1,C1,D1,E1,F1,G1,H1,
     A2 = 16,B2,C2,D2,E2,F2,G2,H2,
@@ -604,8 +610,7 @@ typedef struct SEARCHER{
     MOVE  get_qmove();
     int   draw() const;
     MOVE  find_best();
-    MOVE  alphabeta();
-    MOVE  mcts();
+    MOVE  iterative_deepening();
     int   be_selective();
     int   on_node_entry();
     int   on_qnode_entry();
@@ -950,6 +955,19 @@ extern int pcsq[14][0x80];
 extern bool book_loaded;
 extern bool log_on;
 extern int scorpio_start_time;
+extern int montecarlo;
+extern int rollout_type;
+
+/** search options */
+extern const int use_nullmove;
+extern const int use_selective;
+extern const int use_tt;
+extern const int use_aspiration;
+extern const int use_iid;
+extern const int use_ab;
+extern const int use_pvs;
+extern const int contempt;
+
 /*
 utility functions
 */
