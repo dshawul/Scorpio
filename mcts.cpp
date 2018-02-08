@@ -251,12 +251,27 @@ void SEARCHER::add_null_child(Node* n) {
 }
 void SEARCHER::play_simulation(Node* n, double& result, int& visits) {
 
+    nodes++;
+
+    /*In parallel search, currentnode's window may be closed
+      by another thread, in which case we return immediately*/
+#ifdef PARALLEL
+    if(rollout_type == ALPHABETA) {
+        l_lock(n->lock);
+        if(n->alpha >= n->beta) {
+            visits = 1;
+            result = -n->uct_wins;
+            l_unlock(n->lock);
+            return;
+        }
+        l_unlock(n->lock);
+    }
+#endif
+
     /*virtual loss*/
     l_lock(n->lock);
     n->uct_visits++;
     l_unlock(n->lock);
-
-    nodes++;
 
     /*uct tree policy*/
     if(!n->child) {
@@ -266,15 +281,15 @@ void SEARCHER::play_simulation(Node* n, double& result, int& visits) {
             result = ((scorpio == player) ? -contempt : contempt);
         } else if(bitbase_cutoff()) {
             result = pstack->best_score;
-        } else if(ply >= MAX_PLY - 1) {
-            result = eval();
-        } else if(pstack->alpha > MATE_SCORE - WIN_PLY * ply) {
-            result = pstack->alpha;
-        } else if(pstack->depth <= 0) {                        //run out of depth
+        } else if(ply >= MAX_PLY - 1) {                           //run out of plies
             result = -n->uct_wins;
-        } else if(Node::total_nodes >= Node::max_tree_nodes) { //run out of memory
+        } else if(pstack->depth <= 0) {                           //run out of depth
+            result = -n->uct_wins;
+        } else if(Node::total_nodes >= Node::max_tree_nodes) {    //run out of memory
             n->uct_wins = -get_search_score();
             result = -n->uct_wins;
+        } else if(pstack->alpha > MATE_SCORE - WIN_PLY * ply) {
+            result = pstack->alpha;
         } else {
             create_children(n);
             if(!n->child) {
@@ -314,19 +329,13 @@ SELECT:
         Node* next;
         int eval_score = 0;
         if(rollout_type == ALPHABETA) {
-            bool try_null = pstack->depth >= 4 * UNITDEPTH 
+            bool try_null = ply && pstack->depth >= 4 * UNITDEPTH 
                             && (eval_score = eval()) >= pstack->beta;
             next = Node::Max_AB_select(n,-pstack->beta,-pstack->alpha,try_null);
         } else {
             next = Node::Max_UCB_select(n);
         }
-
-        /*could happen in parallel search*/
-        if(!next) {
-            visits = 1;
-            result = -n->uct_wins;
-            goto BACKUP;
-        }
+        if(!next) next = n->child;
 
         /*Determine next alpha-beta bound*/
         int alphac, betac;
@@ -383,24 +392,24 @@ BACKUP:
             Node* best = Node::Max_score_select(n);
             result = best->uct_wins;
 
-            /*check for null move fail high*/
-            if(!best->move && best->alpha >= best->beta) {
-                if(result >= pstack->beta) {
-                    l_lock(n->lock);
-                    n->alpha = result;
-                    n->beta = result;
-                    l_unlock(n->lock);
-                    goto UPDATE;
-                } else {
-                    best->flag = Node::INVALID;
-                }
-            }
-
-            /*update alpha-beta bounds*/
             if(rollout_type == ALPHABETA) {
-                Node* current = n->child;
+                /*check for null move fail high*/
+                if(!best->move && best->alpha >= best->beta) {
+                    if(result >= pstack->beta) {
+                        l_lock(n->lock);
+                        n->alpha = result;
+                        n->beta = result;
+                        l_unlock(n->lock);
+                        goto UPDATE;
+                    } else {
+                        best->flag = Node::INVALID;
+                    }
+                }
+
+                /*update alpha-beta bounds*/
                 int alpha = -MATE_SCORE;
                 int beta = -MATE_SCORE;
+                Node* current = n->child;
                 while(current) {
                     if(current->is_active()) {
                         if(-current->beta > alpha) alpha = -current->beta;
@@ -435,30 +444,41 @@ void SEARCHER::search_mc() {
     int oalpha = pstack->alpha;
     int obeta = pstack->beta;
 
-    while(!abort_search) {
-
-        /*exit when window closes*/
-        if(use_ab && rollout_type == ALPHABETA &&
-            (root->alpha >= root->beta || 
-             root->alpha >= obeta ||
-             root->beta  <= oalpha)
-            ) {
-            break;
-        }
-
-        /*negamax*/
-        if(!use_ab && rollout_type == ALPHABETA &&
-            root->alpha > -MATE_SCORE &&
-            root->beta < MATE_SCORE)
-            break;
+    while(true) {
 
         /*simulate*/
         play_simulation(root,result,visits);
         
-        /*exit when fail low is resolved at root*/
+        /*root score*/
         root_score = -root->uct_wins;
-        if(root_failed_low && root_score > oalpha)
+
+        /*search stopped*/
+        if(abort_search || stop_searcher)
             break;
+
+        /*check for exit conditions*/
+        if(rollout_type == ALPHABETA) {
+
+            /*exit when window closes*/
+            if(use_ab && rollout_type == ALPHABETA &&
+                (root->alpha >= root->beta || 
+                 root->alpha >= obeta ||
+                 root->beta  <= oalpha)
+                ) {
+                break;
+            }
+
+            /*negamax*/
+            if(!use_ab && rollout_type == ALPHABETA &&
+                root->alpha > -MATE_SCORE &&
+                root->beta < MATE_SCORE)
+                break;
+
+            /*fail low*/
+            if(rollout_type == ALPHABETA &&
+                root_failed_low && root_score > oalpha)
+                break;
+        }
 
         /*book keeping*/
         if(processor_id == 0) {
@@ -509,11 +529,10 @@ void SEARCHER::search_mc() {
         update_master(1);
         l_unlock(master->lock);
         l_unlock(lock_smp);
+    } else {
+        print_pv(root_score);
+        pstack->best_score = root_score;
     }
-
-    /*print pv*/
-    print_pv(-root->uct_wins);
-    pstack->best_score = -root->uct_wins;
 }
 /*
 Manage search tree

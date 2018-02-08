@@ -817,6 +817,7 @@ void SEARCHER::update_master(int skip) {
             }
         }
     }
+    
     /*zero helper*/
     master->workers[processor_id] = 0;
     master->n_workers--;
@@ -947,6 +948,7 @@ void SEARCHER::clear_block() {
     master = 0;
     stop_ply = ply;
     stop_searcher = 0;
+    finish_search = false;
     used = true;
     pstack->pv_length = ply;
     pstack->best_move = 0;

@@ -767,7 +767,7 @@ START:
             * qsearch(Yes:). Qsearch is implemented separately.
             */
 NEW_NODE:
-            if(sb->stop_searcher || sb->on_node_entry())
+            if(sb->on_node_entry())
                 goto POP;
         }
 POP:
@@ -775,17 +775,20 @@ POP:
         * Terminate search on current block if stop signal is on
         * or if we finished searching.
         */
-        if(sb->stop_ply == sb->ply 
-            || sb->stop_searcher 
-            || sb->abort_search
+        if(sb->stop_ply == sb->ply
+            || ( !sb->finish_search &&
+                 (sb->stop_searcher || sb->abort_search) )
             ) {
 #ifndef PARALLEL
                 return;
 #else
+                /*exit here on montecarlo search*/
+                if(montecarlo)
+                    return;
                 /*
                 * Is this processor a slave?
                 */
-                if(sb->master && !montecarlo) {
+                if(sb->master) {
                     l_lock(lock_smp);
                     l_lock(sb->master->lock);
                     sb->update_master(use_abdada_smp);
@@ -849,7 +852,7 @@ IDLE_START:
                             l_lock(lock_smp);       
                             PROCESSOR::n_idle_processors++; 
                             l_unlock(lock_smp);
-                                
+
                             proc->idle_loop();
 
                             l_lock(lock_smp);       
@@ -860,7 +863,13 @@ IDLE_START:
                             sb = proc->searcher;
                             if(montecarlo) {
                                 sb->search_mc();
+
+                                l_lock(lock_smp);
+                                sb->used = false;
+                                proc->searcher = NULL;
                                 proc->state = WAIT;
+                                l_unlock(lock_smp);
+
                                 goto IDLE_START;
                             } else {
                                 if(!use_abdada_smp) 
@@ -879,7 +888,7 @@ IDLE_START:
                     * processor reached here first, switch to processor[0] and return from there. 
                     * Also send the current processor to sleep.
                     */
-                    if(sb->processor_id == 0 || montecarlo) {
+                    if(sb->processor_id == 0) {
                         return;
                     } else {
                         l_lock(lock_smp);
@@ -1160,8 +1169,12 @@ NEW_NODE_Q:
 
         }
 POP_Q:
-        if(stop_ply == ply || stop_searcher || abort_search)
+        if(stop_ply == ply
+            || ( !finish_search &&
+                 (stop_searcher || abort_search) )
+            ) {
             return;
+        }
 
         POP_MOVE();
         score = -(pstack + 1)->best_score;
@@ -1183,10 +1196,9 @@ POP_Q:
 Evaluate position
 */
 int SEARCHER::get_search_score() {
-    int rootf = root_failed_low;
-    root_failed_low = 1;
-
     search_calls++;
+
+    finish_search = true;
 
     pstack->node_type = PV_NODE;
     pstack->search_state = NORMAL_MOVE;
@@ -1195,7 +1207,7 @@ int SEARCHER::get_search_score() {
     pstack->qcheck_depth = UNITDEPTH; 
     ::search(processors[processor_id]);
 
-    root_failed_low = rootf;
+    finish_search = false;
 
     return pstack->best_score;
 }
@@ -1583,8 +1595,7 @@ MOVE SEARCHER::find_best() {
     /*search info*/
     if(montecarlo) {
 
-        /*last pv*/
-        print_pv(-root_node->uct_wins);
+        /*print tree*/
         Node::print_tree(root_node,1,MAX_PLY);
 
         /* print result*/

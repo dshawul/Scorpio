@@ -783,6 +783,7 @@ SEARCHER::SEARCHER() : board(&temp_board[36])
             board[sq] = elephant;
     }
     stop_searcher = 0;
+    finish_search = false;
 #if defined(PARALLEL) || defined(CLUSTER)
     master = 0;
 #endif

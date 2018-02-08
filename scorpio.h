@@ -671,6 +671,7 @@ typedef struct SEARCHER{
     UBMP32 bad_splits;
     UBMP32 egbb_probes;
     VOLATILE int stop_searcher;
+    bool finish_search;
     /*
     Parallel search
     */
