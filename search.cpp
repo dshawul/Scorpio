@@ -671,7 +671,8 @@ START:
                     /*
                     * Get Smp move
                     */
-                    if(!use_abdada_smp && sb->master && sb->stop_ply == sb->ply) {
+                    if(!use_abdada_smp && !montecarlo 
+                        && sb->master && sb->stop_ply == sb->ply) {
                         if(!sb->get_smp_move())
                             GOBACK(false); //I
                     } else
@@ -975,7 +976,7 @@ IDLE_START:
             }
 #endif
             /*update best move at root and non-root nodes differently*/
-            if(!sb->ply) {
+            if(!sb->ply && !montecarlo) {
 
                 l_lock(lock_smp);
                 sb->root_score_st[sb->pstack->current_index - 1] 
@@ -1013,7 +1014,8 @@ IDLE_START:
                         sb->update_history(move);
 #ifdef PARALLEL     
                     /* stop workers*/
-                    if(!use_abdada_smp && sb->master && sb->stop_ply == sb->ply)
+                    if(!use_abdada_smp && !montecarlo && 
+                        sb->master && sb->stop_ply == sb->ply)
                         sb->master->handle_fail_high();
 #endif
                     GOBACK(true);
