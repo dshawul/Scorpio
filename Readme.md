@@ -14,6 +14,10 @@ The main goals of Scorpio are:
     coupled cluster of computers is done using YBW.
 
   * use of native endgame bitbases (EGBBS) of upto 6 pieces
+
+  * Experiments with montecarlo tree search (MCTS) for chess. It supports alpha-beta
+    rollouts with LMR and null move in the tree part of the search, coupled with
+    standard MCTS rollouts or standard alpha-beta search.
       
 ### Parallel
 
@@ -27,6 +31,27 @@ The main goals of Scorpio are:
        * CLUSTER\_SPLIT\_DEPTH (default 8)
        * SMP\_SPLIT\_DEPTH (default 4)    
 
+### MCTS
+
+  * The montecarlo tree search engine uses alpha-beta rollouts according to 
+    [Huang paper](https://www.microsoft.com/en-us/research/wp-content/uploads/2014/11/huang_rollout.pdf).
+    This is much stronger than standard MCTS in games like chess which ar full of tactics. ScorpioMCTS
+    storing all the tree in memory has become very close in strength to the standard alpha-beta
+    searcher due to alpha-beta rollouts. It can actually become same strength as the standard if we
+    limit the amount of tree stored in memory via "treeht" parameter in the scorpio.in. When
+    the MCTS search runs out memory, it will spawn standard recursive alpha-beta search at the leaves
+    so setting treeht = 0 stores only root node and its children, effectively becoming same strength
+    as the standard alpha-beta method. If we set treeht = 128 MB, upper parts of the tree will be stored
+    in memory and MCTS used there. Note that 128MB of memory are not allocated immediately at start up;
+    it only specifies the maximum memory to use for storing tree. Don't forget to set montecarlo=1
+    if you want to experiment with MCTS.
+
+       * montecarlo 1
+       * treeht     128
+
+  * The parallel search for MCTS uses virtual loss to distribute work among threads in standard MCTS rollouts,
+    and ABDADA like BUSY flag for alpha-beta rollouts. ABDADA and parallel MCTS from the Go world are very similar
+    in nature.
 
 ### EGBB
 
