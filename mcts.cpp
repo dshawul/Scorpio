@@ -81,7 +81,7 @@ void Node::rank_children(Node* n,int alpha,int beta) {
     /*reset bounds*/
     n->alpha = alpha;
     n->beta = beta;
-    n->flag = ACTIVE;
+    n->set_active();
 }
 
 static inline float logistic(float eloDelta) {
@@ -97,7 +97,7 @@ Node* Node::Max_UCB_select(Node* n) {
     current = n->child;
     while(current) {
         if(!current->move) {
-            current->flag = INVALID;
+            current->clear_active();
         } else {
             uct = logistic(current->uct_wins) +
                   dUCTK * sqrt(logn / current->uct_visits);
@@ -124,18 +124,24 @@ Node* Node::Max_AB_select(Node* n,int alpha,int beta,bool try_null) {
         if(beta  < betac)   betac = beta;
 
         if(!use_ab || alphac < betac) {
+            /*base score*/
             if(use_ab) uct = current->uct_wins;
             else uct = -current->uct_visits;
-
+            /*nullmove score*/
             if(!current->move) {
                 if(try_null) {
                     uct = MATE_SCORE - 1;
-                    current->flag = ACTIVE;
+                    current->set_active();
                 } else {
                     uct = -MATE_SCORE;
-                    current->flag = INVALID;
+                    current->clear_active();
                 }
             }
+#ifdef PARALLEL
+            /*ABDADA like move selection*/
+            if(current->is_busy()) uct -= 1000;
+#endif
+            /*pick best*/
             if(uct > bvalue) {
                 bvalue = uct;
                 bnode = current;
@@ -253,7 +259,7 @@ void SEARCHER::play_simulation(Node* n, double& result, int& visits) {
 
     nodes++;
 
-    /*In parallel search, currentnode's window may be closed
+    /*In parallel search, current node's window may be closed
       by another thread, in which case we return immediately*/
 #ifdef PARALLEL
     if(rollout_type == ALPHABETA) {
@@ -271,6 +277,7 @@ void SEARCHER::play_simulation(Node* n, double& result, int& visits) {
     /*virtual loss*/
     l_lock(n->lock);
     n->uct_visits++;
+    n->set_busy();
     l_unlock(n->lock);
 
     /*uct tree policy*/
@@ -402,7 +409,7 @@ BACKUP:
                         l_unlock(n->lock);
                         goto UPDATE;
                     } else {
-                        best->flag = Node::INVALID;
+                        best->clear_active();
                     }
                 }
 
@@ -429,6 +436,7 @@ UPDATE:
     /*update node's score*/
     l_lock(n->lock);
     n->uct_visits--;
+    n->clear_busy();
     if(rollout_type == ALPHABETA)
         n->uct_wins = -result;
     else

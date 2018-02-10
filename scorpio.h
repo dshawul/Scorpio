@@ -372,11 +372,14 @@ struct Node {
 
     /*accessors*/
     enum {
-        INVALID = 0, ACTIVE = 1
+        ACTIVE = 1, BUSY = 2
     };
-    int is_active() { 
-        return (flag & ACTIVE); 
-    }
+    void set_active() { flag = ACTIVE; }
+    void clear_active() { flag &= ~ACTIVE; }
+    bool is_active() { return (flag & ACTIVE); }
+    void set_busy() { flag |= BUSY; }
+    void clear_busy() { flag &= ~BUSY; }
+    bool is_busy() { return (flag & BUSY); }
 
     void clear() {
         uct_wins = 0;
