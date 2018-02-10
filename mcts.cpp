@@ -456,19 +456,19 @@ void SEARCHER::search_mc() {
 
         /*simulate*/
         play_simulation(root,result,visits);
-        
+
         /*root score*/
         root_score = -root->uct_wins;
 
         /*search stopped*/
         if(abort_search || stop_searcher)
             break;
-
+        
         /*check for exit conditions*/
         if(rollout_type == ALPHABETA) {
 
             /*exit when window closes*/
-            if(use_ab && rollout_type == ALPHABETA &&
+            if(use_ab &&
                 (root->alpha >= root->beta || 
                  root->alpha >= obeta ||
                  root->beta  <= oalpha)
@@ -477,14 +477,13 @@ void SEARCHER::search_mc() {
             }
 
             /*negamax*/
-            if(!use_ab && rollout_type == ALPHABETA &&
+            if(!use_ab &&
                 root->alpha > -MATE_SCORE &&
                 root->beta < MATE_SCORE)
                 break;
 
-            /*fail low*/
-            if(rollout_type == ALPHABETA &&
-                root_failed_low && root_score > oalpha)
+            /*fail low resolved*/
+            if(root_failed_low && root_score > oalpha)
                 break;
         }
 
@@ -538,8 +537,11 @@ void SEARCHER::search_mc() {
         l_unlock(master->lock);
         l_unlock(lock_smp);
     } else {
-        print_pv(root_score);
         pstack->best_score = root_score;
+        if(root_score <= oalpha)
+            root_failed_low = 3;
+        else 
+            print_pv(root_score);
     }
 }
 /*

@@ -1366,10 +1366,6 @@ MOVE SEARCHER::iterative_deepening() {
         /*best score*/
         score = pstack->best_score;
 
-        /*fail low*/
-        if(score <= alpha)
-            root_failed_low = 3;
-
         /*fail low at root*/
         if(root_failed_low && score > alpha) {
             root_failed_low--;
