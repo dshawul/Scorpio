@@ -1421,8 +1421,6 @@ MOVE SEARCHER::iterative_deepening() {
                 if((time_used >= 0.75 * chess_clock.search_time) || 
                    (time_used >= 0.5 * chess_clock.search_time && ratio >= 2.0)  ) {
                     abort_search = 1;
-                    if(score > alpha)
-                        print_pv(root_score);
                     break;
                 }
             }
@@ -1472,8 +1470,6 @@ MOVE SEARCHER::iterative_deepening() {
                     int time_used = get_time() - start_time;
                     if(time_used >= 0.75 * chess_clock.search_time) {
                         abort_search = 1;
-                        if(score > alpha)
-                            print_pv(root_score);
                         break;
                     }
                 }

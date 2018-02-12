@@ -59,16 +59,33 @@ Node* Node::reclaim(Node* n,MOVE* except) {
 }
 
 void Node::rank_children(Node* n,int alpha,int beta) {
-    Node* current = n->child;
+    /*find best child*/
+    Node* current = n->child, *bchild;
+    double bval = -MATE_SCORE;
+    while(current) {
+        if(current->uct_wins > bval) {
+            bchild = current;
+            bval = current->uct_wins;
+        }
+        current = current->next;
+    }
+
+    /*rank all children*/
+    current = n->child;
     while(current) {
         rank_children(current,-beta,-alpha);
         
-        /*find rank of child*/
+        /*find rank of current child*/
         int rank = 1;
-        double val = current->uct_wins;
+        double val = current->uct_visits;
+        if(current == bchild) val += MAX_NUMBER;
+        else if(is_cap_prom(current->move)) val += MAX_HIST;
+        
         Node* cur = n->child;
         while(cur) {
-            double val1 = cur->uct_wins;
+            double val1 = cur->uct_visits;
+            if(cur == bchild) val1 += MAX_NUMBER;
+            else if(is_cap_prom(cur->move)) val1 += MAX_HIST;
             if(val1 > val) rank++;
             cur = cur->next;
         }
