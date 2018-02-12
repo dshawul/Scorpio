@@ -457,12 +457,12 @@ void SEARCHER::search_mc() {
         /*simulate*/
         play_simulation(root,result,visits);
 
-        /*root score*/
-        root_score = -root->uct_wins;
-
         /*search stopped*/
         if(abort_search || stop_searcher)
             break;
+        
+        /*root score*/
+        root_score = -root->uct_wins;
         
         /*check for exit conditions*/
         if(rollout_type == ALPHABETA) {
@@ -480,10 +480,6 @@ void SEARCHER::search_mc() {
             if(!use_ab &&
                 root->alpha > -MATE_SCORE &&
                 root->beta < MATE_SCORE)
-                break;
-
-            /*fail low resolved*/
-            if(root_failed_low && root_score > oalpha)
                 break;
         }
 
@@ -509,7 +505,8 @@ void SEARCHER::search_mc() {
                     if(dUCTK < UCTKmin) dUCTK = UCTKmin;
                     if(frac - pfrac >= 0.1) {
                         pfrac = frac;
-                        print_pv(-root->uct_wins);
+                        if(rollout_type == MCTS)
+                            print_pv(-root->uct_wins);
                     }
                     /*Switching rollouts type*/
                     if(rollout_type == ALPHABETA && frac_alphabeta != 1.0 
@@ -630,7 +627,7 @@ void print_mcts_params() {
     print("feature option=\"UCTKmax -spin %d 0 100\"\n",int(UCTKmax*100));
     print("feature option=\"evaluate_depth -spin %d 0 100\"\n",evaluate_depth);
     print("feature option=\"reuse_tree -check %d\"\n",reuse_tree);
-    print("feature option=\"backup_type -combo *MINMAX AVERAGE NODETYPE\"\n");
+    print("feature option=\"backup_type -combo *MINMAX AVERAGE\"\n");
     print("feature option=\"frac_alphabeta -spin %d 0 100\"\n",int(frac_alphabeta*100));
     print("feature option=\"mcts_strategy_depth -spin %d 0 100\"\n",mcts_strategy_depth);
     print("feature option=\"montecarlo -check %d\"\n",montecarlo);

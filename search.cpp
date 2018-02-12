@@ -1375,6 +1375,42 @@ MOVE SEARCHER::iterative_deepening() {
                 root_failed_low--;
         }
 
+        /*check if "easy" move is really easy*/
+        if(easy && (easy_move != pstack->pv[0] || score <= easy_score - 60)) {
+            easy = false;
+            chess_clock.search_time *= 4;
+        }
+
+        /*aspiration search*/
+        if(!use_aspiration || 
+            in_egbb || 
+            ABS(score) >= 1000 || 
+            search_depth <= 3
+            ) {
+            alpha = -MATE_SCORE;
+            beta = MATE_SCORE;
+        } else if(score <= alpha) {
+            WINDOW = MIN(200, 3 * WINDOW / 2);
+            alpha = MAX(-MATE_SCORE,score - WINDOW);
+            search_depth--;
+#ifdef CLUSTER
+            if(use_abdada_cluster && PROCESSOR::n_hosts > 1) 
+                search_depth--;
+#endif
+        } else if (score >= beta){
+            WINDOW = MIN(200, 3 * WINDOW / 2);
+            beta = MIN(MATE_SCORE,score + WINDOW);
+            search_depth--;
+#ifdef CLUSTER
+            if(use_abdada_cluster && PROCESSOR::n_hosts > 1) 
+                search_depth--;
+#endif
+        } else {
+            WINDOW = aspiration_window;
+            alpha = score - WINDOW;
+            beta = score + WINDOW;
+        }
+
         /*sort moves*/
         if(!montecarlo) {
             /* Is there enough time to search the first move?
@@ -1432,45 +1468,9 @@ MOVE SEARCHER::iterative_deepening() {
         } else {
             /*rank children*/
             if(rollout_type == ALPHABETA)
-                Node::rank_children(root_node,-MATE_SCORE,MATE_SCORE);
+                Node::rank_children(root_node,alpha,beta);
         }
-
-        /*check if "easy" move is really easy*/
-        if(easy && (easy_move != pstack->pv[0] || score <= easy_score - 60)) {
-            easy = false;
-            chess_clock.search_time *= 4;
-        }
-
-        /*aspiration search*/
-        if(!use_aspiration || 
-            in_egbb || 
-            ABS(score) >= 1000 || 
-            search_depth <= 3
-            ) {
-            alpha = -MATE_SCORE;
-            beta = MATE_SCORE;
-        } else if(score <= alpha) {
-            WINDOW = MIN(200, 3 * WINDOW / 2);
-            alpha = MAX(-MATE_SCORE,score - WINDOW);
-            search_depth--;
-#ifdef CLUSTER
-            if(use_abdada_cluster && PROCESSOR::n_hosts > 1) 
-                search_depth--;
-#endif
-        } else if (score >= beta){
-            WINDOW = MIN(200, 3 * WINDOW / 2);
-            beta = MIN(MATE_SCORE,score + WINDOW);
-            search_depth--;
-#ifdef CLUSTER
-            if(use_abdada_cluster && PROCESSOR::n_hosts > 1) 
-                search_depth--;
-#endif
-        } else {
-            WINDOW = aspiration_window;
-            alpha = score - WINDOW;
-            beta = score + WINDOW;
-        }
-
+        
         /*check time*/
         check_quit();
 
