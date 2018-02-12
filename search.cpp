@@ -1466,6 +1466,18 @@ MOVE SEARCHER::iterative_deepening() {
                 }
             }
         } else {
+            /* Is there enough time to search the first move?*/
+            if(rollout_type == ALPHABETA) {
+                if(!root_failed_low && chess_clock.is_timed()) {
+                    int time_used = get_time() - start_time;
+                    if(time_used >= 0.75 * chess_clock.search_time) {
+                        abort_search = 1;
+                        if(score > alpha)
+                            print_pv(root_score);
+                        break;
+                    }
+                }
+            }
             /*rank children*/
             if(rollout_type == ALPHABETA)
                 Node::rank_children(root_node,alpha,beta);
