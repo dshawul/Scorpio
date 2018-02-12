@@ -5,7 +5,6 @@ static double  UCTKmax = 0.3;
 static double  UCTKmin = 0.3;
 static double  dUCTK = UCTKmax;
 static int  reuse_tree = 1;
-static int  evaluate_depth = 0;
 static int  backup_type = MINMAX;
 static double frac_alphabeta = 1.0; 
 static int  mcts_strategy_depth = 15;
@@ -204,7 +203,7 @@ void SEARCHER::create_children(Node* n) {
 
     /*generate and score moves*/
     if(ply)
-        generate_and_score_moves(evaluate_depth * UNITDEPTH,-MATE_SCORE,MATE_SCORE);
+        generate_and_score_moves(0,-MATE_SCORE,MATE_SCORE);
 
     /*add nodes to tree*/
     add_children(n);
@@ -293,6 +292,7 @@ void SEARCHER::play_simulation(Node* n, double& result, int& visits) {
         } else if(pstack->depth <= 0) {                           //run out of depth
             result = -n->uct_wins;
         } else if(Node::total_nodes >= Node::max_tree_nodes) {    //run out of memory
+            search_calls++;
             n->uct_wins = -get_search_score();
             result = -n->uct_wins;
         } else if(pstack->alpha > MATE_SCORE - WIN_PLY * ply) {
@@ -305,7 +305,8 @@ void SEARCHER::play_simulation(Node* n, double& result, int& visits) {
                 else 
                     result = 0;
             } else {
-                if(rollout_type == ALPHABETA) {
+                if(rollout_type == ALPHABETA
+                    && pstack->depth > UNITDEPTH) {
                     goto SELECT;
                 } else  {
                     Node::maxply += (ply + 1);
@@ -461,9 +462,6 @@ void SEARCHER::search_mc() {
         if(abort_search || stop_searcher)
             break;
         
-        /*root score*/
-        root_score = -root->uct_wins;
-        
         /*check for exit conditions*/
         if(rollout_type == ALPHABETA) {
 
@@ -533,12 +531,12 @@ void SEARCHER::search_mc() {
         update_master(1);
         l_unlock(master->lock);
         l_unlock(lock_smp);
-    } else {
+    } else if(!abort_search && !stop_searcher) {
+        root_score = -root->uct_wins;
         pstack->best_score = root_score;
         if(root_score <= oalpha)
             root_failed_low = 3;
-        else 
-            print_pv(root_score);
+        print_pv(root_score);
     }
 }
 /*
@@ -599,8 +597,6 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         UCTKmin = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "UCTKmax")) {
         UCTKmax = atoi(commands[command_num++]) / 100.0;
-    } else if(!strcmp(command, "evaluate_depth")) {
-        evaluate_depth = atoi(commands[command_num++]);
     } else if(!strcmp(command, "reuse_tree")) {
         reuse_tree = atoi(commands[command_num++]);
     } else if(!strcmp(command, "backup_type")) {
@@ -625,7 +621,6 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
 void print_mcts_params() {
     print("feature option=\"UCTKmin -spin %d 0 100\"\n",int(UCTKmin*100));
     print("feature option=\"UCTKmax -spin %d 0 100\"\n",int(UCTKmax*100));
-    print("feature option=\"evaluate_depth -spin %d 0 100\"\n",evaluate_depth);
     print("feature option=\"reuse_tree -check %d\"\n",reuse_tree);
     print("feature option=\"backup_type -combo *MINMAX AVERAGE\"\n");
     print("feature option=\"frac_alphabeta -spin %d 0 100\"\n",int(frac_alphabeta*100));

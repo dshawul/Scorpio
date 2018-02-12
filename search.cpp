@@ -1198,7 +1198,6 @@ POP_Q:
 Evaluate position
 */
 int SEARCHER::get_search_score() {
-    search_calls++;
 
     finish_search = true;
 
@@ -1223,6 +1222,7 @@ void SEARCHER::evaluate_moves(int depth, int alpha, int beta) {
         pstack->alpha = -beta;
         pstack->beta = -alpha;
         pstack->depth = depth;
+        qsearch_calls++;
         get_search_score();
         POP_MOVE();
         pstack->score_st[i] = -(pstack+1)->best_score;
@@ -1602,9 +1602,10 @@ MOVE SEARCHER::find_best() {
         print("nodes = " FMT64 " <%d qnodes> time = %dms nps = %d\n",nodes,
             int(BMP64(qnodes) / (BMP64(nodes) / 100.0f)),
             time_used,int(BMP64(nodes) / (time_used / 1000.0f)));
-        print("Tree: nodes = %d depth = %d/%d pps = %d visits = %d qsearch_calls = %d\n",
+        print("Tree: nodes = %d depth = %d/%d pps = %d visits = %d \n      "
+            "qsearch_calls = %d search_calls = %d\n",
             Node::total_nodes,Node::maxply / root_node->uct_visits,
-            Node::maxuct,pps,root_node->uct_visits,search_calls);
+            Node::maxuct,pps,root_node->uct_visits,qsearch_calls,search_calls);
 
     } else {
 

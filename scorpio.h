@@ -670,6 +670,7 @@ typedef struct SEARCHER{
     UBMP64 time_check;
     UBMP64 message_check;
     UBMP32 search_calls;
+    UBMP32 qsearch_calls;
     UBMP32 splits;
     UBMP32 bad_splits;
     UBMP32 egbb_probes;
