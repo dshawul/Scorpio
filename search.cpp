@@ -1304,6 +1304,7 @@ MOVE SEARCHER::iterative_deepening() {
     PROCESSOR::age = (hply & AGE_MASK);
     clear_history();
     show_full_pv = false;
+    freeze_tree = false;
 
     /*easy move*/
     if(pstack->score_st[0] > pstack->score_st[1] + 175
@@ -1380,7 +1381,7 @@ MOVE SEARCHER::iterative_deepening() {
             easy = false;
             chess_clock.search_time *= 4;
         }
-
+        
         /*aspiration search*/
         if(!use_aspiration || 
             in_egbb || 

@@ -7,10 +7,12 @@ static double  dUCTK = UCTKmax;
 static int  reuse_tree = 1;
 static int  backup_type = MINMAX;
 static double frac_alphabeta = 1.0; 
+static double frac_freeze_tree = 0.3;
 static int  mcts_strategy_depth = 15;
 
 int montecarlo = 0;
 int rollout_type = ALPHABETA;
+bool freeze_tree = false;
 
 /*Node*/
 LOCK Node::mem_lock = 0;
@@ -308,7 +310,10 @@ void SEARCHER::play_simulation(Node* n, double& result, int& visits) {
             result = -n->uct_wins;
         } else if(pstack->depth <= 0) {                           //run out of depth
             result = -n->uct_wins;
-        } else if(Node::total_nodes >= Node::max_tree_nodes) {    //run out of memory
+        } else if(rollout_type == ALPHABETA &&
+                 (Node::total_nodes >= Node::max_tree_nodes       //run out of memory
+                 || freeze_tree)                                  //tree is frozen
+            ) {
             search_calls++;
             n->uct_wins = -get_search_score();
             result = -n->uct_wins;
@@ -523,6 +528,9 @@ void SEARCHER::search_mc() {
                         if(rollout_type == MCTS)
                             print_pv(-root->uct_wins);
                     }
+                    /*stop growing tree after some time*/
+                    if(frac >= frac_freeze_tree * frac_alphabeta)
+                        freeze_tree = true;
                     /*Switching rollouts type*/
                     if(rollout_type == ALPHABETA && frac_alphabeta != 1.0 
                         && frac > frac_alphabeta) {
@@ -620,6 +628,8 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         backup_type = atoi(commands[command_num++]);
     } else if(!strcmp(command, "frac_alphabeta")) {
         frac_alphabeta = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "frac_freeze_tree")) {
+        frac_freeze_tree = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "mcts_strategy_depth")) {
         mcts_strategy_depth = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "montecarlo")) {
@@ -641,6 +651,7 @@ void print_mcts_params() {
     print("feature option=\"reuse_tree -check %d\"\n",reuse_tree);
     print("feature option=\"backup_type -combo *MINMAX AVERAGE\"\n");
     print("feature option=\"frac_alphabeta -spin %d 0 100\"\n",int(frac_alphabeta*100));
+    print("feature option=\"frac_freeze_tree -spin %d 0 100\"\n",int(frac_freeze_tree*100));
     print("feature option=\"mcts_strategy_depth -spin %d 0 100\"\n",mcts_strategy_depth);
     print("feature option=\"montecarlo -check %d\"\n",montecarlo);
     print("feature option=\"treeht -spin %d 0 131072\"\n",

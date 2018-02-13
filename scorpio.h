@@ -962,6 +962,8 @@ extern bool log_on;
 extern int scorpio_start_time;
 extern int montecarlo;
 extern int rollout_type;
+extern bool freeze_tree;
+
 
 /** search options */
 extern const int use_nullmove;
