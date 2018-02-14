@@ -480,6 +480,12 @@ void SEARCHER::search_mc() {
         /*simulate*/
         play_simulation(root,result,visits);
 
+        /*update bound*/
+        if(root->alpha > pstack->alpha)
+            pstack->alpha = root->alpha;
+        if(root->beta < pstack->beta)
+            pstack->beta = root->beta;
+
         /*search stopped*/
         if(abort_search || stop_searcher)
             break;
