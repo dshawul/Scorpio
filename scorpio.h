@@ -372,7 +372,7 @@ struct Node {
 
     /*accessors*/
     enum {
-        ACTIVE = 1, BUSY = 2
+        ACTIVE = 1, BUSY = 2, SCOUTF = 4
     };
     void set_active() { flag = ACTIVE; }
     void clear_active() { flag &= ~ACTIVE; }
@@ -380,6 +380,9 @@ struct Node {
     void set_busy() { flag |= BUSY; }
     void clear_busy() { flag &= ~BUSY; }
     bool is_busy() { return (flag & BUSY); }
+    void set_failed_scout() { flag |= SCOUTF; }
+    void clear_failed_scout() { flag &= ~SCOUTF; }
+    bool is_failed_scout() { return (flag & SCOUTF); }
 
     void clear() {
         uct_wins = 0;
@@ -403,6 +406,7 @@ struct Node {
     static void release(Node*);
     static Node* reclaim(Node*,MOVE* = 0);
     static void  rank_children(Node*,int,int);
+    static void  reset_bounds(Node*,int,int);
     static Node* print_tree(Node*,int,int = 0,int = 0);
     static Node* Max_UCB_select(Node*);
     static Node* Max_score_select(Node*);

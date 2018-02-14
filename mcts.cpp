@@ -102,6 +102,17 @@ void Node::rank_children(Node* n,int alpha,int beta) {
     n->set_active();
 }
 
+void Node::reset_bounds(Node* n,int alpha,int beta) {
+    Node* current = n->child;
+    while(current) {
+        reset_bounds(current,-beta,-alpha);
+        current = current->next;
+    }
+    n->alpha = alpha;
+    n->beta = beta;
+    n->set_active();
+}
+
 static inline float logistic(float eloDelta) {
     static const double K = -log(10.0) / 400.0;
     return 1 / (1 + exp(K * eloDelta));
@@ -367,6 +378,19 @@ SELECT:
         }
         if(!next) next = n->child;
 
+        /*Determin next node type*/
+        int next_node_t;
+        if(pstack->node_type == ALL_NODE) {
+            next_node_t = CUT_NODE;
+        } else if(pstack->node_type == CUT_NODE) {
+            next_node_t = ALL_NODE;
+        } else {
+            if(next->rank == 1 || next->is_failed_scout())
+                next_node_t = PV_NODE;
+            else
+                next_node_t = CUT_NODE;
+        }
+
         /*Determine next alpha-beta bound*/
         int alphac, betac;
         alphac = -pstack->beta;
@@ -375,10 +399,20 @@ SELECT:
         if(next->beta < betac)    betac = next->beta;
 
         if(next->move) {
+            bool try_scout = (alphac + 1 < betac &&
+                              pstack->node_type == PV_NODE && 
+                              next_node_t == CUT_NODE);
             /*Make move*/
             PUSH_MOVE(next->move);
-            pstack->alpha = alphac;
-            pstack->beta = betac;
+RESEARCH:
+            if(try_scout) {
+                pstack->alpha = betac - 1;
+                pstack->beta = betac;
+            } else {
+                pstack->alpha = alphac;
+                pstack->beta = betac;
+            }
+            pstack->node_type = next_node_t;
             pstack->depth = (pstack - 1)->depth - UNITDEPTH;
             pstack->search_state = NULL_MOVE;
             /*Next ply depth*/
@@ -396,6 +430,22 @@ SELECT:
             }
             /*Simulate selected move*/
             play_simulation(next,result,visits);
+
+            /*Research with open window*/
+            if(try_scout 
+                && next->alpha >= next->beta
+                && next->alpha > (pstack - 1)->alpha
+                && next->alpha < (pstack - 1)->beta
+                ) {
+                try_scout = false;
+                next_node_t = PV_NODE;
+                alphac = -(pstack - 1)->beta;
+                betac = -(pstack - 1)->alpha;
+                Node::reset_bounds(next,alphac,betac);
+                next->set_failed_scout();
+                goto RESEARCH;
+            }
+
             /*Undo move*/
             POP_MOVE();
         } else {
@@ -403,6 +453,7 @@ SELECT:
             PUSH_NULL();
             pstack->alpha = alphac;
             pstack->beta = alphac + 1;
+            pstack->node_type = next_node_t;
             pstack->search_state = NORMAL_MOVE;
             /*Next ply depth*/
             pstack->depth = (pstack - 1)->depth - 3 * UNITDEPTH - 

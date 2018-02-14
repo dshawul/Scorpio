@@ -1381,7 +1381,6 @@ MOVE SEARCHER::iterative_deepening() {
             easy = false;
             chess_clock.search_time *= 4;
         }
-        
         /*aspiration search*/
         if(!use_aspiration || 
             in_egbb || 
@@ -1608,7 +1607,7 @@ MOVE SEARCHER::find_best() {
         /* print result*/
         int time_used = MAX(1,get_time() - start_time);
         int pps = int(root_node->uct_visits / (time_used / 1000.0f));
-        print("nodes = " FMT64 " <%d qnodes> time = %dms nps = %d\n",nodes,
+        print("nodes = " FMT64 " <%d%% qnodes> time = %dms nps = %d\n",nodes,
             int(BMP64(qnodes) / (BMP64(nodes) / 100.0f)),
             time_used,int(BMP64(nodes) / (time_used / 1000.0f)));
         print("Tree: nodes = %d depth = %d/%d pps = %d visits = %d \n      "
