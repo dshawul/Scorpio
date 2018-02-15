@@ -432,19 +432,33 @@ RESEARCH:
             /*Simulate selected move*/
             play_simulation(next,result,visits);
 
-            /*Research with open window*/
-            if(try_scout 
+            /*Research if necessary when window closes*/
+            if(rollout_type == ALPHABETA
                 && next->alpha >= next->beta
-                && next->alpha > (pstack - 1)->alpha
-                && next->alpha < (pstack - 1)->beta
                 ) {
-                try_scout = false;
-                next_node_t = PV_NODE;
-                alphac = -(pstack - 1)->beta;
-                betac = -(pstack - 1)->alpha;
-                Node::reset_bounds(next,alphac,betac);
-                next->set_failed_scout();
-                goto RESEARCH;
+#if 0
+                /*reduction research*/
+                if(pstack->reduction
+                    && next->alpha > (pstack - 1)->alpha
+                    ) {
+                    Node::reset_bounds(next,alphac,betac);
+                    next->rank = 1;
+                    goto RESEARCH;
+                }
+#endif
+                /*scout research*/
+                if(try_scout 
+                    && next->alpha > (pstack - 1)->alpha
+                    && next->alpha < (pstack - 1)->beta
+                    ) {
+                    try_scout = false;
+                    next_node_t = PV_NODE;
+                    alphac = -(pstack - 1)->beta;
+                    betac = -(pstack - 1)->alpha;
+                    Node::reset_bounds(next,alphac,betac);
+                    next->set_failed_scout();
+                    goto RESEARCH;
+                }
             }
 
             /*Undo move*/
@@ -652,8 +666,8 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
         print_log("[Tree not found]\n");
         root = Node::allocate();
     } else {
-        print_log("[Tree found : visits %d wins %6.2f%%]\n",
-            root->uct_visits,root->uct_wins);
+        print_log("[Tree found : visits %d wins %6d]\n",
+            root->uct_visits,int(root->uct_wins));
 
         /*remove null moves from root*/
         Node* current = root->child, *prev;
