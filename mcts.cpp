@@ -370,7 +370,8 @@ SELECT:
         Node* next;
         int eval_score = 0;
         if(rollout_type == ALPHABETA) {
-            bool try_null = ply && pstack->depth >= 4 * UNITDEPTH 
+            bool try_null = pstack->node_type != PV_NODE 
+                            && pstack->depth >= 4 * UNITDEPTH 
                             && (eval_score = eval()) >= pstack->beta;
             next = Node::Max_AB_select(n,-pstack->beta,-pstack->alpha,try_null);
         } else {

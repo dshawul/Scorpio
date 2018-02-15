@@ -434,6 +434,7 @@ int SEARCHER::be_selective() {
 int SEARCHER::be_selective_mc(int nmoves) {
     register MOVE move = hstack[hply - 1].move; 
     register int extension = 0,score,depth = DEPTH((pstack - 1)->depth);
+    int node_t = (pstack - 1)->node_type;
 
     pstack->extension = 0;
     pstack->reduction = 0;
@@ -445,7 +446,8 @@ int SEARCHER::be_selective_mc(int nmoves) {
     extend
     */
     if(hstack[hply - 1].checks) {
-        extend(0);
+        if(node_t == PV_NODE) { extend(UNITDEPTH); }
+        else { extend(0); }
     }
     if(is_pawn_push(move)) { 
         extend(0);
@@ -478,6 +480,7 @@ int SEARCHER::be_selective_mc(int nmoves) {
         && all_man_c > MAX_EGBB
         && !pstack->extension
         && noncap_reduce
+        && node_t != PV_NODE
         ) {
             //late move
             if(nmoves >= lmp_count[depth])
@@ -508,6 +511,13 @@ int SEARCHER::be_selective_mc(int nmoves) {
             if(nmoves >= lmr_count[i] && pstack->depth > UNITDEPTH) {
                 reduce(UNITDEPTH);
             }
+        }
+
+        //lets find more excuses to reduce
+        //all and cut nodes
+        if( (node_t == ALL_NODE && nmoves >= lmr_all_count) ||
+            (node_t == CUT_NODE && nmoves >= lmr_cut_count) ) { 
+            if(pstack->depth > UNITDEPTH) { reduce(UNITDEPTH); }
         }
 
         //reduce extended moves less
