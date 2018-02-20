@@ -294,10 +294,10 @@ int SEARCHER::is_pawn_push(MOVE move) const {
 }
 
 /*selective search*/
-int SEARCHER::be_selective() {
-    register MOVE move = (pstack - 1)->current_move; 
+int SEARCHER::be_selective(int nmoves, bool mc) {
+    register MOVE move = hstack[hply - 1].move; 
     register int extension = 0,score,depth = DEPTH((pstack - 1)->depth);
-    int node_t = (pstack - 1)->node_type, nmoves = (pstack - 1)->legal_moves;
+    int node_t = (pstack - 1)->node_type;
 
     pstack->extension = 0;
     pstack->reduction = 0;
@@ -315,14 +315,22 @@ int SEARCHER::be_selective() {
         }
         return false;
     }
-    /*non-cap phase*/
-    bool avail_noncap = (pstack - 1)->gen_status == GEN_AVAIL && 
+    /*
+    non-cap phase
+    */
+    bool noncap_reduce, loscap_reduce;
+    if(!mc) {
+        bool avail_noncap = (pstack - 1)->gen_status == GEN_AVAIL && 
                         (pstack - 1)->current_index - 1 >= (pstack - 1)->noncap_start;
-    bool noncap_reduce = ((pstack - 1)->gen_status - 1 == GEN_KILLERS ||
+        noncap_reduce = ((pstack - 1)->gen_status - 1 == GEN_KILLERS ||
                          (pstack - 1)->gen_status - 1 == GEN_NONCAPS ||
                          (avail_noncap && !is_cap_prom(move)));
-    bool loscap_reduce = ((pstack - 1)->gen_status - 1 == GEN_LOSCAPS ||
+        loscap_reduce = ((pstack - 1)->gen_status - 1 == GEN_LOSCAPS ||
                          (avail_noncap && is_cap_prom(move)));
+    } else {
+        noncap_reduce = (!is_cap_prom(move));
+        loscap_reduce = (is_cap_prom(move) && see(move) < 0);
+    }
     /*
     extend
     */
@@ -387,6 +395,11 @@ int SEARCHER::be_selective() {
     late move reduction
     */
     if(noncap_reduce && nmoves >= 2) {
+        //more reduction in montecarlo search
+        if(mc) {
+            if(pstack->depth > 2 * UNITDEPTH) { reduce(2 * UNITDEPTH); }
+            else if(pstack->depth > UNITDEPTH) { reduce(UNITDEPTH); }
+        }
         //by number of moves searched so far including current move
         for(int i = 0;i < 8;i++) {
             if(nmoves >= lmr_count[i] && pstack->depth > UNITDEPTH) {
@@ -430,106 +443,7 @@ int SEARCHER::be_selective() {
     */
     return false;
 }
-/* for MCTS search */
-int SEARCHER::be_selective_mc(int nmoves) {
-    register MOVE move = hstack[hply - 1].move; 
-    register int extension = 0,score,depth = DEPTH((pstack - 1)->depth);
-    int node_t = (pstack - 1)->node_type;
 
-    pstack->extension = 0;
-    pstack->reduction = 0;
-
-    /*non-cap phase*/
-    bool noncap_reduce = (!is_cap_prom(move));
-
-    /*
-    extend
-    */
-    if(hstack[hply - 1].checks) {
-        if(node_t == PV_NODE) { extend(UNITDEPTH); }
-        else { extend(0); }
-    }
-    if(is_pawn_push(move)) { 
-        extend(0);
-    }
-    if (depth <= 4 && hply >= 2
-        && m_capture(move)
-        && m_capture(hstack[hply - 2].move)
-        && m_to(move) == m_to(hstack[hply - 2].move)
-        && piece_cv[m_capture(move)] == piece_cv[m_capture(hstack[hply - 2].move)]
-    ) {
-        extend(UNITDEPTH);
-    }
-    if(m_capture(move)
-        && piece_c[white] + piece_c[black] == 0
-        && PIECE(m_capture(move)) != pawn
-        ) {
-        extend(UNITDEPTH);
-    }
-    if((pstack - 1)->singular && nmoves == 1) {
-        extend(UNITDEPTH);
-    }
-    if(extension > UNITDEPTH)
-        extension = UNITDEPTH;
-
-    pstack->depth += extension; 
-    /*
-    pruning
-    */
-    if(depth <= 7
-        && all_man_c > MAX_EGBB
-        && !pstack->extension
-        && noncap_reduce
-        && node_t != PV_NODE
-        ) {
-            //late move
-            if(nmoves >= lmp_count[depth])
-                return true;
-
-            //see
-            if(see(move) < 0)
-                return true;
-
-            //futility
-            int margin = futility_margin[depth];
-            margin = MAX(margin / 4, margin - 10 * nmoves);
-            score = -eval();
-            if(score + margin < (pstack - 1)->alpha)
-                return true;
-    }
-    /*
-    late move reduction
-    */
-    if(noncap_reduce && nmoves >= 2) {
-
-        //second move onwards
-        if(pstack->depth > 2 * UNITDEPTH) { reduce(2 * UNITDEPTH); }
-        else if(pstack->depth > UNITDEPTH) { reduce(UNITDEPTH); }
-
-        //by number of moves searched so far including current move
-        for(int i = 0;i < 8;i++) {
-            if(nmoves >= lmr_count[i] && pstack->depth > UNITDEPTH) {
-                reduce(UNITDEPTH);
-            }
-        }
-
-        //lets find more excuses to reduce
-        //all and cut nodes
-        if( (node_t == ALL_NODE && nmoves >= lmr_all_count) ||
-            (node_t == CUT_NODE && nmoves >= lmr_cut_count) ) { 
-            if(pstack->depth > UNITDEPTH) { reduce(UNITDEPTH); }
-        }
-
-        //reduce extended moves less
-        if(pstack->extension) {
-            reduce(-pstack->reduction / 2);
-        }
-    }
-    /*
-    end
-    */
-    return false;
-}
 /*
 Back up to previous ply
 */
@@ -742,7 +656,7 @@ START:
 
                     /*set next ply's depth and be selective*/           
                     sb->pstack->depth = (sb->pstack - 1)->depth - UNITDEPTH;
-                    if(use_selective && sb->be_selective()) {
+                    if(use_selective && sb->be_selective((sb->pstack - 1)->legal_moves,false)) {
                         sb->POP_MOVE();
                         continue;
                     }
@@ -1088,60 +1002,6 @@ SPECIAL:
 }
 
 /*
-searcher's search function
-*/
-void SEARCHER::search() {
-
-    /*mcts*/
-    if(montecarlo) {
-#ifdef PARALLEL
-            /*attach helper processor here once*/
-            for(int i = 1;i < PROCESSOR::n_processors;i++) {
-                attach_processor(i);
-                processors[i]->state = GO;
-            }
-
-            /*montecarlo search*/
-            search_mc();
-
-            /*wait till all helpers become idle*/
-            stop_workers();
-            while(PROCESSOR::n_idle_processors < PROCESSOR::n_processors - 1)
-                t_yield(); 
-#else
-            search_mc();
-#endif
-
-    /*alphabeta*/
-    } else {
-
-#ifdef PARALLEL
-        /*attach helper processor here once for abdada*/
-        if(use_abdada_smp) {
-            for(int i = 1;i < PROCESSOR::n_processors;i++) {
-                attach_processor(i);
-                PSEARCHER sb = processors[i]->searcher;
-                memcpy(&sb->pstack->move_st[0],&pstack->move_st[0], 
-                    pstack->count * sizeof(MOVE));
-                processors[i]->state = GO;
-            }
-        }
-
-        /*do the search*/
-        ::search(processors[0]);
-
-        /*wait till all helpers become idle*/
-        if(use_abdada_smp) {
-            stop_workers();
-            while(PROCESSOR::n_idle_processors < PROCESSOR::n_processors - 1)
-                t_yield(); 
-        }
-#else
-        ::search(this);
-#endif
-    }
-}
-/*
 quiescent search
 */
 void SEARCHER::qsearch() {
@@ -1202,6 +1062,61 @@ POP_Q:
                 UPDATE_PV(pstack->current_move);
             }
         }
+    }
+}
+
+/*
+searcher's search function
+*/
+void SEARCHER::search() {
+
+    /*mcts*/
+    if(montecarlo) {
+#ifdef PARALLEL
+            /*attach helper processor here once*/
+            for(int i = 1;i < PROCESSOR::n_processors;i++) {
+                attach_processor(i);
+                processors[i]->state = GO;
+            }
+
+            /*montecarlo search*/
+            search_mc();
+
+            /*wait till all helpers become idle*/
+            stop_workers();
+            while(PROCESSOR::n_idle_processors < PROCESSOR::n_processors - 1)
+                t_yield(); 
+#else
+            search_mc();
+#endif
+
+    /*alphabeta*/
+    } else {
+
+#ifdef PARALLEL
+        /*attach helper processor here once for abdada*/
+        if(use_abdada_smp) {
+            for(int i = 1;i < PROCESSOR::n_processors;i++) {
+                attach_processor(i);
+                PSEARCHER sb = processors[i]->searcher;
+                memcpy(&sb->pstack->move_st[0],&pstack->move_st[0], 
+                    pstack->count * sizeof(MOVE));
+                processors[i]->state = GO;
+            }
+        }
+
+        /*do the search*/
+        ::search(processors[0]);
+
+        /*wait till all helpers become idle*/
+        if(use_abdada_smp) {
+            stop_workers();
+            while(PROCESSOR::n_idle_processors < PROCESSOR::n_processors - 1)
+                t_yield(); 
+        }
+#else
+        ::search(this);
+#endif
     }
 }
 /*

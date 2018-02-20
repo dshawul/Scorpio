@@ -618,7 +618,7 @@ typedef struct SEARCHER{
     int   draw() const;
     MOVE  find_best();
     MOVE  iterative_deepening();
-    int   be_selective();
+    int   be_selective(int,bool);
     int   on_node_entry();
     int   on_qnode_entry();
     void  search();
@@ -667,7 +667,6 @@ typedef struct SEARCHER{
     void  play_simulation(Node*,double&,int&);
     void  search_mc();
     void  print_status();
-    int   be_selective_mc(int);
     /*counts*/
     UBMP64 nodes;
     UBMP64 qnodes;

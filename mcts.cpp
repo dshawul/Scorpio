@@ -418,7 +418,7 @@ RESEARCH:
             pstack->search_state = NULL_MOVE;
             /*Next ply depth*/
             if(rollout_type == ALPHABETA) {
-                if(use_selective && be_selective_mc(next->rank)) {
+                if(use_selective && be_selective(next->rank,true)) {
                     visits = 1;
                     Node::maxply += ply;
                     l_lock(next->lock);
