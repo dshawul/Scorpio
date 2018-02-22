@@ -1306,6 +1306,14 @@ MOVE SEARCHER::iterative_deepening() {
             easy = false;
             chess_clock.search_time *= 4;
         }
+        
+#if 0
+        if(score <= alpha) print("--");
+        else if(score >= beta) print("++");
+        else print("==");
+        print(" %d [%d %d]\n",score,alpha,beta);
+#endif
+        
         /*aspiration search*/
         if(!use_aspiration || 
             in_egbb || 
