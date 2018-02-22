@@ -72,7 +72,7 @@ void Node::rank_children(Node* n,int alpha,int beta,int ply) {
         while(cur) {
             if(cur->uct_wins > current->uct_wins ||
                 (cur->uct_wins == current->uct_wins && 
-                 cur->uct_visits > current->uct_visits)) 
+                 cur->rank < current->rank)) 
                 rank++;
             cur = cur->next;
         }
@@ -159,6 +159,9 @@ Node* Node::Max_AB_select(Node* n,int alpha,int beta,bool try_null) {
                     current->clear_active();
                 }
             }
+            /*pv node*/
+            if(n == SEARCHER::root_node && current->rank == 1)
+                uct += MAX_HIST;
 #ifdef PARALLEL
             /*ABDADA like move selection*/
             if(current->is_busy()) uct -= 1000;
@@ -372,7 +375,7 @@ SELECT:
         Node* next;
         int eval_score = 0;
         if(rollout_type == ALPHABETA) {
-            bool try_null = pstack->node_type != PV_NODE 
+            bool try_null = pstack->node_type != PV_NODE
                             && pstack->depth >= 4 * UNITDEPTH 
                             && (eval_score = eval()) >= pstack->beta;
             next = Node::Max_AB_select(n,-pstack->beta,-pstack->alpha,try_null);
@@ -653,8 +656,18 @@ void SEARCHER::search_mc() {
     } else if(!abort_search && !stop_searcher) {
         root_score = -root->uct_wins;
         pstack->best_score = root_score;
-        if(root_score <= oalpha)
+        if(rollout_type == ALPHABETA && root_score <= oalpha) {
             root_failed_low = 3;
+            /*fake best first move*/
+            Node* current = root->child;
+            while(current) {
+                if(current->rank == 1) {
+                    current->uct_wins = MATE_SCORE;
+                    break;
+                }
+                current = current->next;
+            }
+        }
         print_pv(root_score);
     }
 }
