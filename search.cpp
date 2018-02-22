@@ -1123,35 +1123,30 @@ void SEARCHER::search() {
 Evaluate position
 */
 int SEARCHER::get_search_score() {
-
-    finish_search = true;
-
-    pstack->node_type = PV_NODE;
-    pstack->search_state = NORMAL_MOVE;
-    pstack->extension = 0;
-    pstack->reduction = 0;
-    pstack->qcheck_depth = UNITDEPTH; 
     ::search(processors[processor_id]);
-
-    finish_search = false;
-
     return pstack->best_score;
 }
 /*
 Evaluate moves with search
 */
 void SEARCHER::evaluate_moves(int depth, int alpha, int beta) {
+    finish_search = true;
+
     for(int i = 0;i < pstack->count; i++) {
         pstack->current_move = pstack->move_st[i];
         PUSH_MOVE(pstack->current_move);
         pstack->alpha = -beta;
         pstack->beta = -alpha;
         pstack->depth = depth;
+        pstack->node_type = PV_NODE;
+        pstack->search_state = NORMAL_MOVE;
         qsearch_calls++;
         get_search_score();
         POP_MOVE();
         pstack->score_st[i] = -(pstack+1)->best_score;
     }
+
+    finish_search = false;
 
     for(int i = 0;i < pstack->count; i++)
         pstack->sort(i,pstack->count);
@@ -1312,6 +1307,18 @@ MOVE SEARCHER::iterative_deepening() {
         else if(score >= beta) print("++");
         else print("==");
         print(" %d [%d %d]\n",score,alpha,beta);
+        
+        if(montecarlo) {
+            Node* current = root_node->child;
+            while(current) {
+                if(current->rank <= 3) {
+                    print("%d. ",current->rank);
+                    print_move(current->move);
+                    print(" score %d %d\n",int(current->uct_wins),current->uct_visits);
+                }
+                current = current->next;
+            }
+        }
 #endif
         
         /*aspiration search*/
@@ -1409,7 +1416,7 @@ MOVE SEARCHER::iterative_deepening() {
             }
             /*rank children*/
             if(rollout_type == ALPHABETA)
-                Node::rank_children(root_node,alpha,beta);
+                Node::rank_children(root_node,alpha,beta,ply);
         }
         
         /*check time*/

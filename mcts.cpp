@@ -60,11 +60,11 @@ Node* Node::reclaim(Node* n,MOVE* except) {
     return rn;
 }
 
-void Node::rank_children(Node* n,int alpha,int beta) {
+void Node::rank_children(Node* n,int alpha,int beta,int ply) {
     /*rank all children*/
     Node* current = n->child;
     while(current) {
-        rank_children(current,-beta,-alpha);
+        rank_children(current,-beta,-alpha,ply+1);
         
         /*find rank of current child*/
         int rank = 1;
@@ -84,17 +84,25 @@ void Node::rank_children(Node* n,int alpha,int beta) {
     /*reset bounds*/
     n->alpha = alpha;
     n->beta = beta;
+    if(alpha == -MATE_SCORE)
+        n->alpha += WIN_PLY * (ply + 1);
+    if(beta == MATE_SCORE)
+        n->beta -= WIN_PLY * (ply + 1);
     n->set_active();
 }
 
-void Node::reset_bounds(Node* n,int alpha,int beta) {
+void Node::reset_bounds(Node* n,int alpha,int beta,int ply) {
     Node* current = n->child;
     while(current) {
-        reset_bounds(current,-beta,-alpha);
+        reset_bounds(current,-beta,-alpha,ply+1);
         current = current->next;
     }
     n->alpha = alpha;
     n->beta = beta;
+    if(alpha == -MATE_SCORE)
+        n->alpha += WIN_PLY * (ply + 1);
+    if(beta == MATE_SCORE)
+        n->beta -= WIN_PLY * (ply + 1);
     n->set_active();
 }
 
@@ -168,14 +176,14 @@ Node* Node::Max_AB_select(Node* n,int alpha,int beta,bool try_null) {
     return bnode;
 }
 Node* Node::Max_score_select(Node* n) {
-    double bvalue = -MAX_NUMBER, uct;
+    double bvalue = -MAX_NUMBER;
     Node* current = n->child, *bnode = n->child;
 
     while(current) {
         if(current->is_active()) {
-            uct = current->uct_wins;
-            if(uct > bvalue) {
-                bvalue = uct;
+            if(current->uct_wins > bvalue || (current->uct_wins == bvalue 
+                && current->rank < bnode->rank)) {
+                bvalue = current->uct_wins;
                 bnode = current;
             }
         }
@@ -416,6 +424,8 @@ RESEARCH:
             }
             /*Simulate selected move*/
             play_simulation(next,result,visits);
+            if(stop_searcher || abort_search)
+                goto FINISH;
 
             /*Research if necessary when window closes*/
             if(rollout_type == ALPHABETA
@@ -426,7 +436,7 @@ RESEARCH:
                 if(pstack->reduction
                     && next->alpha > (pstack - 1)->alpha
                     ) {
-                    Node::reset_bounds(next,alphac,betac);
+                    Node::reset_bounds(next,alphac,betac,ply);
                     next->rank = 1;
                     goto RESEARCH;
                 }
@@ -440,7 +450,7 @@ RESEARCH:
                     next_node_t = PV_NODE;
                     alphac = -(pstack - 1)->beta;
                     betac = -(pstack - 1)->alpha;
-                    Node::reset_bounds(next,alphac,betac);
+                    Node::reset_bounds(next,alphac,betac,ply);
                     next->set_failed_scout();
                     goto RESEARCH;
                 }
@@ -451,6 +461,8 @@ RESEARCH:
         } else {
             /*Make nullmove*/
             PUSH_NULL();
+            pstack->extension = 0;
+            pstack->reduction = 0;
             pstack->alpha = alphac;
             pstack->beta = alphac + 1;
             pstack->node_type = next_node_t;
@@ -461,6 +473,9 @@ RESEARCH:
                             (MIN(3 , (eval_score - (pstack - 1)->beta) / 128) * UNITDEPTH);
             /*Simulate nullmove*/
             play_simulation(next,result,visits);
+            if(stop_searcher || abort_search)
+                goto FINISH;
+
             /*Undo nullmove*/
             POP_NULL();
         }
@@ -509,14 +524,18 @@ BACKUP:
 UPDATE:
     /*update node's score*/
     l_lock(n->lock);
-    n->uct_visits--;
-    n->clear_busy();
     if(rollout_type == ALPHABETA)
         n->uct_wins = -result;
     else
-        n->uct_wins = (n->uct_wins * n->uct_visits - result * visits) /
-                      (n->uct_visits  + visits);
+        n->uct_wins = (n->uct_wins * (n->uct_visits - 1) - result * visits) /
+                      ((n->uct_visits - 1)  + visits);
     n->uct_visits += visits;
+    l_unlock(n->lock);
+
+FINISH:
+    l_lock(n->lock);
+    n->uct_visits--;
+    n->clear_busy();
     l_unlock(n->lock);
 }
 void SEARCHER::search_mc() {
@@ -586,8 +605,10 @@ void SEARCHER::search_mc() {
                             print_pv(-root->uct_wins);
                     }
                     /*stop growing tree after some time*/
-                    if(frac >= frac_freeze_tree * frac_alphabeta)
+                    if(!freeze_tree && frac >= frac_freeze_tree * frac_alphabeta) {
                         freeze_tree = true;
+                        print("Freezing tree.\n");
+                    }
                     /*Switching rollouts type*/
                     if(rollout_type == ALPHABETA && frac_alphabeta != 1.0 
                         && frac > frac_alphabeta) {
