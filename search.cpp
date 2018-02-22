@@ -1314,7 +1314,9 @@ MOVE SEARCHER::iterative_deepening() {
                 if(current->rank <= 3) {
                     print("%d. ",current->rank);
                     print_move(current->move);
-                    print(" score %d %d\n",int(current->uct_wins),current->uct_visits);
+                    print(" score %d %d node %d %d \n",
+                        int(current->uct_wins),current->uct_visits,
+                        current->alpha, current->beta);
                 }
                 current = current->next;
             }

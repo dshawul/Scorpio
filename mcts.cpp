@@ -181,10 +181,15 @@ Node* Node::Max_score_select(Node* n) {
 
     while(current) {
         if(current->is_active()) {
-            if(current->uct_wins > bvalue || (current->uct_wins == bvalue 
-                && current->rank < bnode->rank)) {
-                bvalue = current->uct_wins;
-                bnode = current;
+            if(rollout_type == MCTS ||          //make sure node is fully searched
+                (rollout_type == ALPHABETA && 
+                (current->alpha >= current->beta || current->rank == 1)) 
+            ) {
+                if(current->uct_wins > bvalue || (current->uct_wins == bvalue 
+                    && current->rank < bnode->rank)) {
+                    bvalue = current->uct_wins;
+                    bnode = current;
+                }
             }
         }
         current = current->next;
@@ -318,6 +323,10 @@ void SEARCHER::play_simulation(Node* n, double& result, int& visits) {
                  (Node::total_nodes >= Node::max_tree_nodes       //run out of memory
                  || freeze_tree)                                  //tree is frozen
             ) {
+            if(!freeze_tree && processor_id == 0) {
+                freeze_tree = true;
+                print("Maximum number of nodes used.\n");
+            }
             search_calls++;
             n->uct_wins = -get_search_score();
             result = -n->uct_wins;
@@ -370,7 +379,15 @@ SELECT:
         } else {
             next = Node::Max_UCB_select(n);
         }
-        if(!next) next = n->child;
+
+        /*This could happen sometimes for reasons I don't 
+          understand fully*/
+        if(!next) {
+            l_lock(n->lock);
+            n->beta = n->alpha;
+            l_unlock(n->lock);
+            goto FINISH;
+        }
 
         /*Determin next node type*/
         int next_node_t;
@@ -479,7 +496,6 @@ RESEARCH:
             /*Undo nullmove*/
             POP_NULL();
         }
-
 BACKUP:
         /*Average/Minmax style backups*/
         if(backup_type == AVERAGE) {
