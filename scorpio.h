@@ -405,8 +405,8 @@ struct Node {
     static Node* allocate();
     static void release(Node*);
     static Node* reclaim(Node*,MOVE* = 0);
-    static void  rank_children(Node*,int,int,int);
-    static void  reset_bounds(Node*,int,int,int);
+    static void  rank_children(Node*,int,int);
+    static void  reset_bounds(Node*,int,int);
     static Node* print_tree(Node*,int,int = 0,int = 0);
     static Node* Max_UCB_select(Node*);
     static Node* Max_score_select(Node*);

@@ -1418,7 +1418,7 @@ MOVE SEARCHER::iterative_deepening() {
             }
             /*rank children*/
             if(rollout_type == ALPHABETA)
-                Node::rank_children(root_node,alpha,beta,ply);
+                Node::rank_children(root_node,alpha,beta);
         }
         
         /*check time*/

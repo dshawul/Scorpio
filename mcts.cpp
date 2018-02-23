@@ -60,11 +60,11 @@ Node* Node::reclaim(Node* n,MOVE* except) {
     return rn;
 }
 
-void Node::rank_children(Node* n,int alpha,int beta,int ply) {
+void Node::rank_children(Node* n,int alpha,int beta) {
     /*rank all children*/
     Node* current = n->child;
     while(current) {
-        rank_children(current,-beta,-alpha,ply+1);
+        rank_children(current,-beta,-alpha);
         
         /*find rank of current child*/
         int rank = 1;
@@ -84,25 +84,17 @@ void Node::rank_children(Node* n,int alpha,int beta,int ply) {
     /*reset bounds*/
     n->alpha = alpha;
     n->beta = beta;
-    if(alpha == -MATE_SCORE)
-        n->alpha += WIN_PLY * (ply + 1);
-    if(beta == MATE_SCORE)
-        n->beta -= WIN_PLY * (ply + 1);
     n->set_active();
 }
 
-void Node::reset_bounds(Node* n,int alpha,int beta,int ply) {
+void Node::reset_bounds(Node* n,int alpha,int beta) {
     Node* current = n->child;
     while(current) {
-        reset_bounds(current,-beta,-alpha,ply+1);
+        reset_bounds(current,-beta,-alpha);
         current = current->next;
     }
     n->alpha = alpha;
     n->beta = beta;
-    if(alpha == -MATE_SCORE)
-        n->alpha += WIN_PLY * (ply + 1);
-    if(beta == MATE_SCORE)
-        n->beta -= WIN_PLY * (ply + 1);
     n->set_active();
 }
 
@@ -383,16 +375,8 @@ SELECT:
             next = Node::Max_UCB_select(n);
         }
 
-        /*This could happen sometimes for reasons I don't 
-          understand fully*/
-        if(!next) {
-            visits = 1;
-            Node::maxply += ply;
-            l_lock(n->lock);
-            n->beta = n->alpha;
-            l_unlock(n->lock);
-            goto FINISH;
-        }
+        /*This could happen in parallel search*/
+        if(!next) next = n->child;
 
         /*Determin next node type*/
         int next_node_t;
@@ -458,7 +442,7 @@ RESEARCH:
                 if(pstack->reduction
                     && next->alpha > (pstack - 1)->alpha
                     ) {
-                    Node::reset_bounds(next,alphac,betac,ply);
+                    Node::reset_bounds(next,alphac,betac);
                     next->rank = 1;
                     goto RESEARCH;
                 }
@@ -472,7 +456,7 @@ RESEARCH:
                     next_node_t = PV_NODE;
                     alphac = -(pstack - 1)->beta;
                     betac = -(pstack - 1)->alpha;
-                    Node::reset_bounds(next,alphac,betac,ply);
+                    Node::reset_bounds(next,alphac,betac);
                     next->set_failed_scout();
                     goto RESEARCH;
                 }
