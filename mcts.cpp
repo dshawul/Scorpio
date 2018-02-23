@@ -324,8 +324,10 @@ void SEARCHER::play_simulation(Node* n, double& result, int& visits) {
             }
             search_calls++;
             n->uct_wins = -get_search_score();
+            if(stop_searcher || abort_search)
+                goto FINISH;
             result = -n->uct_wins;
-        } else if(n->alpha > MATE_SCORE - WIN_PLY * ply) {
+        } else if(n->alpha > MATE_SCORE - WIN_PLY * (ply + 1)) {
             result = n->alpha;
         } else {
             create_children(n);
@@ -417,7 +419,10 @@ RESEARCH:
             pstack->search_state = NULL_MOVE;
             /*Next ply depth*/
             if(rollout_type == ALPHABETA) {
-                if(use_selective && be_selective(next->rank,true)) {
+                if(use_selective 
+                    && be_selective(next->rank,true)
+                    && abs(betac) != MATE_SCORE 
+                    ) {
                     visits = 1;
                     Node::maxply += ply;
                     l_lock(next->lock);
@@ -631,7 +636,6 @@ void SEARCHER::search_mc() {
             }
         }
     }
-
     /*update statistics of parent*/
     if(master) {
         l_lock(lock_smp);

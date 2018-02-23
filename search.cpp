@@ -370,6 +370,7 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
         && !pstack->extension
         && noncap_reduce
         && node_t != PV_NODE
+        && abs((pstack - 1)->best_score) != MATE_SCORE
         ) {
             //late move
             if(nmoves >= lmp_count[depth])

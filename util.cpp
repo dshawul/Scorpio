@@ -375,9 +375,9 @@ void SEARCHER::print_pv(int score) {
 
     /*convert to correct mate score*/
     if(score > MATE_SCORE - WIN_PLY * MAX_PLY) 
-        score = 10000 - ((MATE_SCORE - score) * (ply + 1)) / WIN_PLY;
+        score = 10000 - (ceil(double(MATE_SCORE - score) / WIN_PLY));
     else if(score < -MATE_SCORE + WIN_PLY * MAX_PLY) 
-        score = -10000 + ((MATE_SCORE + score) * (ply + 1)) / WIN_PLY;
+        score = -10000 + (ceil(double(MATE_SCORE + score) / WIN_PLY));
 
     /*print what we have*/
     sprintf(pv,"%d %d %d " FMT64 " ",
