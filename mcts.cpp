@@ -333,8 +333,8 @@ void SEARCHER::play_simulation(Node* n, double& result, int& visits) {
             search_calls++;
             n->uct_wins = -get_search_score();
             result = -n->uct_wins;
-        } else if(pstack->alpha > MATE_SCORE - WIN_PLY * ply) {
-            result = pstack->alpha;
+        } else if(n->alpha > MATE_SCORE - WIN_PLY * ply) {
+            result = n->alpha;
         } else {
             create_children(n);
             if(!n->child) {
@@ -386,6 +386,8 @@ SELECT:
         /*This could happen sometimes for reasons I don't 
           understand fully*/
         if(!next) {
+            visits = 1;
+            Node::maxply += ply;
             l_lock(n->lock);
             n->beta = n->alpha;
             l_unlock(n->lock);
