@@ -64,27 +64,36 @@ void Node::rank_children(Node* n,int alpha,int beta) {
     /*rank all children*/
     Node* current = n->child;
     while(current) {
+        /*rank subtree first*/
         rank_children(current,-beta,-alpha);
-        double val = current->uct_wins;
-        if(current->alpha >= current->beta)
-            val = -current->beta;
-        
-        /*find rank of current child*/
-        int rank = 1;
-        Node* cur = n->child;
-        while(cur) {
-            double val1 = cur->uct_wins;
-            if(cur->alpha >= cur->beta)
-                val1 = -cur->beta;
 
-            if(val1 > val ||
-                (val1 == val && 
-                 cur->rank < current->rank)) 
-                rank++;
-            cur = cur->next;
+        /*rank current node*/
+        if(current->move) {
+            double val = current->uct_wins;
+            if(current->alpha >= current->beta)
+                val = -current->beta;
+            
+            /*find rank of current child*/
+            int rank = 1;
+            Node* cur = n->child;
+            while(cur) {
+                if(cur->move) {
+                    double val1 = cur->uct_wins;
+                    if(cur->alpha >= cur->beta)
+                        val1 = -cur->beta;
+
+                    if(val1 > val ||
+                        (val1 == val && 
+                         cur->rank < current->rank)) 
+                        rank++;
+                }
+                cur = cur->next;
+            }
+            current->rank = rank;
+            /*end ranking*/
+        } else {
+            current->rank = 0;
         }
-        current->rank = rank;
-        /*end rank*/
 
         current = current->next;
     }
@@ -132,7 +141,7 @@ Node* Node::Max_UCB_select(Node* n) {
 
     return bnode;
 }
-Node* Node::Max_AB_select(Node* n,int alpha,int beta,bool try_null) {
+Node* Node::Max_AB_select(Node* n,int alpha,int beta,bool try_null,bool finish_first_move) {
     double bvalue = -MAX_NUMBER, uct;
     Node* current, *bnode = 0;
     int alphac, betac;
@@ -159,8 +168,8 @@ Node* Node::Max_AB_select(Node* n,int alpha,int beta,bool try_null) {
                 }
             }
             /*pv node*/
-            if(n == SEARCHER::root_node && current->rank == 1)
-                uct += MAX_HIST;
+            else if(finish_first_move && current->rank == 1)
+                uct = MATE_SCORE;
 #ifdef PARALLEL
             /*ABDADA like move selection*/
             if(current->is_busy()) uct -= 1000;
@@ -379,7 +388,10 @@ SELECT:
             bool try_null = pstack->node_type != PV_NODE
                             && pstack->depth >= 4 * UNITDEPTH 
                             && (eval_score = eval()) >= pstack->beta;
-            next = Node::Max_AB_select(n,-pstack->beta,-pstack->alpha,try_null);
+            bool finish_first_move = (n == root_node);
+
+            next = Node::Max_AB_select(n,-pstack->beta,-pstack->alpha,
+                try_null,finish_first_move);
         } else {
             next = Node::Max_UCB_select(n);
         }
@@ -532,8 +544,10 @@ BACKUP:
                     current = current->next;
                 }
                 l_lock(n->lock);
-                n->alpha = alpha;
-                n->beta = beta;
+                if(n->alpha < alpha) 
+                    n->alpha = alpha;
+                if(n->beta > beta) 
+                    n->beta = beta;
                 l_unlock(n->lock);
             }
         }
