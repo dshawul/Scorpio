@@ -65,13 +65,20 @@ void Node::rank_children(Node* n,int alpha,int beta) {
     Node* current = n->child;
     while(current) {
         rank_children(current,-beta,-alpha);
+        double val = current->uct_wins;
+        if(current->alpha >= current->beta)
+            val = -current->beta;
         
         /*find rank of current child*/
         int rank = 1;
         Node* cur = n->child;
         while(cur) {
-            if(cur->uct_wins > current->uct_wins ||
-                (cur->uct_wins == current->uct_wins && 
+            double val1 = cur->uct_wins;
+            if(cur->alpha >= cur->beta)
+                val1 = -cur->beta;
+
+            if(val1 > val ||
+                (val1 == val && 
                  cur->rank < current->rank)) 
                 rank++;
             cur = cur->next;
@@ -402,6 +409,7 @@ SELECT:
 
         if(next->move) {
             bool try_scout = (alphac + 1 < betac &&
+                              abs(betac) != MATE_SCORE &&
                               pstack->node_type == PV_NODE && 
                               next_node_t == CUT_NODE);
             /*Make move*/
@@ -454,8 +462,8 @@ RESEARCH:
 #endif
                 /*scout research*/
                 if(try_scout 
-                    && next->alpha > (pstack - 1)->alpha
-                    && next->alpha < (pstack - 1)->beta
+                    && next->uct_wins > (pstack - 1)->alpha
+                    && next->uct_wins < (pstack - 1)->beta
                     ) {
                     try_scout = false;
                     next_node_t = PV_NODE;
