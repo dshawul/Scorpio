@@ -231,7 +231,9 @@ Node* Node::Best_select(Node* n) {
 void SEARCHER::create_children(Node* n) {
     /*lock*/
     l_lock(n->lock);
-    if(n->child) {
+    if(n->child 
+        || Node::total_nodes + MAX_MOVES >= Node::max_tree_nodes 
+        ) {
         l_unlock(n->lock);
         return;
     }
