@@ -359,8 +359,8 @@ typedef struct tagEVALHASH {
 struct Node {
     Node* child;
     Node* next;
-    float uct_wins;
-    unsigned int uct_visits;
+    float score;
+    unsigned int visits;
     MOVE move;
 #ifdef PARALLEL
     LOCK lock;
@@ -385,8 +385,8 @@ struct Node {
     bool is_failed_scout() { return (flag & SCOUTF); }
 
     void clear() {
-        uct_wins = 0;
-        uct_visits = 0;
+        score = 0;
+        visits = 0;
         child = 0;
         next = 0;
         rank = 0;
@@ -410,6 +410,7 @@ struct Node {
     static Node* print_tree(Node*,int,int = 0,int = 0);
     static Node* Max_UCB_select(Node*);
     static Node* Max_score_select(Node*);
+    static Node* Max_beta_select(Node*);
     static Node* Max_visits_select(Node*);
     static Node* Max_AB_select(Node*,int,int,bool,bool);
     static Node* Best_select(Node*);

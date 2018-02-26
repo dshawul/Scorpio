@@ -273,7 +273,7 @@ void Node::print_xml(Node* n,int depth) {
     mov_str(n->move,mvstr);
 
     print_log("<node depth=\"%d\" move=\"%s\" alpha=\"%d\" beta=\"%d\" visits=\"%d\" wins=\"%d\">\n",
-        depth,mvstr,n->alpha,n->beta,n->uct_visits,int(n->uct_wins));
+        depth,mvstr,n->alpha,n->beta,n->visits,int(n->score));
 
     Node* current = n->child;
     while(current) {
@@ -300,7 +300,7 @@ Node* Node::print_tree(Node* root,int output,int max_depth,int depth) {
     Node* current = root->child;
 
     while(current) {
-        if(current->uct_visits && (depth == 0 || bnode == current) ) {
+        if(current->visits && (depth == 0 || bnode == current) ) {
             considered++;
             if(depth <= max_depth && bnode == current) {
                 print_tree(current,output,max_depth,depth+1);
@@ -315,8 +315,8 @@ Node* Node::print_tree(Node* root,int output,int max_depth,int depth) {
                     str,
                     current->alpha,
                     current->beta,
-                    int(current->uct_wins),
-                    current->uct_visits
+                    int(current->score),
+                    current->visits
                     );
             }
         }

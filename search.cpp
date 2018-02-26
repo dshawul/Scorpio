@@ -1316,7 +1316,7 @@ MOVE SEARCHER::iterative_deepening() {
                     print("%d. ",current->rank);
                     print_move(current->move);
                     print(" score %d %d bounds %d %d \n",
-                        int(current->uct_wins),current->uct_visits,
+                        int(-current->uct_wins),current->visits,
                         -current->beta, -current->alpha);
                 }
                 current = current->next;
@@ -1549,14 +1549,14 @@ MOVE SEARCHER::find_best() {
 
         /* print result*/
         int time_used = MAX(1,get_time() - start_time);
-        int pps = int(root_node->uct_visits / (time_used / 1000.0f));
+        int pps = int(root_node->visits / (time_used / 1000.0f));
         print("nodes = " FMT64 " <%d%% qnodes> time = %dms nps = %d\n",nodes,
             int(BMP64(qnodes) / (BMP64(nodes) / 100.0f)),
             time_used,int(BMP64(nodes) / (time_used / 1000.0f)));
         print("Tree: nodes = %d depth = %d/%d pps = %d visits = %d \n      "
             "qsearch_calls = %d search_calls = %d\n",
-            Node::total_nodes,Node::maxply / root_node->uct_visits,
-            Node::maxuct,pps,root_node->uct_visits,qsearch_calls,search_calls);
+            Node::total_nodes,Node::maxply / root_node->visits,
+            Node::maxuct,pps,root_node->visits,qsearch_calls,search_calls);
 
     } else {
 
@@ -1605,7 +1605,7 @@ void SEARCHER::print_status() {
                 mv_str);
         } else {
             mov_str(stack[0].pv[0],mv_str);
-            print("stat01: %d " FMT64 " %d %d %d %s\n",time_used / 10,root_node->uct_visits,
+            print("stat01: %d " FMT64 " %d %d %d %s\n",time_used / 10,root_node->visits,
                 stack[0].pv_length,
                 0,
                 1,
