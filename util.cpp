@@ -309,12 +309,13 @@ Node* Node::print_tree(Node* root,int output,int max_depth,int depth) {
                 mov_str(current->move,str);
                 for(int i = 0;i < depth;i++)
                     print_log("\t");
-                print_log("%d %2d.%7s  | %6d  %6d | %6d  %6d \n",
+                print_log("%d %2d.%7s  | %6d  %6d | %6d  %6d | %6d \n",
                     depth+1,
                     total+1,
                     str,
                     current->alpha,
                     current->beta,
+                    current->rank,
                     int(current->score),
                     current->visits
                     );

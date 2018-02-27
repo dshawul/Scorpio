@@ -61,8 +61,11 @@ Node* Node::reclaim(Node* n,MOVE* except) {
 }
 
 void Node::rank_children(Node* n,int alpha,int beta) {
+
     /*rank all children*/
-    Node* current = n->child;
+    Node* current = n->child, *best = 0;
+    int brank = MAX_MOVES;
+
     while(current) {
         /*rank subtree first*/
         rank_children(current,-beta,-alpha);
@@ -70,8 +73,6 @@ void Node::rank_children(Node* n,int alpha,int beta) {
         /*rank current node*/
         if(current->move) {
             double val = -current->score;
-            if(current->alpha >= current->beta)
-                val = -current->beta;
             
             /*find rank of current child*/
             int rank = 1;
@@ -79,9 +80,6 @@ void Node::rank_children(Node* n,int alpha,int beta) {
             while(cur) {
                 if(cur->move) {
                     double val1 = -cur->score;
-                    if(cur->alpha >= cur->beta)
-                        val1 = -cur->beta;
-
                     if(val1 > val ||
                         (val1 == val && 
                          cur->rank < current->rank)) 
@@ -90,13 +88,24 @@ void Node::rank_children(Node* n,int alpha,int beta) {
                 cur = cur->next;
             }
             current->rank = rank;
-            /*end ranking*/
+
+            /*best child*/
+            if(rank < brank) {
+                brank = rank;
+                best = current;
+            }
         } else {
             current->rank = 0;
         }
 
         current = current->next;
     }
+
+    /*ensure one child has rank 1*/
+    if(best) {
+        best->rank = 1;
+    }
+
     /*reset bounds*/
     n->alpha = alpha;
     n->beta = beta;
@@ -204,7 +213,7 @@ Node* Node::Max_score_select(Node* n) {
 
     return bnode;
 }
-Node* Node::Max_beta_select(Node* n) {
+Node* Node::Max_pv_select(Node* n) {
     double bvalue = -MAX_NUMBER;
     Node* current = n->child, *bnode = n->child;
 
@@ -215,8 +224,6 @@ Node* Node::Max_beta_select(Node* n) {
                 (current->alpha >= current->beta || current->rank == 1)) 
             ) {
                 double val = -current->score;
-                if(current->alpha >= current->beta)
-                    val = -current->beta;
                 if(val > bvalue || (val == bvalue 
                     && current->rank < bnode->rank)) {
                     bvalue = val;
@@ -247,7 +254,7 @@ Node* Node::Best_select(Node* n) {
     if(backup_type == AVERAGE)
         return Max_visits_select(n);
     else
-        return Max_beta_select(n);  
+        return Max_pv_select(n);  
 }
 void SEARCHER::create_children(Node* n) {
     /*lock*/
@@ -550,13 +557,17 @@ RESEARCH:
         }
         
 BACKUP:
-        /*Average/Minmax style backups*/
+        /*Do minmax style backup here, AVERAGE backup doesn't need
+          additional work.*/
         if(backup_type == MINMAX) {
+
+            /*update score. Note that siblings could have
+            scores from previous ID search */
             Node* best = Node::Max_score_select(n);
             score = -best->score;
 
+            /*update alpha-beta bounds*/
             if(rollout_type == ALPHABETA) {
-                /*update alpha-beta bounds*/
                 int alpha = -MATE_SCORE;
                 int beta = -MATE_SCORE;
                 Node* current = n->child;
@@ -597,11 +608,13 @@ FINISH:
 }
 void SEARCHER::search_mc() {
     Node* root = root_node;
+    Node* best = Node::Max_pv_select(root);
     double pfrac = 0,score;
     int visits;
     int oalpha = pstack->alpha;
     int obeta = pstack->beta;
-
+    
+    /*do rollouts*/
     while(true) {
 
         /*simulate*/
@@ -619,6 +632,15 @@ void SEARCHER::search_mc() {
         
         /*check for exit conditions*/
         if(rollout_type == ALPHABETA) {
+
+            /*best move failed low*/
+            if(use_ab
+                && best->alpha >= best->beta
+                && root->score <= oalpha
+                ) {
+                root_failed_low = 3;
+                break;
+            }
 
             /*exit when window closes*/
             if(use_ab &&
@@ -693,19 +715,9 @@ void SEARCHER::search_mc() {
     } else if(!abort_search && !stop_searcher) {
         root_score = root->score;
         pstack->best_score = root_score;
-        if(rollout_type == ALPHABETA && root_score <= oalpha) {
-            root_failed_low = 3;
-            /*fake best first move*/
-            Node* current = root->child;
-            while(current) {
-                if(current->rank == 1) {
-                    current->score = -MATE_SCORE;
-                    break;
-                }
-                current = current->next;
-            }
-        }
         print_pv(root_score);
+        best = Node::Max_pv_select(root);
+        best->score = -MATE_SCORE;
     }
 }
 /*

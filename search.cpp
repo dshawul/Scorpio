@@ -1316,7 +1316,7 @@ MOVE SEARCHER::iterative_deepening() {
                     print("%d. ",current->rank);
                     print_move(current->move);
                     print(" score %d %d bounds %d %d \n",
-                        int(-current->uct_wins),current->visits,
+                        int(-current->score),current->visits,
                         -current->beta, -current->alpha);
                 }
                 current = current->next;
