@@ -150,7 +150,7 @@ Node* Node::Max_UCB_select(Node* n) {
 
     return bnode;
 }
-Node* Node::Max_AB_select(Node* n,int alpha,int beta,bool try_null,bool finish_first_move) {
+Node* Node::Max_AB_select(Node* n,int alpha,int beta,bool try_null,bool search_by_rank) {
     double bvalue = -MAX_NUMBER, uct;
     Node* current, *bnode = 0;
     int alphac, betac;
@@ -177,8 +177,8 @@ Node* Node::Max_AB_select(Node* n,int alpha,int beta,bool try_null,bool finish_f
                 }
             }
             /*pv node*/
-            else if(finish_first_move && current->rank == 1)
-                uct = MATE_SCORE;
+            else if(search_by_rank)
+                uct = MAX_MOVES - current->rank;
 #ifdef PARALLEL
             /*ABDADA like move selection*/
             if(current->is_busy()) uct -= 1000;
@@ -416,10 +416,10 @@ SELECT:
             bool try_null = pstack->node_type != PV_NODE
                             && pstack->depth >= 4 * UNITDEPTH 
                             && n->score >= pstack->beta;
-            bool finish_first_move = (n == root_node);
+            bool search_by_rank = (n == root_node);
 
             next = Node::Max_AB_select(n,-pstack->beta,-pstack->alpha,
-                try_null,finish_first_move);
+                try_null,search_by_rank);
         } else {
             next = Node::Max_UCB_select(n);
         }
@@ -561,12 +561,14 @@ BACKUP:
           additional work.*/
         if(backup_type == MINMAX) {
 
-            /*update score. Note that siblings could have
-            scores from previous ID search */
+            /*Update score. Note that currently unsearched children 
+              use their scores from a previous ID search */
             Node* best = Node::Max_score_select(n);
             score = -best->score;
 
-            /*update alpha-beta bounds*/
+            /*Update alpha-beta bounds. Note:
+              alpha is updated only from child just searched (next)
+              beta is updated from remaining unsearched children */
             if(rollout_type == ALPHABETA) {
                 int alpha = -MATE_SCORE;
                 int beta = -MATE_SCORE;
@@ -636,7 +638,7 @@ void SEARCHER::search_mc() {
             /*best move failed low*/
             if(use_ab
                 && best->alpha >= best->beta
-                && root->score <= oalpha
+                && -best->score <= oalpha
                 ) {
                 root_failed_low = 3;
                 break;
@@ -684,7 +686,8 @@ void SEARCHER::search_mc() {
                             print_pv(root->score);
                     }
                     /*stop growing tree after some time*/
-                    if(!freeze_tree && frac >= frac_freeze_tree * frac_alphabeta) {
+                    if(!freeze_tree && frac_freeze_tree < 1.0 &&
+                        frac >= frac_freeze_tree * frac_alphabeta) {
                         freeze_tree = true;
                         print("Freezing tree.\n");
                     }
@@ -713,10 +716,11 @@ void SEARCHER::search_mc() {
         l_unlock(master->lock);
         l_unlock(lock_smp);
     } else if(!abort_search && !stop_searcher) {
+        best = Node::Max_pv_select(root);
+        root->score = -best->score;
         root_score = root->score;
         pstack->best_score = root_score;
         print_pv(root_score);
-        best = Node::Max_pv_select(root);
         best->score = -MATE_SCORE;
     }
 }
@@ -769,6 +773,10 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
         root->visits += pstack->count;
     }
     root_key = hash_key;
+
+    /*only have root child*/
+    if(!freeze_tree && frac_freeze_tree == 0)
+        freeze_tree = true;
 }
 /*
 * Search parameters
