@@ -19,8 +19,7 @@ LOCK Node::mem_lock = 0;
 std::list<Node*> Node::mem_;
 unsigned int Node::total_nodes = 0;
 unsigned int Node::max_tree_nodes = 0;
-int Node::maxuct = 0;
-int Node::maxply = 0;
+int Node::max_tree_depth = 0;
 Node* VOLATILE SEARCHER::root_node = 0;
 HASHKEY SEARCHER::root_key = 0;
 
@@ -266,8 +265,8 @@ void SEARCHER::create_children(Node* n) {
     }
 
     /*maximum tree depth*/
-    if(ply > Node::maxuct)
-        Node::maxuct = ply;
+    if(ply > Node::max_tree_depth)
+        Node::max_tree_depth = ply;
 
     /*generate and score moves*/
     if(ply)
@@ -347,24 +346,29 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
     n->set_busy();
     l_unlock(n->lock);
 
-    /*Draw*/
-    if(draw()) {
-        score = ((scorpio == player) ? -contempt : contempt);
-        goto LEAF;
-    /*bitbases*/
-    } else if(bitbase_cutoff()) {
-        score = pstack->best_score;
-        goto LEAF;
-    /*Reached max plies and depth*/
-    } else if(ply >= MAX_PLY - 1 || pstack->depth <= 0) {
-        score = n->score;
-        goto LEAF;
-    /*mate distance pruning*/
-    } else if(n->alpha > MATE_SCORE - WIN_PLY * (ply + 1)) {
-        score = n->alpha;
-        goto LEAF;
+    /*Terminal node*/
+    if(ply) {
+        /*Draw*/
+        if(draw()) {
+            score = ((scorpio == player) ? -contempt : contempt);
+            goto LEAF;
+        /*bitbases*/
+        } else if(bitbase_cutoff()) {
+            score = pstack->best_score;
+            goto LEAF;
+        /*Reached max plies and depth*/
+        } else if(ply >= MAX_PLY - 1 || pstack->depth <= 0) {
+            score = n->score;
+            goto LEAF;
+        /*mate distance pruning*/
+        } else if(n->alpha > MATE_SCORE - WIN_PLY * (ply + 1)) {
+            score = n->alpha;
+            goto LEAF;
+        }
+    }
+
     /*No children*/
-    } else if(!n->child) {
+    if(!n->child) {
 
         /*run out of memory for nodes*/
         if(rollout_type == ALPHABETA && 
@@ -392,7 +396,6 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
                     && pstack->depth > UNITDEPTH) {
                     goto SELECT;
                 } else  {
-                    Node::maxply += (ply + 1);
                     score = -n->child->score;
                     visits = pstack->count;
                     nodes += visits;
@@ -401,9 +404,8 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
             }
         }
 LEAF:
-        /*visits and maxply*/
+        /*visits*/
         visits = 1;
-        Node::maxply += ply;
 
         /*update alpha-beta bounds*/
         if(rollout_type == ALPHABETA) {
@@ -479,7 +481,6 @@ RESEARCH:
                     && abs(betac) != MATE_SCORE 
                     ) {
                     visits = 1;
-                    Node::maxply += ply;
                     l_lock(next->lock);
                     next->alpha = betac;
                     next->beta = betac;
@@ -740,7 +741,7 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
     if(root) {
         int i,j;
         bool found = false;
-        for(i = 0;i < 2;i++) {
+        for(i = 0;i < 8;i++) {
             if(hstack[hply - 1 - i].hash_key == root_key) {
                 found = true;
                 break;

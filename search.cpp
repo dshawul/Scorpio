@@ -1254,8 +1254,7 @@ MOVE SEARCHER::iterative_deepening() {
         Node* root = root_node;
         manage_tree(root,root_key);
         root_node = root;
-        Node::maxply = 0;
-        Node::maxuct = 0;
+        Node::max_tree_depth = 0;
         rollout_type = ALPHABETA;
         /*rank nodes and reset bounds*/
         Node::rank_children(root_node);
@@ -1561,10 +1560,10 @@ MOVE SEARCHER::find_best() {
         print("nodes = " FMT64 " <%d%% qnodes> time = %dms nps = %d\n",nodes,
             int(BMP64(qnodes) / (BMP64(nodes) / 100.0f)),
             time_used,int(BMP64(nodes) / (time_used / 1000.0f)));
-        print("Tree: nodes = %d depth = %d/%d pps = %d visits = %d \n      "
+        print("Tree: nodes = %d depth = %d pps = %d visits = %d \n      "
             "qsearch_calls = %d search_calls = %d\n",
-            Node::total_nodes,Node::maxply / root_node->visits,
-            Node::maxuct,pps,root_node->visits,qsearch_calls,search_calls);
+            Node::total_nodes,Node::max_tree_depth,pps,root_node->visits,
+            qsearch_calls,search_calls);
 
     } else {
 

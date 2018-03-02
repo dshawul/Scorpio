@@ -401,8 +401,7 @@ struct Node {
     }
     static unsigned int total_nodes;
     static unsigned int max_tree_nodes;
-    static int maxuct;
-    static int maxply;
+    static int max_tree_depth;
     static LOCK mem_lock;
     static std::list<Node*> mem_;
     static Node* allocate();
