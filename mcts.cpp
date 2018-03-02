@@ -434,7 +434,7 @@ SELECT:
         /*This could happen in parallel search*/
         if(!next) next = n->child;
 
-        /*Determin next node type*/
+        /*Determine next node type*/
         int next_node_t;
         if(pstack->node_type == ALL_NODE) {
             next_node_t = CUT_NODE;
@@ -693,7 +693,7 @@ void SEARCHER::search_mc() {
                             print_pv(root->score);
                     }
                     /*stop growing tree after some time*/
-                    if(!freeze_tree && frac_freeze_tree < 1.0 &&
+                    if(rollout_type == ALPHABETA && !freeze_tree && frac_freeze_tree < 1.0 &&
                         frac >= frac_freeze_tree * frac_alphabeta) {
                         freeze_tree = true;
                         print("Freezing tree.\n");
@@ -705,6 +705,8 @@ void SEARCHER::search_mc() {
                         rollout_type = MCTS;
                         search_depth = search_depth + mcts_strategy_depth;
                         pstack->depth = search_depth * UNITDEPTH;
+                        root_failed_low = 0;
+                        freeze_tree = false;
                     }
                 }
 #ifdef CLUSTER
@@ -801,7 +803,7 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
     } else if(!strcmp(command, "frac_freeze_tree")) {
         frac_freeze_tree = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "mcts_strategy_depth")) {
-        mcts_strategy_depth = atoi(commands[command_num++]) / 100.0;
+        mcts_strategy_depth = atoi(commands[command_num++]);
     } else if(!strcmp(command, "montecarlo")) {
         montecarlo = atoi(commands[command_num++]);
     } else if(!strcmp(command, "treeht")) {
