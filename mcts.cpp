@@ -60,7 +60,7 @@ Node* Node::reclaim(Node* n,MOVE* except) {
     return rn;
 }
 
-void Node::rank_children(Node* n,int alpha,int beta) {
+void Node::rank_children(Node* n) {
 
     /*rank all children*/
     Node* current = n->child, *best = 0;
@@ -68,22 +68,24 @@ void Node::rank_children(Node* n,int alpha,int beta) {
 
     while(current) {
         /*rank subtree first*/
-        rank_children(current,-beta,-alpha);
+        rank_children(current);
 
         /*rank current node*/
         if(current->move) {
-            double val = -current->score;
-            
+            double val = current->visits;
+            if(current->is_pvmove())
+                val += MAX_HIST;
+
             /*find rank of current child*/
             int rank = 1;
             Node* cur = n->child;
             while(cur) {
-                if(cur->move) {
-                    double val1 = -cur->score;
-                    if(val1 > val ||
-                        (val1 == val && 
-                         cur->rank < current->rank)) 
-                        rank++;
+                if(cur->move && cur != current) {
+                    double val1 = cur->visits;
+                    if(cur->is_pvmove())
+                        val1 += MAX_HIST;
+
+                    if(val1 > val) rank++;
                 }
                 cur = cur->next;
             }
@@ -105,11 +107,6 @@ void Node::rank_children(Node* n,int alpha,int beta) {
     if(best) {
         best->rank = 1;
     }
-
-    /*reset bounds*/
-    n->alpha = alpha;
-    n->beta = beta;
-    n->set_active();
 }
 
 void Node::reset_bounds(Node* n,int alpha,int beta) {
@@ -195,6 +192,20 @@ Node* Node::Max_AB_select(Node* n,int alpha,int beta,bool try_null,bool search_b
 
     return bnode;
 }
+Node* Node::Max_visits_select(Node* n) {
+    unsigned int max_visits = 0;
+    Node* current = n->child, *best = n->child;
+    while(current) {
+        if(current->is_active()) {
+            if(current->visits > max_visits) {
+                max_visits = current->visits;
+                best = current;
+            }
+        }
+        current = current->next;
+    }
+    return best;
+}
 Node* Node::Max_score_select(Node* n) {
     double bvalue = -MAX_NUMBER;
     Node* current = n->child, *bnode = n->child;
@@ -221,7 +232,9 @@ Node* Node::Max_pv_select(Node* n) {
         if(current->is_active()) {
             if(rollout_type == MCTS ||
                 (rollout_type == ALPHABETA && 
-                (current->alpha >= current->beta || current->rank == 1)) 
+                /* must be finished or ranked first */
+                (current->alpha >= current->beta ||
+                 current->rank == 1)) 
             ) {
                 double val = -current->score;
                 if(val > bvalue || (val == bvalue 
@@ -235,20 +248,6 @@ Node* Node::Max_pv_select(Node* n) {
     }
 
     return bnode;
-}
-Node* Node::Max_visits_select(Node* n) {
-    unsigned int max_visits = 0;
-    Node* current = n->child, *best = n->child;
-    while(current) {
-        if(current->is_active()) {
-            if(current->visits > max_visits) {
-                max_visits = current->visits;
-                best = current;
-            }
-        }
-        current = current->next;
-    }
-    return best;
 }
 Node* Node::Best_select(Node* n) {
     if(backup_type == AVERAGE)
@@ -581,11 +580,17 @@ BACKUP:
                     current = current->next;
                 }
                 l_lock(n->lock);
-                if(n->alpha < alpha) 
+                if(n->alpha < alpha)
                     n->alpha = alpha;
-                if(n->beta > beta) 
+                if(n->beta > beta)
                     n->beta = beta;
                 l_unlock(n->lock);
+
+                /*Update bounds at root*/
+                if(!ply && next->alpha >= next->beta) {
+                    if(n->alpha > pstack->alpha)
+                        pstack->alpha = n->alpha;
+                }
             }
         }
     }
@@ -621,12 +626,6 @@ void SEARCHER::search_mc() {
 
         /*simulate*/
         play_simulation(root,score,visits);
-
-        /*update bound*/
-        if(root->alpha > pstack->alpha)
-            pstack->alpha = root->alpha;
-        if(root->beta < pstack->beta)
-            pstack->beta = root->beta;
 
         /*search stopped*/
         if(abort_search || stop_searcher)
@@ -721,7 +720,6 @@ void SEARCHER::search_mc() {
         root_score = root->score;
         pstack->best_score = root_score;
         print_pv(root_score);
-        best->score = -MATE_SCORE;
     }
 }
 /*

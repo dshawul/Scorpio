@@ -372,7 +372,7 @@ struct Node {
 
     /*accessors*/
     enum {
-        ACTIVE = 1, BUSY = 2, SCOUTF = 4
+        ACTIVE = 1, BUSY = 2, SCOUTF = 4, PVMOVE = 8
     };
     void set_active() { flag = ACTIVE; }
     void clear_active() { flag &= ~ACTIVE; }
@@ -383,6 +383,9 @@ struct Node {
     void set_failed_scout() { flag |= SCOUTF; }
     void clear_failed_scout() { flag &= ~SCOUTF; }
     bool is_failed_scout() { return (flag & SCOUTF); }
+    void set_pvmove() { flag |= PVMOVE; }
+    void clear_pvmove() { flag &= ~PVMOVE; }
+    bool is_pvmove() { return (flag & PVMOVE); }
 
     void clear() {
         score = 0;
@@ -405,7 +408,7 @@ struct Node {
     static Node* allocate();
     static void release(Node*);
     static Node* reclaim(Node*,MOVE* = 0);
-    static void  rank_children(Node*,int,int);
+    static void  rank_children(Node*);
     static void  reset_bounds(Node*,int,int);
     static Node* print_tree(Node*,int,int = 0,int = 0);
     static Node* Max_UCB_select(Node*);

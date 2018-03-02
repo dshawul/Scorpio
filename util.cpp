@@ -290,6 +290,7 @@ void SEARCHER::extract_pv(Node* n) {
         pstack->pv_length = ply+1;
         ply++;
         extract_pv(best);
+        best->set_pvmove();
         ply--;
     }
 }
@@ -313,10 +314,10 @@ Node* Node::print_tree(Node* root,int output,int max_depth,int depth) {
                     depth+1,
                     total+1,
                     str,
-                    current->alpha,
-                    current->beta,
+                    -current->alpha,
+                    -current->beta,
                     current->rank,
-                    int(current->score),
+                    int(-current->score),
                     current->visits
                     );
             }

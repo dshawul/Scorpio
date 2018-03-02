@@ -1257,6 +1257,9 @@ MOVE SEARCHER::iterative_deepening() {
         Node::maxply = 0;
         Node::maxuct = 0;
         rollout_type = ALPHABETA;
+        /*rank nodes and reset bounds*/
+        Node::rank_children(root_node);
+        Node::reset_bounds(root_node,alpha,beta);
     }
 
     /*iterative deepening*/
@@ -1310,16 +1313,19 @@ MOVE SEARCHER::iterative_deepening() {
         print(" %d [%d %d]\n",score,alpha,beta);
         
         if(montecarlo) {
-            Node* current = root_node->child;
-            while(current) {
-                if(current->rank <= 3) {
-                    print("%d. ",current->rank);
-                    print_move(current->move);
-                    print(" score %d %d bounds %d %d \n",
-                        int(-current->score),current->visits,
-                        -current->beta, -current->alpha);
+            for(int r = 1; r <= MAX_MOVES; r++) {
+                Node* current = root_node->child;
+                while(current) {
+                    if(current->rank == r) {
+                        print("%d. ",current->rank);
+                        print_move(current->move);
+                        print(" score %d visits %d bounds %d %d \n",
+                            int(-current->score),current->visits,
+                            -current->beta, -current->alpha);
+                        break;
+                    }
+                    current = current->next;
                 }
-                current = current->next;
             }
         }
 #endif
@@ -1418,10 +1424,12 @@ MOVE SEARCHER::iterative_deepening() {
                 }
             }
             /*rank children*/
-            if(rollout_type == ALPHABETA)
-                Node::rank_children(root_node,alpha,beta);
+            if(rollout_type == ALPHABETA) {
+                Node::rank_children(root_node);
+                Node::reset_bounds(root_node,alpha,beta);
+            }
         }
-        
+
         /*check time*/
         check_quit();
 
