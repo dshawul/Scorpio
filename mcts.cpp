@@ -347,21 +347,29 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
     n->set_busy();
     l_unlock(n->lock);
 
-    /*uct tree policy*/
-    if(!n->child) {
+    /*Draw*/
+    if(draw()) {
+        score = ((scorpio == player) ? -contempt : contempt);
+        goto LEAF;
+    /*bitbases*/
+    } else if(bitbase_cutoff()) {
+        score = pstack->best_score;
+        goto LEAF;
+    /*Reached max plies and depth*/
+    } else if(ply >= MAX_PLY - 1 || pstack->depth <= 0) {
+        score = n->score;
+        goto LEAF;
+    /*mate distance pruning*/
+    } else if(n->alpha > MATE_SCORE - WIN_PLY * (ply + 1)) {
+        score = n->alpha;
+        goto LEAF;
+    /*No children*/
+    } else if(!n->child) {
 
-        /*terminal nodes*/
-        if(draw()) {
-            score = ((scorpio == player) ? -contempt : contempt);
-        } else if(bitbase_cutoff()) {
-            score = pstack->best_score;
-        } else if(ply >= MAX_PLY - 1) {                           //run out of plies
-            score = n->score;
-        } else if(pstack->depth <= 0) {                           //run out of depth
-            score = n->score;
-        } else if(rollout_type == ALPHABETA &&                    //run out of memory
-                 (Node::total_nodes  + MAX_MOVES >= Node::max_tree_nodes       
-                 || freeze_tree)                                  //tree is frozen
+        /*run out of memory for nodes*/
+        if(rollout_type == ALPHABETA && 
+            (Node::total_nodes  + MAX_MOVES >= Node::max_tree_nodes       
+             || freeze_tree)
             ) {
             if(!freeze_tree && processor_id == 0) {
                 freeze_tree = true;
@@ -371,8 +379,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
             score = get_search_score();
             if(stop_searcher || abort_search)
                 goto FINISH;
-        } else if(n->alpha > MATE_SCORE - WIN_PLY * (ply + 1)) {
-            score = n->alpha;
+        /*create children*/
         } else {
             create_children(n);
             if(!n->child) {
@@ -393,7 +400,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
                 }
             }
         }
-
+LEAF:
         /*visits and maxply*/
         visits = 1;
         Node::maxply += ply;
@@ -406,6 +413,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
             l_unlock(n->lock);
         }
 
+    /*Has children*/
     } else {
 
 SELECT:
