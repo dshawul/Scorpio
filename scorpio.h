@@ -372,11 +372,8 @@ struct Node {
 
     /*accessors*/
     enum {
-        ACTIVE = 1, BUSY = 2, SCOUTF = 4, PVMOVE = 8
+        BUSY = 1, SCOUTF = 2, PVMOVE = 4
     };
-    void set_active() { flag = ACTIVE; }
-    void clear_active() { flag &= ~ACTIVE; }
-    bool is_active() { return (flag & ACTIVE); }
     void set_busy() { flag |= BUSY; }
     void clear_busy() { flag &= ~BUSY; }
     bool is_busy() { return (flag & BUSY); }
@@ -393,7 +390,7 @@ struct Node {
         child = 0;
         next = 0;
         rank = 0;
-        flag = ACTIVE;
+        flag = 0;
         move = MOVE();
         alpha = -MATE_SCORE;
         beta = MATE_SCORE;

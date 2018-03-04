@@ -116,7 +116,7 @@ void Node::reset_bounds(Node* n,int alpha,int beta) {
     }
     n->alpha = alpha;
     n->beta = beta;
-    n->set_active();
+    n->flag = 0;
 }
 
 static inline float logistic(float eloDelta) {
@@ -131,9 +131,7 @@ Node* Node::Max_UCB_select(Node* n) {
 
     current = n->child;
     while(current) {
-        if(!current->move) {
-            current->clear_active();
-        } else {
+        if(current->move) {
             uct = logistic(-current->score) +
                   dUCTK * sqrt(logn / current->visits);
             if(uct > bvalue) {
@@ -164,13 +162,8 @@ Node* Node::Max_AB_select(Node* n,int alpha,int beta,bool try_null,bool search_b
             else uct = -current->visits;
             /*nullmove score*/
             if(!current->move) {
-                if(try_null) {
-                    uct = MATE_SCORE - 1;
-                    current->set_active();
-                } else {
-                    uct = -MATE_SCORE;
-                    current->clear_active();
-                }
+                if(try_null) uct = MATE_SCORE;
+                else uct = -MATE_SCORE;
             }
             /*pv node*/
             else if(search_by_rank)
@@ -195,7 +188,7 @@ Node* Node::Max_visits_select(Node* n) {
     unsigned int max_visits = 0;
     Node* current = n->child, *best = n->child;
     while(current) {
-        if(current->is_active()) {
+        if(current->move) {
             if(current->visits > max_visits) {
                 max_visits = current->visits;
                 best = current;
@@ -210,7 +203,7 @@ Node* Node::Max_score_select(Node* n) {
     Node* current = n->child, *bnode = n->child;
 
     while(current) {
-        if(current->is_active()) {
+        if(current->move) {
             double val = -current->score;
             if(val > bvalue || (val == bvalue 
                 && current->rank < bnode->rank)) {
@@ -228,7 +221,7 @@ Node* Node::Max_pv_select(Node* n) {
     Node* current = n->child, *bnode = n->child;
 
     while(current) {
-        if(current->is_active()) {
+        if(current->move) {
             if(rollout_type == MCTS ||
                 (rollout_type == ALPHABETA && 
                 /* must be finished or ranked first */
@@ -555,8 +548,6 @@ RESEARCH:
                     n->alpha = score;
                     n->beta = score;
                     l_unlock(n->lock);
-                } else {
-                    next->clear_active();
                 }
             }
             score = n->score;
@@ -582,7 +573,7 @@ BACKUP:
                 int beta = -MATE_SCORE;
                 Node* current = n->child;
                 while(current) {
-                    if(current->is_active()) {
+                    if(current->move) {
                         if(-current->beta > alpha) alpha = -current->beta;
                         if(-current->alpha > beta) beta = -current->alpha;
                     }
