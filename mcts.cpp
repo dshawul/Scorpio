@@ -71,7 +71,7 @@ void Node::rank_children(Node* n) {
 
         /*rank current node*/
         if(current->move) {
-            double val = current->visits;
+            double val = -current->score;
             if(current->is_pvmove())
                 val += MAX_HIST;
 
@@ -80,11 +80,15 @@ void Node::rank_children(Node* n) {
             Node* cur = n->child;
             while(cur) {
                 if(cur->move && cur != current) {
-                    double val1 = cur->visits;
+                    double val1 = -cur->score;
                     if(cur->is_pvmove())
                         val1 += MAX_HIST;
 
-                    if(val1 > val) rank++;
+                    if(val1 > val ||
+                        (val1 == val && cur->rank < current->rank) ||
+                        (val1 == val && cur->rank == current->rank &&
+                         cur->visits > current->visits)
+                        ) rank++;
                 }
                 cur = cur->next;
             }
