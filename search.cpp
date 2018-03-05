@@ -396,11 +396,6 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
     late move reduction
     */
     if(noncap_reduce && nmoves >= 2) {
-        //more reduction in montecarlo search
-        if(mc) {
-            if(pstack->depth > 2 * UNITDEPTH) { reduce(2 * UNITDEPTH); }
-            else if(pstack->depth > UNITDEPTH) { reduce(UNITDEPTH); }
-        }
         //by number of moves searched so far including current move
         for(int i = 0;i < 8;i++) {
             if(nmoves >= lmr_count[i] && pstack->depth > UNITDEPTH) {

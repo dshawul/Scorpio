@@ -387,7 +387,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
                 if(hstack[hply - 1].checks)
                     score = -MATE_SCORE + WIN_PLY * (ply + 1);
                 else 
-                    score = 0;
+                    score = ((scorpio == player) ? -contempt : contempt);
             } else {
                 if(rollout_type == ALPHABETA
                     && pstack->depth > UNITDEPTH) {
