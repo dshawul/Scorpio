@@ -343,6 +343,10 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
     n->set_busy();
     l_unlock(n->lock);
 
+#if 0
+    unsigned int nvisits = n->visits;
+#endif
+
     /*Terminal node*/
     if(ply) {
         /*Draw*/
@@ -363,7 +367,6 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
             goto LEAF;
         }
     }
-
     /*No children*/
     if(!n->child) {
 
@@ -445,7 +448,6 @@ SELECT:
             else
                 next_node_t = CUT_NODE;
         }
-
         /*Determine next alpha-beta bound*/
         int alphac, betac;
         alphac = -pstack->beta;
@@ -590,8 +592,8 @@ BACKUP:
                     n->beta = beta;
                 l_unlock(n->lock);
 
-                /*Update bounds at root*/
-                if(!ply && next->alpha >= next->beta) {
+                /*Update bounds*/
+                if(next->alpha >= next->beta) {
                     if(n->alpha > pstack->alpha)
                         pstack->alpha = n->alpha;
                 }
@@ -609,6 +611,17 @@ UPDATE:
                       ((n->visits - 1)  + visits);
     n->visits += visits;
     l_unlock(n->lock);
+
+#if 0
+    /*Select move from this node again until windows closes.
+      This is similar to what a standard alpha-beta searcher does.
+      Currently, this is slower than the rollouts version. */
+    if(n->alpha < n->beta && pstack->alpha < pstack->beta &&
+       n->beta > pstack->alpha && n->alpha < pstack->beta) {
+        goto SELECT;
+    }
+    visits = n->visits - nvisits;
+#endif
 
 FINISH:
     /*clear busy flag, also virtual visits*/
@@ -781,6 +794,11 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
     /*only have root child*/
     if(!freeze_tree && frac_freeze_tree == 0)
         freeze_tree = true;
+    if(frac_alphabeta == 0) {
+        rollout_type = MCTS;
+        search_depth = mcts_strategy_depth;
+    } else
+        rollout_type = ALPHABETA;
 }
 /*
 * Search parameters

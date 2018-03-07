@@ -1250,7 +1250,6 @@ MOVE SEARCHER::iterative_deepening() {
         manage_tree(root,root_key);
         root_node = root;
         Node::max_tree_depth = 0;
-        rollout_type = ALPHABETA;
         /*rank nodes and reset bounds*/
         Node::rank_children(root_node);
         Node::reset_bounds(root_node,alpha,beta);
