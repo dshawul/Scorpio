@@ -8,7 +8,7 @@ static int  reuse_tree = 1;
 static int  backup_type = MINMAX;
 static double frac_alphabeta = 1.0; 
 static double frac_freeze_tree = 0.3;
-static int  mcts_strategy_depth = 15;
+static int  mcts_strategy_depth = 30;
 
 int montecarlo = 0;
 int rollout_type = ALPHABETA;
@@ -220,7 +220,7 @@ Node* Node::Max_score_select(Node* n) {
 
     return bnode;
 }
-Node* Node::Max_pv_select(Node* n) {
+Node* Node::Best_select(Node* n) {
     double bvalue = -MAX_NUMBER;
     Node* current = n->child, *bnode = n->child;
 
@@ -244,12 +244,6 @@ Node* Node::Max_pv_select(Node* n) {
     }
 
     return bnode;
-}
-Node* Node::Best_select(Node* n) {
-    if(backup_type == AVERAGE)
-        return Max_visits_select(n);
-    else
-        return Max_pv_select(n);  
 }
 void SEARCHER::create_children(Node* n) {
     /*lock*/
@@ -563,40 +557,38 @@ RESEARCH:
         
 BACKUP:
         /*Do minmax style backup here, AVERAGE backup doesn't need
-          additional work.*/
+          additional work. Note that currently unsearched children 
+          use their scores from a previous ID search*/
         if(backup_type == MINMAX) {
-
-            /*Update score. Note that currently unsearched children 
-              use their scores from a previous ID search */
             Node* best = Node::Max_score_select(n);
             score = -best->score;
+        }
 
-            /*Update alpha-beta bounds. Note:
-              alpha is updated only from child just searched (next)
-              beta is updated from remaining unsearched children */
-            if(rollout_type == ALPHABETA) {
-                int alpha = -MATE_SCORE;
-                int beta = -MATE_SCORE;
-                Node* current = n->child;
-                while(current) {
-                    if(current->move) {
-                        if(-current->beta > alpha) alpha = -current->beta;
-                        if(-current->alpha > beta) beta = -current->alpha;
-                    }
-                    current = current->next;
+        /*Update alpha-beta bounds. Note: alpha is updated only from 
+          child just searched (next), beta is updated from remaining 
+          unsearched children */
+        if(rollout_type == ALPHABETA) {
+            int alpha = -MATE_SCORE;
+            int beta = -MATE_SCORE;
+            Node* current = n->child;
+            while(current) {
+                if(current->move) {
+                    if(-current->beta > alpha) alpha = -current->beta;
+                    if(-current->alpha > beta) beta = -current->alpha;
                 }
-                l_lock(n->lock);
-                if(n->alpha < alpha)
-                    n->alpha = alpha;
-                if(n->beta > beta)
-                    n->beta = beta;
-                l_unlock(n->lock);
+                current = current->next;
+            }
+            l_lock(n->lock);
+            if(n->alpha < alpha)
+                n->alpha = alpha;
+            if(n->beta > beta)
+                n->beta = beta;
+            l_unlock(n->lock);
 
-                /*Update bounds*/
-                if(next->alpha >= next->beta) {
-                    if(n->alpha > pstack->alpha)
-                        pstack->alpha = n->alpha;
-                }
+            /*Update bounds*/
+            if(next->alpha >= next->beta) {
+                if(n->alpha > pstack->alpha)
+                    pstack->alpha = n->alpha;
             }
         }
     }
@@ -604,7 +596,7 @@ BACKUP:
 UPDATE:
     /*update node's score*/
     l_lock(n->lock);
-    if(rollout_type == ALPHABETA)
+    if(backup_type == MINMAX)
         n->score = score;
     else
         n->score = (n->score * (n->visits - 1) + score * visits) /
@@ -632,11 +624,12 @@ FINISH:
 }
 void SEARCHER::search_mc() {
     Node* root = root_node;
-    Node* best = Node::Max_pv_select(root);
+    Node* best = Node::Best_select(root);
     double pfrac = 0,score;
     int visits;
     int oalpha = pstack->alpha;
     int obeta = pstack->beta;
+    unsigned int ovisits = root->visits;
     
     /*do rollouts*/
     while(true) {
@@ -682,7 +675,8 @@ void SEARCHER::search_mc() {
             /*check for messages from other hosts*/
 #ifdef CLUSTER
 #   ifndef THREAD_POLLING
-            if((root->visits % 1000) == 0) {
+            if(root->visits - ovisits >= 5000) {
+                ovisits = root->visits;
                 processors[processor_id]->idle_loop();
             }
 #   endif
@@ -690,7 +684,8 @@ void SEARCHER::search_mc() {
             /*rank 0*/
             if(true CLUSTER_CODE(&& PROCESSOR::host_id == 0)) { 
                 /*check quit*/
-                if(root->visits % 1000 == 0) {
+                if(root->visits - ovisits >= 5000) {
+                    ovisits = root->visits;
                     check_quit();
                     double frac = double(get_time() - start_time) / 
                             chess_clock.search_time;
@@ -734,7 +729,7 @@ void SEARCHER::search_mc() {
         l_unlock(master->lock);
         l_unlock(lock_smp);
     } else if(!abort_search && !stop_searcher) {
-        best = Node::Max_pv_select(root);
+        best = Node::Best_select(root);
         root->score = -best->score;
         root_score = root->score;
         pstack->best_score = root_score;
