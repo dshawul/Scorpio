@@ -117,7 +117,7 @@ enum move_gen_status {
     GEN_KILLERS = 6, GEN_NONCAPS, GEN_LOSCAPS, GEN_END
 };
 enum BACKUP_TYPE {
-    MINMAX, AVERAGE
+    MINMAX, AVERAGE, MIX, MINMAX_MEM, AVERAGE_MEM, MIX_MEM
 };
 enum ROLLOUT_TYPE {
     MCTS, ALPHABETA
@@ -408,10 +408,12 @@ struct Node {
     static void  reset_bounds(Node*,int,int);
     static Node* print_tree(Node*,int,int = 0,int = 0);
     static Node* Max_UCB_select(Node*);
-    static Node* Max_score_select(Node*);
-    static Node* Max_visits_select(Node*);
     static Node* Max_AB_select(Node*,int,int,bool,bool);
     static Node* Best_select(Node*);
+    static float Min_score(Node*);
+    static float Avg_score(Node*);
+    static float Avg_score_mem(Node*,float,int);
+    static void Backup(Node*,double&,int);
     static void print_xml(Node*,int);
 };
 /*

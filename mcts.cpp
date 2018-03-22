@@ -2,7 +2,7 @@
 
 /*mcts parameters*/
 static double  UCTKmax = 0.3;
-static double  UCTKmin = 0.3;
+static double  UCTKmin = 0.1;
 static double  dUCTK = UCTKmax;
 static int  reuse_tree = 1;
 static int  backup_type = MINMAX;
@@ -123,9 +123,16 @@ void Node::reset_bounds(Node* n,int alpha,int beta) {
     n->flag = 0;
 }
 
-static inline float logistic(float eloDelta) {
-    static const double K = -log(10.0) / 400.0;
-    return 1 / (1 + exp(K * eloDelta));
+static const double Kfactor = -log(10.0) / 400.0;
+
+static inline double logistic(double score) {
+    return 1 / (1 + exp(Kfactor * score));
+}
+
+static inline double logit(double p) {
+    if(p < 1e-45) p = 1e-45;
+    else if(p > 1 - 1e-45) p = 1 - 1e-45;
+    return log((1 - p) / p) / Kfactor;
 }
 
 Node* Node::Max_UCB_select(Node* n) {
@@ -188,38 +195,6 @@ Node* Node::Max_AB_select(Node* n,int alpha,int beta,bool try_null,bool search_b
 
     return bnode;
 }
-Node* Node::Max_visits_select(Node* n) {
-    unsigned int max_visits = 0;
-    Node* current = n->child, *best = n->child;
-    while(current) {
-        if(current->move) {
-            if(current->visits > max_visits) {
-                max_visits = current->visits;
-                best = current;
-            }
-        }
-        current = current->next;
-    }
-    return best;
-}
-Node* Node::Max_score_select(Node* n) {
-    double bvalue = -MAX_NUMBER;
-    Node* current = n->child, *bnode = n->child;
-
-    while(current) {
-        if(current->move) {
-            double val = -current->score;
-            if(val > bvalue || (val == bvalue 
-                && current->rank < bnode->rank)) {
-                bvalue = val;
-                bnode = current;
-            }
-        }
-        current = current->next;
-    }
-
-    return bnode;
-}
 Node* Node::Best_select(Node* n) {
     double bvalue = -MAX_NUMBER;
     Node* current = n->child, *bnode = n->child;
@@ -244,6 +219,52 @@ Node* Node::Best_select(Node* n) {
     }
 
     return bnode;
+}
+float Node::Min_score(Node* n) {
+    Node* current = n->child, *bnode = n->child;
+    while(current) {
+        if(current->move) {
+            if(current->score < bnode->score)
+                bnode = current;
+        }
+        current = current->next;
+    }
+ 
+    return bnode->score;
+}
+float Node::Avg_score(Node* n) {
+    double tvalue = 0;
+    unsigned int tvisits = 0;
+    
+    Node* current = n->child;
+    while(current) {
+        if(current->move) {
+            tvalue += logistic(current->score) * current->visits;
+            tvisits += current->visits;
+        }
+        current = current->next;
+    }
+
+    return logit(tvalue / tvisits);    
+}
+float Node::Avg_score_mem(Node* n, float score, int visits) {
+    float sc = logistic(n->score);
+    float sc1 = logistic(score);
+    sc += (sc1 - sc) * visits / (n->visits + visits);
+    return logit(sc);   
+}
+void Node::Backup(Node* n,double& score,int visits) {
+    if(backup_type == AVERAGE)
+        score = -Avg_score(n);
+    else {
+        if(backup_type == MINMAX || backup_type == MINMAX_MEM)
+            score = -Min_score(n);
+        else if(backup_type == MIX  || backup_type == MIX_MEM)
+            score = -(3 * Min_score(n) + Avg_score(n)) / 4;
+
+        if(backup_type >= MINMAX_MEM)
+            score = Avg_score_mem(n,score,visits);
+    }
 }
 void SEARCHER::create_children(Node* n) {
     /*lock*/
@@ -315,6 +336,7 @@ void SEARCHER::add_null_child(Node* n) {
 void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
 
     nodes++;
+    visits = 1;
 
     /*In parallel search, current node's window may be closed
       by another thread, in which case we return immediately*/
@@ -388,19 +410,17 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
             } else {
                 if(rollout_type == ALPHABETA
                     && pstack->depth > UNITDEPTH) {
+                    /*expand more*/
                     goto SELECT;
                 } else  {
-                    score = -n->child->score;
+                    /*backup here*/
+                    Node::Backup(n,score,0);
                     visits = pstack->count;
                     nodes += visits;
-                    goto UPDATE;
                 }
             }
         }
 LEAF:
-        /*visits*/
-        visits = 1;
-
         /*update alpha-beta bounds*/
         if(rollout_type == ALPHABETA) {
             l_lock(n->lock);
@@ -556,13 +576,8 @@ RESEARCH:
         }
         
 BACKUP:
-        /*Do minmax style backup here, AVERAGE backup doesn't need
-          additional work. Note that currently unsearched children 
-          use their scores from a previous ID search*/
-        if(backup_type == MINMAX) {
-            Node* best = Node::Max_score_select(n);
-            score = -best->score;
-        }
+        /*Do minmax/averaging style backups with/without memory*/
+        Node::Backup(n,score,visits);
 
         /*Update alpha-beta bounds. Note: alpha is updated only from 
           child just searched (next), beta is updated from remaining 
@@ -596,12 +611,8 @@ BACKUP:
 UPDATE:
     /*update node's score*/
     l_lock(n->lock);
-    if(backup_type == MINMAX)
-        n->score = score;
-    else
-        n->score = (n->score * (n->visits - 1) + score * visits) /
-                      ((n->visits - 1)  + visits);
     n->visits += visits;
+    n->score = score;
     l_unlock(n->lock);
 
 #if 0
@@ -830,7 +841,7 @@ void print_mcts_params() {
     print("feature option=\"UCTKmin -spin %d 0 100\"\n",int(UCTKmin*100));
     print("feature option=\"UCTKmax -spin %d 0 100\"\n",int(UCTKmax*100));
     print("feature option=\"reuse_tree -check %d\"\n",reuse_tree);
-    print("feature option=\"backup_type -combo *MINMAX AVERAGE\"\n");
+    print("feature option=\"backup_type -combo *MINMAX AVERAGE MIX MINMAX_MEM AVERAGE_MEM MIX_MEM\"\n");
     print("feature option=\"frac_alphabeta -spin %d 0 100\"\n",int(frac_alphabeta*100));
     print("feature option=\"frac_freeze_tree -spin %d 0 100\"\n",int(frac_freeze_tree*100));
     print("feature option=\"mcts_strategy_depth -spin %d 0 100\"\n",mcts_strategy_depth);
