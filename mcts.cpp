@@ -2,7 +2,7 @@
 
 /*mcts parameters*/
 static double  UCTKmax = 0.3;
-static double  UCTKmin = 0.1;
+static double  UCTKmin = 0.005;
 static double  dUCTK = UCTKmax;
 static int  reuse_tree = 1;
 static int  backup_type = MINMAX;
@@ -265,6 +265,28 @@ void Node::Backup(Node* n,double& score,int visits) {
         if(backup_type >= MINMAX_MEM)
             score = Avg_score_mem(n,score,visits);
     }
+
+    /*Update alpha-beta bounds. Note: alpha is updated only from 
+      child just searched (next), beta is updated from remaining 
+      unsearched children */
+    if(rollout_type == ALPHABETA) {
+        int alpha = -MATE_SCORE;
+        int beta = -MATE_SCORE;
+        Node* current = n->child;
+        while(current) {
+            if(current->move) {
+                if(-current->beta > alpha) alpha = -current->beta;
+                if(-current->alpha > beta) beta = -current->alpha;
+            }
+            current = current->next;
+        }
+        l_lock(n->lock);
+        if(n->alpha < alpha)
+            n->alpha = alpha;
+        if(n->beta > beta)
+            n->beta = beta;
+        l_unlock(n->lock);
+    }
 }
 void SEARCHER::create_children(Node* n) {
     /*lock*/
@@ -415,8 +437,6 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
                 } else  {
                     /*backup here*/
                     Node::Backup(n,score,0);
-                    visits = pstack->count;
-                    nodes += visits;
                 }
             }
         }
@@ -462,6 +482,7 @@ SELECT:
             else
                 next_node_t = CUT_NODE;
         }
+
         /*Determine next alpha-beta bound*/
         int alphac, betac;
         alphac = -pstack->beta;
@@ -579,28 +600,8 @@ BACKUP:
         /*Do minmax/averaging style backups with/without memory*/
         Node::Backup(n,score,visits);
 
-        /*Update alpha-beta bounds. Note: alpha is updated only from 
-          child just searched (next), beta is updated from remaining 
-          unsearched children */
+        /*Update alpha for next sibling*/
         if(rollout_type == ALPHABETA) {
-            int alpha = -MATE_SCORE;
-            int beta = -MATE_SCORE;
-            Node* current = n->child;
-            while(current) {
-                if(current->move) {
-                    if(-current->beta > alpha) alpha = -current->beta;
-                    if(-current->alpha > beta) beta = -current->alpha;
-                }
-                current = current->next;
-            }
-            l_lock(n->lock);
-            if(n->alpha < alpha)
-                n->alpha = alpha;
-            if(n->beta > beta)
-                n->beta = beta;
-            l_unlock(n->lock);
-
-            /*Update bounds*/
             if(next->alpha >= next->beta) {
                 if(n->alpha > pstack->alpha)
                     pstack->alpha = n->alpha;
@@ -686,7 +687,7 @@ void SEARCHER::search_mc() {
             /*check for messages from other hosts*/
 #ifdef CLUSTER
 #   ifndef THREAD_POLLING
-            if(root->visits - ovisits >= 5000) {
+            if(root->visits - ovisits >= 200) {
                 ovisits = root->visits;
                 processors[processor_id]->idle_loop();
             }
@@ -695,7 +696,7 @@ void SEARCHER::search_mc() {
             /*rank 0*/
             if(true CLUSTER_CODE(&& PROCESSOR::host_id == 0)) { 
                 /*check quit*/
-                if(root->visits - ovisits >= 5000) {
+                if(root->visits - ovisits >= 200) {
                     ovisits = root->visits;
                     check_quit();
                     double frac = double(get_time() - start_time) / 
