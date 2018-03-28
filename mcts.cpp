@@ -9,6 +9,8 @@ static int  backup_type = MINMAX;
 static double frac_alphabeta = 1.0; 
 static double frac_freeze_tree = 0.3;
 static int  mcts_strategy_depth = 30;
+static int  alphabeta_depth = 1;
+static int  evaluate_depth = 0;
 
 int montecarlo = 0;
 int rollout_type = ALPHABETA;
@@ -304,7 +306,7 @@ void SEARCHER::create_children(Node* n) {
 
     /*generate and score moves*/
     if(ply)
-        generate_and_score_moves(0,-MATE_SCORE,MATE_SCORE);
+        generate_and_score_moves(evaluate_depth,-MATE_SCORE,MATE_SCORE);
 
     /*add nodes to tree*/
     add_children(n);
@@ -410,10 +412,14 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
 
         /*run out of memory for nodes*/
         if(rollout_type == ALPHABETA && 
-            (Node::total_nodes  + MAX_MOVES >= Node::max_tree_nodes       
-             || freeze_tree)
+             (
+             Node::total_nodes  + MAX_MOVES >= Node::max_tree_nodes       
+             || freeze_tree
+             || pstack->depth <= alphabeta_depth * UNITDEPTH
+             )
             ) {
-            if(!freeze_tree && processor_id == 0) {
+            if(Node::total_nodes  + MAX_MOVES >= Node::max_tree_nodes &&
+                !freeze_tree && processor_id == 0) {
                 freeze_tree = true;
                 print("Maximum number of nodes used.\n");
             }
@@ -424,6 +430,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
         /*create children*/
         } else {
             create_children(n);
+
             if(!n->child) {
                 if(hstack[hply - 1].checks)
                     score = -MATE_SCORE + WIN_PLY * (ply + 1);
@@ -825,6 +832,10 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         frac_freeze_tree = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "mcts_strategy_depth")) {
         mcts_strategy_depth = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "alphabeta_depth")) {
+        alphabeta_depth = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "evaluate_depth")) {
+        evaluate_depth = atoi(commands[command_num++]);
     } else if(!strcmp(command, "montecarlo")) {
         montecarlo = atoi(commands[command_num++]);
     } else if(!strcmp(command, "treeht")) {
@@ -846,6 +857,8 @@ void print_mcts_params() {
     print("feature option=\"frac_alphabeta -spin %d 0 100\"\n",int(frac_alphabeta*100));
     print("feature option=\"frac_freeze_tree -spin %d 0 100\"\n",int(frac_freeze_tree*100));
     print("feature option=\"mcts_strategy_depth -spin %d 0 100\"\n",mcts_strategy_depth);
+    print("feature option=\"alphabeta_depth -spin %d 0 100\"\n",alphabeta_depth);
+    print("feature option=\"evaluate_depth -spin %d 0 100\"\n",evaluate_depth);
     print("feature option=\"montecarlo -check %d\"\n",montecarlo);
     print("feature option=\"treeht -spin %d 0 131072\"\n",
         int((Node::max_tree_nodes * sizeof(Node)) / double(1024*1024)));
