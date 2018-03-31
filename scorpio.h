@@ -1013,7 +1013,7 @@ void  print_mcts_params();
 #ifdef TUNE
 extern int nParameters;
 extern int nModelParameters;
-void init_parameters();
+void init_parameters(int);
 void allocate_jacobian(int);
 bool has_jacobian();
 double eval_jacobian(int,int&,double*);
@@ -1023,8 +1023,10 @@ void get_log_likelihood_grad(PSEARCHER,int,double,double*,int);
 void readParams(double*);
 void writeParams(double*);
 void write_eval_params();
-bool  check_eval_params(char**,char*,int&);
-void  print_eval_params();
+bool check_eval_params(char**,char*,int&);
+void print_eval_params();
+void zero_params();
+void bound_params(double*);
 #endif
 /*
 Bitbases

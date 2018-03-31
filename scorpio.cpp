@@ -273,9 +273,6 @@ void init_game() {
     SEARCHER::pv_print_style = 0;
     SEARCHER::resign_value = 600;
     SEARCHER::resign_count = 0;
-#ifdef TUNE
-    init_parameters();
-#endif
 #ifdef BOOK_PROBE
     load_book();
 #endif
@@ -317,8 +314,8 @@ static const char *const commands_recognized[] = {
     "merge <book1> <book2> <book> <w1> <w2> \n\tMerge two books with weights <w1> and <w2> and save restult in book.",
     "mirror -- Debugging command to mirror the current board.",
     "moves -- Debugging command to print all possible moves for the current board.",
-    "mse -- Calculate mean squared error of evaluaiton/search result with actual result.",
-    "       <frac>  -- Fraction of positions to consider (1=all,...,0=none).",
+    "mse -- mse <frac> <seed> Calculate mean squared error of evaluaiton/search result with actual result.",
+    "       <frac>  -- Mini-batch size = fraction of positions to consider (0 - 1).",
     "       <seed>  -- Random number seed.",
     "mt/cores   <N>      -- Set the number of parallel threads of execution to N.",
     "          auto      -- Set to available logical cores.",
@@ -345,6 +342,8 @@ static const char *const commands_recognized[] = {
     "setboard -- setboard <FEN> is used to set up FEN position <FEN>.",
     "st -- st <TIME> {Set time controls search time in seconds.}",
     "time -- time <N> {Set a clock that belongs to the engine in centiseconds.}",
+    "param_group -- param_group <N> sets parameter group to tune",
+    "zero_params -- zeros all evaluation parameters",
     "tune -- Tune the evaluation function. Takes same arguments as mse.",
     "undo -- The user asks to back up one half move.",
     "xboard -- Request xboard mode (the default).",
@@ -666,6 +665,17 @@ bool parse_commands(char** commands) {
             load_epdfile(commands[command_num++]);
         } else if(!strcmp(command,"unloadepd")) {
             unload_epdfile();
+#ifdef TUNE
+        } else if(!strcmp(command,"param_group")) {
+            int parameter_group = atoi(commands[command_num++]);
+            init_parameters(parameter_group);
+        } else if(!strcmp(command,"zero_params")) {
+            zero_params();
+            write_eval_params();
+#endif
+            /*********************************************
+            *     Processing epd files                  *
+            *********************************************/
         } else if (!strcmp(command, "runeval") || 
                    !strcmp(command, "runsearch") ||
                    !strcmp(command, "jacobian") ||
@@ -684,7 +694,7 @@ bool parse_commands(char** commands) {
             else if(!strcmp(command,"jacobian")) test = 2;
             else if(!strcmp(command,"mse")) test = 3;
             else if(!strcmp(command,"gmse")) test = 4;
-            else test = 5;
+            else if(!strcmp(command,"tune")) test = 5;
 
             /*open file*/
             bool getfen = ((test <= 2) 
@@ -714,7 +724,7 @@ bool parse_commands(char** commands) {
                 rewind(fd);
             }
 #ifdef TUNE
-            /*set rand seed*/
+            /*set additional parameters of tune,mse & gmse*/
             if(test >= 3) {
                 frac = atof(commands[command_num++]);
                 int randseed = atoi(commands[command_num++]);
@@ -727,7 +737,7 @@ bool parse_commands(char** commands) {
                 print("Computing jacobian matrix of evaluation function ...\n");
             }
 
-            /*allocate arrays*/
+            /*allocate arrays for SGD*/
             double *gse, *gmse, *dmse, *params, mse;
             const double gamma = 0.1, alpha = 1e4;
             int nSize = nParameters + nModelParameters;
@@ -741,6 +751,7 @@ bool parse_commands(char** commands) {
                 readParams(params);
             }
 #endif
+            /*Print headers*/
             if(test <= 1) {
                 if(SEARCHER::pv_print_style == 0) 
                     print("******************************************\n");
@@ -751,9 +762,10 @@ bool parse_commands(char** commands) {
             SEARCHER::pre_calculate();
             PROCESSOR::clear_hash_tables();
 
+            /*Mini-batch loop*/
             for(int iter = 0;;iter++) {
 
-                /*loop through positions*/
+                /*loop through all positions*/
                 visited = 0;
 #ifdef TUNE
                 mse = 0.0;
@@ -766,8 +778,8 @@ bool parse_commands(char** commands) {
                         if(!fgets(input,MAX_STR,fd))
                             continue;
                     }
-                    /*sample a few: This is called a mini-batch gradient descent
-                     with bootstrap sampling. In the standard mini-batch GD the sampling
+                    /*Sample a fraction of total postions: This is called a mini-batch gradient
+                     descent with bootstrap sampling. In the standard mini-batch GD the sampling
                      of training positions is done without replacement.*/
                     if(test >= 3 && frac > 1e-6) {
                         double r = double(rand()) / RAND_MAX;
@@ -835,10 +847,7 @@ bool parse_commands(char** commands) {
                             } else {
                                 se = eval_jacobian(cnt,result,params);
                             }
-                            if(se > WIN_SCORE) se = WIN_SCORE;
-                            if(se < -WIN_SCORE) se = -WIN_SCORE;
-
-                            /*log-likelihood*/
+                            /*compute loss function (log-likelihood) or its gradient*/
                             if(test == 3) {
                                 se = get_log_likelihood(result,se);
                                 mse += (se - mse) / visited;
@@ -854,7 +863,8 @@ bool parse_commands(char** commands) {
                 }
 
 #ifdef TUNE
-                /*print*/
+                /*Update parameters based on gradient of loss function computed 
+                  over the current mini-batch*/
                 if(test == 2) {
                     print("Computed jacobian for %d positions.\n",visited);
                 } else if(test == 3) {
@@ -870,6 +880,7 @@ bool parse_commands(char** commands) {
                         params[i] += alpha * dmse[i];
                         normg += pow(gmse[i],2.0);
                     }
+                    bound_params(params);
                     writeParams(params);
                     print("%d. %.6e\n",iter,normg);
                     if(iter % 40 == 0)
@@ -892,9 +903,10 @@ bool parse_commands(char** commands) {
 #endif
             searcher.new_board();
             if(fd) fclose(fd);
-            /*
-            move
-            */
+
+            /*********************************************
+            *  We process all other commands as moves   *
+            *********************************************/
         } else {
             /*parse opponent's move and make it*/
             str_mov(move,command);

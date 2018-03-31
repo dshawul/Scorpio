@@ -1669,14 +1669,16 @@ double get_log_likelihood(int result, double se) {
     double factor_m = double(material) / MAX_MATERIAL;
     int eloH = 0; //we have stm bonus
     int eloD = ELO_DRAW + factor_m * ELO_DRAW_SLOPE_PHASE;
-    double scale = get_scale(eloD,eloH);
+    double scale = get_scale(eloD,eloH), p;
     se = se / scale;
     if(result == 1)
-        return -log(win_prob(se,eloH,eloD));
+        p = win_prob(se,eloH,eloD);
     else if(result == -1)
-        return -log(loss_prob(se,eloH,eloD));
+        p = loss_prob(se,eloH,eloD);
     else
-        return -log(draw_prob(se,eloH,eloD));
+        p = draw_prob(se,eloH,eloD);
+    if(p < 1e-45) p = 1e-45;
+    return -log(p);
 }
 
 struct vPARAM{
@@ -1697,6 +1699,8 @@ struct vPARAM{
     }
     bool is_pval() { return ((flags > 0) && !size); }
     bool is_pcsq() { return ((flags > 0) && size); }
+    void set_zero() { *value = 0; }
+    void set_randv() { *value = rand() % (maxv - minv + 1) + minv; }
 };
 
 int nParameters;
@@ -1731,7 +1735,7 @@ static void compute_grad(PSEARCHER ps, float* J, double sc) {
 
     for(int i = 0;i < nParameters;i++) {
         p = &parameters[i];
-        delta = *(p->value) * 4;
+        delta = (p->maxv - p->minv) / 64;
         if(delta < 1) delta = 1;
 
         *(p->value) += delta;
@@ -1829,8 +1833,20 @@ void writeParams(double* params) {
     for(int i = 0;i < nModelParameters;i++)
         *(modelParameters[i].value) = int(round(params[i + nParameters]));
 }
-void init_parameters() {
-    int act = 0, actp = 0, acta = 0, actm = 0, acts = 0, actn = 0;
+void init_parameters(int group) {
+    int actm = 0, acts = 0, actp = 0, actt = 0, acte = 0, actw = 0;
+
+    /*select parameter group to optimize*/
+    switch(group) {
+        case 0: actm = actp = actt = acts = acte = 1; break;
+        case 1: actm = actp = actt = acts = acte = actw = 1; break;
+        case 2: actm = 1; break;
+        case 3: actp = 1; break;
+        case 4: actt = 1; break;
+        case 5: acts = 1; break;
+        case 6: acte = 1; break;
+        case 7: actw = 1; break;
+    }
 
 #define ADD(x,ln,f,minv,maxv,act)                                   \
     if(act) parameters.push_back(vPARAM(x,ln,f,minv,maxv,#x));      \
@@ -1843,105 +1859,108 @@ void init_parameters() {
         if(act) parameters.push_back(vPARAM(x[i],ln,(f-1)*ln+i,minv,maxv,#x));       \
         else inactive_parameters.push_back(vPARAM(x[i],ln,(f-1)*ln+i,minv,maxv,#x));
 
-    ADD(PAWN_GUARD,0,0,0,128,act);
-    ADD(PAWN_STORM,0,0,0,128,act);
-    ADD(KING_ON_OPEN,0,0,0,128,act);
-    ADD(PAWN_ATTACK,0,0,0,128,acts);
-    ADD(KNIGHT_ATTACK,0,0,0,128,acts);
-    ADD(BISHOP_ATTACK,0,0,0,128,acts);
-    ADD(ROOK_ATTACK,0,0,0,128,acts);
-    ADD(QUEEN_ATTACK,0,0,0,128,acts);
-    ADD(UNDEFENDED_ATTACK,0,0,0,128,act);
-    ADD(HANGING_PENALTY,0,0,0,100,act);
-    ADD(ATTACKED_PIECE,0,0,0,100,act);
-    ADD(DEFENDED_PIECE,0,0,0,100,act);
-    ADD(KNIGHT_OUTPOST_MG,0,0,0,128,act);
-    ADD(KNIGHT_OUTPOST_EG,0,0,0,128,act);
-    ADD(BISHOP_OUTPOST_MG,0,0,0,128,act);
-    ADD(BISHOP_OUTPOST_EG,0,0,0,128,act);
-    ADD(KNIGHT_MOB_MG,0,0,0,128,act);
-    ADD(KNIGHT_MOB_EG,0,0,0,128,act);
-    ADD(BISHOP_MOB_MG,0,0,0,128,act);
-    ADD(BISHOP_MOB_EG,0,0,0,128,act);
-    ADD(ROOK_MOB_MG,0,0,0,128,act);
-    ADD(ROOK_MOB_EG,0,0,0,128,act);
-    ADD(QUEEN_MOB_MG,0,0,0,128,act);
-    ADD(QUEEN_MOB_EG,0,0,0,128,act);
-    ADD(BAD_BISHOP_MG,0,0,0,128,act);
-    ADD(BAD_BISHOP_EG,0,0,0,128,act);
-    ADD(PASSER_BLOCKED,0,0,0,128,act);
-    ADD(PASSER_KING_SUPPORT,0,0,0,128,act);
-    ADD(PASSER_KING_ATTACK,0,0,0,128,act);
-    ADD(PASSER_SUPPORT,0,0,0,128,act);
-    ADD(PASSER_ATTACK,0,0,0,128,act);
-    ADD(PAWNS_VS_KNIGHT,0,0,0,128,act);
-    ADD(CANDIDATE_PP_MG,0,0,0,128,act);
-    ADD(CANDIDATE_PP_EG,0,0,0,128,act);
-    ADD(PAWN_DOUBLED_MG,0,0,0,128,act);
-    ADD(PAWN_DOUBLED_EG,0,0,0,128,act);
-    ADD(PAWN_ISOLATED_ON_OPEN_MG,0,0,0,128,act);
-    ADD(PAWN_ISOLATED_ON_OPEN_EG,0,0,0,128,act);
-    ADD(PAWN_ISOLATED_ON_CLOSED_MG,0,0,0,12,act);
-    ADD(PAWN_ISOLATED_ON_CLOSED_EG,0,0,0,128,act);
-    ADD(PAWN_WEAK_ON_OPEN_MG,0,0,0,128,act);
-    ADD(PAWN_WEAK_ON_OPEN_EG,0,0,0,128,act);
-    ADD(PAWN_WEAK_ON_CLOSED_MG,0,0,0,128,act);
-    ADD(PAWN_WEAK_ON_CLOSED_EG,0,0,0,128,act);
-    ADD(PAWN_DUO_MG,0,0,0,128,act);
-    ADD(PAWN_DUO_EG,0,0,0,128,act);
-    ADD(PAWN_SUPPORTED_MG,0,0,0,128,act);
-    ADD(PAWN_SUPPORTED_EG,0,0,0,128,act);
-    ADD(ROOK_ON_7TH,0,0,0,128,act);
-    ADD(ROOK_ON_OPEN,0,0,0,128,act);
-    ADD(ROOK_SUPPORT_PASSED_MG,0,0,0,128,act);
-    ADD(ROOK_SUPPORT_PASSED_EG,0,0,0,128,act);
-    ADD(TRAPPED_BISHOP,0,0,0,400,act);
-    ADD(TRAPPED_KNIGHT,0,0,0,400,act);
-    ADD(TRAPPED_ROOK,0,0,0,400,act);
-    ADD(EXTRA_PAWN,0,0,0,400,act);
-    ADD(QUEEN_MG,0,wqueen,0,4000,act);
-    ADD(QUEEN_EG,0,bqueen,0,4000,act);
-    ADD(ROOK_MG,0,wrook,0,2000,act);
-    ADD(ROOK_EG,0,brook,0,2000,act);
-    ADD(BISHOP_MG,0,wbishop,0,2000,act);
-    ADD(BISHOP_EG,0,bbishop,0,2000,act);
-    ADD(KNIGHT_MG,0,wknight,0,2000,act);
-    ADD(KNIGHT_EG,0,bknight,0,2000,act);
-    ADD(PAWN_MG,0,wpawn,0,1000,act);
-    ADD(PAWN_EG,0,bpawn,0,1000,act);
-    ADD(BISHOP_PAIR_MG,0,0,0,128,act);
-    ADD(BISHOP_PAIR_EG,0,0,0,128,act);
-    ADD(MAJOR_v_P,0,0,0,400,act);
-    ADD(MINOR_v_P,0,0,0,400,act);
-    ADD(MINORS3_v_MAJOR,0,0,0,400,act);
-    ADD(MINORS2_v_MAJOR,0,0,0,400,act);
-    ADD(ROOK_v_MINOR,0,0,0,400,act);
-    ADD(TEMPO_BONUS,0,0,0,400,act);
-    ADD(TEMPO_SLOPE,0,0,0,400,act);
-    ADD_ARRAY(king_pcsq,64,wking,0,100,actp);
-    ADD_ARRAY(queen_pcsq,64,wqueen,0,100,actp);
-    ADD_ARRAY(rook_pcsq,64,wrook,0,100,actp);
-    ADD_ARRAY(bishop_pcsq,64,wbishop,0,100,actp);
-    ADD_ARRAY(knight_pcsq,64,wknight,0,100,actp);
-    ADD_ARRAY(pawn_pcsq,64,wpawn,0,100,actp);
-    ADD_ARRAY(outpost,32,0,0,100,acta);
-    ADD_ARRAY(passed_rank_bonus,8,0,0,400,acta);
-    ADD_ARRAY(passed_file_bonus,4,0,0,400,acta);
-    ADD_ARRAY(qr_on_7thrank,18,0,0,400,acta);
-    ADD_ARRAY(rook_on_hopen,13,0,0,400,acta);
-    ADD_ARRAY(king_to_pawns,8,0,0,600,acta);
-    ADD_ARRAY(king_on_hopen,8,0,0,500,acta);
-    ADD_ARRAY(king_on_file,8,0,0,500,acta);
-    ADD_ARRAY(king_on_rank,8,0,0,500,acta);
-    ADD_ARRAY(piece_tropism,8,0,0,500,acta);
-    ADD_ARRAY(queen_tropism,8,0,0,500,acta);
-    ADD_ARRAY(file_tropism,8,0,0,500,acta);
-    ADDM(ELO_DRAW,0,0,0,500,actm);
-    ADDM(ELO_DRAW_SLOPE_PHASE,0,0,0,500,actm);
-    ADD(PASSER_WEIGHT_MG,0,0,0,128,actn);
-    ADD(PASSER_WEIGHT_EG,0,0,0,128,actn);
-    ADD(ATTACK_WEIGHT,0,0,0,128,actn);
-    ADD(TROPISM_WEIGHT,0,0,0,128,actn);
+    parameters.clear();
+    inactive_parameters.clear();
+
+    ADD(PAWN_GUARD,0,0,-128,256,actm);
+    ADD(PAWN_STORM,0,0,-128,256,actm);
+    ADD(KING_ON_OPEN,0,0,-128,256,actm);
+    ADD(PAWN_ATTACK,0,0,-128,256,acts);
+    ADD(KNIGHT_ATTACK,0,0,-128,256,acts);
+    ADD(BISHOP_ATTACK,0,0,-128,256,acts);
+    ADD(ROOK_ATTACK,0,0,-128,256,acts);
+    ADD(QUEEN_ATTACK,0,0,-128,256,acts);
+    ADD(UNDEFENDED_ATTACK,0,0,-128,256,actm);
+    ADD(HANGING_PENALTY,0,0,-128,256,actm);
+    ADD(ATTACKED_PIECE,0,0,-128,256,actm);
+    ADD(DEFENDED_PIECE,0,0,-128,256,actm);
+    ADD(KNIGHT_OUTPOST_MG,0,0,-128,256,actm);
+    ADD(KNIGHT_OUTPOST_EG,0,0,-128,256,actm);
+    ADD(BISHOP_OUTPOST_MG,0,0,-128,256,actm);
+    ADD(BISHOP_OUTPOST_EG,0,0,-128,256,actm);
+    ADD(KNIGHT_MOB_MG,0,0,-128,256,actm);
+    ADD(KNIGHT_MOB_EG,0,0,-128,256,actm);
+    ADD(BISHOP_MOB_MG,0,0,-128,256,actm);
+    ADD(BISHOP_MOB_EG,0,0,-128,256,actm);
+    ADD(ROOK_MOB_MG,0,0,-128,256,actm);
+    ADD(ROOK_MOB_EG,0,0,-128,256,actm);
+    ADD(QUEEN_MOB_MG,0,0,-128,256,actm);
+    ADD(QUEEN_MOB_EG,0,0,-128,256,actm);
+    ADD(BAD_BISHOP_MG,0,0,-128,256,actm);
+    ADD(BAD_BISHOP_EG,0,0,-128,256,actm);
+    ADD(PASSER_BLOCKED,0,0,-128,256,actm);
+    ADD(PASSER_KING_SUPPORT,0,0,-128,256,actm);
+    ADD(PASSER_KING_ATTACK,0,0,-128,256,actm);
+    ADD(PASSER_SUPPORT,0,0,-128,256,actm);
+    ADD(PASSER_ATTACK,0,0,-128,256,actm);
+    ADD(PAWNS_VS_KNIGHT,0,0,-128,256,actm);
+    ADD(CANDIDATE_PP_MG,0,0,-128,256,actm);
+    ADD(CANDIDATE_PP_EG,0,0,-128,256,actm);
+    ADD(PAWN_DOUBLED_MG,0,0,-128,256,actm);
+    ADD(PAWN_DOUBLED_EG,0,0,-128,256,actm);
+    ADD(PAWN_ISOLATED_ON_OPEN_MG,0,0,-128,256,actm);
+    ADD(PAWN_ISOLATED_ON_OPEN_EG,0,0,-128,256,actm);
+    ADD(PAWN_ISOLATED_ON_CLOSED_MG,0,0,-128,256,actm);
+    ADD(PAWN_ISOLATED_ON_CLOSED_EG,0,0,-128,256,actm);
+    ADD(PAWN_WEAK_ON_OPEN_MG,0,0,-128,256,actm);
+    ADD(PAWN_WEAK_ON_OPEN_EG,0,0,-128,256,actm);
+    ADD(PAWN_WEAK_ON_CLOSED_MG,0,0,-128,256,actm);
+    ADD(PAWN_WEAK_ON_CLOSED_EG,0,0,-128,256,actm);
+    ADD(PAWN_DUO_MG,0,0,-128,256,actm);
+    ADD(PAWN_DUO_EG,0,0,-128,256,actm);
+    ADD(PAWN_SUPPORTED_MG,0,0,-128,256,actm);
+    ADD(PAWN_SUPPORTED_EG,0,0,-128,256,actm);
+    ADD(ROOK_ON_7TH,0,0,-128,256,actm);
+    ADD(ROOK_ON_OPEN,0,0,-128,256,actm);
+    ADD(ROOK_SUPPORT_PASSED_MG,0,0,-128,256,actm);
+    ADD(ROOK_SUPPORT_PASSED_EG,0,0,-128,256,actm);
+    ADD(TRAPPED_BISHOP,0,0,0,400,actm);
+    ADD(TRAPPED_KNIGHT,0,0,0,400,actm);
+    ADD(TRAPPED_ROOK,0,0,0,400,actm);
+    ADD(EXTRA_PAWN,0,0,0,400,actm);
+    ADD(QUEEN_MG,0,wqueen,0,4000,actm);
+    ADD(QUEEN_EG,0,bqueen,0,4000,actm);
+    ADD(ROOK_MG,0,wrook,0,2000,actm);
+    ADD(ROOK_EG,0,brook,0,2000,actm);
+    ADD(BISHOP_MG,0,wbishop,0,2000,actm);
+    ADD(BISHOP_EG,0,bbishop,0,2000,actm);
+    ADD(KNIGHT_MG,0,wknight,0,2000,actm);
+    ADD(KNIGHT_EG,0,bknight,0,2000,actm);
+    ADD(PAWN_MG,0,wpawn,0,1000,actm);
+    ADD(PAWN_EG,0,bpawn,0,1000,actm);
+    ADD(BISHOP_PAIR_MG,0,0,-128,256,actm);
+    ADD(BISHOP_PAIR_EG,0,0,-128,256,actm);
+    ADD(MAJOR_v_P,0,0,-100,400,actm);
+    ADD(MINOR_v_P,0,0,-100,400,actm);
+    ADD(MINORS3_v_MAJOR,0,0,-100,400,actm);
+    ADD(MINORS2_v_MAJOR,0,0,-100,400,actm);
+    ADD(ROOK_v_MINOR,0,0,-100,400,actm);
+    ADD(TEMPO_BONUS,0,0,-100,400,actm);
+    ADD(TEMPO_SLOPE,0,0,-100,400,actm);
+    ADD_ARRAY(king_pcsq,64,wking,-100,100,actp);
+    ADD_ARRAY(queen_pcsq,64,wqueen,-100,100,actp);
+    ADD_ARRAY(rook_pcsq,64,wrook,-100,100,actp);
+    ADD_ARRAY(bishop_pcsq,64,wbishop,-100,100,actp);
+    ADD_ARRAY(knight_pcsq,64,wknight,-100,100,actp);
+    ADD_ARRAY(pawn_pcsq,64,wpawn,-100,100,actp);
+    ADD_ARRAY(outpost,32,0,-100,100,actt);
+    ADD_ARRAY(passed_rank_bonus,8,0,-100,400,actt);
+    ADD_ARRAY(passed_file_bonus,4,0,-100,200,actt);
+    ADD_ARRAY(qr_on_7thrank,18,0,-100,400,actt);
+    ADD_ARRAY(rook_on_hopen,13,0,-100,200,actt);
+    ADD_ARRAY(king_to_pawns,8,0,-100,300,actt);
+    ADD_ARRAY(king_on_hopen,8,0,-100,300,actt);
+    ADD_ARRAY(king_on_file,8,0,-100,300,actt);
+    ADD_ARRAY(king_on_rank,8,0,-100,300,actt);
+    ADD_ARRAY(piece_tropism,8,0,-100,200,actt);
+    ADD_ARRAY(queen_tropism,8,0,-100,200,actt);
+    ADD_ARRAY(file_tropism,8,0,-100,200,actt);
+    ADDM(ELO_DRAW,0,0,-100,500,acte);
+    ADDM(ELO_DRAW_SLOPE_PHASE,0,0,-100,500,acte);
+    ADD(PASSER_WEIGHT_MG,0,0,-128,256,actw);
+    ADD(PASSER_WEIGHT_EG,0,0,-128,256,actw);
+    ADD(ATTACK_WEIGHT,0,0,-128,256,actw);
+    ADD(TROPISM_WEIGHT,0,0,-128,256,actw);
 
 #undef ADD
 #undef ADDM
@@ -1949,6 +1968,8 @@ void init_parameters() {
     nParameters = parameters.size();
     nModelParameters = modelParameters.size();
     nInactiveParameters = inactive_parameters.size();
+    
+    if(jacobian_temp) free(jacobian_temp);
     jacobian_temp = (float*) malloc(nParameters * sizeof(float));
 }
 bool check_eval_params(char** commands,char* command,int& command_num) {
@@ -2022,6 +2043,22 @@ void print_eval_params() {
             modelParameters[i].minv,modelParameters[i].maxv);
     }
     print("feature option=\"ELO_MODEL -spin %d 0 2\"\n",ELO_MODEL);
+}
+void bound_params(double* params) {
+    for(int i = 0;i < nParameters;i++) {
+        if(params[i] < parameters[i].minv)
+            params[i] = parameters[i].minv;
+        if(params[i] > parameters[i].maxv)
+            params[i] = parameters[i].maxv;
+    }
+}
+void zero_params() {
+    for(int i = 0;i < nParameters;i++)
+        parameters[i].set_randv();
+    for(int i = 0;i < nModelParameters;i++)
+        modelParameters[i].set_randv();
+    for(int i = 0;i < nInactiveParameters;i++)
+        inactive_parameters[i].set_randv();
 }
 void SEARCHER::update_pcsq(int pic, int eg, int dval) {
     for(int sq = 0; sq < 128; sq++) {
