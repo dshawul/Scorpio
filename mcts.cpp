@@ -607,12 +607,24 @@ BACKUP:
         /*Do minmax/averaging style backups with/without memory*/
         Node::Backup(n,score,visits);
 
-        /*Update alpha for next sibling*/
         if(rollout_type == ALPHABETA) {
+
+            /*Update alpha for next sibling*/
             if(next->alpha >= next->beta) {
                 if(n->alpha > pstack->alpha)
                     pstack->alpha = n->alpha;
             }
+            
+            /*Select move from this node again until windows closes.
+              This is similar to what a standard alpha-beta searcher does.
+              Currently, this is slower than the rollouts version. */
+#if 0
+            if(n->alpha < n->beta && pstack->alpha < pstack->beta &&
+               n->beta > pstack->alpha && n->alpha < pstack->beta) {
+                goto SELECT;
+            }
+            visits = n->visits - nvisits;
+#endif
         }
     }
 
@@ -622,17 +634,6 @@ UPDATE:
     n->visits += visits;
     n->score = score;
     l_unlock(n->lock);
-
-#if 0
-    /*Select move from this node again until windows closes.
-      This is similar to what a standard alpha-beta searcher does.
-      Currently, this is slower than the rollouts version. */
-    if(n->alpha < n->beta && pstack->alpha < pstack->beta &&
-       n->beta > pstack->alpha && n->alpha < pstack->beta) {
-        goto SELECT;
-    }
-    visits = n->visits - nvisits;
-#endif
 
 FINISH:
     /*clear busy flag, also virtual visits*/
