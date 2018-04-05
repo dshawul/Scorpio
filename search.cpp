@@ -98,6 +98,7 @@ bool SEARCHER::hash_cutoff() {
 }
 FORCEINLINE int SEARCHER::on_node_entry() {
     /*qsearch?*/
+    prefetch_tt();
     if(pstack->depth <= 0) {
         prefetch_qtt();
         if(pstack->node_type == PV_NODE) 
@@ -107,7 +108,6 @@ FORCEINLINE int SEARCHER::on_node_entry() {
         qsearch();
         return true;
     }
-    prefetch_tt();
 
     /*razoring & static pruning*/
     if(use_selective
@@ -239,6 +239,16 @@ FORCEINLINE int SEARCHER::on_qnode_entry() {
     pstack->best_score = -MATE_SCORE;
     pstack->best_move = 0;
     pstack->legal_moves = 0;
+    pstack->hash_move = 0;
+    pstack->flag = UPPER;
+
+    if(pstack->node_type == PV_NODE) {
+        pstack->next_node_type = PV_NODE;
+    } else if(pstack->node_type == ALL_NODE) {
+        pstack->next_node_type = CUT_NODE;
+    } else {
+        pstack->next_node_type = ALL_NODE;
+    }
 
     if(pstack->alpha > MATE_SCORE - WIN_PLY * ply) {
         pstack->best_score = pstack->alpha;
@@ -256,6 +266,10 @@ FORCEINLINE int SEARCHER::on_qnode_entry() {
         return true;
     }
 
+    /*probe hash table*/
+    if(use_tt && hash_cutoff())
+        return true;
+
     /*stand pat*/
     if((hply >=1 && !hstack[hply - 1].checks) || !ply) {
         score = eval();
@@ -266,7 +280,6 @@ FORCEINLINE int SEARCHER::on_qnode_entry() {
             pstack->alpha = score;
         }
     }
-
 
     return false;
 }
@@ -996,7 +1009,19 @@ SPECIAL:
         sb->pstack->pv_length = sb->ply;
     }
 }
-
+/*
+Back up to previous ply
+*/
+#define GOBACK_Q(save) {                                            \
+    if(use_tt && save) {                                            \
+        int depth = 0;                                              \
+        if( (hply >= 1 && hstack[hply - 1].checks) ||               \
+             pstack->qcheck_depth > 0) depth = UNITDEPTH;           \
+        RECORD_HASH(player,hash_key,depth,ply,pstack->flag,         \
+                    pstack->best_score,pstack->best_move,0,0);      \
+    }                                                               \
+    goto POP_Q;                                                     \
+};
 /*
 quiescent search
 */
@@ -1014,7 +1039,7 @@ void SEARCHER::qsearch() {
             if(!get_qmove()) {
                 if(hply >= 1 && hstack[hply - 1].checks && pstack->legal_moves == 0)
                     pstack->best_score = -MATE_SCORE + WIN_PLY * (ply + 1);
-                goto POP_Q;
+                GOBACK_Q(true);
             }
 
             pstack->legal_moves++;
@@ -1025,6 +1050,7 @@ void SEARCHER::qsearch() {
             pstack->alpha = -(pstack - 1)->beta;
             pstack->beta = -(pstack - 1)->alpha;
             pstack->depth = (pstack - 1)->depth - UNITDEPTH;
+            pstack->node_type = (pstack - 1)->next_node_type;
             pstack->qcheck_depth = (pstack - 1)->qcheck_depth - UNITDEPTH;
             /*end*/
 
@@ -1052,9 +1078,12 @@ POP_Q:
             pstack->best_move = pstack->current_move;
 
             if(score > pstack->alpha) {
-                if(score >= pstack->beta)
-                    goto POP_Q;
+                if(score >= pstack->beta) {
+                    pstack->flag = LOWER;
+                    GOBACK_Q(true);
+                }
                 pstack->alpha = score;
+                pstack->flag = EXACT;
                 UPDATE_PV(pstack->current_move);
             }
         }

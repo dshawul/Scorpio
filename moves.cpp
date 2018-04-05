@@ -1572,7 +1572,7 @@ MOVE SEARCHER::get_qmove() {
     if(pstack->gen_status == GEN_START) {
         pstack->current_index = 0;
         pstack->count = 0;
-        pstack->gen_status = GEN_CAPS;
+        pstack->gen_status = GEN_HASHM;
     }
 
 DO_AGAIN:
@@ -1580,14 +1580,16 @@ DO_AGAIN:
     while(pstack->current_index >= pstack->count 
         && pstack->gen_status <= GEN_QNONCAPS) {
         
-        if(pstack->gen_status == GEN_CAPS) {
-            if(hply >= 1 && hstack[hply - 1].checks) {
+        if(pstack->gen_status == GEN_HASHM) {
+            if(ply && hply >= 1 && hstack[hply - 1].checks) {
                 gen_evasions();
                 pstack->sortm = 1;
                 for(int i = 0; i < pstack->count;i++) {
                     move = pstack->move_st[i];
                     pscore = &pstack->score_st[i];
-                    if(is_cap_prom(move)) {
+                    if(move == pstack->hash_move) {
+                        *pscore = 10000;
+                    } else if(is_cap_prom(move)) {
                         *pscore = see(move);
                         if(*pscore < 0) *pscore -= 2 * MAX_HIST;
                     } else if(move == REFUTATION(move)) {
@@ -1598,16 +1600,24 @@ DO_AGAIN:
                 }
                 pstack->gen_status = GEN_END;
             } else {
-                const bool recap = (hply >= 1 && 
-                    pstack->qcheck_depth <= -4 * UNITDEPTH);
-                gen_caps(recap);
-                pstack->sortm = 1;
-                for(int i = 0; i < pstack->count;i++) {
-                    move = pstack->move_st[i];
-                    pstack->score_st[i] =   32 * piece_see_v[m_promote(move)] 
-                                          + 16 * piece_see_v[m_capture(move)]
-                                          - piece_see_v[m_piece(move)];
+                pstack->sortm = 0;
+                if(pstack->hash_move &&
+                    (pstack->qcheck_depth > 0 || is_cap_prom(pstack->hash_move))
+                    ) {
+                    pstack->score_st[pstack->count] = 10000;
+                    pstack->move_st[pstack->count++] = pstack->hash_move;
                 }
+            }
+        } else if(pstack->gen_status == GEN_CAPS) {
+            const bool recap = (hply >= 1 && 
+                pstack->qcheck_depth <= -4 * UNITDEPTH);
+            gen_caps(recap);
+            pstack->sortm = 1;
+            for(int i = 0; i < pstack->count;i++) {
+                move = pstack->move_st[i];
+                pstack->score_st[i] =   32 * piece_see_v[m_promote(move)] 
+                                      + 16 * piece_see_v[m_capture(move)]
+                                      - piece_see_v[m_piece(move)];
             }
         } else if(pstack->gen_status == GEN_QNONCAPS) {
             if(pstack->qcheck_depth > 0) {  
@@ -1631,12 +1641,14 @@ DO_AGAIN:
             pstack->current_index++;
             goto DO_AGAIN;
         }
-        if(pstack->gen_status - 1 == GEN_CAPS
-            && piece_see_v[m_capture(move)] >= piece_see_v[m_piece(move)]);
-        else {
-            if(see(move) < 0) {
-                pstack->current_index++;
-                goto DO_AGAIN;
+        if(pstack->gen_status - 1 == GEN_CAPS) {
+            if(piece_see_v[m_capture(move)] >= piece_see_v[m_piece(move)]);
+            else {
+                pstack->score_st[pstack->current_index] = see(move);
+                if(pstack->score_st[pstack->current_index] < 0) {
+                    pstack->current_index++;
+                    goto DO_AGAIN;
+                }
             }
         }
     }
