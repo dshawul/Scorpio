@@ -1813,12 +1813,13 @@ void get_log_likelihood_grad(PSEARCHER ps, int result, double se, double* gse, i
 
     int delta;
     for(int i = 0;i < nModelParameters;i++) {
-        delta = *(modelParameters[i].value) / 4;
-        if(delta < 10) delta = 10;
+        vPARAM* p = &modelParameters[i];
+        delta = (p->maxv - p->minv) / 64;
+        if(delta < 1) delta = 1;
 
-        *(modelParameters[i].value) += delta;
+        *(p->value) += delta;
         gse[i + nParameters] = (get_log_likelihood(result, se) - mse) / delta;
-        *(modelParameters[i].value) -= delta;
+        *(p->value) -= delta;
     }
 }
 void readParams(double* params) {

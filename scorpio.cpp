@@ -1,6 +1,6 @@
 #include "scorpio.h"
 
-#define VERSION "2.8.1 MCTS"
+#define VERSION "2.8.2 MCTS"
 
 /*
 all external variables declared here
@@ -259,6 +259,7 @@ initialize game
 void init_game() {
 #ifdef PARALLEL
     l_create(lock_smp);
+    l_create(Node::mem_lock);
 #endif
     scorpio_start_time = get_time();
     PROCESSOR::n_idle_processors = 0;
@@ -694,7 +695,7 @@ bool parse_commands(char** commands) {
             else if(!strcmp(command,"jacobian")) test = 2;
             else if(!strcmp(command,"mse")) test = 3;
             else if(!strcmp(command,"gmse")) test = 4;
-            else if(!strcmp(command,"tune")) test = 5;
+            else  test = 5;
 
             /*open file*/
             bool getfen = ((test <= 2) 

@@ -396,7 +396,7 @@ struct Node {
         beta = MATE_SCORE;
         l_create(lock);
     }
-    static unsigned int total_nodes;
+    static VOLATILE unsigned int total_nodes;
     static unsigned int max_tree_nodes;
     static int max_tree_depth;
     static LOCK mem_lock;

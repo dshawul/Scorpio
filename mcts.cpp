@@ -17,9 +17,9 @@ int rollout_type = ALPHABETA;
 bool freeze_tree = false;
 
 /*Node*/
-LOCK Node::mem_lock = 0;
+LOCK Node::mem_lock;
 std::list<Node*> Node::mem_;
-unsigned int Node::total_nodes = 0;
+VOLATILE unsigned int Node::total_nodes = 0;
 unsigned int Node::max_tree_nodes = 0;
 int Node::max_tree_depth = 0;
 Node* VOLATILE SEARCHER::root_node = 0;
@@ -783,10 +783,10 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
         }
     }
     if(!root) {
-        print_log("[Tree not found]\n");
+        print("[Tree not found]\n");
         root = Node::allocate();
     } else {
-        print_log("[Tree found : visits %d wins %6d]\n",
+        print("[Tree found : visits %d wins %6d]\n",
             root->visits,int(root->score));
 
         /*remove null moves from root*/
