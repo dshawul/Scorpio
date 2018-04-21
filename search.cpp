@@ -701,7 +701,9 @@ START:
             * qsearch(Yes:). Qsearch is implemented separately.
             */
 NEW_NODE:
-            if(sb->on_node_entry())
+            if( (!sb->finish_search &&
+                (sb->stop_searcher || sb->abort_search) ) ||
+                sb->on_node_entry() )
                 goto POP;
         }
 POP:
@@ -709,9 +711,9 @@ POP:
         * Terminate search on current block if stop signal is on
         * or if we finished searching.
         */
-        if(sb->stop_ply == sb->ply
-            || ( !sb->finish_search &&
-                 (sb->stop_searcher || sb->abort_search) )
+        if( (!sb->finish_search &&
+            (sb->stop_searcher || sb->abort_search) ) ||
+            sb->stop_ply == sb->ply
             ) {
 #ifndef PARALLEL
                 return;
@@ -1058,14 +1060,15 @@ NEW_NODE_Q:
             /*
             NEW node entry point
             */
-            if(on_qnode_entry())
+            if( (!finish_search &&
+                (stop_searcher || abort_search) ) ||
+                on_qnode_entry() )
                 goto POP_Q;
-
         }
 POP_Q:
-        if(stop_ply == ply
-            || ( !finish_search &&
-                 (stop_searcher || abort_search) )
+        if( (!finish_search &&
+            (stop_searcher || abort_search) ) ||
+            stop_ply == ply
             ) {
             return;
         }
@@ -1151,7 +1154,7 @@ int SEARCHER::get_search_score() {
     finish_search = true;
     ::search(processors[processor_id]);
     finish_search = false;
-    
+
     return pstack->best_score;
 }
 /*
