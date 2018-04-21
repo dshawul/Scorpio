@@ -21,7 +21,7 @@ LOCK Node::mem_lock;
 std::list<Node*> Node::mem_;
 VOLATILE unsigned int Node::total_nodes = 0;
 unsigned int Node::max_tree_nodes = 0;
-int Node::max_tree_depth = 0;
+unsigned int Node::max_tree_depth = 0;
 Node* VOLATILE SEARCHER::root_node = 0;
 HASHKEY SEARCHER::root_key = 0;
 
@@ -301,7 +301,7 @@ void SEARCHER::create_children(Node* n) {
     }
 
     /*maximum tree depth*/
-    if(ply > Node::max_tree_depth)
+    if(ply > (int)Node::max_tree_depth)
         Node::max_tree_depth = ply;
 
     /*generate and score moves*/
@@ -368,7 +368,6 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
     if(rollout_type == ALPHABETA) {
         l_lock(n->lock);
         if(n->alpha >= n->beta) {
-            visits = 1;
             score = n->score;
             l_unlock(n->lock);
             return;
@@ -560,7 +559,9 @@ RESEARCH:
                     alphac = -(pstack - 1)->beta;
                     betac = -(pstack - 1)->alpha;
                     Node::reset_bounds(next,alphac,betac);
+                    l_lock(next->lock);
                     next->set_failed_scout();
+                    l_unlock(next->lock);
                     goto RESEARCH;
                 }
             }
@@ -653,7 +654,7 @@ void SEARCHER::search_mc() {
     
     /*do rollouts*/
     while(true) {
-
+		    
         /*simulate*/
         play_simulation(root,score,visits);
 

@@ -357,7 +357,7 @@ typedef struct tagEVALHASH {
 * In-memory tree
 */
 struct Node {
-    Node* child;
+    Node* VOLATILE child;
     Node* next;
     float score;
     unsigned int visits;
@@ -398,7 +398,7 @@ struct Node {
     }
     static VOLATILE unsigned int total_nodes;
     static unsigned int max_tree_nodes;
-    static int max_tree_depth;
+    static unsigned int max_tree_depth;
     static LOCK mem_lock;
     static std::list<Node*> mem_;
     static Node* allocate();

@@ -1148,7 +1148,10 @@ void SEARCHER::search() {
 Evaluate position
 */
 int SEARCHER::get_search_score() {
+    finish_search = true;
     ::search(processors[processor_id]);
+    finish_search = false;
+    
     return pstack->best_score;
 }
 /*
