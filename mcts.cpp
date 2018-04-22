@@ -147,6 +147,10 @@ Node* Node::Max_UCB_select(Node* n) {
         if(current->move) {
             uct = logistic(-current->score) +
                   dUCTK * sqrt(logn / current->visits);
+#ifdef PARALLEL
+            /*ABDADA like move selection*/
+            if(current->is_busy()) uct -= 0.01;
+#endif
             if(uct > bvalue) {
                 bvalue = uct;
                 bnode = current;
@@ -362,23 +366,8 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
     nodes++;
     visits = 1;
 
-    /*In parallel search, current node's window may be closed
-      by another thread, in which case we return immediately*/
-#ifdef PARALLEL
-    if(rollout_type == ALPHABETA) {
-        l_lock(n->lock);
-        if(n->alpha >= n->beta) {
-            score = n->score;
-            l_unlock(n->lock);
-            return;
-        }
-        l_unlock(n->lock);
-    }
-#endif
-
     /*virtual loss*/
     l_lock(n->lock);
-    n->visits++;
     n->set_busy();
     l_unlock(n->lock);
 
@@ -474,7 +463,10 @@ SELECT:
         }
 
         /*This could happen in parallel search*/
-        if(!next) next = n->child;
+        if(!next) { 
+            score = n->score; 
+            goto FINISH; 
+        }
 
         /*Determine next node type*/
         int next_node_t;
@@ -639,7 +631,6 @@ UPDATE:
 FINISH:
     /*clear busy flag, also virtual visits*/
     l_lock(n->lock);
-    n->visits--;
     n->clear_busy();
     l_unlock(n->lock);
 }
