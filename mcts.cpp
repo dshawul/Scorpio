@@ -321,7 +321,7 @@ void SEARCHER::create_children(Node* n) {
         ) {
         add_null_child(n);
     }
-    
+
 }
 void SEARCHER::add_children(Node* n) {
     Node* last = n;
@@ -409,9 +409,9 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
         /*create children*/
         } else {
 
-            if(l_try_lock(n->lock)) {
+            if(n->try_create()) {
                 create_children(n);
-                l_unlock(n->lock);
+                n->clear_create();
             } else {
                 score = n->score;
                 goto FINISH;
@@ -784,7 +784,7 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
         freeze_tree = true;
     if(frac_alphabeta == 0) {
         rollout_type = MCTS;
-        search_depth = mcts_strategy_depth;
+        search_depth = MAX_PLY - 2;
     } else
         rollout_type = ALPHABETA;
 }

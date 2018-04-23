@@ -362,9 +362,6 @@ struct Node {
     MOVE move;
     VOLATILE short alpha;
     VOLATILE short beta;
-#ifdef PARALLEL
-    LOCK lock;
-#endif
     VOLATILE unsigned int visits;
     VOLATILE short score;
     VOLATILE unsigned char flag;
@@ -372,7 +369,7 @@ struct Node {
 
     /*accessors*/
     enum {
-        BUSY = 1, SCOUTF = 2, PVMOVE = 4
+        BUSY = 1, SCOUTF = 2, PVMOVE = 4, CREATE = 8
     };
     void set_busy() { l_or8(flag,BUSY); }
     void clear_busy() { l_and8(flag,~BUSY); }
@@ -383,6 +380,9 @@ struct Node {
     void set_pvmove() { l_or8(flag,PVMOVE); }
     void clear_pvmove() { l_and8(flag,~PVMOVE); }
     bool is_pvmove() { return (flag & PVMOVE); }
+
+    bool try_create() { return !(l_or8(flag,CREATE) & CREATE); }
+    void clear_create() { l_and8(flag,~CREATE); }
 
     void close_window(short v) {
         l_set16(alpha,v);
@@ -399,7 +399,6 @@ struct Node {
         move = MOVE();
         alpha = -MATE_SCORE;
         beta = MATE_SCORE;
-        l_create(lock);
     }
     static VOLATILE unsigned int total_nodes;
     static unsigned int max_tree_nodes;
