@@ -299,14 +299,6 @@ void Node::Backup(Node* n,double& score,int visits) {
     }
 }
 void SEARCHER::create_children(Node* n) {
-    /*lock*/
-    l_lock(n->lock);
-    if(n->child 
-        || Node::total_nodes + MAX_MOVES >= Node::max_tree_nodes 
-        ) {
-        l_unlock(n->lock);
-        return;
-    }
 
     /*maximum tree depth*/
     if(ply > (int)Node::max_tree_depth)
@@ -329,9 +321,7 @@ void SEARCHER::create_children(Node* n) {
         ) {
         add_null_child(n);
     }
-
-    /*unlock*/
-    l_unlock(n->lock);
+    
 }
 void SEARCHER::add_children(Node* n) {
     Node* last = n;
@@ -399,7 +389,6 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
     }
     /*No children*/
     if(!n->child) {
-
         /*run out of memory for nodes*/
         if(rollout_type == ALPHABETA && 
              (
@@ -419,7 +408,14 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
                 goto FINISH;
         /*create children*/
         } else {
-            create_children(n);
+
+            if(l_try_lock(n->lock)) {
+                create_children(n);
+                l_unlock(n->lock);
+            } else {
+                score = n->score;
+                goto FINISH;
+            }
 
             if(!n->child) {
                 if(hstack[hply - 1].checks)
@@ -627,10 +623,10 @@ void SEARCHER::search_mc() {
     int oalpha = pstack->alpha;
     int obeta = pstack->beta;
     unsigned int ovisits = root->visits;
-    
+            
     /*do rollouts*/
     while(true) {
-		    
+
         /*simulate*/
         play_simulation(root,score,visits);
 

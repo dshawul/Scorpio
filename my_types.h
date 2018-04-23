@@ -207,8 +207,8 @@ Prefetch
 #if defined PARALLEL
 #    define VOLATILE volatile
 #    if defined _WIN32
-#       define l_set(x,v) InterlockedExchange((LPLONG)&(x),v)
-#       define l_add(x,v) InterlockedExchangeAdd((LPLONG)&(x),v)
+#       define l_set(x,v) InterlockedExchange(&(x),v)
+#       define l_add(x,v) InterlockedExchangeAdd(&(x),v)
 #       define l_set16(x,v) InterlockedExchange16((short*)&(x),v)
 #       define l_add16(x,v) InterlockedExchangeAdd16((short*)&(x),v)
 #       define l_set8(x,v) InterlockedExchange8((char*)&(x),v)
@@ -229,7 +229,8 @@ Prefetch
 #       include <omp.h>
 #       define LOCK          omp_lock_t
 #       define l_create(x)   omp_init_lock(&x)
-#       define l_lock(x)     omp_set_lock(&x)
+#       define l_try_lock(x) omp_set_lock(&x)
+#       define l_lock(x)     omp_test_lock(&x)
 #       define l_unlock(x)   omp_unset_lock(&x)
 inline void l_barrier() { 
 #       pragma omp barrier 
@@ -238,17 +239,20 @@ inline void l_barrier() {
 #       ifdef USE_SPINLOCK
 #           define LOCK VOLATILE int
 #           define l_create(x)   ((x) = 0)
-#           define l_lock(x)     while(l_set(x,1) != 0) {while((x) != 0) t_pause();}
+#           define l_try_lock(x) (l_set(x,1) != 0)
+#           define l_lock(x)     while(l_try_lock(x)) {while((x) != 0) t_pause();}
 #           define l_unlock(x)   ((x) = 0)
 #       else
 #           if defined _WIN32
 #               define LOCK CRITICAL_SECTION
 #               define l_create(x)   InitializeCriticalSection(&x)
+#               define l_try_lock(x) TryEnterCriticalSection(&x)
 #               define l_lock(x)     EnterCriticalSection(&x)
 #               define l_unlock(x)   LeaveCriticalSection(&x)  
 #           else
 #               define LOCK pthread_mutex_t
 #               define l_create(x)   pthread_mutex_init(&(x),0)
+#               define l_try_lock(x) pthread_mutex_trylock(&(x))
 #               define l_lock(x)     pthread_mutex_lock(&(x))
 #               define l_unlock(x)   pthread_mutex_unlock(&(x))
 #           endif
@@ -259,6 +263,7 @@ inline void l_barrier() {
 #    define LOCK int
 #    define l_create(x)
 #    define l_lock(x)
+#    define l_try_lock(x) (1)
 #    define l_unlock(x)
 #    define l_barrier()
 #    define l_set(x,v) ((x) = v)
