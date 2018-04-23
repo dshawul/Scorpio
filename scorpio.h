@@ -359,30 +359,35 @@ typedef struct tagEVALHASH {
 struct Node {
     Node* VOLATILE child;
     Node* next;
-    float score;
-    unsigned int visits;
     MOVE move;
+    VOLATILE short alpha;
+    VOLATILE short beta;
 #ifdef PARALLEL
     LOCK lock;
 #endif
-    short alpha;
-    short beta;
-    unsigned char flag;
+    VOLATILE unsigned int visits;
+    VOLATILE short score;
+    VOLATILE unsigned char flag;
     unsigned char rank;
 
     /*accessors*/
     enum {
         BUSY = 1, SCOUTF = 2, PVMOVE = 4
     };
-    void set_busy() { flag |= BUSY; }
-    void clear_busy() { flag &= ~BUSY; }
+    void set_busy() { l_or8(flag,BUSY); }
+    void clear_busy() { l_and8(flag,~BUSY); }
     bool is_busy() { return (flag & BUSY); }
-    void set_failed_scout() { flag |= SCOUTF; }
-    void clear_failed_scout() { flag &= ~SCOUTF; }
+    void set_failed_scout() { l_or8(flag,SCOUTF); }
+    void clear_failed_scout() { l_and8(flag,~SCOUTF); }
     bool is_failed_scout() { return (flag & SCOUTF); }
-    void set_pvmove() { flag |= PVMOVE; }
-    void clear_pvmove() { flag &= ~PVMOVE; }
+    void set_pvmove() { l_or8(flag,PVMOVE); }
+    void clear_pvmove() { l_and8(flag,~PVMOVE); }
     bool is_pvmove() { return (flag & PVMOVE); }
+
+    void close_window(short v) {
+        l_set16(alpha,v);
+        l_set16(beta,v);
+    }
 
     void clear() {
         score = 0;
@@ -412,7 +417,7 @@ struct Node {
     static Node* Best_select(Node*);
     static float Min_score(Node*);
     static float Avg_score(Node*);
-    static float Avg_score_mem(Node*,float,int);
+    static float Avg_score_mem(Node*,double,int);
     static void Backup(Node*,double&,int);
     static void print_xml(Node*,int);
 };

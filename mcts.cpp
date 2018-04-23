@@ -148,8 +148,11 @@ Node* Node::Max_UCB_select(Node* n) {
             uct = logistic(-current->score) +
                   dUCTK * sqrt(logn / current->visits);
 #ifdef PARALLEL
-            /*ABDADA like move selection*/
-            if(current->is_busy()) uct -= 0.01;
+            /*Discourage selection of busy node*/
+            if(current->is_busy()) {
+                uct -= 0.14;
+                if(!current->child) uct -= 0.14;
+            }
 #endif
             if(uct > bvalue) {
                 bvalue = uct;
@@ -186,8 +189,11 @@ Node* Node::Max_AB_select(Node* n,int alpha,int beta,bool try_null,bool search_b
             else if(search_by_rank)
                 uct = MAX_MOVES - current->rank;
 #ifdef PARALLEL
-            /*ABDADA like move selection*/
-            if(current->is_busy()) uct -= 1000;
+            /*Discourage selection of busy node*/
+            if(current->is_busy()) {
+                uct -= 100;
+                if(!current->child) uct -= 100;
+            }
 #endif
             /*pick best*/
             if(uct > bvalue) {
@@ -253,7 +259,7 @@ float Node::Avg_score(Node* n) {
 
     return logit(tvalue / tvisits);    
 }
-float Node::Avg_score_mem(Node* n, float score, int visits) {
+float Node::Avg_score_mem(Node* n, double score, int visits) {
     float sc = logistic(n->score);
     float sc1 = logistic(score);
     sc += (sc1 - sc) * visits / (n->visits + visits);
@@ -286,12 +292,10 @@ void Node::Backup(Node* n,double& score,int visits) {
             }
             current = current->next;
         }
-        l_lock(n->lock);
         if(n->alpha < alpha)
-            n->alpha = alpha;
+            l_set16(n->alpha,alpha);
         if(n->beta > beta)
-            n->beta = beta;
-        l_unlock(n->lock);
+            l_set16(n->beta,beta);
     }
 }
 void SEARCHER::create_children(Node* n) {
@@ -366,10 +370,8 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
     nodes++;
     visits = 1;
 
-    /*virtual loss*/
-    l_lock(n->lock);
+    /*increment number of workers*/
     n->set_busy();
-    l_unlock(n->lock);
 
 #if 0
     unsigned int nvisits = n->visits;
@@ -437,12 +439,8 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
         }
 LEAF:
         /*update alpha-beta bounds*/
-        if(rollout_type == ALPHABETA) {
-            l_lock(n->lock);
-            n->alpha = score;
-            n->beta = score;
-            l_unlock(n->lock);
-        }
+        if(rollout_type == ALPHABETA)
+            n->close_window(score);
 
     /*Has children*/
     } else {
@@ -513,10 +511,7 @@ RESEARCH:
                     && abs(betac) != MATE_SCORE 
                     ) {
                     visits = 1;
-                    l_lock(next->lock);
-                    next->alpha = betac;
-                    next->beta = betac;
-                    l_unlock(next->lock);
+                    next->close_window(betac);
                     POP_MOVE();
                     goto BACKUP;
                 }
@@ -551,9 +546,7 @@ RESEARCH:
                     alphac = -(pstack - 1)->beta;
                     betac = -(pstack - 1)->alpha;
                     Node::reset_bounds(next,alphac,betac);
-                    l_lock(next->lock);
                     next->set_failed_scout();
-                    l_unlock(next->lock);
                     goto RESEARCH;
                 }
             }
@@ -584,12 +577,8 @@ RESEARCH:
 
             /*Nullmove cutoff*/
             if(next->alpha >= next->beta) {
-                if(score >= pstack->beta) {
-                    l_lock(n->lock);
-                    n->alpha = score;
-                    n->beta = score;
-                    l_unlock(n->lock);
-                }
+                if(score >= pstack->beta)
+                    n->close_window(score);
             }
             score = n->score;
             goto UPDATE;
@@ -622,17 +611,13 @@ BACKUP:
     }
 
 UPDATE:
-    /*update node's score*/
-    l_lock(n->lock);
-    n->visits += visits;
-    n->score = score;
-    l_unlock(n->lock);
+    /*update node's vistis count and score*/
+    l_add(n->visits,visits);
+    l_set16(n->score,score);
 
 FINISH:
-    /*clear busy flag, also virtual visits*/
-    l_lock(n->lock);
+    /*decrement number of workers*/
     n->clear_busy();
-    l_unlock(n->lock);
 }
 void SEARCHER::search_mc() {
     Node* root = root_node;
@@ -775,10 +760,10 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
         }
     }
     if(!root) {
-        print("[Tree not found]\n");
+        print_log("[Tree not found]\n");
         root = Node::allocate();
     } else {
-        print("[Tree found : visits %d wins %6d]\n",
+        print_log("[Tree found : visits %d wins %6d]\n",
             root->visits,int(root->score));
 
         /*remove null moves from root*/

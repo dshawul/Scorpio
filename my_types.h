@@ -206,6 +206,25 @@ Prefetch
 */
 #if defined PARALLEL
 #    define VOLATILE volatile
+#    if defined _WIN32
+#       define l_set(x,v) InterlockedExchange((LPLONG)&(x),v)
+#       define l_add(x,v) InterlockedExchangeAdd((LPLONG)&(x),v)
+#       define l_set16(x,v) InterlockedExchange16((short*)&(x),v)
+#       define l_add16(x,v) InterlockedExchangeAdd16((short*)&(x),v)
+#       define l_set8(x,v) InterlockedExchange8((char*)&(x),v)
+#       define l_add8(x,v) InterlockedExchangeAdd8((char*)&(x),v)
+#       define l_and8(x,v) InterlockedAnd8((char*)&(x),v)
+#       define l_or8(x,v) InterlockedOr8((char*)&(x),v)
+#    else
+#       define l_set(x,v) __sync_lock_test_and_set(&(x),v)
+#       define l_add(x,v) __sync_fetch_and_add(&(x),v)
+#       define l_set16(x,v) __sync_lock_test_and_set((short*)&(x),v)
+#       define l_add16(x,v) __sync_fetch_and_add((short*)&(x),v)
+#       define l_set8(x,v) __sync_lock_test_and_set((char*)&(x),v)
+#       define l_add8(x,v) __sync_fetch_and_add((char*)&(x),v)
+#       define l_and8(x,v) __sync_fetch_and_and((char*)&(x),v)
+#       define l_or8(x,v) __sync_fetch_and_or((char*)&(x),v)
+#    endif
 #    if defined OMP
 #       include <omp.h>
 #       define LOCK          omp_lock_t
@@ -217,14 +236,9 @@ inline void l_barrier() {
 }
 #    else
 #       ifdef USE_SPINLOCK
-#           if defined _WIN32
-#               define l_test_and_set(x,v) InterlockedExchange((LPLONG)&(x),v)
-#           else
-#               define l_test_and_set(x,v) __sync_lock_test_and_set(&(x),v)
-#           endif
 #           define LOCK VOLATILE int
 #           define l_create(x)   ((x) = 0)
-#           define l_lock(x)     while(l_test_and_set(x,1) != 0) {while((x) != 0) t_pause();}
+#           define l_lock(x)     while(l_set(x,1) != 0) {while((x) != 0) t_pause();}
 #           define l_unlock(x)   ((x) = 0)
 #       else
 #           if defined _WIN32
@@ -239,7 +253,7 @@ inline void l_barrier() {
 #               define l_unlock(x)   pthread_mutex_unlock(&(x))
 #           endif
 #       endif
-#   endif
+#    endif
 #else
 #    define VOLATILE
 #    define LOCK int
@@ -247,6 +261,14 @@ inline void l_barrier() {
 #    define l_lock(x)
 #    define l_unlock(x)
 #    define l_barrier()
+#    define l_set(x,v) ((x) = v)
+#    define l_add(x,v) ((x) += v)
+#    define l_set16(x,v) ((x) = v)
+#    define l_add16(x,v) ((x) += v)
+#    define l_set8(x,v) ((x) = v)
+#    define l_add8(x,v) ((x) += v)
+#    define l_and8(x,v) ((x) &= v)
+#    define l_or8(x,v) ((x) |= v)
 #endif
 /*
 * Performance counters
