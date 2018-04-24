@@ -371,18 +371,22 @@ struct Node {
     enum {
         BUSY = 1, SCOUTF = 2, PVMOVE = 4, CREATE = 8
     };
+
     void set_busy() { l_or8(flag,BUSY); }
     void clear_busy() { l_and8(flag,~BUSY); }
     bool is_busy() { return (flag & BUSY); }
-    void set_failed_scout() { l_or8(flag,SCOUTF); }
-    void clear_failed_scout() { l_and8(flag,~SCOUTF); }
-    bool is_failed_scout() { return (flag & SCOUTF); }
+
     void set_pvmove() { l_or8(flag,PVMOVE); }
     void clear_pvmove() { l_and8(flag,~PVMOVE); }
     bool is_pvmove() { return (flag & PVMOVE); }
 
+    bool try_failed_scout() { return !(l_or8(flag,SCOUTF) & SCOUTF); }
+    void clear_failed_scout() { l_and8(flag,~SCOUTF); }
+    bool is_failed_scout() { return (flag & SCOUTF); }
+
     bool try_create() { return !(l_or8(flag,CREATE) & CREATE); }
     void clear_create() { l_and8(flag,~CREATE); }
+    bool is_create() { return (flag & CREATE); }
 
     void close_window(short v) {
         l_set16(alpha,v);

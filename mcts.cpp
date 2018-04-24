@@ -118,11 +118,11 @@ void Node::reset_bounds(Node* n,int alpha,int beta) {
     Node* current = n->child;
     while(current) {
         reset_bounds(current,-beta,-alpha);
+        current->flag = 0;
         current = current->next;
     }
     n->alpha = alpha;
     n->beta = beta;
-    n->flag = 0;
 }
 
 static const double Kfactor = -log(10.0) / 400.0;
@@ -537,13 +537,17 @@ RESEARCH:
                     && score > (pstack - 1)->alpha
                     && score < (pstack - 1)->beta
                     ) {
-                    try_scout = false;
-                    next_node_t = PV_NODE;
                     alphac = -(pstack - 1)->beta;
                     betac = -(pstack - 1)->alpha;
-                    Node::reset_bounds(next,alphac,betac);
-                    next->set_failed_scout();
-                    goto RESEARCH;
+                    if(next->try_failed_scout()) {
+                        try_scout = false;
+                        next_node_t = PV_NODE;
+                        Node::reset_bounds(next,alphac,betac);
+                        goto RESEARCH;
+                    } else {
+                        l_set16(next->alpha,alphac);
+                        l_set16(next->beta,betac);
+                    }
                 }
             }
 
