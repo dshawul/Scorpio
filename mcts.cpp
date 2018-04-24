@@ -176,10 +176,10 @@ Node* Node::Max_AB_select(Node* n,int alpha,int beta,bool try_null,bool search_b
         if(alpha > alphac) alphac = alpha;
         if(beta  < betac)   betac = beta;
 
-        if(!use_ab || alphac < betac) {
+        if(alphac < betac) {
             /*base score*/
-            if(use_ab) uct = -current->score;
-            else uct = -current->visits;
+            uct = -current->score;
+            
             /*nullmove score*/
             if(!current->move) {
                 if(try_null) uct = MATE_SCORE;
@@ -642,8 +642,7 @@ void SEARCHER::search_mc() {
         if(rollout_type == ALPHABETA) {
 
             /*best move failed low*/
-            if(use_ab
-                && best->alpha >= best->beta
+            if(best->alpha >= best->beta
                 && -best->score <= oalpha
                 ) {
                 root_failed_low = 3;
@@ -651,19 +650,12 @@ void SEARCHER::search_mc() {
             }
 
             /*exit when window closes*/
-            if(use_ab &&
-                (root->alpha >= root->beta || 
+            if((root->alpha >= root->beta || 
                  root->alpha >= obeta ||
                  root->beta  <= oalpha)
                 ) {
                 break;
             }
-
-            /*negamax*/
-            if(!use_ab &&
-                root->alpha > -MATE_SCORE &&
-                root->beta < MATE_SCORE)
-                break;
         }
 
         /*book keeping*/

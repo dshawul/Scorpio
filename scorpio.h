@@ -983,7 +983,6 @@ extern const int use_selective;
 extern const int use_tt;
 extern const int use_aspiration;
 extern const int use_iid;
-extern const int use_ab;
 extern const int use_pvs;
 extern const int contempt;
 

@@ -12,7 +12,6 @@ const int use_selective = 1;
 const int use_tt = 1;
 const int use_aspiration = 1;
 const int use_iid = 1;
-const int use_ab = 1;
 const int use_pvs = 1;
 const int contempt = 2;
 
@@ -676,13 +675,8 @@ START:
                         sb->pstack->node_type = CUT_NODE;
                         sb->pstack->search_state = NULL_MOVE;
                     } else {
-                        if(use_ab) {
-                            sb->pstack->alpha = -(sb->pstack - 1)->beta;
-                            sb->pstack->beta = -(sb->pstack - 1)->alpha;
-                        } else {
-                            sb->pstack->alpha = -MATE_SCORE;
-                            sb->pstack->beta = MATE_SCORE;
-                        }
+                        sb->pstack->alpha = -(sb->pstack - 1)->beta;
+                        sb->pstack->beta = -(sb->pstack - 1)->alpha;
                         if((sb->pstack - 1)->legal_moves > 3)
                             sb->pstack->node_type = CUT_NODE;
                         else
