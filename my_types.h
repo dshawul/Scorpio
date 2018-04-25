@@ -206,7 +206,7 @@ Prefetch
 */
 #if defined PARALLEL
 #    define VOLATILE volatile
-#    if defined _WIN32
+#    if defined _MSC_VER
 #       define l_set(x,v) InterlockedExchange(&(x),v)
 #       define l_add(x,v) InterlockedExchangeAdd(&(x),v)
 #       define l_set16(x,v) InterlockedExchange16((short*)&(x),v)

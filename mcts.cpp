@@ -292,10 +292,11 @@ void Node::Backup(Node* n,double& score,int visits) {
             }
             current = current->next;
         }
-        if(n->alpha < alpha)
-            l_set16(n->alpha,alpha);
-        if(n->beta > beta)
-            l_set16(n->beta,beta);
+        if(n->alpha >= alpha)
+            alpha = n->alpha;
+        if(n->beta <= beta)
+            beta = n->beta;
+        n->set_bounds(alpha,beta);
     }
 }
 void SEARCHER::create_children(Node* n) {
@@ -436,7 +437,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
 LEAF:
         /*update alpha-beta bounds*/
         if(rollout_type == ALPHABETA)
-            n->close_window(score);
+            n->set_bounds(score,score);
 
     /*Has children*/
     } else {
@@ -507,7 +508,7 @@ RESEARCH:
                     && abs(betac) != MATE_SCORE 
                     ) {
                     visits = 1;
-                    next->close_window(betac);
+                    next->set_bounds(betac,betac);
                     POP_MOVE();
                     goto BACKUP;
                 }
@@ -545,8 +546,7 @@ RESEARCH:
                         Node::reset_bounds(next,alphac,betac);
                         goto RESEARCH;
                     } else {
-                        l_set16(next->alpha,alphac);
-                        l_set16(next->beta,betac);
+                        next->set_bounds(alphac,betac);
                     }
                 }
             }
@@ -578,7 +578,7 @@ RESEARCH:
             /*Nullmove cutoff*/
             if(next->alpha >= next->beta) {
                 if(score >= pstack->beta)
-                    n->close_window(score);
+                    n->set_bounds(score,score);
             }
             score = n->score;
             goto UPDATE;
@@ -612,8 +612,7 @@ BACKUP:
 
 UPDATE:
     /*update node's vistis count and score*/
-    l_add(n->visits,visits);
-    l_set16(n->score,score);
+    n->update_visits_score(visits,score);
 
 FINISH:
     /*decrement number of workers*/

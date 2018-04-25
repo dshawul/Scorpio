@@ -371,7 +371,7 @@ struct Node {
     enum {
         BUSY = 1, SCOUTF = 2, PVMOVE = 4, CREATE = 8
     };
-
+    
     void set_busy() { l_or8(flag,BUSY); }
     void clear_busy() { l_and8(flag,~BUSY); }
     bool is_busy() { return (flag & BUSY); }
@@ -388,9 +388,14 @@ struct Node {
     void clear_create() { l_and8(flag,~CREATE); }
     bool is_create() { return (flag & CREATE); }
 
-    void close_window(short v) {
-        l_set16(alpha,v);
-        l_set16(beta,v);
+    void set_bounds(short a,short b) {
+        l_set16(alpha,a);
+        l_set16(beta,b);
+    }
+
+    void update_visits_score(unsigned int v, short s) {
+        l_add(visits,v);
+        l_set16(score,s);
     }
 
     void clear() {
