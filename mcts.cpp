@@ -186,8 +186,10 @@ Node* Node::Max_AB_select(Node* n,int alpha,int beta,bool try_null,bool search_b
                 else uct = -MATE_SCORE;
             }
             /*pv node*/
-            else if(search_by_rank)
+            else if(search_by_rank) {
                 uct = MAX_MOVES - current->rank;
+                if(current->rank == 1) uct = MATE_SCORE;
+            }
 #ifdef PARALLEL
             /*Discourage selection of busy node*/
             if(current->is_busy()) {
@@ -266,6 +268,7 @@ float Node::Avg_score_mem(Node* n, double score, int visits) {
     return logit(sc);   
 }
 void Node::Backup(Node* n,double& score,int visits) {
+    /*Compute parent's score from children*/
     if(backup_type == AVERAGE)
         score = -Avg_score(n);
     else {
@@ -281,7 +284,10 @@ void Node::Backup(Node* n,double& score,int visits) {
     /*Update alpha-beta bounds. Note: alpha is updated only from 
       child just searched (next), beta is updated from remaining 
       unsearched children */
-    if(rollout_type == ALPHABETA) {
+    if(rollout_type == MCTS) {
+        n->update_score(score);
+    } else if(n->alpha < n->beta) {
+        n->update_score(score);
         int alpha = -MATE_SCORE;
         int beta = -MATE_SCORE;
         Node* current = n->child;
@@ -297,6 +303,14 @@ void Node::Backup(Node* n,double& score,int visits) {
         if(n->beta <= beta)
             beta = n->beta;
         n->set_bounds(alpha,beta);
+    }
+}
+void Node::BackupLeaf(Node* n,double& score) {
+    if(rollout_type == MCTS) {
+        n->update_score(score);
+    } else if(n->alpha < n->beta) {
+        n->update_score(score);
+        n->set_bounds(score,score);
     }
 }
 void SEARCHER::create_children(Node* n) {
@@ -361,7 +375,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
     nodes++;
     visits = 1;
 
-    /*increment number of workers*/
+    /*set busy flag*/
     n->set_busy();
 
 #if 0
@@ -373,23 +387,25 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
         /*Draw*/
         if(draw()) {
             score = ((scorpio == player) ? -contempt : contempt);
-            goto LEAF;
+            goto BACKUP_LEAF;
         /*bitbases*/
         } else if(bitbase_cutoff()) {
             score = pstack->best_score;
-            goto LEAF;
+            goto BACKUP_LEAF;
         /*Reached max plies and depth*/
         } else if(ply >= MAX_PLY - 1 || pstack->depth <= 0) {
             score = n->score;
-            goto LEAF;
+            goto BACKUP_LEAF;
         /*mate distance pruning*/
         } else if(n->alpha > MATE_SCORE - WIN_PLY * (ply + 1)) {
             score = n->alpha;
-            goto LEAF;
+            goto BACKUP_LEAF;
         }
     }
+
     /*No children*/
     if(!n->child) {
+
         /*run out of memory for nodes*/
         if(rollout_type == ALPHABETA && 
              (
@@ -413,10 +429,8 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
             if(n->try_create()) {
                 create_children(n);
                 n->clear_create();
-            } else {
-                score = n->score;
+            } else
                 goto FINISH;
-            }
 
             if(!n->child) {
                 if(hstack[hply - 1].checks)
@@ -426,30 +440,30 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
             } else {
                 if(rollout_type == ALPHABETA
                     && pstack->depth > UNITDEPTH) {
-                    /*expand more*/
+                    /*Expand more in case of AB*/
                     goto SELECT;
                 } else  {
-                    /*backup here*/
+                    /*Backup now if MCTS*/
                     Node::Backup(n,score,0);
+                    goto FINISH;
                 }
             }
         }
-LEAF:
-        /*update alpha-beta bounds*/
-        if(rollout_type == ALPHABETA)
-            n->set_bounds(score,score);
+
+BACKUP_LEAF:
+        Node::BackupLeaf(n,score);
 
     /*Has children*/
     } else {
 
 SELECT:
         /*select move*/
-        Node* next;
+        Node* next = 0;
         if(rollout_type == ALPHABETA) {
             bool try_null = pstack->node_type != PV_NODE
                             && pstack->depth >= 4 * UNITDEPTH 
                             && n->score >= pstack->beta;
-            bool search_by_rank = (n == root_node);
+            bool search_by_rank = (pstack->node_type == PV_NODE);
 
             next = Node::Max_AB_select(n,-pstack->beta,-pstack->alpha,
                 try_null,search_by_rank);
@@ -458,10 +472,7 @@ SELECT:
         }
 
         /*This could happen in parallel search*/
-        if(!next) { 
-            score = n->score; 
-            goto FINISH; 
-        }
+        if(!next) goto FINISH;
 
         /*Determine next node type*/
         int next_node_t;
@@ -580,13 +591,11 @@ RESEARCH:
                 if(score >= pstack->beta)
                     n->set_bounds(score,score);
             }
-            score = n->score;
-            goto UPDATE;
+            goto FINISH;
             /*end null move*/
         }
-        
 BACKUP:
-        /*Do minmax/averaging style backups with/without memory*/
+        /*Backup score and bounds*/
         Node::Backup(n,score,visits);
 
         if(rollout_type == ALPHABETA) {
@@ -610,12 +619,8 @@ BACKUP:
         }
     }
 
-UPDATE:
-    /*update node's vistis count and score*/
-    n->update_visits_score(visits,score);
-
 FINISH:
-    /*decrement number of workers*/
+    n->update_visits(visits);
     n->clear_busy();
 }
 void SEARCHER::search_mc() {
@@ -626,7 +631,7 @@ void SEARCHER::search_mc() {
     int oalpha = pstack->alpha;
     int obeta = pstack->beta;
     unsigned int ovisits = root->visits;
-            
+
     /*do rollouts*/
     while(true) {
 

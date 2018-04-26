@@ -48,7 +48,7 @@ bool SEARCHER::hash_cutoff() {
     /*abdada*/
     bool exclusiveP = false;
 #ifdef PARALLEL
-    if((use_abdada_smp == 1)
+    if(!montecarlo && (use_abdada_smp == 1)
         && DEPTH((pstack - 1)->depth) > PROCESSOR::SMP_SPLIT_DEPTH  
         && !(pstack - 1)->second_pass
         && (pstack - 1)->legal_moves > 1
@@ -1142,13 +1142,10 @@ void SEARCHER::search() {
     }
 }
 /*
-Evaluate position
+Get search score
 */
 int SEARCHER::get_search_score() {
-    finish_search = true;
     ::search(processors[processor_id]);
-    finish_search = false;
-
     return pstack->best_score;
 }
 /*

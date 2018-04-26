@@ -393,10 +393,8 @@ struct Node {
         l_set16(beta,b);
     }
 
-    void update_visits_score(unsigned int v, short s) {
-        l_add(visits,v);
-        l_set16(score,s);
-    }
+    void update_visits(unsigned int v) { l_add(visits,v); }
+    void update_score(short s) { l_set16(score,s); }
 
     void clear() {
         score = 0;
@@ -427,6 +425,7 @@ struct Node {
     static float Avg_score(Node*);
     static float Avg_score_mem(Node*,double,int);
     static void Backup(Node*,double&,int);
+    static void BackupLeaf(Node*,double&);
     static void print_xml(Node*,int);
 };
 /*
