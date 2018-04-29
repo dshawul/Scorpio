@@ -800,6 +800,7 @@ bool parse_commands(char** commands) {
                         strcat(fen,words[3]);
                         strcat(fen," ");
                         searcher.set_board(fen);
+                        SEARCHER::scorpio = searcher.player;
                     }
 
                     switch(test) {

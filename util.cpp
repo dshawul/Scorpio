@@ -371,10 +371,6 @@ void SEARCHER::print_pv(int score) {
     char mv_str[10];
     char pv[1024];
 
-    /*montecarlo*/
-    if(root_node && root_node->child)
-       extract_pv(root_node);
-
     /*convert to correct mate score*/
     if(score > MATE_SCORE - WIN_PLY * MAX_PLY) 
         score = 10000 - (ceil(double(MATE_SCORE - score) / WIN_PLY));

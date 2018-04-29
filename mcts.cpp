@@ -625,12 +625,21 @@ FINISH:
 }
 void SEARCHER::search_mc() {
     Node* root = root_node;
-    Node* best = Node::Best_select(root);
     double pfrac = 0,score;
     int visits;
     int oalpha = pstack->alpha;
     int obeta = pstack->beta;
     unsigned int ovisits = root->visits;
+
+    /*Current best move is ranked first*/
+    Node* current = root->child, *best = current;
+    while(current) {
+        if(current->rank == 1) {
+           best = current;
+           break;
+        }
+        current = current->next;
+    }
 
     /*do rollouts*/
     while(true) {
@@ -686,8 +695,10 @@ void SEARCHER::search_mc() {
                     if(dUCTK < UCTKmin) dUCTK = UCTKmin;
                     if(frac - pfrac >= 0.1) {
                         pfrac = frac;
-                        if(rollout_type == MCTS)
+                        if(rollout_type == MCTS) {
+                            extract_pv(root);
                             print_pv(root->score);
+                        }
                     }
                     /*stop growing tree after some time*/
                     if(rollout_type == ALPHABETA && !freeze_tree && frac_freeze_tree < 1.0 &&
@@ -722,11 +733,19 @@ void SEARCHER::search_mc() {
         l_unlock(master->lock);
         l_unlock(lock_smp);
     } else if(!abort_search && !stop_searcher) {
-        best = Node::Best_select(root);
+        bool failed = (-best->score <= oalpha) || 
+                      (-best->score >= obeta);
+        if(!failed)
+            best = Node::Best_select(root);
+
         root->score = -best->score;
         root_score = root->score;
         pstack->best_score = root_score;
-        print_pv(root_score);
+
+        if(!failed) {
+            extract_pv(root);
+            print_pv(root_score);
+        }
     }
 }
 /*
