@@ -1096,10 +1096,12 @@ void SEARCHER::search() {
     if(montecarlo) {
 #ifdef PARALLEL
             /*attach helper processor here once*/
+            l_lock(lock_smp);
             for(int i = 1;i < PROCESSOR::n_processors;i++) {
                 attach_processor(i);
                 processors[i]->state = GO;
             }
+            l_unlock(lock_smp);
 
             /*montecarlo search*/
             search_mc();
@@ -1118,6 +1120,7 @@ void SEARCHER::search() {
 #ifdef PARALLEL
         /*attach helper processor here once for abdada*/
         if(use_abdada_smp) {
+            l_lock(lock_smp);
             for(int i = 1;i < PROCESSOR::n_processors;i++) {
                 attach_processor(i);
                 PSEARCHER sb = processors[i]->searcher;
@@ -1125,6 +1128,7 @@ void SEARCHER::search() {
                     pstack->count * sizeof(MOVE));
                 processors[i]->state = GO;
             }
+            l_unlock(lock_smp);
         }
 
         /*do the search*/
@@ -1544,10 +1548,10 @@ MOVE SEARCHER::find_best() {
 
 #ifdef PARALLEL
     /*wakeup threads*/
-    for(int i = 1;i < PROCESSOR::n_processors;i++) {
+    for(int i = 1;i < PROCESSOR::n_processors;i++)
         processors[i]->state = WAIT;
-    }
-    while(PROCESSOR::n_idle_processors < PROCESSOR::n_processors - 1);
+    while(PROCESSOR::n_idle_processors < PROCESSOR::n_processors - 1)
+        t_yield();
 #endif
 
     /*mcts or alphabeta*/
@@ -1555,9 +1559,8 @@ MOVE SEARCHER::find_best() {
 
 #ifdef PARALLEL
     /*park threads*/
-    for(int i = 1;i < PROCESSOR::n_processors;i++) {
+    for(int i = 1;i < PROCESSOR::n_processors;i++)
         processors[i]->state = PARK;
-    }
 #endif
 
 #ifdef CLUSTER
