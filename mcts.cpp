@@ -742,10 +742,12 @@ void SEARCHER::search_mc() {
         root_score = root->score;
         pstack->best_score = root_score;
 
-        if(!failed) {
-            extract_pv(root);
+        best->score = -MATE_SCORE;
+        extract_pv(root);
+        best->score = -root_score;
+
+        if(!failed)     
             print_pv(root_score);
-        }
     }
 }
 /*
