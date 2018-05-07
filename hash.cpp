@@ -16,8 +16,8 @@ void PROCESSOR::reset_hash_tab(int id,UBMP32 size) {
 #endif
     if(size) hash_tab_mask = size - 1;
     else size = hash_tab_mask + 1;
-    aligned_reserve<HASH>(white_hash_tab,size);
-    aligned_reserve<HASH>(black_hash_tab,size);
+    aligned_reserve<HASH>(hash_tab[white],size);
+    aligned_reserve<HASH>(hash_tab[black],size);
 }
 
 void PROCESSOR::reset_pawn_hash_tab(UBMP32 size) {
@@ -29,27 +29,30 @@ void PROCESSOR::reset_pawn_hash_tab(UBMP32 size) {
 void PROCESSOR::reset_eval_hash_tab(UBMP32 size) {
     if(size) eval_hash_tab_mask = size - 1;
     else size = eval_hash_tab_mask + 1;
-    aligned_reserve<EVALHASH>(eval_hash_tab,size);
+    aligned_reserve<EVALHASH>(eval_hash_tab[white],size);
+    aligned_reserve<EVALHASH>(eval_hash_tab[black],size);
 }
 
 void PROCESSOR::clear_hash_tables() {
     PPROCESSOR proc;
     for(int i = 0;i < n_processors;i++) {
         proc = processors[i];
-        if(proc->white_hash_tab) {
-            memset(proc->white_hash_tab,0,(hash_tab_mask + 1) * sizeof(HASH));
-            memset(proc->black_hash_tab,0,(hash_tab_mask + 1) * sizeof(HASH));
+        if(proc->hash_tab[white]) {
+            memset(proc->hash_tab[white],0,(hash_tab_mask + 1) * sizeof(HASH));
+            memset(proc->hash_tab[black],0,(hash_tab_mask + 1) * sizeof(HASH));
         }
+        memset(proc->eval_hash_tab[white],0,(eval_hash_tab_mask + 1) * sizeof(EVALHASH));
+        memset(proc->eval_hash_tab[black],0,(eval_hash_tab_mask + 1) * sizeof(EVALHASH));
         memset(proc->pawn_hash_tab,0,(pawn_hash_tab_mask + 1) * sizeof(PAWNHASH));
-        memset(proc->eval_hash_tab,0,(eval_hash_tab_mask + 1) * sizeof(EVALHASH));
     }
 }
 
 void PROCESSOR::delete_hash_tables() {
-    aligned_free<HASH>(white_hash_tab);
-    aligned_free<HASH>(black_hash_tab);
+    aligned_free<HASH>(hash_tab[white]);
+    aligned_free<HASH>(hash_tab[black]);
+    aligned_free<EVALHASH>(eval_hash_tab[white]);
+    aligned_free<EVALHASH>(eval_hash_tab[black]);
     aligned_free<PAWNHASH>(pawn_hash_tab);
-    aligned_free<EVALHASH>(eval_hash_tab);
 }
 /* 
  Distributed hashtable on NUMA machines
@@ -82,10 +85,7 @@ void SEARCHER::record_hash(
     register HASH slot;
     int sc,max_sc = MAX_NUMBER;
 
-    if(col == white) 
-        addr = proc->white_hash_tab;
-    else 
-        addr = proc->black_hash_tab;
+    addr = proc->hash_tab[col];
 
     for(int i = 0; i < HPROBES; i++) {
         pslot = (addr + (key ^ i));    //H.G trick to follow most probable path
@@ -132,11 +132,8 @@ int SEARCHER::probe_hash(
     register PHASH addr,pslot;
     register HASH slot;
     register int flags;
-    
-    if(col == white) 
-        addr = proc->white_hash_tab;
-    else 
-        addr = proc->black_hash_tab;
+
+    addr = proc->hash_tab[col];
     
     for(int i = 0; i < HPROBES; i++) {
         pslot = addr + (key ^ i);
@@ -222,7 +219,7 @@ Eval hash tables
 void SEARCHER::record_eval_hash(const HASHKEY& hash_key,int score) {
     register PPROCESSOR proc = processors[processor_id];
     register UBMP32 key = UBMP32(hash_key & PROCESSOR::eval_hash_tab_mask);
-    register PEVALHASH pslot = proc->eval_hash_tab + key; 
+    register PEVALHASH pslot = proc->eval_hash_tab[player] + key; 
 
     pslot->check_sum = (UBMP32)(hash_key >> 32);
     pslot->score = (BMP16)score;
@@ -230,7 +227,7 @@ void SEARCHER::record_eval_hash(const HASHKEY& hash_key,int score) {
 int SEARCHER::probe_eval_hash(const HASHKEY& hash_key,int& score) {
     register PPROCESSOR proc = processors[processor_id];
     register UBMP32 key = UBMP32(hash_key & PROCESSOR::eval_hash_tab_mask);
-    register PEVALHASH pslot = proc->eval_hash_tab + key; 
+    register PEVALHASH pslot = proc->eval_hash_tab[player] + key; 
 
     if(pslot->check_sum == (UBMP32)(hash_key >> 32)) {
         score = pslot->score;
@@ -244,11 +241,7 @@ prefetch tt
 void SEARCHER::prefetch_tt() {
 #ifdef HAS_PREFETCH
     TT_KEY;
-    if(player == white) {
-        PREFETCH_T0(proc->white_hash_tab + key);
-    } else { 
-        PREFETCH_T0(proc->black_hash_tab + key);
-    }
+    PREFETCH_T0(proc->hash_tab[player] + key);
 #endif
 }
 void SEARCHER::prefetch_qtt() {

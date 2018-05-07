@@ -916,10 +916,9 @@ typedef struct PROCESSOR {
 #endif
 
     /*hash tables*/
-    PHASH white_hash_tab;
-    PHASH black_hash_tab;
+    PHASH hash_tab[2];
+    PEVALHASH eval_hash_tab[2];
     PPAWNHASH pawn_hash_tab;
-    PEVALHASH eval_hash_tab;
 #ifdef CLUSTER
     TT_MESSAGE ttmsg;
     VOLATILE bool ttmsg_recieved;
@@ -939,9 +938,10 @@ typedef struct PROCESSOR {
     PROCESSOR() {
         state = KILL;
         searcher = 0;
-        white_hash_tab = 0;
-        black_hash_tab = 0;
-        eval_hash_tab = 0;
+        hash_tab[white] = 0;
+        hash_tab[black] = 0;
+        eval_hash_tab[white] = 0;
+        eval_hash_tab[black] = 0;
         pawn_hash_tab = 0;
     }
 } *PPROCESSOR;

@@ -52,20 +52,17 @@ static evaluator
 #define   MAX_MATERIAL    64
 
 int SEARCHER::eval() {
+
+    /* check_eval hash table */
+#ifndef TUNE
+    if(probe_eval_hash(hash_key,pstack->actual_score))
+        return pstack->actual_score;
+#endif
+    
+    /*phase of the game*/
     int phase = piece_c[white] + piece_c[black];
     phase = MIN(phase,MAX_MATERIAL);
-    /*
-    check_eval hash table
-    */
-#ifndef TUNE
-    if(probe_eval_hash(hash_key,pstack->actual_score)) {
-        if(player == black)
-            pstack->actual_score = -pstack->actual_score;
-        
-        pstack->actual_score += (TEMPO_BONUS + (phase * TEMPO_SLOPE) / MAX_MATERIAL);
-        return pstack->actual_score;
-    }
-#endif
+
     /*
     evaluate
     */
@@ -681,6 +678,9 @@ int SEARCHER::eval() {
         w_score.add((PASSER_WEIGHT_MG * temp) / 16,(PASSER_WEIGHT_EG * temp) / 16); 
     }
 
+    /*side to move*/
+    pstack->actual_score += (TEMPO_BONUS + (phase * TEMPO_SLOPE) / MAX_MATERIAL);
+
     /*
     adjust score and save in tt
     */
@@ -692,9 +692,6 @@ int SEARCHER::eval() {
         } else {
             pstack->actual_score = (pstack->actual_score * b_win_chance) / 8;
         }
-#ifndef TUNE
-        record_eval_hash(hash_key,pstack->actual_score);
-#endif
     } else {
         pstack->actual_score = ((b_score.mid - w_score.mid) * (phase) +
                                (b_score.end - w_score.end) * (MAX_MATERIAL - phase)) / MAX_MATERIAL;
@@ -703,12 +700,13 @@ int SEARCHER::eval() {
         } else {
             pstack->actual_score = (pstack->actual_score * w_win_chance) / 8;
         }
-#ifndef TUNE
-        record_eval_hash(hash_key,-pstack->actual_score);
-#endif
     }
 
-    pstack->actual_score += (TEMPO_BONUS + (phase * TEMPO_SLOPE) / MAX_MATERIAL);
+    /*save it in eval cache*/
+#ifndef TUNE
+    record_eval_hash(hash_key,pstack->actual_score);
+#endif
+    
     return pstack->actual_score;
 }
 /*
