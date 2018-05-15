@@ -8,6 +8,7 @@ static int  reuse_tree = 1;
 static int  backup_type = MINMAX;
 static double frac_alphabeta = 1.0; 
 static double frac_freeze_tree = 0.3;
+static double frac_abrollouts = 0.2;
 static int  mcts_strategy_depth = 30;
 static int  alphabeta_depth = 1;
 static int  evaluate_depth = 0;
@@ -631,6 +632,11 @@ void SEARCHER::search_mc() {
     int obeta = pstack->beta;
     unsigned int ovisits = root->visits;
 
+    /*Set alphabeta rollouts depth*/
+    int ablimit = DEPTH((1 - frac_abrollouts) * pstack->depth);
+    if(ablimit > alphabeta_depth)
+        alphabeta_depth = ablimit;
+
     /*Current best move is ranked first*/
     Node* current = root->child, *best = current;
     while(current) {
@@ -825,6 +831,8 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         frac_alphabeta = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "frac_freeze_tree")) {
         frac_freeze_tree = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "frac_abrollouts")) {
+        frac_abrollouts = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "mcts_strategy_depth")) {
         mcts_strategy_depth = atoi(commands[command_num++]);
     } else if(!strcmp(command, "alphabeta_depth")) {
@@ -851,6 +859,7 @@ void print_mcts_params() {
     print("feature option=\"backup_type -combo *MINMAX AVERAGE MIX MINMAX_MEM AVERAGE_MEM MIX_MEM\"\n");
     print("feature option=\"frac_alphabeta -spin %d 0 100\"\n",int(frac_alphabeta*100));
     print("feature option=\"frac_freeze_tree -spin %d 0 100\"\n",int(frac_freeze_tree*100));
+    print("feature option=\"frac_abrollouts -spin %d 0 100\"\n",int(frac_abrollouts*100));
     print("feature option=\"mcts_strategy_depth -spin %d 0 100\"\n",mcts_strategy_depth);
     print("feature option=\"alphabeta_depth -spin %d 0 100\"\n",alphabeta_depth);
     print("feature option=\"evaluate_depth -spin %d 0 100\"\n",evaluate_depth);
