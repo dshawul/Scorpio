@@ -1031,6 +1031,12 @@ void SEARCHER::qsearch() {
     while(true) {
         while(true) {
 
+            /*search only one move in montecarlo search*/
+            if(montecarlo && rollout_type == MCTS && 
+                pstack->legal_moves > 0) {
+                GOBACK_Q(false);
+            }
+            
             /*get legal move*/
             if(!get_qmove()) {
                 if(hply >= 1 && hstack[hply - 1].checks && pstack->legal_moves == 0)
