@@ -644,6 +644,11 @@ void SEARCHER::search_mc() {
     if(ablimit > alphabeta_depth)
         alphabeta_depth = ablimit;
 
+    /*Set alphabeta rollouts depth*/
+    int ablimit = DEPTH((1 - frac_abrollouts) * pstack->depth);
+    if(ablimit > alphabeta_depth)
+        alphabeta_depth = ablimit;
+
     /*Current best move is ranked first*/
     Node* current = root->child, *best = current;
     while(current) {
