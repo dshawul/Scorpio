@@ -383,6 +383,7 @@ bool parse_commands(char** commands) {
             print("feature option=\"eht -spin %d 1 16384\"\n",eht);
             print("feature option=\"pht -spin %d 1 256\"\n",pht);
             print("feature option=\"egbb_path -path %s\"\n", SEARCHER::egbb_path);
+            print("feature option=\"nn_path -path %s\"\n", SEARCHER::nn_path);
             print("feature option=\"egbb_cache_size -spin %d 1 16384\"\n", SEARCHER::egbb_cache_size);
             print("feature option=\"egbb_load_type -spin %d 0 3\"\n", SEARCHER::egbb_load_type);
             print("feature option=\"egbb_depth_limit -spin %d 0 %d\"\n", SEARCHER::egbb_depth_limit, MAX_PLY);
@@ -560,7 +561,18 @@ bool parse_commands(char** commands) {
         } else if(!strcmp(command, "egbb_ply_limit_percent")) {
             SEARCHER::egbb_ply_limit_percent = atoi(commands[command_num]);
             command_num++;
+        } else if (!strcmp(command, "use_nn")) {
+            if(!strcmp(commands[command_num],"on") ||
+                !strcmp(commands[command_num],"1"))
+                SEARCHER::use_nn = true;
+            else
+                SEARCHER::use_nn = false;
+            command_num++;
+        } else if(!strcmp(command, "nn_path")) {
+            strcpy(SEARCHER::nn_path,commands[command_num]);
+            command_num++;
 #endif
+
 #ifdef BOOK_PROBE
         } else if (!strcmp(command, "book")) {
             if(commands[command_num]) {

@@ -53,12 +53,23 @@ static evaluator
 
 int SEARCHER::eval() {
 
-    /* check_eval hash table */
 #ifndef TUNE
+    
+    /* check_eval hash table */
     if(probe_eval_hash(hash_key,pstack->actual_score))
         return pstack->actual_score;
+
+    /* neural network evaluation */
+#ifdef EGBB
+    if(use_nn) {
+        pstack->actual_score = probe_neural();
+        record_eval_hash(hash_key,pstack->actual_score);
+        return pstack->actual_score;
+    }
 #endif
-    
+
+#endif
+
     /*phase of the game*/
     int phase = piece_c[white] + piece_c[black];
     phase = MIN(phase,MAX_MATERIAL);
