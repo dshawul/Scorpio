@@ -745,9 +745,11 @@ typedef struct SEARCHER{
     static Node* VOLATILE root_node;
     static HASHKEY root_key;
     /*
-    Bitbases
+    Bitbases and neural network
     */
+    void fill_list(int*,int*);
     int probe_bitbases(int&);
+    int probe_neural();
     bool bitbase_cutoff();
     static int egbb_is_loaded;
     static int egbb_load_type;
@@ -756,6 +758,8 @@ typedef struct SEARCHER{
     static int egbb_ply_limit;
     static int egbb_cache_size;
     static char egbb_path[MAX_STR];
+    static char nn_path[MAX_STR];
+    static int use_nn;
     /*
     End
     */
@@ -1042,7 +1046,7 @@ void bound_params(double*);
 /*
 Bitbases
 */
-extern int LoadEgbbLibrary(char* path,int);
+int LoadEgbbLibrary(char* path,int);
 /*
 Bitboards.
 */

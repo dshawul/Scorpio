@@ -631,6 +631,13 @@ void SEARCHER::search_mc() {
     int oalpha = pstack->alpha;
     int obeta = pstack->beta;
     unsigned int ovisits = root->visits;
+#ifdef EGBB
+    unsigned int visits_poll;
+    if(use_nn) visits_poll = 1;
+    else visits_poll = 200;
+#else
+    const unsigned int visits_poll = 200;
+#endif
 
     /*Set alphabeta rollouts depth*/
     int ablimit = DEPTH((1 - frac_abrollouts) * pstack->depth);
@@ -683,7 +690,7 @@ void SEARCHER::search_mc() {
             /*check for messages from other hosts*/
 #ifdef CLUSTER
 #   ifndef THREAD_POLLING
-            if(root->visits - ovisits >= 200) {
+            if(root->visits - ovisits >= visits_poll) {
                 ovisits = root->visits;
                 processors[processor_id]->idle_loop();
             }
@@ -692,7 +699,7 @@ void SEARCHER::search_mc() {
             /*rank 0*/
             if(true CLUSTER_CODE(&& PROCESSOR::host_id == 0)) { 
                 /*check quit*/
-                if(root->visits - ovisits >= 200) {
+                if(root->visits - ovisits >= visits_poll) {
                     ovisits = root->visits;
                     check_quit();
                     double frac = double(get_time() - start_time) / 

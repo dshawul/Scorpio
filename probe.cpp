@@ -23,7 +23,11 @@ enum egbb_load_types {
 
 typedef int (CDECL *PPROBE_EGBB) (int player, int* piece,int* square);
 typedef void (CDECL *PLOAD_EGBB) (char* path,int cache_size,int load_options);
+typedef int (CDECL *PPROBE_NN) (int player, int* piece,int* square);
+typedef void (CDECL *PLOAD_NN) (char* path);
+
 static PPROBE_EGBB probe_egbb;
+static PPROBE_NN probe_nn;
 
 int SEARCHER::egbb_is_loaded = 0;
 int SEARCHER::egbb_load_type = LOAD_4MEN;
@@ -32,6 +36,8 @@ int SEARCHER::egbb_ply_limit_percent = 75;
 int SEARCHER::egbb_ply_limit;
 int SEARCHER::egbb_cache_size = 16;
 char SEARCHER::egbb_path[MAX_STR] = "egbb/";
+char SEARCHER::nn_path[MAX_STR] = "nets/";
+int SEARCHER::use_nn = 0;
 
 /*
 Load the dll and get the address of the load and probe functions.
@@ -62,6 +68,7 @@ int LoadEgbbLibrary(char* main_path,int egbb_cache_size) {
 #ifdef EGBB
     static HMODULE hmod = 0;
     PLOAD_EGBB load_egbb;
+    PLOAD_NN load_nn;
     char path[256];
     size_t plen = strlen(main_path);
     if (plen) {
@@ -79,7 +86,11 @@ int LoadEgbbLibrary(char* main_path,int egbb_cache_size) {
     if((hmod = LoadLibrary(path)) != 0) {
         load_egbb = (PLOAD_EGBB) GetProcAddress(hmod,"load_egbb_xmen");
         probe_egbb = (PPROBE_EGBB) GetProcAddress(hmod,"probe_egbb_xmen");
+        load_nn = (PLOAD_NN) GetProcAddress(hmod,"load_neural_network");
+        probe_nn = (PPROBE_NN) GetProcAddress(hmod,"probe_neural_network");
         load_egbb(main_path,egbb_cache_size,SEARCHER::egbb_load_type);
+        if(load_nn) load_nn(SEARCHER::nn_path);
+        else SEARCHER::use_nn = 0;
         return true;
     } else {
         print("EgbbProbe not Loaded!\n");
@@ -93,12 +104,9 @@ Change interanal scorpio board representaion to [A1 = 0 ... H8 = 63]
 board representation and then probe bitbase.
 */
 
-int SEARCHER::probe_bitbases(int& score) {
-
-#ifdef EGBB
-    
-    register PLIST current;
-    int piece[MAX_PIECES],square[MAX_PIECES],count = 0;
+void SEARCHER::fill_list(int* piece, int* square) {
+    PLIST current;
+    int count = 0;
 
 #define ADD_PIECE(list,type) {                  \
        current = list;                          \
@@ -123,13 +131,26 @@ int SEARCHER::probe_bitbases(int& score) {
     ADD_PIECE(plist[bpawn],_BPAWN);
     piece[count] = _EMPTY;
     square[count] = SQ8864(epsquare);
+}
+
+int SEARCHER::probe_bitbases(int& score) {
+#ifdef EGBB
+    int piece[MAX_PIECES],square[MAX_PIECES];
+    fill_list(piece,square);
     score = probe_egbb(player,piece,square);
-    
     if(score != _NOTFOUND)
         return true;
 #endif
-
     return false;
+}
+
+int SEARCHER::probe_neural() {
+#ifdef EGBB
+    int piece[33],square[33];
+    fill_list(piece,square);
+    return probe_nn(player,piece,square);
+#endif
+    return 0;
 }
 /*
 * EGBB cutoff
