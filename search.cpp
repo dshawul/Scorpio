@@ -1496,6 +1496,7 @@ MOVE SEARCHER::find_best() {
     message_check = 0;
     nodes = 0;
     qnodes = 0;
+    ecalls = 0;
     splits = 0;
     bad_splits = 0;
     root_failed_low = 0;
@@ -1580,9 +1581,10 @@ MOVE SEARCHER::find_best() {
         /* print result*/
         int time_used = MAX(1,get_time() - start_time);
         int pps = int(root_node->visits / (time_used / 1000.0f));
-        print("nodes = " FMT64 " <%d%% qnodes> time = %dms nps = %d\n",nodes,
+        print("nodes = " FMT64 " <%d%% qnodes> time = %dms nps = %d eps = %d\n",nodes,
             int(BMP64(qnodes) / (BMP64(nodes) / 100.0f)),
-            time_used,int(BMP64(nodes) / (time_used / 1000.0f)));
+            time_used,int(BMP64(nodes) / (time_used / 1000.0f)),
+            int(BMP64(ecalls) / (time_used / 1000.0f)));
         print("Tree: nodes = %d depth = %d pps = %d visits = %d \n      "
             "qsearch_calls = %d search_calls = %d\n",
             Node::total_nodes,Node::max_tree_depth,pps,root_node->visits,
@@ -1608,9 +1610,10 @@ MOVE SEARCHER::find_best() {
         } else if(pv_print_style == 0) {
             print("splits = %d badsplits = %d egbb_probes = %d\n",
                 splits,bad_splits,egbb_probes);
-            print("nodes = " FMT64 " <%d qnodes> time = %dms nps = %d\n",nodes,
+            print("nodes = " FMT64 " <%d qnodes> time = %dms nps = %d eps = %d\n",nodes,
                 int(BMP64(qnodes) / (BMP64(nodes) / 100.0f)),
-                time_used,int(BMP64(nodes) / (time_used / 1000.0f)));
+                time_used,int(BMP64(nodes) / (time_used / 1000.0f)),
+                int(BMP64(ecalls) / (time_used / 1000.0f)));
         }
 
     }

@@ -210,6 +210,7 @@ void PROCESSOR::handle_message(int source,int message_id) {
         MERGE_MESSAGE merge;
         merge.nodes = psb->nodes;
         merge.qnodes = psb->qnodes;
+        merge.ecalls = psb->ecalls;
         merge.time_check = psb->time_check;
         merge.splits = psb->splits;
         merge.bad_splits = psb->bad_splits;
@@ -267,6 +268,7 @@ void PROCESSOR::handle_message(int source,int message_id) {
         /*update counts*/
         master->nodes += merge.nodes;
         master->qnodes += merge.qnodes;
+        master->ecalls += merge.ecalls;
         master->time_check += merge.time_check;
         master->splits += merge.splits;
         master->bad_splits += merge.bad_splits;
@@ -783,6 +785,7 @@ void SEARCHER::update_master(int skip) {
     /*update counts*/
     master->nodes += nodes;
     master->qnodes += qnodes;
+    master->ecalls += ecalls;
     master->time_check += time_check;
     master->splits += splits;
     master->bad_splits += bad_splits;
@@ -963,6 +966,7 @@ void SEARCHER::clear_block() {
     /*reset counts*/
     nodes = 0;
     qnodes = 0;
+    ecalls = 0;
     time_check = 0;
     splits = 0;
     bad_splits = 0;

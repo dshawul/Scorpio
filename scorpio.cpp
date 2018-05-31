@@ -142,10 +142,14 @@ static void CDECL egbb_thread_proc(void*) {
     egbb_is_loading = false;
 }
 static void load_egbbs() {
+    /*Wait if we are still loading EGBBs*/
+    if(egbb_setting_changed) {
+        wait_for_egbb();
+        egbb_setting_changed = false;
+        egbb_is_loading = true;
+        t_create(egbb_thread_proc,0);
+    }
     wait_for_egbb();
-    egbb_setting_changed = false;
-    egbb_is_loading = true;
-    t_create(egbb_thread_proc,0);
 }
 /*
 hash tables
@@ -470,8 +474,7 @@ bool parse_commands(char** commands) {
         } else if (!strcmp(command, "clear_hash")) {
             PROCESSOR::clear_hash_tables();
         } else if (!strcmp(command, "new")) {
-            if(egbb_setting_changed)
-                load_egbbs();
+            load_egbbs();
             PROCESSOR::clear_hash_tables();
             searcher.new_board();
             result = R_UNKNOWN;
@@ -696,6 +699,7 @@ bool parse_commands(char** commands) {
                    !strcmp(command, "gmse") ||
                    !strcmp(command, "tune")
                    ) {
+            load_egbbs();
 
             char input[MAX_STR],fen[MAX_STR];
             char* words[100];
@@ -962,9 +966,7 @@ bool parse_commands(char** commands) {
             continue;
 
         /*Wait if we are still loading EGBBs*/
-        if(egbb_setting_changed)
-            load_egbbs();
-        wait_for_egbb();
+        load_egbbs();
 
         /*
         Analyze mode

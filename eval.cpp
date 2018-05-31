@@ -59,6 +59,9 @@ int SEARCHER::eval() {
     if(probe_eval_hash(hash_key,pstack->actual_score))
         return pstack->actual_score;
 
+    /*number of evaluation calls*/
+    ecalls++;
+
     /* neural network evaluation */
 #ifdef EGBB
     if(use_nn) {

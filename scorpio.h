@@ -520,6 +520,7 @@ struct MERGE_MESSAGE {
     BMP64  master;
     UBMP64 nodes;
     UBMP64 qnodes;
+    UBMP64 ecalls;
     UBMP64 time_check;
     UBMP32 splits;
     UBMP32 bad_splits;
@@ -549,7 +550,7 @@ struct TT_MESSAGE {
 };
 #define   SPLIT_MESSAGE_SIZE(x)   (40 + ((x).pv_length << 2))
 #define   RESPLIT_MESSAGE_SIZE(x) (SPLIT_MESSAGE_SIZE(x) + 4)
-#define   MERGE_MESSAGE_SIZE(x)   (56 + ((x).pv_length << 2))
+#define   MERGE_MESSAGE_SIZE(x)   (64 + ((x).pv_length << 2))
 #define   INIT_MESSAGE_SIZE(x)    (MAX_FEN_STR + 4 + ((x).pv_length << 2))
 
 #endif
@@ -683,6 +684,7 @@ typedef struct SEARCHER{
     /*counts*/
     UBMP64 nodes;
     UBMP64 qnodes;
+    UBMP64 ecalls;
     UBMP64 time_check;
     UBMP64 message_check;
     UBMP32 search_calls;
