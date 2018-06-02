@@ -445,7 +445,8 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
                     goto SELECT;
                 } else  {
                     /*Backup now if MCTS*/
-                    Node::Backup(n,score,0);
+                    score = -n->child->score;
+                    Node::Backup(n,score,visits);
                     goto FINISH;
                 }
             }
