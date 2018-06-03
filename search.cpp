@@ -1510,7 +1510,9 @@ MOVE SEARCHER::find_best() {
     print_log("%s\n",fen);
 
     /*generate and score moves*/
+    skip_nn = true;
     generate_and_score_moves(0,-MATE_SCORE,MATE_SCORE);
+    skip_nn = false;
 
     /*no move*/
     if(pstack->count == 0) {

@@ -369,7 +369,7 @@ struct Node {
 
     /*accessors*/
     enum {
-        BUSY = 1, SCOUTF = 2, PVMOVE = 4, CREATE = 8
+        BUSY = 1, SCOUTF = 2, PVMOVE = 4, CREATE = 8, NNEVAL = 16
     };
     
     void set_busy() { l_or8(flag,BUSY); }
@@ -387,6 +387,10 @@ struct Node {
     bool try_create() { return !(l_or8(flag,CREATE) & CREATE); }
     void clear_create() { l_and8(flag,~CREATE); }
     bool is_create() { return (flag & CREATE); }
+
+    void set_nneval() { l_or8(flag,NNEVAL); }
+    void clear_nneval() { l_and8(flag,~NNEVAL); }
+    bool is_nneval() { return (flag & NNEVAL); }
 
     void set_bounds(short a,short b) {
         l_set16(alpha,a);
@@ -681,6 +685,7 @@ typedef struct SEARCHER{
     void  play_simulation(Node*,double&,int&);
     void  search_mc();
     void  print_status();
+    void  compute_children_nn_eval(Node*);
     /*counts*/
     UBMP64 nodes;
     UBMP64 qnodes;
@@ -694,6 +699,7 @@ typedef struct SEARCHER{
     UBMP32 egbb_probes;
     VOLATILE int stop_searcher;
     bool finish_search;
+    bool skip_nn;
     /*
     Parallel search
     */

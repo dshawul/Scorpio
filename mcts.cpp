@@ -12,6 +12,7 @@ static double frac_abrollouts = 0.2;
 static int  mcts_strategy_depth = 30;
 static int  alphabeta_depth = 1;
 static int  evaluate_depth = 0;
+static double  frac_width = 1.0;
 
 int montecarlo = 0;
 int rollout_type = ALPHABETA;
@@ -138,6 +139,26 @@ static inline double logit(double p) {
     return log((1 - p) / p) / Kfactor;
 }
 
+void  SEARCHER::compute_children_nn_eval(Node* n) {
+    const int width = frac_width * sqrt(n->visits);
+    Node* current = n->child;
+    int count = 0;
+    while(current) {
+        if(current->move) {
+            if(!current->is_nneval()) {
+                PUSH_MOVE(current->move);
+                current->score = eval();
+                POP_MOVE();
+                current->set_nneval();
+            }
+            count++;
+            if(count >= width)
+                break;
+        }
+        current = current->next;
+    }
+}
+
 Node* Node::Max_UCB_select(Node* n) {
     double logn = log(double(n->visits));
     double uct, bvalue = -1;
@@ -145,7 +166,9 @@ Node* Node::Max_UCB_select(Node* n) {
 
     current = n->child;
     while(current) {
-        if(current->move) {
+        if(current->move &&
+            (!SEARCHER::use_nn || current->is_nneval())
+            ) {
             uct = logistic(-current->score) +
                   dUCTK * sqrt(logn / current->visits);
 #ifdef PARALLEL
@@ -215,7 +238,9 @@ Node* Node::Best_select(Node* n) {
     Node* current = n->child, *bnode = n->child;
 
     while(current) {
-        if(current->move) {
+        if(current->move &&
+            (!SEARCHER::use_nn || current->is_nneval())
+            ) {
             if(rollout_type == MCTS ||
                 (rollout_type == ALPHABETA && 
                 /* must be finished or ranked first */
@@ -238,7 +263,9 @@ Node* Node::Best_select(Node* n) {
 float Node::Min_score(Node* n) {
     Node* current = n->child, *bnode = n->child;
     while(current) {
-        if(current->move) {
+        if(current->move &&
+            (!SEARCHER::use_nn || current->is_nneval())
+            ) {
             if(current->score < bnode->score)
                 bnode = current;
         }
@@ -253,7 +280,9 @@ float Node::Avg_score(Node* n) {
     
     Node* current = n->child;
     while(current) {
-        if(current->move) {
+        if(current->move &&
+            (!SEARCHER::use_nn || current->is_nneval())
+            ) {
             tvalue += logistic(current->score) * current->visits;
             tvisits += current->visits;
         }
@@ -320,6 +349,9 @@ void SEARCHER::create_children(Node* n) {
     if(ply > (int)Node::max_tree_depth)
         Node::max_tree_depth = ply;
 
+    if(rollout_type == MCTS) 
+        skip_nn = true;
+
     /*generate and score moves*/
     if(ply)
         generate_and_score_moves(evaluate_depth,-MATE_SCORE,MATE_SCORE);
@@ -338,6 +370,8 @@ void SEARCHER::create_children(Node* n) {
         add_null_child(n);
     }
 
+    if(rollout_type == MCTS) 
+        skip_nn = false;
 }
 void SEARCHER::add_children(Node* n) {
     Node* last = n;
@@ -375,6 +409,10 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
 
     nodes++;
     visits = 1;
+
+    /*nn evaluation*/
+    if(SEARCHER::use_nn && rollout_type == MCTS)
+        compute_children_nn_eval(n);
 
     /*set busy flag*/
     n->set_busy();
@@ -841,6 +879,8 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         frac_freeze_tree = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "frac_abrollouts")) {
         frac_abrollouts = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "frac_width")) {
+        frac_width = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "mcts_strategy_depth")) {
         mcts_strategy_depth = atoi(commands[command_num++]);
     } else if(!strcmp(command, "alphabeta_depth")) {
@@ -868,6 +908,7 @@ void print_mcts_params() {
     print("feature option=\"frac_alphabeta -spin %d 0 100\"\n",int(frac_alphabeta*100));
     print("feature option=\"frac_freeze_tree -spin %d 0 100\"\n",int(frac_freeze_tree*100));
     print("feature option=\"frac_abrollouts -spin %d 0 100\"\n",int(frac_abrollouts*100));
+    print("feature option=\"frac_width -spin %d 0 1000\"\n",int(frac_width*100));
     print("feature option=\"mcts_strategy_depth -spin %d 0 100\"\n",mcts_strategy_depth);
     print("feature option=\"alphabeta_depth -spin %d 0 100\"\n",alphabeta_depth);
     print("feature option=\"evaluate_depth -spin %d 0 100\"\n",evaluate_depth);

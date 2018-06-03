@@ -64,7 +64,7 @@ int SEARCHER::eval() {
 
     /* neural network evaluation */
 #ifdef EGBB
-    if(use_nn) {
+    if(use_nn && !skip_nn) {
         pstack->actual_score = probe_neural();
         record_eval_hash(hash_key,pstack->actual_score);
         return pstack->actual_score;
@@ -718,7 +718,8 @@ int SEARCHER::eval() {
 
     /*save it in eval cache*/
 #ifndef TUNE
-    record_eval_hash(hash_key,pstack->actual_score);
+    if(use_nn && !skip_nn)
+        record_eval_hash(hash_key,pstack->actual_score);
 #endif
     
     return pstack->actual_score;

@@ -782,6 +782,7 @@ SEARCHER::SEARCHER() : board(&temp_board[36])
     }
     stop_searcher = 0;
     finish_search = false;
+    skip_nn = false;
 #if defined(PARALLEL) || defined(CLUSTER)
     master = 0;
 #endif

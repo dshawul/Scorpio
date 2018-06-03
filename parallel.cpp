@@ -952,6 +952,7 @@ void SEARCHER::clear_block() {
     stop_ply = ply;
     stop_searcher = 0;
     finish_search = false;
+    skip_nn = false;
     used = true;
     pstack->pv_length = ply;
     pstack->best_move = 0;
