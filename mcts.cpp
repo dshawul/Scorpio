@@ -134,26 +134,37 @@ static inline double logistic(double score) {
 }
 
 static inline double logit(double p) {
-    if(p < 1e-45) p = 1e-45;
-    else if(p > 1 - 1e-45) p = 1 - 1e-45;
+    if(p < 1e-15) p = 1e-15;
+    else if(p > 1 - 1e-15) p = 1 - 1e-15;
     return log((1 - p) / p) / Kfactor;
 }
 
 void  SEARCHER::compute_children_nn_eval(Node* n) {
     const int width = frac_width * sqrt(n->visits);
     Node* current = n->child;
-    int count = 0;
+    int count = 0, pscore;
+    bool con = SEARCHER::use_nn && (rollout_type == MCTS);
+
     while(current) {
         if(current->move) {
-            if(!current->is_nneval()) {
-                PUSH_MOVE(current->move);
-                current->score = eval();
-                POP_MOVE();
-                current->set_nneval();
+            
+            if(!current->is_consider()) {
+                if(con) { 
+                    PUSH_MOVE(current->move);
+                    skip_nn = true;
+                    pscore = eval();
+                    skip_nn = false;
+                    current->score = eval() + (current->score - pscore);
+                    POP_MOVE();
+                }
+                current->set_consider();
             }
-            count++;
-            if(count >= width)
-                break;
+
+            if(rollout_type == MCTS) { 
+                count++;
+                if(count >= width)
+                    break;
+            }
         }
         current = current->next;
     }
@@ -167,7 +178,7 @@ Node* Node::Max_UCB_select(Node* n) {
     current = n->child;
     while(current) {
         if(current->move &&
-            (!SEARCHER::use_nn || current->is_nneval())
+            current->is_consider()
             ) {
             uct = logistic(-current->score) +
                   dUCTK * sqrt(logn / current->visits);
@@ -239,7 +250,7 @@ Node* Node::Best_select(Node* n) {
 
     while(current) {
         if(current->move &&
-            (!SEARCHER::use_nn || current->is_nneval())
+            current->is_consider()
             ) {
             if(rollout_type == MCTS ||
                 (rollout_type == ALPHABETA && 
@@ -264,7 +275,7 @@ float Node::Min_score(Node* n) {
     Node* current = n->child, *bnode = n->child;
     while(current) {
         if(current->move &&
-            (!SEARCHER::use_nn || current->is_nneval())
+            current->is_consider()
             ) {
             if(current->score < bnode->score)
                 bnode = current;
@@ -281,7 +292,7 @@ float Node::Avg_score(Node* n) {
     Node* current = n->child;
     while(current) {
         if(current->move &&
-            (!SEARCHER::use_nn || current->is_nneval())
+            current->is_consider()
             ) {
             tvalue += logistic(current->score) * current->visits;
             tvisits += current->visits;
@@ -411,8 +422,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
     visits = 1;
 
     /*nn evaluation*/
-    if(SEARCHER::use_nn && rollout_type == MCTS)
-        compute_children_nn_eval(n);
+    compute_children_nn_eval(n);
 
     /*set busy flag*/
     n->set_busy();
@@ -483,6 +493,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
                     goto SELECT;
                 } else  {
                     /*Backup now if MCTS*/
+                    compute_children_nn_eval(n);
                     score = -n->child->score;
                     Node::Backup(n,score,visits);
                     goto FINISH;
@@ -750,6 +761,7 @@ void SEARCHER::search_mc() {
                         if(rollout_type == MCTS) {
                             extract_pv(root);
                             print_pv(root->score);
+                            search_depth++;
                         }
                     }
                     /*stop growing tree after some time*/

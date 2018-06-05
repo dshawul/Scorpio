@@ -369,7 +369,7 @@ struct Node {
 
     /*accessors*/
     enum {
-        BUSY = 1, SCOUTF = 2, PVMOVE = 4, CREATE = 8, NNEVAL = 16
+        BUSY = 1, SCOUTF = 2, PVMOVE = 4, CREATE = 8, CONSIDER = 16
     };
     
     void set_busy() { l_or8(flag,BUSY); }
@@ -388,9 +388,9 @@ struct Node {
     void clear_create() { l_and8(flag,~CREATE); }
     bool is_create() { return (flag & CREATE); }
 
-    void set_nneval() { l_or8(flag,NNEVAL); }
-    void clear_nneval() { l_and8(flag,~NNEVAL); }
-    bool is_nneval() { return (flag & NNEVAL); }
+    void set_consider() { l_or8(flag,CONSIDER); }
+    void clear_consider() { l_and8(flag,~CONSIDER); }
+    bool is_consider() { return (flag & CONSIDER); }
 
     void set_bounds(short a,short b) {
         l_set16(alpha,a);
