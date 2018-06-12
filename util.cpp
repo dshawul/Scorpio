@@ -296,42 +296,32 @@ void SEARCHER::extract_pv(Node* n) {
 }
 Node* Node::print_tree(Node* root,int output,int max_depth,int depth) {
     char str[16];
-    int considered = 0,total = 0;
+    int total = 0;
     Node* bnode = Node::Best_select(root);
     Node* current = root->child;
 
     while(current) {
         if(current->visits && (depth == 0 || bnode == current) ) {
-            considered++;
-            if(depth <= max_depth && bnode == current) {
-                print_tree(current,output,max_depth,depth+1);
-            }
             if(output) {
                 mov_str(current->move,str);
-                for(int i = 0;i < depth;i++)
-                    print_log("\t");
-                print_log("%d %2d.%7s  | %6d  %6d | %6d  %6d | %6d \n",
-                    depth+1,
-                    total+1,
-                    str,
-                    -current->alpha,
-                    -current->beta,
-                    current->rank,
-                    int(-current->score),
-                    current->visits
-                    );
+                if(depth == 0)
+                    print("\n%2d %6d %7d %s",
+                        total+1,
+                        int(-current->score),
+                        current->visits,
+                        str
+                        );
+                else
+                    print(" %s",str);
             }
+            print_tree(current,output,max_depth,depth+1);
+            total++;
         }
-        total++;
 
         current = current->next;
     }
-
-    if(depth == 0 && output) {
-            mov_str(bnode->move,str);
-            print_log("Bestmove : %s from %d out of %d moves [%.2f%%]\n",
-                str, considered,total,considered * 100.0f / total);
-    }
+    if(depth == 0 && output)
+        print("\n\n");
 
     return bnode;
 }
