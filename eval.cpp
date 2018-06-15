@@ -692,9 +692,6 @@ int SEARCHER::eval() {
         w_score.add((PASSER_WEIGHT_MG * temp) / 16,(PASSER_WEIGHT_EG * temp) / 16); 
     }
 
-    /*side to move*/
-    pstack->actual_score += (TEMPO_BONUS + (phase * TEMPO_SLOPE) / MAX_MATERIAL);
-
     /*
     adjust score and save in tt
     */
@@ -715,6 +712,9 @@ int SEARCHER::eval() {
             pstack->actual_score = (pstack->actual_score * w_win_chance) / 8;
         }
     }
+
+    /*side to move*/
+    pstack->actual_score += (TEMPO_BONUS + (phase * TEMPO_SLOPE) / MAX_MATERIAL);
 
     /*save it in eval cache*/
 #ifndef TUNE
