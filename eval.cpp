@@ -51,7 +51,7 @@ static evaluator
 /*max material count is 64 {actually 62}*/
 #define   MAX_MATERIAL    64
 
-int SEARCHER::eval() {
+int SEARCHER::eval(bool skip_nn_l) {
 
 #ifndef TUNE
     
@@ -64,7 +64,7 @@ int SEARCHER::eval() {
 
     /* neural network evaluation */
 #ifdef EGBB
-    if(use_nn && !skip_nn) {
+    if(use_nn && !skip_nn && !skip_nn_l) {
         pstack->actual_score = probe_neural();
         record_eval_hash(hash_key,pstack->actual_score);
         return pstack->actual_score;
@@ -718,7 +718,7 @@ int SEARCHER::eval() {
 
     /*save it in eval cache*/
 #ifndef TUNE
-    if(use_nn && !skip_nn)
+    if(use_nn && !skip_nn && !skip_nn_l)
         record_eval_hash(hash_key,pstack->actual_score);
 #endif
     

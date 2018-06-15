@@ -142,25 +142,21 @@ static inline double logit(double p) {
 void  SEARCHER::compute_children_nn_eval(Node* n) {
     const int width = frac_width * sqrt(n->visits);
     Node* current = n->child;
-    int count = 0, pscore;
-    bool con = SEARCHER::use_nn && (rollout_type == MCTS);
+    int count = 0;
 
     while(current) {
         if(current->move) {
             
             if(!current->is_consider()) {
-                if(con) { 
+                if(use_nn && (rollout_type == MCTS)) { 
                     PUSH_MOVE(current->move);
-                    skip_nn = true;
-                    pscore = eval();
-                    skip_nn = false;
-                    current->score = eval() + (current->score - pscore);
+                    current->score = eval() + (current->score - eval(true));
                     POP_MOVE();
                 }
                 current->set_consider();
             }
 
-            if(rollout_type == MCTS) { 
+            if(rollout_type == MCTS) {
                 count++;
                 if(count >= width)
                     break;
@@ -360,8 +356,7 @@ void SEARCHER::create_children(Node* n) {
     if(ply > (int)Node::max_tree_depth)
         Node::max_tree_depth = ply;
 
-    if(rollout_type == MCTS) 
-        skip_nn = true;
+    skip_nn = true;
 
     /*generate and score moves*/
     if(ply)
@@ -381,8 +376,7 @@ void SEARCHER::create_children(Node* n) {
         add_null_child(n);
     }
 
-    if(rollout_type == MCTS) 
-        skip_nn = false;
+    skip_nn = false;
 }
 void SEARCHER::add_children(Node* n) {
     Node* last = n;
@@ -487,8 +481,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
                 else 
                     score = ((scorpio == player) ? -contempt : contempt);
             } else {
-                if(rollout_type == ALPHABETA
-                    && pstack->depth > UNITDEPTH) {
+                if(rollout_type == ALPHABETA) {
                     /*Expand more in case of AB*/
                     goto SELECT;
                 } else  {
@@ -922,7 +915,7 @@ void print_mcts_params() {
     print("feature option=\"frac_abrollouts -spin %d 0 100\"\n",int(frac_abrollouts*100));
     print("feature option=\"frac_width -spin %d 0 1000\"\n",int(frac_width*100));
     print("feature option=\"mcts_strategy_depth -spin %d 0 100\"\n",mcts_strategy_depth);
-    print("feature option=\"alphabeta_depth -spin %d 0 100\"\n",alphabeta_depth);
+    print("feature option=\"alphabeta_depth -spin %d 1 100\"\n",alphabeta_depth);
     print("feature option=\"evaluate_depth -spin %d 0 100\"\n",evaluate_depth);
     print("feature option=\"montecarlo -check %d\"\n",montecarlo);
     print("feature option=\"treeht -spin %d 0 131072\"\n",

@@ -104,7 +104,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
             pstack->qcheck_depth = 2 * CHECK_DEPTH; 
         else 
             pstack->qcheck_depth = CHECK_DEPTH;
-        qsearch();
+        qsearch_nn();
         return true;
     }
 
@@ -116,7 +116,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
         && !pstack->extension
         && pstack->node_type != PV_NODE
         ) {
-            int score = eval();
+            int score = eval(true);
             int rmargin = razor_margin[DEPTH(pstack->depth)];
             int fhmargin = failhigh_margin[DEPTH(pstack->depth)];
 
@@ -130,7 +130,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
                     int pbeta = pstack->beta;
                     pstack->alpha -= rmargin;
                     pstack->beta = pstack->alpha + 1;
-                    qsearch();
+                    qsearch_nn();
                     pstack->alpha = palpha;
                     pstack->beta = pbeta;
                 }
@@ -314,6 +314,11 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
     pstack->extension = 0;
     pstack->reduction = 0;
 
+    /*widening*/
+    if(use_nn && nmoves >= int(ceil(pow(1.1f,depth)))) {
+        return true;
+    }
+
     /*root*/
     if(ply == 1) {
         if(nmoves >= lmr_root_count[0]
@@ -343,6 +348,7 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
         noncap_reduce = (!is_cap_prom(move));
         loscap_reduce = (is_cap_prom(move) && see(move) < 0);
     }
+
     /*
     extend
     */
@@ -395,7 +401,7 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
             //futility
             int margin = futility_margin[depth];
             margin = MAX(margin / 4, margin - 10 * nmoves);
-            score = -eval();
+            score = -eval(true);
             if(score + margin < (pstack - 1)->alpha) {
                 if(score > (pstack - 1)->best_score) {
                     (pstack - 1)->best_score = score;
@@ -426,8 +432,8 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
             reduce(UNITDEPTH);
         }
         //see reduction
-        if(depth > 7 && see(move) < 0) {
-            if(pstack->depth > UNITDEPTH) { reduce(UNITDEPTH); }
+        if(depth > 7 && pstack->depth > UNITDEPTH && see(move) < 0) {
+            reduce(UNITDEPTH);
         }
         //reduce extended moves less
         if(pstack->extension) {
@@ -579,7 +585,7 @@ START:
                     && sb->pstack->depth >= 4 * UNITDEPTH
                     && sb->pstack->node_type != PV_NODE
                     && sb->piece_c[sb->player]
-                    && (score = (sb->eval() - sb->pstack->beta)) >= 0
+                    && (score = (sb->eval(true) - sb->pstack->beta)) >= 0
                     ) {
                         sb->PUSH_NULL();
                         sb->pstack->extension = 0;
@@ -1087,6 +1093,21 @@ POP_Q:
     }
 }
 
+void SEARCHER::qsearch_nn() {
+    if(use_nn && !skip_nn) {
+        int sc1, sc2;
+
+        skip_nn = true;
+        qsearch();
+        sc1 = eval();
+        skip_nn = false;
+        sc2 = eval();
+
+        pstack->best_score = sc2 + (pstack->best_score - sc1);
+    } else {
+        qsearch();
+    }
+}
 /*
 searcher's search function
 */

@@ -641,6 +641,7 @@ typedef struct SEARCHER{
     int   on_qnode_entry();
     void  search();
     void  qsearch();
+    void  qsearch_nn();
     bool  hash_cutoff();
     UBMP64   perft(int);
     MOVE  get_book_move();
@@ -648,7 +649,7 @@ typedef struct SEARCHER{
     void  print_pv(int);
     int   print_result(bool);
     void  check_quit();
-    int   eval();
+    int   eval(bool = false);
     void  eval_pawn_cover(int,int,UBMP8*,UBMP8*);
     SCORE eval_pawns(int,int,UBMP8*,UBMP8*);
     int   eval_passed_pawns(UBMP8*,UBMP8*,UBMP8&,const BITBOARD&,const BITBOARD&);
