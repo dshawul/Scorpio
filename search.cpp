@@ -565,7 +565,7 @@ START:
                         sb->pstack->o_depth = sb->pstack->depth;
                         sb->pstack->alpha = sb->pstack->hash_score - singular_margin;
                         sb->pstack->beta = sb->pstack->alpha + 1;
-                        sb->pstack->depth = sb->pstack->hash_depth - 6 * UNITDEPTH;
+                        sb->pstack->depth = sb->pstack->hash_depth - 4 * UNITDEPTH;
                         sb->pstack->search_state |= NORMAL_MOVE; 
                 } else {
                     sb->pstack->search_state = NORMAL_MOVE;
