@@ -143,12 +143,13 @@ void  SEARCHER::compute_children_nn_eval(Node* n) {
     const int width = frac_width * sqrt(n->visits);
     Node* current = n->child;
     int count = 0;
+    bool prune = use_nn && (rollout_type == MCTS);
 
     while(current) {
         if(current->move) {
             
             if(!current->is_consider()) {
-                if(use_nn && (rollout_type == MCTS)) { 
+                if(prune) { 
                     PUSH_MOVE(current->move);
                     current->score = eval() + (current->score - eval(true));
                     POP_MOVE();
@@ -156,7 +157,7 @@ void  SEARCHER::compute_children_nn_eval(Node* n) {
                 current->set_consider();
             }
 
-            if(rollout_type == MCTS) {
+            if(prune) {
                 count++;
                 if(count >= width)
                     break;
@@ -304,9 +305,11 @@ float Node::Avg_score_mem(Node* n, double score, int visits) {
     sc += (sc1 - sc) * visits / (n->visits + visits);
     return logit(sc);   
 }
-void Node::Backup(Node* n,double& score,int visits) {
+void Node::Backup(Node* n,double& score,int visits, int all_man_c) {
     /*Compute parent's score from children*/
-    if(backup_type == AVERAGE)
+    if(all_man_c <= 10)
+        score = -Min_score(n);
+    else if(backup_type == AVERAGE)
         score = -Avg_score(n);
     else {
         if(backup_type == MINMAX || backup_type == MINMAX_MEM)
@@ -488,7 +491,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
                     /*Backup now if MCTS*/
                     compute_children_nn_eval(n);
                     score = -n->child->score;
-                    Node::Backup(n,score,visits);
+                    Node::Backup(n,score,visits,all_man_c);
                     goto FINISH;
                 }
             }
@@ -640,7 +643,7 @@ RESEARCH:
         }
 BACKUP:
         /*Backup score and bounds*/
-        Node::Backup(n,score,visits);
+        Node::Backup(n,score,visits,all_man_c);
 
         if(rollout_type == ALPHABETA) {
 

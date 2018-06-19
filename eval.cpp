@@ -56,8 +56,10 @@ int SEARCHER::eval(bool skip_nn_l) {
 #ifndef TUNE
     
     /* check_eval hash table */
-    if(probe_eval_hash(hash_key,pstack->actual_score))
-        return pstack->actual_score;
+    if(!use_nn || (use_nn && !skip_nn && !skip_nn_l)) {
+        if(probe_eval_hash(hash_key,pstack->actual_score))
+            return pstack->actual_score;
+    }
 
     /*number of evaluation calls*/
     ecalls++;
@@ -715,10 +717,10 @@ int SEARCHER::eval(bool skip_nn_l) {
 
     /*side to move*/
     pstack->actual_score += (TEMPO_BONUS + (phase * TEMPO_SLOPE) / MAX_MATERIAL);
-
+    
     /*save it in eval cache*/
 #ifndef TUNE
-    if(use_nn && !skip_nn && !skip_nn_l)
+    if(!use_nn || (use_nn && !skip_nn && !skip_nn_l))
         record_eval_hash(hash_key,pstack->actual_score);
 #endif
     

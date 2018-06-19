@@ -1317,8 +1317,11 @@ MOVE SEARCHER::iterative_deepening() {
             search_depth++;
 #endif
         /*egbb ply limit*/
-        SEARCHER::egbb_ply_limit = 
-            SEARCHER::egbb_ply_limit_percent * search_depth / 100;
+        if(!montecarlo)
+            SEARCHER::egbb_ply_limit = 
+                SEARCHER::egbb_ply_limit_percent * search_depth / 100;
+        else
+            SEARCHER::egbb_ply_limit = 8;
 
         /*Set bounds and search.*/
         pstack->depth = search_depth * UNITDEPTH;
