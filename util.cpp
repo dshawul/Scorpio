@@ -305,7 +305,7 @@ Node* Node::print_tree(Node* root,int output,int max_depth,int depth) {
             if(output) {
                 mov_str(current->move,str);
                 if(depth == 0)
-                    print("\n%2d %6d %7d %s",
+                    print("\n# %2d %6d %7d %s",
                         total+1,
                         int(-current->score),
                         current->visits,

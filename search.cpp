@@ -270,7 +270,7 @@ FORCEINLINE int SEARCHER::on_qnode_entry() {
         return true;
 
     /*stand pat*/
-    if((hply >=1 && !hstack[hply - 1].checks) || !ply) {
+    if((hply >= 1 && !hstack[hply - 1].checks) || !ply) {
         score = eval();
         pstack->best_score = score;
         if(score > pstack->alpha) {
@@ -359,14 +359,6 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
     if(is_pawn_push(move)) { 
         extend(0);
     }
-    if (depth <= 4 && hply >= 2
-        && m_capture(move)
-        && m_capture(hstack[hply - 2].move)
-        && m_to(move) == m_to(hstack[hply - 2].move)
-        && piece_cv[m_capture(move)] == piece_cv[m_capture(hstack[hply - 2].move)]
-    ) {
-        extend(UNITDEPTH);
-    }
     if(m_capture(move)
         && piece_c[white] + piece_c[black] == 0
         && PIECE(m_capture(move)) != pawn
@@ -395,7 +387,7 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
                 return true;
 
             //see
-            if(see(move) < 0)
+            if(see(move) <= -100 * depth)
                 return true;
 
             //futility
@@ -422,18 +414,23 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
         }
         //lets find more excuses to reduce
         //all and cut nodes
-        if( (node_t == ALL_NODE && nmoves >= lmr_all_count) ||
-            (node_t == CUT_NODE && nmoves >= lmr_cut_count) ) { 
-            if(pstack->depth > UNITDEPTH) { reduce(UNITDEPTH); }
+        if( ( (node_t == ALL_NODE && nmoves >= lmr_all_count) ||
+              (node_t == CUT_NODE && nmoves >= lmr_cut_count) )
+            && pstack->depth > UNITDEPTH
+            ) { 
+            reduce(UNITDEPTH);
+            if(nmoves >= 8 && pstack->depth > UNITDEPTH) { reduce(UNITDEPTH); }
         }
         //pv is capture move
         if((pstack-1)->hash_move == (pstack-1)->best_move &&
             is_cap_prom((pstack-1)->hash_move) && pstack->depth > UNITDEPTH) {
             reduce(UNITDEPTH);
+            if(nmoves >= 8 && pstack->depth > UNITDEPTH) { reduce(UNITDEPTH); }
         }
         //see reduction
         if(depth > 7 && pstack->depth > UNITDEPTH && see(move) < 0) {
             reduce(UNITDEPTH);
+            if(nmoves >= 8 && pstack->depth > UNITDEPTH) { reduce(UNITDEPTH); }
         }
         //reduce extended moves less
         if(pstack->extension) {
@@ -565,7 +562,7 @@ START:
                         sb->pstack->o_depth = sb->pstack->depth;
                         sb->pstack->alpha = sb->pstack->hash_score - singular_margin;
                         sb->pstack->beta = sb->pstack->alpha + 1;
-                        sb->pstack->depth = sb->pstack->hash_depth - 4 * UNITDEPTH;
+                        sb->pstack->depth = sb->pstack->hash_depth - 6 * UNITDEPTH;
                         sb->pstack->search_state |= NORMAL_MOVE; 
                 } else {
                     sb->pstack->search_state = NORMAL_MOVE;
