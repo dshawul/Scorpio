@@ -281,6 +281,11 @@ int SEARCHER::eval(bool skip_nn_l) {
                 }
                 w_score.add(KNIGHT_OUTPOST_MG * opost / 16, KNIGHT_OUTPOST_EG * opost / 16);
         }
+        /*pawn relation*/
+        if(r >= RANK2 && r <= RANK4) {
+            if(board[c_sq + UU] == wpawn)
+                w_score.add(MINOR_BEHIND_PAWN);
+        }
         /*end*/
 
         current = current->next;
@@ -326,6 +331,11 @@ int SEARCHER::eval(bool skip_nn_l) {
                         opost += temp;
                 }
                 b_score.add(KNIGHT_OUTPOST_MG * opost / 16, KNIGHT_OUTPOST_EG * opost / 16);
+        }
+        /*pawn relation*/
+        if(r >= RANK5 && r <= RANK7) {
+            if(board[c_sq + DD] == bpawn)
+                b_score.add(MINOR_BEHIND_PAWN);
         }
         /*end*/
 
@@ -376,7 +386,11 @@ int SEARCHER::eval(bool skip_nn_l) {
                 }
                 w_score.add(BISHOP_OUTPOST_MG * opost / 16, BISHOP_OUTPOST_EG * opost / 16);
         }
-
+        /*pawn relation*/
+        if(r >= RANK2 && r <= RANK4) {
+            if(board[c_sq + UU] == wpawn)
+                w_score.add(MINOR_BEHIND_PAWN);
+        }
         /*bad bishop*/
         if(is_light(c_sq))
             temp = popcnt_sparse(lsquares & pawns_bb[white]);
@@ -429,6 +443,11 @@ int SEARCHER::eval(bool skip_nn_l) {
                         opost += temp;
                 }
                 b_score.add(BISHOP_OUTPOST_MG * opost / 16, BISHOP_OUTPOST_EG * opost / 16);
+        }
+        /*pawn relation*/
+        if(r >= RANK5 && r <= RANK7) {
+            if(board[c_sq + DD] == bpawn)
+                b_score.add(MINOR_BEHIND_PAWN);
         }
         /*bad bishop*/
         if(is_light(c_sq))
@@ -1904,6 +1923,7 @@ void init_parameters(int group) {
     ADD(QUEEN_MOB_EG,0,0,-128,256,actm);
     ADD(BAD_BISHOP_MG,0,0,-128,256,actm);
     ADD(BAD_BISHOP_EG,0,0,-128,256,actm);
+    ADD(MINOR_BEHIND_PAWN,0,0,-128,256,actm);
     ADD(PASSER_BLOCKED,0,0,-128,256,actm);
     ADD(PASSER_KING_SUPPORT,0,0,-128,256,actm);
     ADD(PASSER_KING_ATTACK,0,0,-128,256,actm);
