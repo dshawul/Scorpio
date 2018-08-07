@@ -16,18 +16,7 @@ For others, they are set in Makefile
 /*
 int types
 */
-#ifdef _MSC_VER
-typedef __int8 int8_t;
-typedef unsigned __int8 uint8_t;
-typedef __int16 int16_t;
-typedef unsigned __int16 uint16_t;
-typedef __int32 int32_t;
-typedef unsigned __int32 uint32_t;
-typedef __int64 int64_t;
-typedef unsigned __int64 uint64_t;
-#else
-#    include <inttypes.h>
-#endif
+#    include <stdint.h>
 
 typedef int8_t BMP8;
 typedef uint8_t UBMP8;
@@ -72,13 +61,13 @@ Os stuff
 Force inline
 */
 #if !defined(FORCEINLINE)
-#if defined (_MSC_VER)
-#  define FORCEINLINE  __forceinline
-#elif defined (__GNUC__)
-#  define FORCEINLINE  __inline __attribute__((always_inline))
-#else
-#  define FORCEINLINE  __inline
-#endif
+#   if defined (__GNUC__)
+#       define FORCEINLINE  __inline __attribute__((always_inline))
+#   elif defined (_WIN32)
+#       define FORCEINLINE  __forceinline
+#   else
+#       define FORCEINLINE  __inline
+#   endif
 #endif
 
 /*
@@ -86,18 +75,10 @@ Intrinsic popcnt
 */
 #if defined(HAS_POPCNT) && defined(ARC_64BIT)
 #   if defined(__GNUC__)
-#       define popcnt(x)                                \
-    ({                                                  \
-    typeof(x) __ret;                                    \
-    __asm__("popcnt %1, %0" : "=r" (__ret) : "r" (x));  \
-    __ret;                                              \
-})
-#   elif defined(__INTEL_COMPILER)
+#       define popcnt(x) __builtin_popcountll(x)
+#   elif defined(_WIN32)
 #       include <nmmintrin.h>
 #       define popcnt(b) _mm_popcnt_u64(b)
-#   elif defined(_MSC_VER)
-#       include <intrin.h>
-#       define popcnt(b) __popcnt64(b)
 #   endif
 #   define popcnt_sparse(b) popcnt(b)
 #endif 
@@ -109,7 +90,7 @@ Intrinsic bsf
 #   if defined(__GNUC__)
 #       define bsf(b) __builtin_ctzll(b)
 #       define bsr(b) (63 - __builtin_clzll(b))
-#   elif defined(_MSC_VER)
+#   elif defined(_WIN32)
 #       include <intrin.h>
         FORCEINLINE int bsf(UBMP64 b) {
             unsigned long x;
@@ -127,12 +108,12 @@ Intrinsic bsf
 /*
 Byte swap
 */
-#if defined(__GNUC__)
-#   define bswap32(x)  __builtin_bswap32(x)
-#elif defined(__INTEL_COMPILER)
+#if defined(__INTEL_COMPILER)
 #   define bswap32(x)  _bswap(x)
 #elif defined(_MSC_VER)
 #   define bswap32(x)  _byteswap_ulong(x)
+#elif defined(__GNUC__)
+#   define bswap32(x)  __builtin_bswap32(x)
 #endif
 
 /*
@@ -207,8 +188,8 @@ Prefetch
 #if defined PARALLEL
 #    define VOLATILE volatile
 #    if defined _MSC_VER
-#       define l_set(x,v) InterlockedExchange(&(x),v)
-#       define l_add(x,v) InterlockedExchangeAdd(&(x),v)
+#       define l_set(x,v) InterlockedExchange((unsigned*)&(x),v)
+#       define l_add(x,v) InterlockedExchangeAdd((unsigned*)&(x),v)
 #       define l_set16(x,v) InterlockedExchange16((short*)&(x),v)
 #       define l_add16(x,v) InterlockedExchangeAdd16((short*)&(x),v)
 #       define l_set8(x,v) InterlockedExchange8((char*)&(x),v)

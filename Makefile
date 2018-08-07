@@ -83,25 +83,22 @@ STRIP += $(EXE)
 ###########################
 #  Compiler flags
 ###########################
-ifeq ($(COMP),pgcc)
-        CXXFLAGS = warn
-        LXXFLAGS = -lm -ldl -lpthread
-else
-        CXXFLAGS = -Wall -fstrict-aliasing -fno-exceptions -fno-rtti -Wno-unused-result
-        LXXFLAGS = -lm
-        ifneq ($(COMP),win)
-        	LXXFLAGS += -ldl
-        else
-        	LXXFLAGS += -static
-        endif
-endif
 
-ifeq ($(COMP),icpc)
-        CXXFLAGS += -wd128 -wd981 -wd869 -wd2259 -wd383 -wd1418
-        LXXFLAGS += -lpthread
+LXXFLAGS = -lpthread -lm
+
+ifeq ($(COMP),win)
+    LXXFLAGS += -static
+    CXXFLAGS = -Wall -fstrict-aliasing -fno-exceptions -fno-rtti -Wno-unused-result -msse
+else ifeq ($(COMP),pgcc)
+    CXXFLAGS = warn -Mvect=sse
+    LXXFLAGS += -ldl
+else ifeq ($(COMP),icpc)
+    CXXFLAGS  = -wd128 -wd981 -wd869 -wd2259 -wd383 -wd1418
+    CXXFLAGS += -fstrict-aliasing -fno-exceptions -fno-rtti -Wno-unused-result -msse
+    LXXFLAGS += -ldl
 else
-        CXXFLAGS += -msse
-        LXXFLAGS += -lpthread
+    CXXFLAGS = -Wall -fstrict-aliasing -fno-exceptions -fno-rtti -Wno-unused-result -msse
+    LXXFLAGS += -ldl
 endif
 
 ifeq ($(DEBUG),3)

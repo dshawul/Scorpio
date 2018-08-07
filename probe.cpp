@@ -59,7 +59,7 @@ Load the dll and get the address of the load and probe functions.
 
 #ifndef _WIN32
 #    define HMODULE void*
-#    define LoadLibrary(x) dlopen(x,RTLD_LAZY)
+#    define LoadLibraryA(x) dlopen(x,RTLD_LAZY)
 #    define FreeLibrary(x) dlclose(x)
 #    define GetProcAddress dlsym
 #endif
@@ -83,7 +83,7 @@ int LoadEgbbLibrary(char* main_path,int egbb_cache_size) {
     strcpy(path,main_path);
     strcat(path,EGBB_NAME);
     if(hmod) FreeLibrary(hmod);
-    if((hmod = LoadLibrary(path)) != 0) {
+    if((hmod = LoadLibraryA(path)) != 0) {
         load_egbb = (PLOAD_EGBB) GetProcAddress(hmod,"load_egbb_xmen");
         probe_egbb = (PPROBE_EGBB) GetProcAddress(hmod,"probe_egbb_xmen");
         load_nn = (PLOAD_NN) GetProcAddress(hmod,"load_neural_network");

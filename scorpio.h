@@ -18,8 +18,8 @@ Some definitions to include/remove code
 #   define BOOK_PROBE
 #   define BOOK_CREATE
 #   define EGBB
-#   define CLUSTER
-#   define THREAD_POLLING
+// #    define CLUSTER
+// #    define THREAD_POLLING
 // #    define TUNE
 #endif
 
