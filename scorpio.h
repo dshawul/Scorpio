@@ -847,7 +847,7 @@ FORCEINLINE void SEARCHER::POP_NULL() {
 sort move list
 */
 FORCEINLINE void STACK::sort(const int start,const int end) {
-    register int i,bi = start,bs = score_st[start];
+    int i,bi = start,bs = score_st[start];
     for (i = start + 1; i < end; i++) {
         if(score_st[i] > bs) {
             bi = i;
@@ -1146,7 +1146,7 @@ Used for king attack pattern.
 */
 #if !defined(HAS_POPCNT)
 FORCEINLINE int popcnt_sparse(BITBOARD b) {
-    register int count = 0;
+    int count = 0;
     while (b) {
         count++;
         b &= b - 1;

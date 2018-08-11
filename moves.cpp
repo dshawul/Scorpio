@@ -274,7 +274,7 @@ Generate captures
 }
 
 void SEARCHER::gen_caps(bool recap) {
-    register BITBOARD bb;
+    BITBOARD bb;
     BITBOARD occupancyw = (pieces_bb[white] | pawns_bb[white]);
     BITBOARD occupancyb = (pieces_bb[black] | pawns_bb[black]);
     BITBOARD occupancy = (occupancyw | occupancyb);
@@ -1379,9 +1379,9 @@ incremental move generator
 #define REFUTATION(move) (refutation[m_piece(move)][SQ8864(m_to(move))])
 
 MOVE SEARCHER::get_move() {
-    register MOVE move;
-    register int i,start;
-    register int* pscore;
+    MOVE move;
+    int i,start;
+    int* pscore;
 
     /*initialization*/
     if(pstack->gen_status == GEN_START) {
@@ -1661,7 +1661,7 @@ DO_AGAIN:
 * History and killers
 */
 void SEARCHER::update_history(MOVE move) {
-    register int i,j,temp,maxh,maxh1;
+    int i,j,temp,maxh,maxh1;
     temp = (pstack->depth);
     maxh = (HISTORY(move) += (temp * temp));
     for(int i = 0; i < pstack->current_index - 1;i++) {

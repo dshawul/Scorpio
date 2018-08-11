@@ -115,7 +115,7 @@ void PROCESSOR::handle_message(int source,int message_id) {
         message_available = 0;
 
         /*setup board by undoing old moves and making new ones*/
-        register int i,score,move,using_pvs;
+        int i,score,move,using_pvs;
         if(split.pv_length) {
             for(i = 0;i < split.pv_length && i < psb->ply;i++) {
                 if(split.pv[i] != psb->hstack[psb->hply - psb->ply + i].move) 
@@ -309,7 +309,7 @@ void PROCESSOR::handle_message(int source,int message_id) {
         psb->set_board((char*)init.fen);
 
         /*make moves*/
-        register int i;
+        int i;
         for(i = 0;i < init.pv_length;i++) {
             if(init.pv[i]) psb->do_move(init.pv[i]);    
             else psb->do_null();
@@ -397,7 +397,7 @@ void PROCESSOR::offer_help() {
         && n_idle_processors == n_processors 
         && !use_abdada_cluster
         ) {
-            register int i, count = 0,dest;
+            int i, count = 0,dest;
 
             l_lock(lock_smp);
             for(i = 0;i < n_processors;i++) {
@@ -757,7 +757,7 @@ void PROCESSOR::kill(int id) {
 * Copy board and other relevant data..
 */
 void SEARCHER::attach_processor(int new_proc_id) {
-    register int j = 0;
+    int j = 0;
     for(j = 0; (j < MAX_SEARCHERS_PER_CPU) && processors[new_proc_id]->searchers[j].used; j++);
     if(j < MAX_SEARCHERS_PER_CPU) {
         PSEARCHER psearcher = &processors[new_proc_id]->searchers[j];
@@ -831,7 +831,7 @@ void SEARCHER::update_master(int skip) {
 * We look for both idle hosts and idle threads to share the work.
 */
 int SEARCHER::check_split() {
-    register int i;
+    int i;
     if(((DEPTH(pstack->depth) > PROCESSOR::SMP_SPLIT_DEPTH && PROCESSOR::n_idle_processors > 0)
         CLUSTER_CODE( || 
         (DEPTH(pstack->depth) > PROCESSOR::CLUSTER_SPLIT_DEPTH && PROCESSOR::available_host_workers.size() > 0)))
@@ -979,7 +979,7 @@ void SEARCHER::clear_block() {
 * threads from the pool of processors.
 */
 void init_smp(int mt) {
-    register int i;
+    int i;
 
     if(PROCESSOR::n_processors < mt) {
         for(i = 1; i < MAX_CPUS;i++) {

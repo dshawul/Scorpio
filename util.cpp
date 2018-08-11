@@ -521,7 +521,7 @@ UBMP64 SEARCHER::perft(int depth) {
 }
 
 void SEARCHER::init_data() {
-    register int i,sq,pic;
+    int i,sq,pic;
 
     ply = 0;
     pstack = stack + ply;
@@ -709,7 +709,7 @@ void SEARCHER::new_board() {
 get mirror image of board
 */
 void SEARCHER::mirror() {
-    register int sq,sq1,temp;
+    int sq,sq1,temp;
     for (sq = 0;sq < 0x38; sq++) {
         if(!(sq & 0x88)) {
             sq1 = MIRRORR(sq);
@@ -1013,7 +1013,7 @@ int get_number_of_cpus() {
 }
 
 int tokenize(char *str, char** tokens, const char *str2) {
-    register int nu_tokens = 0;
+    int nu_tokens = 0;
     tokens[nu_tokens] = strtok(str, str2);
     while (tokens[nu_tokens++] != NULL) {
         tokens[nu_tokens] = strtok(NULL, str2);
@@ -1098,7 +1098,7 @@ void CHESS_CLOCK::set_stime(int hply) {
         search_time,maximum_time,hply,moves_left);
 }
 void SEARCHER::check_quit() {
-    register int time_used = get_time() - start_time;
+    int time_used = get_time() - start_time;
 
     /*
     poll nodes
@@ -1216,8 +1216,8 @@ void load_book() {
 }
 
 static int get_book_pos(HASHKEY hash_key,int color,BOOK_E& r_book_e) { 
-    register int lower, middle, upper;
-    register BOOK_E book_e;
+    int lower, middle, upper;
+    BOOK_E book_e;
 
     if(color == white) {
         lower = 0;
@@ -1242,10 +1242,10 @@ static int get_book_pos(HASHKEY hash_key,int color,BOOK_E& r_book_e) {
 } 
 
 MOVE SEARCHER::get_book_move() {
-    register int i,j,count,side = player;
-    register int played,total_played = 0,score,best_score;
-    register MOVE best_move;
-    register PBOOK_E pbook_e; 
+    int i,j,count,side = player;
+    int played,total_played = 0,score,best_score;
+    MOVE best_move;
+    PBOOK_E pbook_e; 
     BOOK_MOVE book_moves[MAX_MOVES],temp;
     char mv_str[10];
 

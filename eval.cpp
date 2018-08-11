@@ -82,7 +82,7 @@ int SEARCHER::eval(bool skip_nn_l) {
     /*
     evaluate
     */
-    register SCORE w_score,b_score;
+    SCORE w_score,b_score;
     int w_ksq = plist[wking]->sq;
     int b_ksq = plist[bking]->sq;
     int fw_ksq = file(w_ksq), rw_ksq = rank(w_ksq);
@@ -206,7 +206,7 @@ int SEARCHER::eval(bool skip_nn_l) {
     int b_attackers = 0;
     int f,r,sq,c_sq,mob,opost;
     PLIST current;
-    register BITBOARD bb;
+    BITBOARD bb;
     BITBOARD noccupancyw = ~(pieces_bb[white] | pawns_bb[white]);
     BITBOARD noccupancyb = ~(pieces_bb[black] | pawns_bb[black]);
     BITBOARD occupancy = (~noccupancyw | ~noccupancyb);
@@ -875,7 +875,7 @@ void SEARCHER::eval_pawn_cover(int eval_w_attack,int eval_b_attack,
         
         /*pawn storm on white king*/
         if(f_distance(w_ksq,b_ksq) > 2)  {
-            register int r1,r2,r3;
+            int r1,r2,r3;
             if(((r1 = first_bit[bf_pawns[f]]) == 8) || (r1 <= r - 1)) r1 = RANK8;
             if(((r2 = (f == FILEA ? 8 : first_bit[bf_pawns[f - 1]])) == 8) || (r2 <= r - 1)) r2 = RANK8;
             if(((r3 = (f == FILEH ? 8 : first_bit[bf_pawns[f + 1]])) == 8) || (r3 <= r - 1)) r3 = RANK8;
@@ -964,7 +964,7 @@ void SEARCHER::eval_pawn_cover(int eval_w_attack,int eval_b_attack,
         
         /*pawn storm on black king*/
         if(f_distance(w_ksq,b_ksq) > 2)  {
-            register int r1,r2,r3;
+            int r1,r2,r3;
             if(((r1 = last_bit[wf_pawns[f]]) == 8) || (r1 >= r + 1)) r1 = RANK1;
             if(((r2 = (f == FILEA ? 8 : last_bit[wf_pawns[f - 1]])) == 8) || (r2 >= r + 1)) r2 = RANK1;
             if(((r3 = (f == FILEH ? 8 : last_bit[wf_pawns[f + 1]])) == 8) || (r3 >= r + 1)) r3 = RANK1;
@@ -990,8 +990,8 @@ pawn evaluation
 
 SCORE SEARCHER::eval_pawns(int eval_w_attack,int eval_b_attack,
                          UBMP8* wf_pawns,UBMP8* bf_pawns) {
-    register SCORE score;
-    register PLIST pawnl;
+    SCORE score;
+    PLIST pawnl;
 
     pawnrec.w_evaled = 0;
     pawnrec.b_evaled = 0;
@@ -1010,7 +1010,7 @@ SCORE SEARCHER::eval_pawns(int eval_w_attack,int eval_b_attack,
         }
     } else {
 #endif
-        register int sq,tsq,f,r;
+        int sq,tsq,f,r;
         /*zero*/
         score.zero();
         pawnrec.w_passed = 0;
@@ -1203,8 +1203,8 @@ static BITBOARD southFill(BITBOARD b) {
 }
 int SEARCHER::eval_passed_pawns(UBMP8* wf_pawns,UBMP8* bf_pawns,UBMP8& all_pawn_f,
                 const BITBOARD& wattacks_bb, const BITBOARD& battacks_bb) {
-    register UBMP8 passed;
-    register int sq,f,r;
+    UBMP8 passed;
+    int sq,f,r;
     int w_score,b_score,passed_score,rank_score, temp;
     int qdist,w_best_qdist = RANK8,b_best_qdist = RANK8;
     int w_ksq = plist[wking]->sq;
@@ -1353,8 +1353,8 @@ int SEARCHER::eval_passed_pawns(UBMP8* wf_pawns,UBMP8* bf_pawns,UBMP8& all_pawn_
 material score
 */
 void SEARCHER::eval_win_chance(SCORE& w_score,SCORE& b_score,int& w_win_chance,int& b_win_chance) {
-    register int w_ksq = plist[wking]->sq;
-    register int b_ksq = plist[bking]->sq;
+    int w_ksq = plist[wking]->sq;
+    int b_ksq = plist[bking]->sq;
     int w_piece_value_c = piece_c[white];
     int b_piece_value_c = piece_c[black];
     int w_pawn_c = man_c[wpawn];

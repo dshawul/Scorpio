@@ -43,9 +43,9 @@ const BMP8* const _sqatt_step = t_sqatt_step + 0x80;
 
 /*is pinned on king*/ 
 int SEARCHER::pinned_on_king(int sq,int col) const {
-    register int sq1;
-    register int king_sq = plist[COMBINE(col,king)]->sq;
-    register int step = sqatt_step(sq - king_sq);
+    int sq1;
+    int king_sq = plist[COMBINE(col,king)]->sq;
+    int step = sqatt_step(sq - king_sq);
 
     if(step && !blocked(sq,king_sq)) {
         for(sq1 = sq + step;board[sq1] == blank;sq1 += step);
@@ -60,7 +60,7 @@ int SEARCHER::pinned_on_king(int sq,int col) const {
 
 /*is square attacked by color?*/
 int SEARCHER::attacks(int col,int sq) const {
-    register PLIST current;
+    PLIST current;
     
     if(col == white) {
         /*pawn*/
@@ -146,7 +146,7 @@ int SEARCHER::attacks(int col,int sq) const {
  NB: They don't work at hply = 0.
 */
 int SEARCHER::checks(MOVE move,int& rev_check) const {
-    register int from = m_from(move),to = m_to(move),sq,step,mvstep;
+    int from = m_from(move),to = m_to(move),sq,step,mvstep;
     int pic = board[from];
     int ksq = plist[COMBINE(opponent,king)]->sq;
     int special,check = 0;
@@ -244,8 +244,8 @@ int SEARCHER::checks(MOVE move,int& rev_check) const {
 }
 
 int SEARCHER::in_check(MOVE move) const {
-    register int from = m_from(move),to = m_to(move),sq,step,mvstep;
-    register int ksq = plist[COMBINE(player,king)]->sq;
+    int from = m_from(move),to = m_to(move),sq,step,mvstep;
+    int ksq = plist[COMBINE(player,king)]->sq;
 
     /*castling*/
     if(is_castle(move)) {
@@ -310,7 +310,7 @@ int SEARCHER::in_check(MOVE move) const {
 /*used to check legality of move during search*/
 int SEARCHER::is_legal_fast(MOVE move) const {
     
-    register int from = m_from(move), to = m_to(move),
+    int from = m_from(move), to = m_to(move),
                  pic = m_piece(move),
                  cap = m_capture(move),
                  prom = m_promote(move),

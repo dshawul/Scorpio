@@ -81,8 +81,8 @@ void SEARCHER::record_hash(
                  int flags,int score,MOVE move,int mate_threat,int singular
                  ) {
     TT_KEY;
-    register PHASH addr,pslot,pr_slot = 0;
-    register HASH slot;
+    PHASH addr,pslot,pr_slot = 0;
+    HASH slot;
     int sc,max_sc = MAX_NUMBER;
 
     addr = proc->hash_tab[col];
@@ -129,9 +129,9 @@ int SEARCHER::probe_hash(
                bool exclusiveP
                ) {
     TT_KEY;
-    register PHASH addr,pslot;
-    register HASH slot;
-    register int flags;
+    PHASH addr,pslot;
+    HASH slot;
+    int flags;
 
     addr = proc->hash_tab[col];
     
@@ -193,18 +193,18 @@ int SEARCHER::probe_hash(
 Pawn hash tables
 */
 void SEARCHER::record_pawn_hash(const HASHKEY& hash_key,const SCORE& score,const PAWNREC& pawnrec) {
-    register PPROCESSOR proc = processors[processor_id];
-    register UBMP32 key = UBMP32(hash_key & PROCESSOR::pawn_hash_tab_mask);
-    register PPAWNHASH pawn_hash = proc->pawn_hash_tab + key; 
+    PPROCESSOR proc = processors[processor_id];
+    UBMP32 key = UBMP32(hash_key & PROCESSOR::pawn_hash_tab_mask);
+    PPAWNHASH pawn_hash = proc->pawn_hash_tab + key; 
     
     pawn_hash->hash_key = hash_key;
     pawn_hash->score = score;
     pawn_hash->pawnrec = pawnrec;
 }
 int SEARCHER::probe_pawn_hash(const HASHKEY& hash_key,SCORE& score,PAWNREC& pawnrec) {
-    register PPROCESSOR proc = processors[processor_id];
-    register UBMP32 key = UBMP32(hash_key & PROCESSOR::pawn_hash_tab_mask);
-    register PPAWNHASH pawn_hash = proc->pawn_hash_tab + key; 
+    PPROCESSOR proc = processors[processor_id];
+    UBMP32 key = UBMP32(hash_key & PROCESSOR::pawn_hash_tab_mask);
+    PPAWNHASH pawn_hash = proc->pawn_hash_tab + key; 
     
     if(pawn_hash->hash_key == hash_key) {
         score = pawn_hash->score;
@@ -217,17 +217,17 @@ int SEARCHER::probe_pawn_hash(const HASHKEY& hash_key,SCORE& score,PAWNREC& pawn
 Eval hash tables
 */
 void SEARCHER::record_eval_hash(const HASHKEY& hash_key,int score) {
-    register PPROCESSOR proc = processors[processor_id];
-    register UBMP32 key = UBMP32(hash_key & PROCESSOR::eval_hash_tab_mask);
-    register PEVALHASH pslot = proc->eval_hash_tab[player] + key; 
+    PPROCESSOR proc = processors[processor_id];
+    UBMP32 key = UBMP32(hash_key & PROCESSOR::eval_hash_tab_mask);
+    PEVALHASH pslot = proc->eval_hash_tab[player] + key; 
 
     pslot->check_sum = (UBMP32)(hash_key >> 32);
     pslot->score = (BMP16)score;
 }
 int SEARCHER::probe_eval_hash(const HASHKEY& hash_key,int& score) {
-    register PPROCESSOR proc = processors[processor_id];
-    register UBMP32 key = UBMP32(hash_key & PROCESSOR::eval_hash_tab_mask);
-    register PEVALHASH pslot = proc->eval_hash_tab[player] + key; 
+    PPROCESSOR proc = processors[processor_id];
+    UBMP32 key = UBMP32(hash_key & PROCESSOR::eval_hash_tab_mask);
+    PEVALHASH pslot = proc->eval_hash_tab[player] + key; 
 
     if(pslot->check_sum == (UBMP32)(hash_key >> 32)) {
         score = pslot->score;

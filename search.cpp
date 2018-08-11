@@ -307,8 +307,8 @@ int SEARCHER::is_pawn_push(MOVE move) const {
 
 /*selective search*/
 int SEARCHER::be_selective(int nmoves, bool mc) {
-    register MOVE move = hstack[hply - 1].move; 
-    register int extension = 0,score,depth = DEPTH((pstack - 1)->depth);
+    MOVE move = hstack[hply - 1].move; 
+    int extension = 0,score,depth = DEPTH((pstack - 1)->depth);
     int node_t = (pstack - 1)->node_type;
 
     pstack->extension = 0;
@@ -475,12 +475,12 @@ void search(PROCESSOR* const proc)
 void search(SEARCHER* const sb)
 #endif
 {
-    register MOVE move;
-    register int score = 0;
+    MOVE move;
+    int score = 0;
 #ifdef PARALLEL
-    register PSEARCHER sb = proc->searcher;
-    register int active_workers;
-    CLUSTER_CODE(register int active_hosts);
+    PSEARCHER sb = proc->searcher;
+    int active_workers;
+    CLUSTER_CODE(int active_hosts);
 #endif
     /*
     * First processor goes on searching, while the
@@ -1026,8 +1026,8 @@ quiescent search
 */
 void SEARCHER::qsearch() {
 
-    register int score;
-    register int stop_ply = ply;
+    int score;
+    int stop_ply = ply;
 
     goto NEW_NODE_Q;
 
