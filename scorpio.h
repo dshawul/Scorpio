@@ -757,8 +757,10 @@ typedef struct SEARCHER{
     Bitbases and neural network
     */
     void fill_list(int*,int*);
-    int probe_bitbases(int&);
     int probe_neural();
+    void add_to_batch_neural();
+    void probe_batch_neural(int*);
+    int probe_bitbases(int&);
     bool bitbase_cutoff();
     static int egbb_is_loaded;
     static int egbb_load_type;
