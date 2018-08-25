@@ -139,31 +139,86 @@ static inline double logit(double p) {
     return log((1 - p) / p) / Kfactor;
 }
 
-void  SEARCHER::compute_children_nn_eval(Node* n) {
-    const int width = frac_width * sqrt(n->visits);
-    Node* current = n->child;
-    int count = 0;
-    bool prune = use_nn && (rollout_type == MCTS);
+bool SEARCHER::add_nn_job() {
+    if(probe_eval_hash(hash_key,pstack->actual_score))
+        return false;
+    ecalls++;
+#ifdef EGBB
+    add_to_batch_neural();
+    return true;
+#endif
+}
 
-    while(current) {
-        if(current->move) {
-            
-            if(!current->is_consider()) {
-                if(prune) { 
+void  SEARCHER::compute_children_nn_eval(Node* n) {
+    Node* current;
+    bool prune = use_nn && (rollout_type == MCTS);
+    
+    if(!prune) {
+        current = n->child;
+        while(current) {
+            if(current->move && !current->is_consider())
+                current->set_consider();
+            current = current->next;
+        }
+    } else {
+        const int width = frac_width * sqrt(n->visits);
+        int scores[64], n_batch, c_pos, count;
+
+        /*add children for batch evaluation*/
+        n_batch = 0;
+        count = 0;
+        current = n->child;
+        while(current) {
+            if(current->move) {
+                
+                if(!current->is_consider()) {
                     PUSH_MOVE(current->move);
-                    current->score = eval() + (current->score - eval(true));
+                    current->score = (current->score - eval(true));
+                    if(add_nn_job()) {
+                        n_batch++;
+                    } else {
+                        current->score += pstack->actual_score;
+                        current->set_consider();
+                    }
                     POP_MOVE();
                 }
-                current->set_consider();
-            }
 
-            if(prune) {
                 count++;
                 if(count >= width)
                     break;
             }
+            current = current->next;
         }
-        current = current->next;
+
+        /*Evaluate children in batch*/
+        if(n_batch) {
+
+            /*evaluate*/
+            probe_batch_neural(scores);
+
+            /*populate node scores*/
+            c_pos = 0;
+            count = 0;
+            current = n->child;
+            while(current) {
+                if(current->move) {
+                    
+                    if(!current->is_consider()) {
+                        PUSH_MOVE(current->move);
+                        pstack->actual_score = scores[c_pos++];
+                        current->score += pstack->actual_score;
+                        current->set_consider();
+                        record_eval_hash(hash_key,pstack->actual_score);
+                        POP_MOVE();
+                    }
+
+                    count++;
+                    if(count >= width)
+                        break;
+                }
+                current = current->next;
+            }
+        }
     }
 }
 

@@ -687,6 +687,7 @@ typedef struct SEARCHER{
     void  search_mc();
     void  print_status();
     void  compute_children_nn_eval(Node*);
+    bool  add_nn_job();
     /*counts*/
     UBMP64 nodes;
     UBMP64 qnodes;
