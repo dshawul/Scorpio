@@ -120,7 +120,7 @@ void Node::reset_bounds(Node* n,int alpha,int beta) {
     Node* current = n->child;
     while(current) {
         reset_bounds(current,-beta,-alpha);
-        current->flag = 0;
+        current->keep_consider();
         current = current->next;
     }
     n->alpha = alpha;
@@ -144,14 +144,15 @@ bool SEARCHER::add_nn_job() {
         return false;
     ecalls++;
 #ifdef EGBB
+    nnecalls++;
     add_to_batch_neural();
     return true;
 #endif
 }
 
-void  SEARCHER::compute_children_nn_eval(Node* n) {
+void  SEARCHER::compute_children_nn_eval(Node* n, bool force_eval) {
     Node* current;
-    bool prune = use_nn && (rollout_type == MCTS);
+    bool prune = use_nn && (rollout_type == MCTS && (backup_type != CLASSIC || force_eval));
     
     if(!prune) {
         current = n->child;
@@ -362,7 +363,9 @@ float Node::Avg_score_mem(Node* n, double score, int visits) {
 }
 void Node::Backup(Node* n,double& score,int visits, int all_man_c) {
     /*Compute parent's score from children*/
-    if(all_man_c <= 10)
+    if(backup_type == CLASSIC)
+        score = Avg_score_mem(n,score,visits);
+    else if(all_man_c <= 10)
         score = -Min_score(n);
     else if(backup_type == AVERAGE)
         score = -Avg_score(n);
@@ -528,7 +531,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
         } else {
 
             if(n->try_create()) {
-                create_children(n);
+                create_children(n); 
                 n->clear_create();
             } else
                 goto FINISH;
@@ -544,7 +547,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
                     goto SELECT;
                 } else  {
                     /*Backup now if MCTS*/
-                    compute_children_nn_eval(n);
+                    compute_children_nn_eval(n,true);
                     score = -n->child->score;
                     Node::Backup(n,score,visits,all_man_c);
                     goto FINISH;
@@ -967,7 +970,7 @@ void print_mcts_params() {
     print("feature option=\"UCTKmin -spin %d 0 100\"\n",int(UCTKmin*100));
     print("feature option=\"UCTKmax -spin %d 0 100\"\n",int(UCTKmax*100));
     print("feature option=\"reuse_tree -check %d\"\n",reuse_tree);
-    print("feature option=\"backup_type -combo *MINMAX AVERAGE MIX MINMAX_MEM AVERAGE_MEM MIX_MEM\"\n");
+    print("feature option=\"backup_type -combo *MINMAX AVERAGE MIX MINMAX_MEM AVERAGE_MEM MIX_MEM CLASSIC\"\n");
     print("feature option=\"frac_alphabeta -spin %d 0 100\"\n",int(frac_alphabeta*100));
     print("feature option=\"frac_freeze_tree -spin %d 0 100\"\n",int(frac_freeze_tree*100));
     print("feature option=\"frac_abrollouts -spin %d 0 100\"\n",int(frac_abrollouts*100));

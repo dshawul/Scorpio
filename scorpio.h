@@ -117,7 +117,7 @@ enum move_gen_status {
     GEN_KILLERS = 6, GEN_NONCAPS, GEN_LOSCAPS, GEN_END
 };
 enum BACKUP_TYPE {
-    MINMAX, AVERAGE, MIX, MINMAX_MEM, AVERAGE_MEM, MIX_MEM
+    MINMAX, AVERAGE, MIX, MINMAX_MEM, AVERAGE_MEM, MIX_MEM, CLASSIC
 };
 enum ROLLOUT_TYPE {
     MCTS, ALPHABETA
@@ -391,6 +391,7 @@ struct Node {
     void set_consider() { l_or8(flag,CONSIDER); }
     void clear_consider() { l_and8(flag,~CONSIDER); }
     bool is_consider() { return (flag & CONSIDER); }
+    void keep_consider() { l_and8(flag,CONSIDER); }
 
     void set_bounds(short a,short b) {
         l_set16(alpha,a);
@@ -525,6 +526,7 @@ struct MERGE_MESSAGE {
     UBMP64 nodes;
     UBMP64 qnodes;
     UBMP64 ecalls;
+    UBMP64 nnecalls;
     UBMP64 time_check;
     UBMP32 splits;
     UBMP32 bad_splits;
@@ -554,7 +556,7 @@ struct TT_MESSAGE {
 };
 #define   SPLIT_MESSAGE_SIZE(x)   (40 + ((x).pv_length << 2))
 #define   RESPLIT_MESSAGE_SIZE(x) (SPLIT_MESSAGE_SIZE(x) + 4)
-#define   MERGE_MESSAGE_SIZE(x)   (64 + ((x).pv_length << 2))
+#define   MERGE_MESSAGE_SIZE(x)   (72 + ((x).pv_length << 2))
 #define   INIT_MESSAGE_SIZE(x)    (MAX_FEN_STR + 4 + ((x).pv_length << 2))
 
 #endif
@@ -686,12 +688,13 @@ typedef struct SEARCHER{
     void  play_simulation(Node*,double&,int&);
     void  search_mc();
     void  print_status();
-    void  compute_children_nn_eval(Node*);
+    void  compute_children_nn_eval(Node*, bool = false);
     bool  add_nn_job();
     /*counts*/
     UBMP64 nodes;
     UBMP64 qnodes;
     UBMP64 ecalls;
+    UBMP64 nnecalls;
     UBMP64 time_check;
     UBMP64 message_check;
     UBMP32 search_calls;
