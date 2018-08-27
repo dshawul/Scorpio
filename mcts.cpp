@@ -120,7 +120,7 @@ void Node::reset_bounds(Node* n,int alpha,int beta) {
     Node* current = n->child;
     while(current) {
         reset_bounds(current,-beta,-alpha);
-        current->keep_consider();
+        current->flag = 0;
         current = current->next;
     }
     n->alpha = alpha;
@@ -150,79 +150,6 @@ bool SEARCHER::add_nn_job() {
 #endif
 }
 
-void  SEARCHER::compute_children_nn_eval(Node* n, bool force_eval) {
-    Node* current;
-    bool prune = use_nn && (rollout_type == MCTS && (backup_type != CLASSIC || force_eval));
-    
-    if(!prune) {
-        current = n->child;
-        while(current) {
-            if(current->move && !current->is_consider())
-                current->set_consider();
-            current = current->next;
-        }
-    } else {
-        const int width = frac_width * sqrt(n->visits);
-        int scores[64], n_batch, c_pos, count;
-
-        /*add children for batch evaluation*/
-        n_batch = 0;
-        count = 0;
-        current = n->child;
-        while(current) {
-            if(current->move) {
-                
-                if(!current->is_consider()) {
-                    PUSH_MOVE(current->move);
-                    current->score = (current->score - eval(true));
-                    if(add_nn_job()) {
-                        n_batch++;
-                    } else {
-                        current->score += pstack->actual_score;
-                        current->set_consider();
-                    }
-                    POP_MOVE();
-                }
-
-                count++;
-                if(count >= width)
-                    break;
-            }
-            current = current->next;
-        }
-
-        /*Evaluate children in batch*/
-        if(n_batch) {
-
-            /*evaluate*/
-            probe_batch_neural(scores);
-
-            /*populate node scores*/
-            c_pos = 0;
-            count = 0;
-            current = n->child;
-            while(current) {
-                if(current->move) {
-                    
-                    if(!current->is_consider()) {
-                        PUSH_MOVE(current->move);
-                        pstack->actual_score = scores[c_pos++];
-                        current->score += pstack->actual_score;
-                        current->set_consider();
-                        record_eval_hash(hash_key,pstack->actual_score);
-                        POP_MOVE();
-                    }
-
-                    count++;
-                    if(count >= width)
-                        break;
-                }
-                current = current->next;
-            }
-        }
-    }
-}
-
 Node* Node::Max_UCB_select(Node* n) {
     double logn = log(double(n->visits));
     double uct, bvalue = -1;
@@ -230,9 +157,8 @@ Node* Node::Max_UCB_select(Node* n) {
 
     current = n->child;
     while(current) {
-        if(current->move &&
-            current->is_consider()
-            ) {
+        if(current->move) {
+
             uct = logistic(-current->score) +
                   dUCTK * sqrt(logn / current->visits);
 #ifdef PARALLEL
@@ -246,6 +172,7 @@ Node* Node::Max_UCB_select(Node* n) {
                 bvalue = uct;
                 bnode = current;
             }
+
         }
         current = current->next;
     }
@@ -302,9 +229,8 @@ Node* Node::Best_select(Node* n) {
     Node* current = n->child, *bnode = n->child;
 
     while(current) {
-        if(current->move &&
-            current->is_consider()
-            ) {
+        if(current->move) {
+
             if(rollout_type == MCTS ||
                 (rollout_type == ALPHABETA && 
                 /* must be finished or ranked first */
@@ -318,6 +244,7 @@ Node* Node::Best_select(Node* n) {
                     bnode = current;
                 }
             }
+
         }
         current = current->next;
     }
@@ -327,8 +254,8 @@ Node* Node::Best_select(Node* n) {
 float Node::Min_score(Node* n) {
     Node* current = n->child, *bnode = n->child;
     while(current) {
-        if(current->move &&
-            current->is_consider()
+        if(current->move
+            && (current == n->child || current->visits > 1)
             ) {
             if(current->score < bnode->score)
                 bnode = current;
@@ -344,8 +271,8 @@ float Node::Avg_score(Node* n) {
     
     Node* current = n->child;
     while(current) {
-        if(current->move &&
-            current->is_consider()
+        if(current->move
+            && (current == n->child || current->visits > 1)
             ) {
             tvalue += logistic(current->score) * current->visits;
             tvisits += current->visits;
@@ -355,7 +282,7 @@ float Node::Avg_score(Node* n) {
 
     return logit(tvalue / tvisits);    
 }
-float Node::Avg_score_mem(Node* n, double score, int visits) {
+float Node::Avg_score_mem(Node* n, double score, int visits) { 
     float sc = logistic(n->score);
     float sc1 = logistic(score);
     sc += (sc1 - sc) * visits / (n->visits + visits);
@@ -476,9 +403,6 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
     nodes++;
     visits = 1;
 
-    /*nn evaluation*/
-    compute_children_nn_eval(n);
-
     /*set busy flag*/
     n->set_busy();
 
@@ -531,7 +455,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
         } else {
 
             if(n->try_create()) {
-                create_children(n); 
+                create_children(n);
                 n->clear_create();
             } else
                 goto FINISH;
@@ -547,8 +471,13 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
                     goto SELECT;
                 } else  {
                     /*Backup now if MCTS*/
-                    compute_children_nn_eval(n,true);
-                    score = -n->child->score;
+                    Node* current = n->child;
+                    PUSH_MOVE(current->move);
+                    current->score = eval() + (current->score - eval(true));
+                    POP_MOVE();
+                    score = -current->score;
+                    current->visits++;
+                    
                     Node::Backup(n,score,visits,all_man_c);
                     goto FINISH;
                 }
@@ -914,7 +843,7 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
     }
     if(!root->child) {
         create_children(root);
-        root->visits += pstack->count;
+        root->visits++;
     }
     root_key = hash_key;
 

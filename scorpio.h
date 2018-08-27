@@ -369,7 +369,7 @@ struct Node {
 
     /*accessors*/
     enum {
-        BUSY = 1, SCOUTF = 2, PVMOVE = 4, CREATE = 8, CONSIDER = 16
+        BUSY = 1, SCOUTF = 2, PVMOVE = 4, CREATE = 8
     };
     
     void set_busy() { l_or8(flag,BUSY); }
@@ -387,11 +387,6 @@ struct Node {
     bool try_create() { return !(l_or8(flag,CREATE) & CREATE); }
     void clear_create() { l_and8(flag,~CREATE); }
     bool is_create() { return (flag & CREATE); }
-
-    void set_consider() { l_or8(flag,CONSIDER); }
-    void clear_consider() { l_and8(flag,~CONSIDER); }
-    bool is_consider() { return (flag & CONSIDER); }
-    void keep_consider() { l_and8(flag,CONSIDER); }
 
     void set_bounds(short a,short b) {
         l_set16(alpha,a);
@@ -688,7 +683,6 @@ typedef struct SEARCHER{
     void  play_simulation(Node*,double&,int&);
     void  search_mc();
     void  print_status();
-    void  compute_children_nn_eval(Node*, bool = false);
     bool  add_nn_job();
     /*counts*/
     UBMP64 nodes;
