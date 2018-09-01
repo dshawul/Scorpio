@@ -139,17 +139,6 @@ static inline double logit(double p) {
     return log((1 - p) / p) / Kfactor;
 }
 
-bool SEARCHER::add_nn_job() {
-    if(probe_eval_hash(hash_key,pstack->actual_score))
-        return false;
-    ecalls++;
-#ifdef EGBB
-    nnecalls++;
-    add_to_batch_neural();
-    return true;
-#endif
-}
-
 Node* Node::Max_UCB_select(Node* n) {
     double logn = log(double(n->visits));
     double uct, bvalue = -1;
@@ -666,7 +655,7 @@ void SEARCHER::search_mc() {
     unsigned int ovisits = root->visits;
 #ifdef EGBB
     unsigned int visits_poll;
-    if(use_nn) visits_poll = 1;
+    if(use_nn) visits_poll = PROCESSOR::n_processors;
     else visits_poll = 200;
 #else
     const unsigned int visits_poll = 200;

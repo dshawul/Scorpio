@@ -683,7 +683,6 @@ typedef struct SEARCHER{
     void  play_simulation(Node*,double&,int&);
     void  search_mc();
     void  print_status();
-    bool  add_nn_job();
     /*counts*/
     UBMP64 nodes;
     UBMP64 qnodes;
