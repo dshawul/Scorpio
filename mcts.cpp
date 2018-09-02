@@ -19,8 +19,7 @@ int rollout_type = ALPHABETA;
 bool freeze_tree = false;
 
 /*Node*/
-LOCK Node::mem_lock;
-std::list<Node*> Node::mem_;
+std::list<Node*> Node::mem_[MAX_CPUS];
 VOLATILE unsigned int Node::total_nodes = 0;
 unsigned int Node::max_tree_nodes = 0;
 unsigned int Node::max_tree_depth = 0;
@@ -29,37 +28,33 @@ HASHKEY SEARCHER::root_key = 0;
 
 static const int MEM_INC = 1024;
 
-Node* Node::allocate() {
+Node* Node::allocate(int id) {
     Node* n;
     
-    l_lock(mem_lock);
-    if(mem_.empty()) {
+    if(mem_[id].empty()) {
         n = new Node[MEM_INC];
         for(int i = 0;i < MEM_INC;i++)
-            mem_.push_back(&n[i]);
+            mem_[id].push_back(&n[i]);
     }
-    n = mem_.front();
-    mem_.pop_front();
-    total_nodes++;
-    l_unlock(mem_lock);
+    n = mem_[id].front();
+    mem_[id].pop_front();
+    l_add(total_nodes,1);
 
     n->clear();
     return n;
 }
-void Node::release(Node* n) {
-    l_lock(mem_lock);
-    mem_.push_front(n);
-    total_nodes--;
-    l_unlock(mem_lock);
+void Node::release(Node* n, int id) {
+    mem_[id].push_front(n);
+    l_add(total_nodes,-1);
 }
-Node* Node::reclaim(Node* n,MOVE* except) {
+Node* Node::reclaim(Node* n,int id,MOVE* except) {
     Node* current = n->child,*rn = 0;
     while(current) {
         if(except && (current->move == *except)) rn = current;
-        else reclaim(current);
+        else reclaim(current,id);
         current = current->next;
     }
-    Node::release(n);
+    Node::release(n,id);
     return rn;
 }
 
@@ -358,7 +353,7 @@ void SEARCHER::create_children(Node* n) {
 void SEARCHER::add_children(Node* n) {
     Node* last = n;
     for(int i = 0;i < pstack->count; i++) {
-        Node* node = Node::allocate();
+        Node* node = Node::allocate(processor_id);
         node->move = pstack->move_st[i];
         node->score = -pstack->score_st[i];
         node->visits = 1;
@@ -376,7 +371,7 @@ void SEARCHER::add_null_child(Node* n) {
         last = current;
         current = current->next;
     }
-    Node* node = Node::allocate();
+    Node* node = Node::allocate(processor_id);
     node->move = 0;
     PUSH_NULL();
     node->score = eval();
@@ -791,6 +786,7 @@ Manage search tree
 */
 void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
     /*find root node*/
+    int pid;
     if(root) {
         int i,j;
         bool found = false;
@@ -804,17 +800,19 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
             MOVE move;
             for(j = i;j >= 0;--j) {
                 move = hstack[hply - 1 - j].move;
-                root = Node::reclaim(root,&move);
+                pid = rand() % PROCESSOR::n_processors;
+                root = Node::reclaim(root,pid,&move);
                 if(!root) break;
             }
         } else {
-            Node::reclaim(root);
+            pid = rand() % PROCESSOR::n_processors;
+            Node::reclaim(root,pid);
             root = 0;
         }
     }
     if(!root) {
         print_log("[Tree not found]\n");
-        root = Node::allocate();
+        root = Node::allocate(processor_id);
     } else {
         print_log("[Tree found : visits %d wins %6d]\n",
             root->visits,int(root->score));
@@ -826,7 +824,8 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
             current = current->next;
             if(current && current->move == 0) {
                 prev->next = current->next;
-                Node::reclaim(current);
+                pid = rand() % PROCESSOR::n_processors;
+                Node::reclaim(current,pid);
             }
         }
     }
@@ -878,7 +877,7 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         UBMP32 size = ht * ((1024 * 1024) / sizeof(Node));
         print("treeht %d X %d = %.1f MB\n",size,sizeof(Node),
             (size * sizeof(Node)) / double(1024 * 1024));
-        Node::max_tree_nodes = size;
+        Node::max_tree_nodes = size / PROCESSOR::n_processors;
     } else {
         return false;
     }

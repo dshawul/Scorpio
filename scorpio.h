@@ -410,11 +410,10 @@ struct Node {
     static VOLATILE unsigned int total_nodes;
     static unsigned int max_tree_nodes;
     static unsigned int max_tree_depth;
-    static LOCK mem_lock;
-    static std::list<Node*> mem_;
-    static Node* allocate();
-    static void release(Node*);
-    static Node* reclaim(Node*,MOVE* = 0);
+    static std::list<Node*> mem_[MAX_CPUS];
+    static Node* allocate(int);
+    static void release(Node*,int);
+    static Node* reclaim(Node*,int,MOVE* = 0);
     static void  rank_children(Node*);
     static void  reset_bounds(Node*,int,int);
     static Node* print_tree(Node*,int,int = 0,int = 0);

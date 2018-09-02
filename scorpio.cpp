@@ -263,7 +263,6 @@ initialize game
 void init_game() {
 #ifdef PARALLEL
     l_create(lock_smp);
-    l_create(Node::mem_lock);
 #endif
     scorpio_start_time = get_time();
     PROCESSOR::n_idle_processors = 0;
