@@ -441,8 +441,11 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
             if(n->try_create()) {
                 create_children(n);
                 n->clear_create();
-            } else
+            } else {
+                visits = 0;
+                score = n->score;
                 goto FINISH;
+            }
 
             if(!n->child) {
                 if(hstack[hply - 1].checks)
