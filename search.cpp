@@ -1110,6 +1110,21 @@ void SEARCHER::qsearch_nn() {
 /*
 searcher's search function
 */
+static void idle_loop_main() {
+    l_lock(lock_smp);       
+    PROCESSOR::n_idle_processors++;
+    PROCESSOR::set_num_searchers();
+    l_unlock(lock_smp);
+
+    while(PROCESSOR::n_idle_processors < PROCESSOR::n_processors)
+        t_yield();
+    
+    l_lock(lock_smp);       
+    PROCESSOR::n_idle_processors--;
+    PROCESSOR::set_num_searchers();
+    l_unlock(lock_smp);
+}
+
 void SEARCHER::search() {
 
     /*mcts*/
@@ -1128,8 +1143,7 @@ void SEARCHER::search() {
 
             /*wait till all helpers become idle*/
             stop_workers();
-            while(PROCESSOR::n_idle_processors < PROCESSOR::n_processors - 1)
-                t_yield(); 
+            idle_loop_main();
 #else
             search_mc();
 #endif
@@ -1157,8 +1171,7 @@ void SEARCHER::search() {
         /*wait till all helpers become idle*/
         if(use_abdada_smp) {
             stop_workers();
-            while(PROCESSOR::n_idle_processors < PROCESSOR::n_processors - 1)
-                t_yield(); 
+            idle_loop_main();
         }
 #else
         ::search(this);

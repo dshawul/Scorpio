@@ -176,10 +176,13 @@ void SEARCHER::probe_batch_neural(int* scores) {
 #endif
 }
 
-void PROCESSOR::set_num_searchers() {
+void PROCESSOR::set_num_searchers(int n_searchers) {
 #ifdef EGBB
-    if(SEARCHER::use_nn && set_active_searchers)
-        set_active_searchers(n_processors - n_idle_processors);
+    if(SEARCHER::use_nn && set_active_searchers) {
+        if(n_searchers < 0) 
+            n_searchers = n_processors - n_idle_processors;
+        set_active_searchers(n_searchers);
+    }
 #endif
 }
 /*

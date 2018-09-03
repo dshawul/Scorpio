@@ -35,10 +35,13 @@ Os stuff
 #    undef CDECL
 #    define CDECL __cdecl
 #    define GETPID()  _getpid()
+#    define GETTID()  GetCurrentThreadId()
 #else
 #    include <unistd.h>
+#    include <sys/syscall.h>
 #    define CDECL
 #    define GETPID()  getpid()
+#    define GETTID()  syscall(SYS_gettid)
 #endif
 
 #ifdef _MSC_VER
