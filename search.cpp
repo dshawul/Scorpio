@@ -783,13 +783,15 @@ IDLE_START:
                         */
                         if(proc->state <= WAIT) {
                             l_lock(lock_smp);       
-                            PROCESSOR::n_idle_processors++; 
+                            PROCESSOR::n_idle_processors++;
+                            PROCESSOR::set_num_searchers();
                             l_unlock(lock_smp);
 
                             proc->idle_loop();
 
                             l_lock(lock_smp);       
                             PROCESSOR::n_idle_processors--; 
+                            PROCESSOR::set_num_searchers();
                             l_unlock(lock_smp);
                         }
                         if(proc->state == GO) {
@@ -1507,6 +1509,7 @@ MOVE SEARCHER::find_best() {
         }
     }
 #endif
+    PROCESSOR::set_num_searchers();
 
     /*init*/
     ply = 0;
