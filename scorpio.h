@@ -51,7 +51,7 @@ parallel search options
 */
 #ifdef  PARALLEL
 #   if !defined(MAX_CPUS)
-#       define MAX_CPUS              64
+#       define MAX_CPUS             256
 #   endif
 #   define MAX_SEARCHERS_PER_CPU     32
 #   define MAX_CPUS_PER_SPLIT         8
