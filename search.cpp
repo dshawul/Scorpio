@@ -1216,14 +1216,7 @@ Generate all moves
 void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta, bool skip_eval) {
     int legal_moves, score;
 
-    in_egbb = (egbb_is_loaded && all_man_c <= MAX_EGBB);
-
     /*generate moves here*/
-    if(in_egbb) {
-        if(probe_bitbases(score));
-        else in_egbb = false;
-    }
-
     pstack->count = 0;
     gen_all();
     legal_moves = 0;
@@ -1237,7 +1230,6 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta, bool ski
         if(in_egbb && probe_bitbases(score)) {
             score = -score;
         } else {
-            in_egbb = false;
             score = (alpha + beta) / 2;
         }
         POP_MOVE();
@@ -1548,6 +1540,13 @@ MOVE SEARCHER::find_best() {
     print_log("%s\n",fen);
 
     /*generate and score moves*/
+    int score;
+    in_egbb = (egbb_is_loaded && all_man_c <= MAX_EGBB);
+    if(in_egbb) {
+        if(probe_bitbases(score));
+        else in_egbb = false;
+    }
+
     skip_nn = true;
     generate_and_score_moves(0,-MATE_SCORE,MATE_SCORE);
     skip_nn = false;

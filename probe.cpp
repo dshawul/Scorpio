@@ -97,9 +97,12 @@ int LoadEgbbLibrary(char* main_path,int egbb_cache_size) {
         add_to_batch = (PADD_TO_BATCH) GetProcAddress(hmod,"add_to_batch");
         set_active_searchers = (PSET_ACTIVE_SEARCHERS) GetProcAddress(hmod,"set_active_searchers");
         probe_nn_batch = (PPROBE_NN_BATCH) GetProcAddress(hmod,"probe_neural_network_batch");
-        load_egbb(main_path,egbb_cache_size,SEARCHER::egbb_load_type);
-        if(load_nn) load_nn(SEARCHER::nn_path,PROCESSOR::n_processors);
-        else SEARCHER::use_nn = 0;
+        if(load_egbb)
+            load_egbb(main_path,egbb_cache_size,SEARCHER::egbb_load_type);
+        if(load_nn && SEARCHER::use_nn)
+            load_nn(SEARCHER::nn_path,PROCESSOR::n_processors);
+        else
+            SEARCHER::use_nn = 0;
         return true;
     } else {
         print("EgbbProbe not Loaded!\n");
