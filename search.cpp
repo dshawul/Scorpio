@@ -1514,7 +1514,6 @@ MOVE SEARCHER::find_best() {
         }
     }
 #endif
-    PROCESSOR::set_num_searchers();
 
     /*init*/
     ply = 0;

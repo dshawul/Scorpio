@@ -905,7 +905,7 @@ typedef struct PROCESSOR {
     static int SMP_SPLIT_DEPTH;
     static void create(int id);
     static void kill(int id);
-    static void set_num_searchers(int = -1);
+    static void set_num_searchers();
 #endif
     static void set_main();
 #ifdef CLUSTER

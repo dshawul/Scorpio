@@ -409,7 +409,8 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
             score = n->score;
             goto BACKUP_LEAF;
         /*mate distance pruning*/
-        } else if(n->alpha > MATE_SCORE - WIN_PLY * (ply + 1)) {
+        } else if(rollout_type == ALPHABETA 
+            && n->alpha > MATE_SCORE - WIN_PLY * (ply + 1)) {
             score = n->alpha;
             goto BACKUP_LEAF;
         }
@@ -459,9 +460,11 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
                 } else  {
                     /*Backup now if MCTS*/
                     Node* current = n->child;
-                    PUSH_MOVE(current->move);
-                    current->score = eval() + (current->score - eval(true));
-                    POP_MOVE();
+                    if(use_nn) {
+                        PUSH_MOVE(current->move);
+                        current->score = eval() + (current->score - eval(true));
+                        POP_MOVE();
+                    }
                     score = -current->score;
                     current->visits++;
                     
@@ -473,6 +476,10 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
 
 BACKUP_LEAF:
         Node::BackupLeaf(n,score);
+        /*Hack: fake a hard NN eval (without cache) request to 
+          make multi-threaded batching work. We need something better! */
+        if(use_nn)
+            probe_neural();
 
     /*Has children*/
     } else {
@@ -644,6 +651,7 @@ FINISH:
     n->update_visits(visits);
     n->clear_busy();
 }
+
 void SEARCHER::search_mc() {
     Node* root = root_node;
     double pfrac = 0,score;
