@@ -360,12 +360,12 @@ struct Node {
     Node* VOLATILE child;
     Node* next;
     MOVE move;
-    VOLATILE short alpha;
-    VOLATILE short beta;
+    VOLATILE int alpha;
+    VOLATILE int beta;
     VOLATILE unsigned int visits;
-    VOLATILE short score;
+    VOLATILE float score;
+    unsigned short rank;
     VOLATILE unsigned char flag;
-    unsigned char rank;
 
     /*accessors*/
     enum {
@@ -388,13 +388,13 @@ struct Node {
     void clear_create() { l_and8(flag,~CREATE); }
     bool is_create() { return (flag & CREATE); }
 
-    void set_bounds(short a,short b) {
-        l_set16(alpha,a);
-        l_set16(beta,b);
+    void set_bounds(int a,int b) {
+        l_set(alpha,a);
+        l_set(beta,b);
     }
 
     void update_visits(unsigned int v) { l_add(visits,v); }
-    void update_score(short s) { l_set16(score,s); }
+    void update_score(double s) { score = s; } /* Assume atomic until fixed! */
 
     void clear() {
         score = 0;
