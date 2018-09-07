@@ -767,6 +767,8 @@ typedef struct SEARCHER{
     static char egbb_path[MAX_STR];
     static char nn_path[MAX_STR];
     static int use_nn;
+    static int n_devices;
+    static int device_type;
     /*
     End
     */

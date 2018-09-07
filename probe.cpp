@@ -17,13 +17,14 @@ enum egbb_occupancy {
 enum egbb_load_types {
     LOAD_NONE,LOAD_4MEN,SMART_LOAD,LOAD_5MEN
 };
+enum {CPU, GPU};
 
 #define _NOTFOUND 99999
 #define MAX_PIECES 9
 
 typedef int (CDECL *PPROBE_EGBB) (int player, int* piece, int* square);
 typedef void (CDECL *PLOAD_EGBB) (char* path, int cache_size, int load_options);
-typedef void (CDECL *PLOAD_NN) (char* path, int n_processors);
+typedef void (CDECL *PLOAD_NN) (char* path, int n_threads, int n_devices, int dev_type);
 typedef int (CDECL *PPROBE_NN) (int player, int* piece, int* square);
 typedef int (CDECL *PADD_TO_BATCH) (int player, int* piece, int* square, int batch_id);
 typedef void (CDECL *PPROBE_NN_BATCH) (int* scores, int batch_id);
@@ -44,6 +45,8 @@ int SEARCHER::egbb_cache_size = 16;
 char SEARCHER::egbb_path[MAX_STR] = "egbb/";
 char SEARCHER::nn_path[MAX_STR] = "nets/";
 int SEARCHER::use_nn = 0;
+int SEARCHER::n_devices = 1;
+int SEARCHER::device_type = CPU;
 
 /*
 Load the dll and get the address of the load and probe functions.
@@ -100,7 +103,7 @@ int LoadEgbbLibrary(char* main_path,int egbb_cache_size) {
         if(load_egbb)
             load_egbb(main_path,egbb_cache_size,SEARCHER::egbb_load_type);
         if(load_nn && SEARCHER::use_nn)
-            load_nn(SEARCHER::nn_path,PROCESSOR::n_processors);
+            load_nn(SEARCHER::nn_path,PROCESSOR::n_processors,SEARCHER::n_devices,SEARCHER::device_type);
         else
             SEARCHER::use_nn = 0;
         return true;

@@ -391,6 +391,8 @@ bool parse_commands(char** commands) {
             print("feature option=\"egbb_load_type -spin %d 0 3\"\n", SEARCHER::egbb_load_type);
             print("feature option=\"egbb_depth_limit -spin %d 0 %d\"\n", SEARCHER::egbb_depth_limit, MAX_PLY);
             print("feature option=\"egbb_ply_limit_percent -spin %d 0 100\"\n", SEARCHER::egbb_ply_limit_percent);
+            print("feature option=\"n_devices -spin %d 1 128\"\n",SEARCHER::n_devices);
+            print("feature option=\"device_type -combo *CPU /// GPU \"\n");
             print_search_params();
             print_mcts_params();
 #ifdef TUNE
@@ -573,6 +575,13 @@ bool parse_commands(char** commands) {
         } else if(!strcmp(command, "nn_path")) {
             strcpy(SEARCHER::nn_path,commands[command_num]);
             command_num++;
+        } else if(!strcmp(command, "n_devices")) {
+            SEARCHER::n_devices = atoi(commands[command_num]);
+            command_num++;
+        } else if(!strcmp(command, "device_type")) {
+            command = commands[command_num++];
+            if(!strcmp(command,"CPU")) SEARCHER::device_type = 0;
+            else  SEARCHER::device_type = 1;
 #endif
 
 #ifdef BOOK_PROBE
