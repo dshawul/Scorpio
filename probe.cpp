@@ -26,14 +26,10 @@ typedef int (CDECL *PPROBE_EGBB) (int player, int* piece, int* square);
 typedef void (CDECL *PLOAD_EGBB) (char* path, int cache_size, int load_options);
 typedef void (CDECL *PLOAD_NN) (char* path, int n_threads, int n_devices, int dev_type);
 typedef int (CDECL *PPROBE_NN) (int player, int* piece, int* square);
-typedef int (CDECL *PADD_TO_BATCH) (int player, int* piece, int* square, int batch_id);
-typedef void (CDECL *PPROBE_NN_BATCH) (int* scores, int batch_id);
 typedef void (CDECL *PSET_NUM_ACTIVE_SEARCHERS) (int n_searchers);
 
 static PPROBE_EGBB probe_egbb;
 static PPROBE_NN probe_nn;
-static PADD_TO_BATCH add_to_batch;
-static PPROBE_NN_BATCH probe_nn_batch;
 static PSET_NUM_ACTIVE_SEARCHERS set_num_active_searchers = 0;
 
 int SEARCHER::egbb_is_loaded = 0;
@@ -97,9 +93,7 @@ int LoadEgbbLibrary(char* main_path,int egbb_cache_size) {
         probe_egbb = (PPROBE_EGBB) GetProcAddress(hmod,"probe_egbb_xmen");
         load_nn = (PLOAD_NN) GetProcAddress(hmod,"load_neural_network");
         probe_nn = (PPROBE_NN) GetProcAddress(hmod,"probe_neural_network");
-        add_to_batch = (PADD_TO_BATCH) GetProcAddress(hmod,"add_to_batch");
         set_num_active_searchers = (PSET_NUM_ACTIVE_SEARCHERS) GetProcAddress(hmod,"set_num_active_searchers");
-        probe_nn_batch = (PPROBE_NN_BATCH) GetProcAddress(hmod,"probe_neural_network_batch");
         if(load_egbb)
             load_egbb(main_path,egbb_cache_size,SEARCHER::egbb_load_type);
         if(load_nn && SEARCHER::use_nn)
@@ -166,20 +160,6 @@ int SEARCHER::probe_neural() {
     return probe_nn(player,piece,square);
 #endif
     return 0;
-}
-
-void SEARCHER::add_to_batch_neural() {
-#ifdef EGBB
-    int piece[33],square[33];
-    fill_list(piece,square);
-    add_to_batch(player,piece,square,0);
-#endif
-}
-
-void SEARCHER::probe_batch_neural(int* scores) {
-#ifdef EGBB
-    probe_nn_batch(scores,0);
-#endif
 }
 
 void PROCESSOR::set_num_searchers() {
