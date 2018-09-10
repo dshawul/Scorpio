@@ -274,10 +274,10 @@ float Node::Avg_score_mem(Node* n, double score, int visits) {
 }
 void Node::Backup(Node* n,double& score,int visits, int all_man_c) {
     /*Compute parent's score from children*/
-    if(backup_type == CLASSIC)
-        score = Avg_score_mem(n,score,visits);
-    else if(all_man_c <= 10)
+    if(all_man_c <= 10)
         score = -Min_score(n);
+    else if(backup_type == CLASSIC)
+        score = Avg_score_mem(n,score,visits);
     else if(backup_type == AVERAGE)
         score = -Avg_score(n);
     else {

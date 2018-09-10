@@ -368,7 +368,7 @@ void SEARCHER::print_pv(int score) {
         score = -10000 + (ceil(double(MATE_SCORE + score) / WIN_PLY));
 
     /*print what we have*/
-    if(montecarlo) {
+    if(montecarlo && root_node) {
         sprintf(pv,"%d %d %d " FMT64 " ",
             search_depth,score,
             (get_time() - start_time)/10,
