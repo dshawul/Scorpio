@@ -73,29 +73,27 @@ in nature.
 ### Neural Networks (NNs)
 
 The neural network version of Scorpio works with a tensorflow backend. The easiest way is to download the binaries
-I provide for linux and windwos for both CPU and GPU (with CUDA + cuDNN libraries)
+I provide for windwos for both CPU and GPU (with CUDA + cuDNN libraries)
 
-TLDR; Go to my github release page and download pre-compiled binaries of egbbdll64.dll for windows (CPU and GPU),
-with tensorflow.dll and in case of GPU cuDNN 7.2. Here are the links for convenience
+TLDR; Go to my github release page and download pre-compiled binaries of egbbdll64.dll for windows (CPU and GPU). 
+Here are the links for convenience
 
-[egbbdll64-nn-windows-cpu.zip](https://github.com/dshawul/Scorpio/releases/download/2.8.7/egbbdll64-nn-windows-cpu.zip)
+[egbbdll64-nn-windows-cpu.zip](https://github.com/dshawul/Scorpio/releases/download/2.8.8/egbbdll64-nn-windows-cpu.zip)
 
-[egbbdll64-nn-windows-cuda92.zip](https://github.com/dshawul/Scorpio/releases/download/2.8.7/egbbdll64-nn-windows-cuda92.zip)
+[egbbdll64-nn-windows-gpu.zip](https://github.com/dshawul/Scorpio/releases/download/2.8.8/egbbdll64-nn-windows-gpu.zip)
 
-To use the GPU version you need to install CUDA v9.2 as well. I have confirmed the windows CPU version works so you might
-want to start with that one first.
 
-The egbbdll serves for probing bitbases as well as neural networks so put it where bitbaes are located along with tensorflow.dll
-and cudnn.dll. Then set the path to network files (3 networks providied below) in scorpio.ini. For the system to find tensorflow.dll 
-and cudnn.dll we need to set the Path environment variable and incase of linux LD_LIBRARY_PATH 
+The egbbdll serves dual purpose, namely, for probing bitbases and neural networks so extract it in a directory where bitbases are located. 
+For the GPU version of egbbdll, we need to set the Path environment variable and incase of linux LD_LIBRARY_PATH for the system to find
+cudnn.dll and other dependencies.
 
-#### Building from sources
+#### Building from sources (for linux)
 
 For those who feel adventurous, here is how you build from sources.
 First build C++ tensorflow library following the steps given [here](https://github.com/FloopCZ/tensorflow_cc), 
 then compile egbbdll using this library for neural network inference.
 
-#####   Building tensorflow_cc
+#####   Building tensorflow_cc on linux
 
 To build and install the "shared" tensorflow_cc library, follow the instructions given [here](https://github.com/FloopCZ/tensorflow_cc)
 
@@ -122,6 +120,16 @@ This will get you an egbbso64.so and linux scorpio executable.
 Then, copy the egbbso64.so to the directory you store your egbb files, overwriting the existing one.
 
     cp egbbdll/egbbso64.so  $EGBB_DIRECTORY
+
+####   Building from sources (for Windows)
+
+Unfortunately tensorflow_cc does not support windows. However, since r1.11, tensorflow can be built on windows using bazel. 
+To compile egbbdll directly using bazel, put the egbbdll source directory in tensorflow/tenorflow/cc/ and then compile with
+
+    bazel build --config=opt --config=monolithic //tensorflow/cc/egbbdll:egbbdll.so
+
+You can use this approach for linux as well by setting USE_TF = 2 in Makefile and specifying the tensorflow directly.
+Setting USE_TF = 1 means using the tensorflow_cc approach.
 
 #### Downloading networks
 
