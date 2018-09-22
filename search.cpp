@@ -1589,8 +1589,6 @@ MOVE SEARCHER::find_best() {
     /*wakeup threads*/
     for(int i = 1;i < PROCESSOR::n_processors;i++)
         processors[i]->state = WAIT;
-    while(PROCESSOR::n_idle_processors < PROCESSOR::n_processors - 1)
-        t_yield();
 #endif
 
     /*mcts or alphabeta*/

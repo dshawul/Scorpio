@@ -667,6 +667,10 @@ void SEARCHER::search_mc() {
     const unsigned int visits_poll = 200;
 #endif
 
+    /*wait until all idle processors are awake*/
+    while(PROCESSOR::n_idle_processors)
+        t_yield();
+
     /*Set alphabeta rollouts depth*/
     int ablimit = DEPTH((1 - frac_abrollouts) * pstack->depth);
     if(ablimit > alphabeta_depth)

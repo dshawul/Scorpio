@@ -544,7 +544,10 @@ void PROCESSOR::idle_loop() {
     bool skip_message = ((this != processors[0]) || (n_hosts == 1));
     do {
         if(state == PARK) t_sleep(1);
-        else if(state == WAIT) t_yield();
+        else if(state == WAIT) {
+            if(SEARCHER::use_nn) t_sleep(0);
+            else t_yield();
+        }
         /*check message*/
         if(!skip_message) {
 #ifdef CLUSTER
