@@ -1362,8 +1362,8 @@ bool SEARCHER::san_mov(MOVE& move,char* s) {
     if(!len) goto END;
     if(s[len - 1] == 'x') s[--len] = 0;
     if(!len) goto END;
-    if((s[len - 1] >= 'a') && (s[len - 1] <= 'h')) { f_file = (s[len - 1]-'a'); s[--len] = 0; }
     if((s[len - 1] >= '1') && (s[len - 1] <= '8')) { f_rank = (s[len - 1]-'1'); s[--len] = 0; }
+    if((s[len - 1] >= 'a') && (s[len - 1] <= 'h')) { f_file = (s[len - 1]-'a'); s[--len] = 0; }
     if(!len) goto END;
     c = (char*) strchr(piece_name,s[len - 1]);
     if(c) piece = PIECE(c - piece_name);
@@ -1406,6 +1406,96 @@ static int compare(const void * a, const void * b) {
     else return 0;
 }
 
+bool SEARCHER::pgn_to_epd(char* path,char* book) {
+    FILE*  f = fopen(path,"r");
+    FILE* fb = fopen(book,"w");
+    if(!f || !fb) return false;
+
+    char   buffer[MAX_FILE_STR];
+    char   *commands[MAX_STR],*command;
+    int    result = 0,command_num;
+    int    comment = 0,line = 0,game = 0;
+    MOVE   move;
+    char   fen[256];
+    bool cap_prom_check = false;
+    char* pc;
+    bool illegal = false;
+
+    while(fgets(buffer,MAX_FILE_STR,f)) {
+        line++;
+
+        if(buffer[0] == '[' && !comment) {
+            if(strncmp(buffer + 1, "Result ",7) == 0) {
+                if(!strncmp(buffer + 9,"1-0",3)) result = R_WWIN;
+                else if(!strncmp(buffer + 9,"0-1",3)) result = R_BWIN;
+                else if(!strncmp(buffer + 9,"1/2-1/2",7)) result = R_DRAW;
+                else result = R_UNKNOWN;
+
+                game++;
+                print("Game %d\t\r",game);
+                new_board();
+                cap_prom_check = false;
+                illegal = false;
+
+            } else if(strncmp(buffer + 1, "FEN ",4) == 0) {
+                buffer[(strlen(buffer)-1-2)]=0;
+                strcpy(fen,buffer+6);
+                set_board(fen);
+                cap_prom_check = false;
+            }
+            continue;
+        }
+        if(illegal) continue;
+        if(isspace(buffer[0])) continue;
+
+        commands[tokenize(buffer,commands," \n\r\t")] = NULL;
+        command_num = 0;
+        while((command = commands[command_num++]) != 0) {
+            if(strchr(command,'{')) comment++;
+            if(strchr(command,'}')) comment--;
+            else if(comment == 0) {
+                if((pc = strchr(command,'.')) != 0) {
+                    if(*(pc+1) == ' ' || *(pc+1) == 0 || *(pc+1) == '.') continue;
+                    else command = pc + 1;
+                }
+                if(strchr(command,'*')) continue;
+                if(strchr(command,'-') && strchr(command,'1')) continue;
+
+                /*SAN move*/
+                if(!san_mov(move,command)) {
+                    print("Incorrect move %s at game %d line %d\n",command,game,line);
+                    print_board();
+                    illegal = true;
+                    break;
+                }
+                if(is_cap_prom(move))
+                    cap_prom_check = true;
+
+                do_move(move);
+                ply++;
+
+                if(!cap_prom_check && !hstack[hply - 1].checks) {
+                    get_fen(fen);
+                    if(result == R_WWIN) strcat(fen," 1-0");
+                    else if(result == R_BWIN) strcat(fen," 0-1");
+                    else strcat(fen," 1/2-1/2");
+                    fprintf(fb,"%s\n",fen);
+                }
+
+                if(hstack[hply - 1].checks)
+                    cap_prom_check = true;
+                else
+                    cap_prom_check = false;
+            }
+        }
+    }
+
+    fclose(f);
+    fclose(fb);
+
+    return true;
+}
+
 bool SEARCHER::build_book(char* path,char* book,int BOOK_SIZE,int BOOK_DEPTH,int color) {
     FILE* f = fopen(path,"rt");
     if(!f) return false;
@@ -1418,6 +1508,9 @@ bool SEARCHER::build_book(char* path,char* book,int BOOK_SIZE,int BOOK_DEPTH,int
     int    comment = 0,line = 0,game = 0;
     UBMP16 weight;
     MOVE   move;
+    char   fen[256];
+    char* pc;
+    bool illegal = false;
 
     for(i = 0;i < 2;i++) {
         entries[i] = new BOOK_E[BOOK_SIZE];
@@ -1435,11 +1528,17 @@ bool SEARCHER::build_book(char* path,char* book,int BOOK_SIZE,int BOOK_DEPTH,int
                 game++;
                 print("Game %d\t\r",game);
                 new_board();
+                illegal = false;
+
+            } else if(strncmp(buffer + 1, "FEN ",4) == 0) {
+                buffer[(strlen(buffer)-1-2)]=0;
+                strcpy(fen,buffer+6);
+                set_board(fen);
             }
             continue;
         }
+        if(illegal) continue;
         if(isspace(buffer[0])) continue;
-
 
         commands[tokenize(buffer,commands," \n\r\t")] = NULL;
         command_num = 0;
@@ -1447,7 +1546,10 @@ bool SEARCHER::build_book(char* path,char* book,int BOOK_SIZE,int BOOK_DEPTH,int
             if(strchr(command,'{')) comment++;
             if(strchr(command,'}')) comment--;
             else if(comment == 0) {
-                if(strchr(command,'.')) continue;
+                if((pc = strchr(command,'.')) != 0) {
+                    if(*(pc+1) == ' ' || *(pc+1) == 0 || *(pc+1) == '.') continue;
+                    else command = pc + 1;
+                }
                 if(strchr(command,'*')) continue;
                 if(strchr(command,'-') && strchr(command,'1')) continue;
                 /*move weight*/
@@ -1466,7 +1568,8 @@ bool SEARCHER::build_book(char* path,char* book,int BOOK_SIZE,int BOOK_DEPTH,int
                 if(!san_mov(move,command)) {
                     print("Incorrect move %s at game %d line %d\n",command,game,line);
                     print_board();
-                    return false;
+                    illegal = true;
+                    break;
                 }
                 do_move(move);
                 ply++;
