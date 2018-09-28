@@ -768,6 +768,7 @@ typedef struct SEARCHER{
     static int use_nn;
     static int n_devices;
     static int device_type;
+    static int delay;
     /*
     End
     */

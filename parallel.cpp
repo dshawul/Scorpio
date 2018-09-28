@@ -545,8 +545,9 @@ void PROCESSOR::idle_loop() {
     do {
         if(state == PARK) t_sleep(1);
         else if(state == WAIT) {
-            if(SEARCHER::use_nn) t_sleep(0);
-            else t_yield();
+            t_yield();
+            if(SEARCHER::use_nn) 
+                t_sleep(SEARCHER::delay);
         }
         /*check message*/
         if(!skip_message) {

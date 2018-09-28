@@ -1468,24 +1468,24 @@ bool SEARCHER::pgn_to_epd(char* path,char* book) {
                     illegal = true;
                     break;
                 }
-                if(is_cap_prom(move))
-                    cap_prom_check = true;
+
 
                 do_move(move);
                 ply++;
 
-                if(!cap_prom_check && !hstack[hply - 1].checks) {
-                    get_fen(fen);
-                    if(result == R_WWIN) strcat(fen," 1-0");
-                    else if(result == R_BWIN) strcat(fen," 0-1");
-                    else strcat(fen," 1/2-1/2");
-                    fprintf(fb,"%s\n",fen);
+                if(is_cap_prom(move) || hstack[hply - 1].checks) {
+                    cap_prom_check = true;
+                } else {
+                    if(!cap_prom_check) {
+                        get_fen(fen);
+                        if(result == R_WWIN) strcat(fen," 1-0");
+                        else if(result == R_BWIN) strcat(fen," 0-1");
+                        else strcat(fen," 1/2-1/2");
+                        fprintf(fb,"%s\n",fen);
+                    }
+                    cap_prom_check = false;
                 }
 
-                if(hstack[hply - 1].checks)
-                    cap_prom_check = true;
-                else
-                    cap_prom_check = false;
             }
         }
     }

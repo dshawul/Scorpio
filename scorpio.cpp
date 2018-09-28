@@ -393,6 +393,7 @@ bool parse_commands(char** commands) {
             print("feature option=\"egbb_ply_limit_percent -spin %d 0 100\"\n", SEARCHER::egbb_ply_limit_percent);
             print("feature option=\"n_devices -spin %d 1 128\"\n",SEARCHER::n_devices);
             print("feature option=\"device_type -combo *CPU /// GPU \"\n");
+            print("feature option=\"delayms -spin %d 0 1000\"\n",SEARCHER::delay);
             print_search_params();
             print_mcts_params();
 #ifdef TUNE
@@ -577,6 +578,9 @@ bool parse_commands(char** commands) {
             command_num++;
         } else if(!strcmp(command, "n_devices")) {
             SEARCHER::n_devices = atoi(commands[command_num]);
+            command_num++;
+        } else if(!strcmp(command, "delay")) {
+            SEARCHER::delay = atoi(commands[command_num]);
             command_num++;
         } else if(!strcmp(command, "device_type")) {
             command = commands[command_num++];
