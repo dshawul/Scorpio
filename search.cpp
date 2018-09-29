@@ -1532,6 +1532,7 @@ MOVE SEARCHER::find_best() {
     search_calls = 0;
     start_time = get_time();
     egbb_probes = 0;
+    PROCESSOR::set_num_searchers();
 
     /*fen*/
     char fen[MAX_FEN_STR];

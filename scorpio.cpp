@@ -393,7 +393,7 @@ bool parse_commands(char** commands) {
             print("feature option=\"egbb_ply_limit_percent -spin %d 0 100\"\n", SEARCHER::egbb_ply_limit_percent);
             print("feature option=\"n_devices -spin %d 1 128\"\n",SEARCHER::n_devices);
             print("feature option=\"device_type -combo *CPU /// GPU \"\n");
-            print("feature option=\"delayms -spin %d 0 1000\"\n",SEARCHER::delay);
+            print("feature option=\"delay -spin %d 0 1000\"\n",SEARCHER::delay);
             print_search_params();
             print_mcts_params();
 #ifdef TUNE
