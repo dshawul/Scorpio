@@ -24,7 +24,7 @@ enum {CPU, GPU};
 
 typedef int (CDECL *PPROBE_EGBB) (int player, int* piece, int* square);
 typedef void (CDECL *PLOAD_EGBB) (char* path, int cache_size, int load_options);
-typedef void (CDECL *PLOAD_NN) (char* path, int n_threads, int n_devices, int dev_type, int delay);
+typedef void (CDECL *PLOAD_NN) (char* path, int n_threads, int n_devices, int dev_type, int delay, int float_type);
 typedef int (CDECL *PPROBE_NN) (int player, int* piece, int* square);
 typedef void (CDECL *PSET_NUM_ACTIVE_SEARCHERS) (int n_searchers);
 
@@ -44,6 +44,7 @@ int SEARCHER::use_nn = 0;
 int SEARCHER::n_devices = 1;
 int SEARCHER::device_type = CPU;
 int SEARCHER::delay = 0;
+int SEARCHER::float_type = 1;
 
 /*
 Load the dll and get the address of the load and probe functions.
@@ -98,7 +99,8 @@ int LoadEgbbLibrary(char* main_path,int egbb_cache_size) {
         if(load_egbb)
             load_egbb(main_path,egbb_cache_size,SEARCHER::egbb_load_type);
         if(load_nn && SEARCHER::use_nn)
-            load_nn(SEARCHER::nn_path,PROCESSOR::n_processors,SEARCHER::n_devices,SEARCHER::device_type,SEARCHER::delay);
+            load_nn(SEARCHER::nn_path,PROCESSOR::n_processors,SEARCHER::n_devices,
+                SEARCHER::device_type,SEARCHER::delay,SEARCHER::float_type);
         else
             SEARCHER::use_nn = 0;
         return true;

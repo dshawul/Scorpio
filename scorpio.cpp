@@ -394,6 +394,7 @@ bool parse_commands(char** commands) {
             print("feature option=\"n_devices -spin %d 1 128\"\n",SEARCHER::n_devices);
             print("feature option=\"device_type -combo *CPU /// GPU \"\n");
             print("feature option=\"delay -spin %d 0 1000\"\n",SEARCHER::delay);
+            print("feature option=\"float_type -combo FLOAT /// *HALF  /// INT8 \"\n");
             print_search_params();
             print_mcts_params();
 #ifdef TUNE
@@ -582,6 +583,11 @@ bool parse_commands(char** commands) {
         } else if(!strcmp(command, "delay")) {
             SEARCHER::delay = atoi(commands[command_num]);
             command_num++;
+        } else if(!strcmp(command, "float_type")) {
+            command = commands[command_num++];
+            if(!strcmp(command,"FLOAT")) SEARCHER::float_type = 0;
+            else if(!strcmp(command,"HALF")) SEARCHER::float_type = 1;
+            else SEARCHER::float_type = 2;
         } else if(!strcmp(command, "device_type")) {
             command = commands[command_num++];
             if(!strcmp(command,"CPU")) SEARCHER::device_type = 0;
