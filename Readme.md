@@ -72,30 +72,114 @@ in nature.
 <a name="nns"></a>
 ### Neural Networks (NNs)
 
-The neural network version of Scorpio works with a tensorflow backend. The easiest way is to download the binaries
-I provide for windwos for both CPU and GPU (with CUDA + cuDNN libraries)
+The neural network version of Scorpio works using egbbdll that provides neural network inference via tensorflow and/or TensorRT backends.
 
-TLDR; Go to my github release page and download pre-compiled binaries of egbbdll64.dll for windows (CPU and GPU). 
-Here are the links for convenience
+#### Building egbbdll
 
-[egbbdll64-nn-windows-cpu.zip](https://github.com/dshawul/Scorpio/releases/download/2.8.8/egbbdll64-nn-windows-cpu.zip)
+The egbbdll serves dual purpose, namely, for probing bitbases and neural networks.
+If you just want the former, the build processess is very easy.
 
-[egbbdll64-nn-windows-gpu.zip](https://github.com/dshawul/Scorpio/releases/download/2.8.8/egbbdll64-nn-windows-gpu.zip)
+First clone the repository
 
+    git clone https://github.com/dshawul/egbbdll.git
 
-The egbbdll serves dual purpose, namely, for probing bitbases and neural networks so extract it in a directory where bitbases are located. 
-For the GPU version of egbbdll, we need to set the Path environment variable and incase of linux LD_LIBRARY_PATH for the system to find
-cudnn.dll and other dependencies.
+##### Building without neural network support
 
-#### Building from sources (for linux)
+Then set the following variables to 0 in the Makefile
+    
+    USE_TF = 0
+    USE_TRT = 0
+
+Then
+    
+    make
+
+That is it.
+
+##### Building with neural network support
+
+To build egbbdll with neural network support is a lot more complicated. Neural network inference is done via 
+tensorflow and/or TensorRT backends. This means you are limited to NVIDIA GPUs atleast until OpenCL support is 
+complete in these libraries. 
+
+###### Downloading binaries (for Windows)
+
+The easiest way on a Windows machines is to download the binaries I provide for both 
+CPU and GPU (with CUDA + cuDNN libraries). Here are the links for convenience
+
+[egbbdll64-nn-windows-cpu.zip](https://github.com/dshawul/Scorpio/releases/download/2.8.9/egbbdll64-nn-windows-cpu.zip)
+
+[egbbdll64-nn-windows-gpu.zip](https://github.com/dshawul/Scorpio/releases/download/2.8.9/egbbdll64-nn-windows-gpu.zip)
+
+Extract it in a directory where bitbases are located so it can serve its dual purpose. 
+For the GPU version of egbbdll, we need to set the Path environment variable ( in the case of linux 
+the LD_LIBRARY_PATH variable) so that the system can find cudnn.dll, nvinfer.dll and other dependencies.
+
+###### Building from sources (for linux)
 
 For those who feel adventurous, here is how you build from sources.
-First build C++ tensorflow library following the steps given [here](https://github.com/FloopCZ/tensorflow_cc), 
-then compile egbbdll using this library for neural network inference.
+Egbbdll needs tensorflow for neural network inference on the CPU, however, on the
+GPU there is another option that is less complicated to build AND also significantly faster.
+That option is using TensorRT and UFF format network files.
+We need to install the followind dependencies for the TensorRT backend:
 
-#####   Building tensorflow_cc on linux
+    * cuDNN
+    * CUDA
+    * TensorRT
 
-To build and install the "shared" tensorflow_cc library, follow the instructions given [here](https://github.com/FloopCZ/tensorflow_cc)
+These can be download [NVIDA developer page](https://developer.nvidia.com/)
+Make sure you download compatible versions (e.g. cuDNN 7.3 + CUDA 10.0 + TensorRT 5.0)
+
+######   Building egbbdll with TensorRT backend
+
+Clone the egbbdll repository
+
+    git clone https://github.com/dshawul/egbbdll.git
+
+Then go into the Makefile and set the paths to the dependencies
+
+    #########################################
+    #  USE_TF      0 = Don't use tensorflow
+    #              1 = tensorlow_cc
+    #              2 = manually built tensorflow
+    #  USE_TRT     0 = Don't use TensorRT
+    #              1 = Use TensorRT
+    #  USE_SHARED  0 = static linking if possible
+    #              1 = dynamic linking to TF/TRT
+    ########################################
+    USE_TF = 0
+    USE_TRT = 1
+    USE_SHARED = 1
+
+    ########################################
+    # Set directories to dependenies
+    ########################################
+
+    ifeq ($(USE_TF),1)
+        TF_DIR=/usr/local
+    else ifeq ($(USE_TF),2)
+        TF_DIR=/home/daniel/tensorflow
+    endif
+
+    ifneq ($(USE_TRT),0)
+        TRT_DIR = /home/daniel/TensorRT-5.0.0.10
+        CUDA_DIR = /usr/local/cuda
+    endif
+
+Then build egbbso64.so with
+    
+    make
+
+That is it.
+
+###### Building egbbdll with tensorflow backend
+
+To build egbbdll with libtensorflow_cc.so dependency, do one of the following.
+
+###### Option 1 - using tensorflow_cc on linux only
+
+The first option is to use tensorflow_cc (USE_TF = 1). Build the C++ tensorflow library following the steps 
+given [here](https://github.com/FloopCZ/tensorflow_cc).
 
 It may be easier to use docker using the command below instead of building the shared library with bazel yourself.
 
@@ -106,43 +190,32 @@ Once the build and install (or docker load) is complete, you should see the tens
     $ ls /usr/local/lib/tensorflow_cc/
     libprotobuf.a  libtensorflow_cc.so
 
-##### Building egbbdll and Scorpio
+###### Option 2 - manually building tensorflow
+
+The second option is to build tensorflow manually without using scripts (USE_TF = 2). This option also works on windows.
+Go into the tensorflow director and execute
+
+    bazel build --config=opt --config=monolithic //tensorflow:libtensorflow_cc.so
+
+This will take hours to build so be patient. Once it completes, you will find the library in bazel-bin/tensorflow directory.
+
+###### Build egbbdll directly using bazel -- i.e. without using Makefile
+
+To compile egbbdll directly using bazel, put the egbbdll source directory in tensorflow/tenorflow/cc/ and then compile with
+
+    bazel build --config=opt --config=monolithic //tensorflow/cc/egbbdll:egbbdll64.dll
+
+You will then find the egbbdll64.dll in bazel-bin/tensorflow/cc/egbbdll directory. This option currently doesn't work
+with the TensorRT backend.
+
+##### Building Scorpio
 
 This is very straightforward:
 
-    git clone https://github.com/dshawul/egbbdll.git
-    cd egbbdll && make && cd ..
-    
     git clone https://github.com/dshawul/Scorpio.git
     cd Scorpio && make && cd ..
 
-This will get you an egbbso64.so and linux scorpio executable.
-Then, copy the egbbso64.so to the directory you store your egbb files, overwriting the existing one.
-
-    cp egbbdll/egbbso64.so  $EGBB_DIRECTORY
-
-####   Building from sources (for Windows)
-
-Unfortunately tensorflow_cc does not support windows. However, since r1.11, tensorflow can be built on windows using bazel. 
-To compile egbbdll directly using bazel, put the egbbdll source directory in tensorflow/tenorflow/cc/ and then compile with
-
-    bazel build --config=opt --config=monolithic //tensorflow/cc/egbbdll:egbbdll.so
-
-You can use this approach for linux as well by setting USE_TF = 2 in Makefile and specifying the tensorflow directly.
-Setting USE_TF = 1 means using the tensorflow_cc approach.
-
-#### Downloading networks
-
-Create a directory to store network files and downlowd networks from my site
-
-    mkdir Scorpio/nets-ccrl
-    cd Scorpio/nets-ccrl
-    wget https://sites.google.com/site/dshawul/net-2x32.pb
-    wget https://sites.google.com/site/dshawul/net-6x64.pb
-    wget https://sites.google.com/site/dshawul/net-12x64.pb
-    cd ..
-
-I have also 24x128 and 40x256 networks
+This will get you a linux scorpio executable.
 
 #### Testing on the CPU
 
