@@ -723,7 +723,9 @@ bool parse_commands(char** commands) {
             *     Processing epd files                  *
             *********************************************/
         } else if (!strcmp(command, "runeval") || 
+                   !strcmp(command, "runevalepd") || 
                    !strcmp(command, "runsearch") ||
+                   !strcmp(command, "runsearchepd") ||
                    !strcmp(command, "jacobian") ||
                    !strcmp(command, "mse") ||
                    !strcmp(command, "gmse") ||
@@ -735,22 +737,26 @@ bool parse_commands(char** commands) {
             char* words[100];
             double frac = 1;
             int sc,sce,test,visited,result,nwords = 0;
+            enum {RUNEVAL = 0, RUNEVALEPD, RUNSEARCH, RUNSEARCHEPD, JACOBIAN, MSE, GMSE, TUNE};
+            static const int DRAW_MARGIN = 35;
 
-            if(!strcmp(command,"runeval")) test = 0;
-            else if(!strcmp(command,"runsearch")) test = 1;
-            else if(!strcmp(command,"jacobian")) test = 2;
-            else if(!strcmp(command,"mse")) test = 3;
-            else if(!strcmp(command,"gmse")) test = 4;
-            else  test = 5;
+            if(!strcmp(command,"runeval")) test = RUNEVAL;
+            else if(!strcmp(command,"runevalepd")) test = RUNEVALEPD;
+            else if(!strcmp(command,"runsearch")) test = RUNSEARCH;
+            else if(!strcmp(command,"runsearchepd")) test = RUNSEARCHEPD;
+            else if(!strcmp(command,"jacobian")) test = JACOBIAN;
+            else if(!strcmp(command,"mse")) test = MSE;
+            else if(!strcmp(command,"gmse")) test = GMSE;
+            else  test = TUNE;
 
             /*open file*/
-            bool getfen = ((test <= 2) 
+            bool getfen = ((test <= JACOBIAN) 
 #ifdef TUNE
-                || (test >=3 && !has_jacobian())
+                || (test >= MSE && !has_jacobian())
 #endif
                 );
 
-            FILE *fd = 0;
+            FILE *fd = 0, *fw = 0;
             if(getfen) {
 #ifndef _WIN32
                 if(mem_epdfile)
@@ -765,6 +771,9 @@ bool parse_commands(char** commands) {
                     }
                 }
             }
+            if(test == RUNEVALEPD || test == RUNSEARCHEPD) {
+                fw = fopen(commands[command_num++],"w");
+            }
             if(!epdfile_count) {
                 while(fgets(input,MAX_STR,fd))
                     epdfile_count++;
@@ -772,14 +781,14 @@ bool parse_commands(char** commands) {
             }
 #ifdef TUNE
             /*set additional parameters of tune,mse & gmse*/
-            if(test >= 3) {
+            if(test >= MSE) {
                 frac = atof(commands[command_num++]);
                 int randseed = atoi(commands[command_num++]);
                 srand(randseed);
             }
 
             /*allocate jacobian*/
-            if(test == 2) {
+            if(test == JACOBIAN) {
                 allocate_jacobian(epdfile_count);
                 print("Computing jacobian matrix of evaluation function ...\n");
             }
@@ -789,7 +798,7 @@ bool parse_commands(char** commands) {
             const double gamma = 0.1, alpha = 1e4;
             int nSize = nParameters + nModelParameters;
             
-            if(test >= 4) {
+            if(test >= GMSE) {
                 gse = (double*) malloc(nSize * sizeof(double));
                 gmse = (double*) malloc(nSize * sizeof(double));
                 dmse = (double*) malloc(nSize * sizeof(double));
@@ -799,7 +808,7 @@ bool parse_commands(char** commands) {
             }
 #endif
             /*Print headers*/
-            if(test <= 1) {
+            if(test <= RUNSEARCH) {
                 if(SEARCHER::pv_print_style == 0) 
                     print("******************************************\n");
                 else if(SEARCHER::pv_print_style == 1)
@@ -816,7 +825,7 @@ bool parse_commands(char** commands) {
                 visited = 0;
 #ifdef TUNE
                 mse = 0.0;
-                if(test >= 4)
+                if(test >= GMSE)
                     memset(gmse,0,nSize * sizeof(double));
 #endif
                 for(int cnt = 0;cnt < epdfile_count;cnt++) {
@@ -828,7 +837,7 @@ bool parse_commands(char** commands) {
                     /*Sample a fraction of total postions: This is called a mini-batch gradient
                      descent with bootstrap sampling. In the standard mini-batch GD the sampling
                      of training positions is done without replacement.*/
-                    if(test >= 3 && frac > 1e-6) {
+                    if(test >= MSE && frac > 1e-6) {
                         double r = double(rand()) / RAND_MAX;
                         if(r >= frac) continue;
                     }
@@ -850,29 +859,63 @@ bool parse_commands(char** commands) {
                     }
 
                     switch(test) {
-                    case 0:
+                    case RUNEVAL:
+                    case RUNEVALEPD:
                         sc = searcher.eval();
-                        searcher.mirror();
-                        sce = searcher.eval();
-                        if(sc == sce)
-                            print("*%d* %d\n",visited,sc);
-                        else {
-                            print("*****WRONG RESULT*****\n");
-                            print("[ %s ] \nsc = %6d sc1 = %6d\n",fen,sc,sce);
-                            print("**********************\n");
+
+                        if(test == RUNEVAL) {
+                            searcher.mirror();
+                            sce = searcher.eval();
+                            if(sc == sce)
+                                print("*%d* %d\n",visited,sc);
+                            else {
+                                print("*****WRONG RESULT*****\n");
+                                print("[ %s ] \nsc = %6d sc1 = %6d\n",fen,sc,sce);
+                                print("**********************\n");
+                            }
+                        }
+                        if(test == RUNEVALEPD) {
+                            int res;
+                            if(sc > DRAW_MARGIN) res = 1;
+                            else if( sc < -DRAW_MARGIN) res = -1;
+                            else res = 0;
+                            if(searcher.player == black) res = -res;
+                            if(res == 1)
+                                fprintf(fw, "%s 1-0\n", fen);
+                            else if(res == -1)
+                                fprintf(fw, "%s 0-1\n", fen);
+                            else
+                                fprintf(fw, "%s 1/2-1/2\n", fen);
                         }
                         break;
-                    case 1:
+                    case RUNSEARCH:
+                    case RUNSEARCHEPD:
                         PROCESSOR::clear_hash_tables();
                         main_searcher->COPY(&searcher);
                         main_searcher->find_best();
-                        if(SEARCHER::pv_print_style == 0) 
-                            print("********** %d ************\n",visited);
+
+                        if(test == RUNSEARCH) {
+                            if(SEARCHER::pv_print_style == 0) 
+                                print("********** %d ************\n",visited);
+                        } else {
+                            sc = main_searcher->pstack->best_score;
+                            int res;
+                            if(sc > DRAW_MARGIN) res = 1;
+                            else if( sc < -DRAW_MARGIN) res = -1;
+                            else res = 0;
+                            if(searcher.player == black) res = -res;
+                            if(res == 1)
+                                fprintf(fw, "%s 1-0\n", fen);
+                            else if(res == -1)
+                                fprintf(fw, "%s 0-1\n", fen);
+                            else
+                                fprintf(fw, "%s 1/2-1/2\n", fen);
+                        }
                         break;
-                    case 2:
-                    case 3:
-                    case 4:
-                    case 5:
+                    case JACOBIAN:
+                    case MSE:
+                    case GMSE:
+                    case TUNE:
                         if(getfen) {
                             if(!strncmp(words[nwords - 1],"1-0",3)) result = 1;
                             else if(!strncmp(words[nwords - 1],"0-1",3)) result = -1;
@@ -885,7 +928,7 @@ bool parse_commands(char** commands) {
                                 result = -result;
                         }
 #ifdef TUNE
-                        if(test == 2) {
+                        if(test == JACOBIAN) {
                             compute_jacobian(&searcher,cnt,result);
                         } else {
                             /*compute evaluation from the stored jacobian*/
@@ -896,7 +939,7 @@ bool parse_commands(char** commands) {
                                 se = eval_jacobian(cnt,result,params);
                             }
                             /*compute loss function (log-likelihood) or its gradient*/
-                            if(test == 3) {
+                            if(test == MSE) {
                                 se = get_log_likelihood(result,se);
                                 mse += (se - mse) / visited;
                             } else  {
@@ -913,15 +956,15 @@ bool parse_commands(char** commands) {
 #ifdef TUNE
                 /*Update parameters based on gradient of loss function computed 
                   over the current mini-batch*/
-                if(test == 2) {
+                if(test == JACOBIAN) {
                     print("Computed jacobian for %d positions.\n",visited);
-                } else if(test == 3) {
+                } else if(test == MSE) {
                     print("%.9e\n",mse);
-                } else if(test == 4) {
+                } else if(test == GMSE) {
                     for(int i = 0;i < nSize;i++)
                         print("%.9e ",gmse[i]);
                     print("\n");
-                } else if(test == 5) {
+                } else if(test == TUNE) {
                     double normg = 0;
                     for(int i = 0;i < nSize;i++) {
                         dmse[i] = -gmse[i] + gamma * dmse[i];
@@ -939,7 +982,7 @@ bool parse_commands(char** commands) {
                     }
                 }
 #endif
-                if(test != 5) break;
+                if(test != TUNE) break;
             }
 #ifdef TUNE
             if(test >= 4) {
@@ -951,6 +994,7 @@ bool parse_commands(char** commands) {
 #endif
             searcher.new_board();
             if(fd) fclose(fd);
+            if(fw) fclose(fw);
 
             /*********************************************
             *  We process all other commands as moves   *
