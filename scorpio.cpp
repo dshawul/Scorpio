@@ -726,6 +726,7 @@ bool parse_commands(char** commands) {
                    !strcmp(command, "runevalepd") || 
                    !strcmp(command, "runsearch") ||
                    !strcmp(command, "runsearchepd") ||
+                   !strcmp(command, "runquietepd") ||
                    !strcmp(command, "jacobian") ||
                    !strcmp(command, "mse") ||
                    !strcmp(command, "gmse") ||
@@ -737,13 +738,14 @@ bool parse_commands(char** commands) {
             char* words[100];
             double frac = 1;
             int sc,sce,test,visited,result,nwords = 0;
-            enum {RUNEVAL = 0, RUNEVALEPD, RUNSEARCH, RUNSEARCHEPD, JACOBIAN, MSE, GMSE, TUNE};
             static const int DRAW_MARGIN = 35;
+            enum {RUNEVAL = 0, RUNEVALEPD, RUNSEARCH, RUNSEARCHEPD, RUNQUIETEPD, JACOBIAN, MSE, GMSE, TUNE};
 
             if(!strcmp(command,"runeval")) test = RUNEVAL;
             else if(!strcmp(command,"runevalepd")) test = RUNEVALEPD;
             else if(!strcmp(command,"runsearch")) test = RUNSEARCH;
             else if(!strcmp(command,"runsearchepd")) test = RUNSEARCHEPD;
+            else if(!strcmp(command,"runquietepd")) test = RUNQUIETEPD;
             else if(!strcmp(command,"jacobian")) test = JACOBIAN;
             else if(!strcmp(command,"mse")) test = MSE;
             else if(!strcmp(command,"gmse")) test = GMSE;
@@ -771,7 +773,7 @@ bool parse_commands(char** commands) {
                     }
                 }
             }
-            if(test == RUNEVALEPD || test == RUNSEARCHEPD) {
+            if(test == RUNEVALEPD || test == RUNSEARCHEPD || test == RUNQUIETEPD) {
                 fw = fopen(commands[command_num++],"w");
             }
             if(!epdfile_count) {
@@ -890,14 +892,15 @@ bool parse_commands(char** commands) {
                         break;
                     case RUNSEARCH:
                     case RUNSEARCHEPD:
+                    case RUNQUIETEPD:
                         PROCESSOR::clear_hash_tables();
                         main_searcher->COPY(&searcher);
-                        main_searcher->find_best();
+                        move = main_searcher->find_best();
 
                         if(test == RUNSEARCH) {
                             if(SEARCHER::pv_print_style == 0) 
                                 print("********** %d ************\n",visited);
-                        } else {
+                        } else if(test == RUNSEARCHEPD) {
                             sc = main_searcher->pstack->best_score;
                             int res;
                             if(sc > DRAW_MARGIN) res = 1;
@@ -910,6 +913,15 @@ bool parse_commands(char** commands) {
                                 fprintf(fw, "%s 0-1\n", fen);
                             else
                                 fprintf(fw, "%s 1/2-1/2\n", fen);
+                        } else {
+                            if(!is_cap_prom(move)) {
+                                if(!strncmp(words[nwords - 1],"1-0",3))  
+                                    fprintf(fw, "%s 1-0\n", fen);
+                                else if(!strncmp(words[nwords - 1],"0-1",3)) 
+                                    fprintf(fw, "%s 0-1\n", fen);
+                                else if(!strncmp(words[nwords - 1],"1/2-1/2",7)) 
+                                    fprintf(fw, "%s 1/2-1/2\n", fen);
+                            }
                         }
                         break;
                     case JACOBIAN:
