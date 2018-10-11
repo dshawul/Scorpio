@@ -1194,13 +1194,18 @@ void SEARCHER::evaluate_moves(int depth, int alpha, int beta) {
     for(int i = 0;i < pstack->count; i++) {
         pstack->current_move = pstack->move_st[i];
         PUSH_MOVE(pstack->current_move);
-        pstack->alpha = -beta;
-        pstack->beta = -alpha;
-        pstack->depth = depth;
-        pstack->node_type = PV_NODE;
-        pstack->search_state = NORMAL_MOVE;
-        qsearch_calls++;
-        get_search_score();
+        if(egbb_is_loaded && all_man_c <= MAX_EGBB 
+            && bitbase_cutoff()
+            ) {
+        } else {
+            pstack->alpha = -beta;
+            pstack->beta = -alpha;
+            pstack->depth = depth;
+            pstack->node_type = PV_NODE;
+            pstack->search_state = NORMAL_MOVE;
+            qsearch_calls++;
+            get_search_score();
+        }
         POP_MOVE();
         pstack->score_st[i] = -(pstack+1)->best_score;
     }
@@ -1214,7 +1219,7 @@ void SEARCHER::evaluate_moves(int depth, int alpha, int beta) {
 Generate all moves
 */
 void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta, bool skip_eval) {
-    int legal_moves, score;
+    int legal_moves;
 
     /*generate moves here*/
     pstack->count = 0;
@@ -1227,35 +1232,15 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta, bool ski
             POP_MOVE();
             continue;
         }
-        if(in_egbb && probe_bitbases(score)) {
-            score = -score;
-        } else {
-            score = (alpha + beta) / 2;
-        }
         POP_MOVE();
-
         pstack->move_st[legal_moves] = pstack->current_move;
-        pstack->score_st[legal_moves] = score;
+        pstack->score_st[legal_moves] = (alpha + beta) / 2;
         legal_moves++;
     }
-
     pstack->count = legal_moves;
 
-    /*play fast egbb loss and draws*/
-    if(in_egbb && legal_moves) {
-        for(int i = 0;i < pstack->count; i++) {
-            pstack->sort(i,pstack->count);
-            if(pstack->score_st[i] <= 0) {
-                if(i == 0) pstack->count = 1;
-                else pstack->count = i;
-                legal_moves = pstack->count;
-                break;
-            }
-        }
-    }
-
-    /*score non-egbb moves*/
-    if(!in_egbb && !skip_eval)
+    /*compute node score*/
+    if(!skip_eval)
         evaluate_moves(depth,alpha,beta);
 }
 /*
@@ -1540,12 +1525,7 @@ MOVE SEARCHER::find_best() {
     print_log("%s\n",fen);
 
     /*generate and score moves*/
-    int score;
     in_egbb = (egbb_is_loaded && all_man_c <= MAX_EGBB);
-    if(in_egbb) {
-        if(probe_bitbases(score));
-        else in_egbb = false;
-    }
 
     skip_nn = true;
     generate_and_score_moves(0,-MATE_SCORE,MATE_SCORE);

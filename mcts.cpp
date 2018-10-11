@@ -400,10 +400,6 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
         if(draw()) {
             score = ((scorpio == player) ? -contempt : contempt);
             goto BACKUP_LEAF;
-        /*bitbases*/
-        } else if(bitbase_cutoff()) {
-            score = pstack->best_score;
-            goto BACKUP_LEAF;
         /*Reached max plies and depth*/
         } else if(ply >= MAX_PLY - 1 || pstack->depth <= 0) {
             score = n->score;
