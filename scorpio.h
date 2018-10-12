@@ -275,6 +275,7 @@ typedef struct CHESS_CLOCK {
     int o_time;
     int max_st;
     int max_sd;
+    int max_visits;
     int search_time;
     int maximum_time;
     int infinite_mode;

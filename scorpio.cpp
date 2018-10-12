@@ -431,6 +431,9 @@ bool parse_commands(char** commands) {
         } else if(!strcmp(command,"sd")) {
             SEARCHER::chess_clock.max_st = MAX_NUMBER;
             SEARCHER::chess_clock.max_sd = atoi(commands[command_num++]);
+        } else if(!strcmp(command,"sv")) {
+            SEARCHER::chess_clock.max_st = MAX_NUMBER;
+            SEARCHER::chess_clock.max_visits = atoi(commands[command_num++]);
         } else if(!strcmp(command,"level")) {
             SEARCHER::chess_clock.mps = atoi(commands[command_num++]);
             if(strstr(commands[command_num],":")) {

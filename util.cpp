@@ -1035,6 +1035,7 @@ CHESS_CLOCK::CHESS_CLOCK() {
     o_time = 60000;
     max_st = MAX_NUMBER;
     max_sd = MAX_PLY;
+    max_visits = MAX_NUMBER;
     infinite_mode = 0;
     pondering = 0;
 }
@@ -1056,6 +1057,13 @@ void CHESS_CLOCK::set_stime(int hply) {
         maximum_time = MAX_NUMBER;
         if(SEARCHER::pv_print_style == 0)
             print("[sd = %d , hply = %d]\n",max_sd,hply);
+        return;
+    }
+    if(max_visits != MAX_NUMBER) {
+        search_time = MAX_NUMBER;
+        maximum_time = MAX_NUMBER;
+        if(SEARCHER::pv_print_style == 0)
+            print("[sv = %d , hply = %d]\n",max_visits,hply);
         return;
     }
 

@@ -400,6 +400,10 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
         if(draw()) {
             score = ((scorpio == player) ? -contempt : contempt);
             goto BACKUP_LEAF;
+        /*bitbases*/
+        } else if(bitbase_cutoff()) {
+            score = pstack->best_score;
+            goto BACKUP_LEAF;
         /*Reached max plies and depth*/
         } else if(ply >= MAX_PLY - 1 || pstack->depth <= 0) {
             score = n->score;
@@ -726,8 +730,13 @@ void SEARCHER::search_mc() {
 #endif  
             /*rank 0*/
             if(true CLUSTER_CODE(&& PROCESSOR::host_id == 0)) { 
+                /*max visits limit*/
+                if(chess_clock.max_visits != MAX_NUMBER) {
+                    if(root->visits >= chess_clock.max_visits)
+                        abort_search = 1;
+                }
                 /*check quit*/
-                if(root->visits - ovisits >= visits_poll) {
+                else if(root->visits - ovisits >= visits_poll) {
                     ovisits = root->visits;
                     check_quit();
                     double frac = double(get_time() - start_time) / 
