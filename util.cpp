@@ -1449,7 +1449,6 @@ bool SEARCHER::pgn_to_epd(char* path,char* book) {
                 buffer[(strlen(buffer)-1-2)]=0;
                 strcpy(fen,buffer+6);
                 set_board(fen);
-                cap_prom_check = false;
             }
             continue;
         }

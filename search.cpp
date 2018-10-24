@@ -1310,7 +1310,7 @@ MOVE SEARCHER::iterative_deepening() {
             SEARCHER::egbb_ply_limit = 
                 SEARCHER::egbb_ply_limit_percent * search_depth / 100;
         else
-            SEARCHER::egbb_ply_limit = 8;
+            SEARCHER::egbb_ply_limit = 6;
 
         /*Set bounds and search.*/
         pstack->depth = search_depth * UNITDEPTH;
@@ -1368,7 +1368,6 @@ MOVE SEARCHER::iterative_deepening() {
         
         /*aspiration search*/
         if(!use_aspiration || 
-            in_egbb || 
             ABS(score) >= 1000 || 
             search_depth <= 3
             ) {
@@ -1525,8 +1524,6 @@ MOVE SEARCHER::find_best() {
     print_log("%s\n",fen);
 
     /*generate and score moves*/
-    in_egbb = (egbb_is_loaded && all_man_c <= MAX_EGBB);
-
     skip_nn = true;
     generate_and_score_moves(0,-MATE_SCORE,MATE_SCORE);
     skip_nn = false;

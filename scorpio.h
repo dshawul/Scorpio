@@ -738,7 +738,6 @@ typedef struct SEARCHER{
     static int last_book_move;
     static int first_search;
     static int analysis_mode;
-    static int in_egbb;
     static int show_full_pv;
     static int abort_search;
     static UBMP32 poll_nodes;

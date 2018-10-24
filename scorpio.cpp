@@ -73,7 +73,6 @@ int SEARCHER::root_failed_low;
 int SEARCHER::last_book_move;
 int SEARCHER::first_search;
 int SEARCHER::analysis_mode = false;
-int SEARCHER::in_egbb;
 int SEARCHER::show_full_pv;
 int SEARCHER::abort_search;
 unsigned int SEARCHER::poll_nodes;
