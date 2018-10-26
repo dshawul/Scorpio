@@ -26,6 +26,7 @@ int pcsq[14][0x80];
 bool book_loaded = false;
 bool log_on = false;
 int scorpio_start_time;
+bool is_selfplay = false;
 
 /*
 parallel search
@@ -728,6 +729,7 @@ bool parse_commands(char** commands) {
             char FEN[MAX_STR];
             FILE* fw = fopen(commands[command_num++],"w");
 
+            is_selfplay = true;
             searcher.get_fen(FEN);
             print("Starting %d selfplay games\n",N);
             for(int i = 0;i < N;i++) {

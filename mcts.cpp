@@ -208,6 +208,64 @@ Node* Node::Max_AB_select(Node* n,int alpha,int beta,bool try_null,bool search_b
 
     return bnode;
 }
+/*
+Utility function for random selection of action from discrete prob. distribution
+*/
+static int findCeil(int arr[], int r, int l, int h) {
+    int mid;
+    while (l < h) {
+         mid = l + ((h - l) >> 1);
+        (r > arr[mid]) ? (l = mid + 1) : (h = mid);
+    }
+    return (arr[l] >= r) ? l : -1;
+}
+static Node* pickRandMove(Node* arr[], int freq[], int n) {
+    int prefix[n];
+    prefix[0] = freq[0];
+    for(int i = 1; i < n; ++i)
+        prefix[i] = prefix[i - 1] + freq[i];
+
+    int r = (rand() % prefix[n - 1]) + 1;
+    int indexc = findCeil(prefix, r, 0, n - 1);
+
+    return arr[indexc];
+}
+ 
+static Node* node_pt[MAX_MOVES];
+static int frequency[MAX_MOVES];
+
+Node* Node::Random_select(Node* n) {
+    Node* current, *bnode = n->child;
+    int count, total_visits;
+
+    count = 0;
+    current = n->child;
+    total_visits = 0;
+    while(current) {
+        if(current->move && current->visits > 1) {
+            count++;
+            total_visits += current->visits;
+        }
+        current = current->next;
+    }
+
+    if(count) {
+        count = 0;
+        current = n->child;
+        while(current) {
+            if(current->move && current->visits > 1) {
+                node_pt[count] = current;
+                frequency[count] = current->visits;
+                count++;
+            }
+            current = current->next;
+        }
+        bnode = pickRandMove(node_pt,frequency,count);
+    }
+
+    return bnode;
+}
+
 Node* Node::Best_select(Node* n) {
     double bvalue = -MAX_NUMBER;
     Node* current = n->child, *bnode = n->child;
@@ -749,13 +807,13 @@ void SEARCHER::search_mc() {
 
                     double frac = 1;
                     if(chess_clock.max_visits != MAX_NUMBER) {
-                        if(root->visits >= chess_clock.max_visits)
+                        if(root->visits >= (unsigned)chess_clock.max_visits)
                             abort_search = 1;
                         else
                             frac = double(root->visits) / chess_clock.max_visits;
                     } else 
                         frac = double(get_time() - start_time) / chess_clock.search_time;
-                        
+
                     dUCTK = UCTKmax - frac * (UCTKmax - UCTKmin);
                     if(dUCTK < UCTKmin) dUCTK = UCTKmin;
                     if(frac - pfrac >= 0.1) {
