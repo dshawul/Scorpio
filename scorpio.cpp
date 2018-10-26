@@ -93,6 +93,7 @@ static int pht = 1;
 
 static bool load_ini();
 static void init_game();
+static int self_play();
 
 /*
 load epd file
@@ -472,7 +473,7 @@ bool parse_commands(char** commands) {
             else
                 result = R_UNKNOWN;
             while(commands[++command_num]);
-            searcher.print_game();
+            searcher.print_game(result);
         } else if(!strcmp(command,"quit")) {
             print("Bye Bye\n");
             PROCESSOR::exit_scorpio(EXIT_SUCCESS);
@@ -721,6 +722,25 @@ bool parse_commands(char** commands) {
             zero_params();
             write_eval_params();
 #endif
+        } else if(!strcmp(command,"selfplay")) {
+            int wins = 0, losses = 0, draws = 0;
+            int N = atoi(commands[command_num++]),res;
+            char FEN[MAX_STR];
+            FILE* fw = fopen(commands[command_num++],"w");
+
+            searcher.get_fen(FEN);
+            print("Starting %d selfplay games\n",N);
+            for(int i = 0;i < N;i++) {
+                res = self_play();
+                if(res == R_DRAW) draws++;
+                else if(res == R_WWIN) wins++;
+                else if(res == R_BWIN) losses++;
+                searcher.print_game(res,fw);
+                print("+ %d - %d = %d\n",wins,losses,draws);
+                searcher.set_board(FEN);
+            }
+
+            fclose(fw);
             /*********************************************
             *     Processing epd files                  *
             *********************************************/
@@ -1231,3 +1251,41 @@ static bool load_ini() {
 
     return true;
 }
+/*
+Selfplay
+*/
+static int self_play() {
+    MOVE move;
+    SEARCHER::resign_count = 0;
+    result = R_UNKNOWN;
+
+    while(true) {
+
+        /*check result before searching for our move*/
+        result = searcher.print_result(false);
+        if(result != R_UNKNOWN) 
+            return result;
+
+        /*search*/
+        main_searcher->COPY(&searcher);
+        move = main_searcher->find_best();
+
+        /*we have a move, make it*/
+        if(move != 0) {
+            searcher.do_move(move);
+
+            /*resign*/
+            if((SEARCHER::root_score < -SEARCHER::resign_value)) {
+                SEARCHER::resign_count++;
+            } else {
+                SEARCHER::resign_count = 0;
+            }
+            if(SEARCHER::resign_count == 3) {
+                return (R_WWIN + (searcher.opponent == black));
+            }
+        } else {
+            return R_DRAW;
+        }
+    }
+}
+

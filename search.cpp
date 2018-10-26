@@ -1588,23 +1588,23 @@ MOVE SEARCHER::find_best() {
     
     /*search info*/
     if(montecarlo) {
+        if(pv_print_style == 0) {
+            /*print tree*/
+            Node::print_tree(root_node,1,MAX_PLY);
 
-        /*print tree*/
-        Node::print_tree(root_node,1,MAX_PLY);
-
-        /* print result*/
-        int time_used = MAX(1,get_time() - start_time);
-        int pps = int(root_node->visits / (time_used / 1000.0f));
-        print("nodes = " FMT64 " <%d%% qnodes> time = %dms nps = %d eps = %d nneps = %d\n",nodes,
-            int(BMP64(qnodes) / (BMP64(nodes) / 100.0f)),
-            time_used,int(BMP64(nodes) / (time_used / 1000.0f)),
-            int(BMP64(ecalls) / (time_used / 1000.0f)),
-            int(BMP64(nnecalls) / (time_used / 1000.0f)));
-        print("Tree: nodes = %d depth = %d pps = %d visits = %d \n      "
-            "qsearch_calls = %d search_calls = %d\n",
-            Node::total_nodes,Node::max_tree_depth,pps,root_node->visits,
-            qsearch_calls,search_calls);
-
+            /* print result*/
+            int time_used = MAX(1,get_time() - start_time);
+            int pps = int(root_node->visits / (time_used / 1000.0f));
+            print("nodes = " FMT64 " <%d%% qnodes> time = %dms nps = %d eps = %d nneps = %d\n",nodes,
+                int(BMP64(qnodes) / (BMP64(nodes) / 100.0f)),
+                time_used,int(BMP64(nodes) / (time_used / 1000.0f)),
+                int(BMP64(ecalls) / (time_used / 1000.0f)),
+                int(BMP64(nnecalls) / (time_used / 1000.0f)));
+            print("Tree: nodes = %d depth = %d pps = %d visits = %d \n      "
+                "qsearch_calls = %d search_calls = %d\n",
+                Node::total_nodes,Node::max_tree_depth,pps,root_node->visits,
+                qsearch_calls,search_calls);
+        }
     } else {
 
 #ifdef CLUSTER

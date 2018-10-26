@@ -258,19 +258,31 @@ float Node::Avg_score(Node* n) {
         if(current->move
             && (current == n->child || current->visits > 1)
             ) {
+#if RAWAVG
+            tvalue += current->score * current->visits;
+#else
             tvalue += logistic(current->score) * current->visits;
+#endif
             tvisits += current->visits;
         }
         current = current->next;
     }
 
-    return logit(tvalue / tvisits);    
+#ifdef RAWAVG
+    return logit(tvalue / tvisits);
+#else
+    return logit(tvalue / tvisits);
+#endif
 }
 float Node::Avg_score_mem(Node* n, double score, int visits) { 
+#ifdef RAWAVG
+    return n->score + (score - n->score) * visits / (n->visits + visits);  
+#else
     float sc = logistic(n->score);
     float sc1 = logistic(score);
     sc += (sc1 - sc) * visits / (n->visits + visits);
     return logit(sc);   
+#endif
 }
 void Node::Backup(Node* n,double& score,int visits, int all_man_c) {
     /*Compute parent's score from children*/
@@ -730,17 +742,20 @@ void SEARCHER::search_mc() {
 #endif  
             /*rank 0*/
             if(true CLUSTER_CODE(&& PROCESSOR::host_id == 0)) { 
-                /*max visits limit*/
-                if(chess_clock.max_visits != MAX_NUMBER) {
-                    if(root->visits >= chess_clock.max_visits)
-                        abort_search = 1;
-                }
                 /*check quit*/
-                else if(root->visits - ovisits >= visits_poll) {
+                if(root->visits - ovisits >= visits_poll) {
                     ovisits = root->visits;
                     check_quit();
-                    double frac = double(get_time() - start_time) / 
-                            chess_clock.search_time;
+
+                    double frac = 1;
+                    if(chess_clock.max_visits != MAX_NUMBER) {
+                        if(root->visits >= chess_clock.max_visits)
+                            abort_search = 1;
+                        else
+                            frac = double(root->visits) / chess_clock.max_visits;
+                    } else 
+                        frac = double(get_time() - start_time) / chess_clock.search_time;
+                        
                     dUCTK = UCTKmax - frac * (UCTKmax - UCTKmin);
                     if(dUCTK < UCTKmin) dUCTK = UCTKmin;
                     if(frac - pfrac >= 0.1) {

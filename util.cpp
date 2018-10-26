@@ -71,7 +71,6 @@ void print_log(const char* format,...) {
 
     l_unlock(lock_io);
 }
-
 void print_std(const char* format,...) {
     
     CLUSTER_CODE(if(PROCESSOR::host_id != 0) return;)
@@ -234,21 +233,45 @@ void SEARCHER::print_stack() {
         print("\n");
     }
 }
-void SEARCHER::print_game() {
+void SEARCHER::print_game(int res, FILE* fw) {
     int i = 0;
     char mvstr[12];
-    print_log("\n[FEN \"%s\"]\n",HIST_STACK::start_fen);
-    if((((hply % 2) + player) % 2)) {
-        i = 1;
-        print("\n1... ");
+    char str[16];
+
+    if(res == R_DRAW) strcpy(str,"1/2-1/2");
+    else if(res == R_WWIN) strcpy(str,"1-0");
+    else if(res == R_BWIN) strcpy(str,"0-1");
+
+    if(fw) {
+        fprintf(fw,"\n[Result \"%s\"]\n",str);
+        fprintf(fw,"[FEN \"%s\"]\n",HIST_STACK::start_fen);
+        if((((hply % 2) + player) % 2)) {
+            i = 1;
+            fprintf(fw,"\n1... ");
+        }
+        for(;i < hply;i++) {
+            if(i % 16 == 0) fprintf(fw,"\n");
+            mov_strx(hstack[i].move,mvstr);
+            if(i % 2 == 0) fprintf(fw,"%d.",i/2 + 1);
+            fprintf(fw,"%s ",mvstr);
+        }
+        fprintf(fw,"\n\n");
+        fflush(fw);
+    } else {
+        print_log("\n[Result \"%s\"]\n",str);
+        print_log("[FEN \"%s\"]\n",HIST_STACK::start_fen);
+        if((((hply % 2) + player) % 2)) {
+            i = 1;
+            print_log("\n1... ");
+        }
+        for(;i < hply;i++) {
+            if(i % 16 == 0) print_log("\n");
+            mov_strx(hstack[i].move,mvstr);
+            if(i % 2 == 0) print_log("%d.",i/2 + 1);
+            print_log("%s ",mvstr);
+        }
+        print_log("\n\n");
     }
-    for(;i < hply;i++) {
-        if(i % 16 == 0) print_log("\n");
-        mov_strx(hstack[i].move,mvstr);
-        if(i % 2 == 0) print_log("%d.",i/2 + 1);
-        print_log("%s ",mvstr);
-    }
-    print_log("\n\n");
 }
 void SEARCHER::print_allmoves() {
     pstack->count = 0;
@@ -1147,6 +1170,11 @@ void SEARCHER::check_quit() {
         } while (bios_key());
     }
 
+    /*fixed depth/nodes*/
+    if(chess_clock.max_sd != MAX_PLY ||
+       chess_clock.max_visits != MAX_NUMBER)
+        return;
+
     /*infinite search mode?*/
     if(chess_clock.infinite_mode)
         return;
@@ -1290,8 +1318,10 @@ MOVE SEARCHER::get_book_move() {
         }
     }
 
-    if(total_played)
-        print("  Move   Played     +        -        =     Learn  Sortv\n");
+    if(pv_print_style == 0) {
+        if(total_played)
+            print("  Move   Played     +        -        =     Learn  Sortv\n");
+    }
 
     best_score = 0;
     best_move = 0;
@@ -1308,10 +1338,12 @@ MOVE SEARCHER::get_book_move() {
                     best_move = book_moves[i].move;
                 }
             }
-            mov_str(book_moves[i].move,mv_str);
-            print("%6s %8d %7.2f%% %7.2f%% %7.2f%% %6d %6d\n",mv_str,played,
-                100 * pbook_e->wins / float(played),100 * pbook_e->losses / float(played),
-                100 * pbook_e->draws / float(played),pbook_e->learn,score);
+            if(pv_print_style == 0) {
+                mov_str(book_moves[i].move,mv_str);
+                print("%6s %8d %7.2f%% %7.2f%% %7.2f%% %6d %6d\n",mv_str,played,
+                    100 * pbook_e->wins / float(played),100 * pbook_e->losses / float(played),
+                    100 * pbook_e->draws / float(played),pbook_e->learn,score);
+            }
         }
     }
     return best_move;
