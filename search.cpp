@@ -1116,8 +1116,10 @@ static void idle_loop_main() {
     PROCESSOR::set_num_searchers();
     l_unlock(lock_smp);
 
-    while(PROCESSOR::n_idle_processors < PROCESSOR::n_processors)
+    while(PROCESSOR::n_idle_processors < PROCESSOR::n_processors) {
         t_yield();
+        if(SEARCHER::use_nn) t_sleep(SEARCHER::delay);
+    }
     
     l_lock(lock_smp);       
     PROCESSOR::n_idle_processors--;

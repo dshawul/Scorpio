@@ -738,8 +738,14 @@ void SEARCHER::search_mc() {
 #endif
 
     /*wait until all idle processors are awake*/
-    while(PROCESSOR::n_idle_processors)
+    static VOLATILE int t_count = 0;
+    int p_t_count = l_add(t_count,1);
+    if(p_t_count == PROCESSOR::n_processors - 1)
+        t_count = 0;
+    while(t_count > 0 && t_count < PROCESSOR::n_processors) {
         t_yield();
+        if(SEARCHER::use_nn) t_sleep(SEARCHER::delay);
+    }
 
     /*Set alphabeta rollouts depth*/
     int ablimit = DEPTH((1 - frac_abrollouts) * pstack->depth);
@@ -758,6 +764,12 @@ void SEARCHER::search_mc() {
 
     /*do rollouts*/
     while(true) {
+        
+        /*fixed nodes*/
+        if(root->visits >= (unsigned)chess_clock.max_visits) {
+            abort_search = 1;
+            break;
+        }
 
         /*simulate*/
         play_simulation(root,score,visits);
@@ -806,12 +818,9 @@ void SEARCHER::search_mc() {
                     check_quit();
 
                     double frac = 1;
-                    if(chess_clock.max_visits != MAX_NUMBER) {
-                        if(root->visits >= (unsigned)chess_clock.max_visits)
-                            abort_search = 1;
-                        else
-                            frac = double(root->visits) / chess_clock.max_visits;
-                    } else 
+                    if(chess_clock.max_visits != MAX_NUMBER)
+                        frac = double(root->visits) / chess_clock.max_visits;
+                    else 
                         frac = double(get_time() - start_time) / chess_clock.search_time;
 
                     dUCTK = UCTKmax - frac * (UCTKmax - UCTKmin);
@@ -849,6 +858,7 @@ void SEARCHER::search_mc() {
             }
         }
     }
+
     /*update statistics of parent*/
     if(master) {
         l_lock(lock_smp);
