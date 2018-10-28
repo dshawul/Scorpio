@@ -306,9 +306,9 @@ void Node::print_xml(Node* n,int depth) {
 
     print_log("</node>\n");
 }
-void SEARCHER::extract_pv(Node* n) {
+void SEARCHER::extract_pv(Node* n, bool rand) {
     Node* best;
-    if(is_selfplay && hply <= 30 && n == root_node)
+    if(rand)
         best = Node::Random_select(n);
     else
         best = Node::Best_select(n);
@@ -316,7 +316,7 @@ void SEARCHER::extract_pv(Node* n) {
         pstack->pv[ply] = best->move;
         pstack->pv_length = ply+1;
         ply++;
-        extract_pv(best);
+        extract_pv(best,false);
         best->set_pvmove();
         ply--;
     }

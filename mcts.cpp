@@ -872,6 +872,14 @@ void SEARCHER::search_mc() {
 
         if(!failed)     
             print_pv(root_score);
+    } else if(is_selfplay && hply <= 30) {
+        /*Random selection for self play*/
+        for (int j = ply; j > 0 ; j--) {
+            MOVE move = hstack[hply - 1].move;
+            if(move) POP_MOVE();
+            else POP_NULL();
+        }
+        extract_pv(root,true);
     }
 }
 /*
