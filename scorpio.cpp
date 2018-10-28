@@ -631,17 +631,11 @@ bool parse_commands(char** commands) {
             }
             searcher.build_book(source,dest,hsize,plies,col);
         } else if (!strcmp(command,"pgn_to_epd")) {
-            char source[1024] = "book.pgn",dest[1024] = "book.epd";
-
-            int k = 0;
-            while(true) {
-                command = commands[command_num++];
-                if(!command) break;
-                if(k == 0) strcpy(source,command);
-                else if(k == 1) strcpy(dest,command);
-                k++;
-            }
-            searcher.pgn_to_epd(source,dest);
+            char source[1024],dest[1024];
+            strcpy(source,commands[command_num++]);
+            strcpy(dest,commands[command_num++]);
+            int coord = atoi(commands[command_num++]);
+            searcher.pgn_to_epd(source,dest,coord);
         } else if (!strcmp(command,"merge")) {
             char source1[1024] = "book1.dat",source2[1024] = "book2.dat",dest[1024] = "book.dat";
             double w1 = 0,w2 = 0;
@@ -738,7 +732,8 @@ bool parse_commands(char** commands) {
                 else if(res == R_WWIN) wins++;
                 else if(res == R_BWIN) losses++;
                 searcher.print_game(res,fw);
-                print("+ %d - %d = %d\n",wins,losses,draws);
+                print("[%d] Games %d: + %d - %d = %d\n",GETPID(),
+                    wins+losses+draws,wins,losses,draws);
                 searcher.set_board(FEN);
             }
 

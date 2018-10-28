@@ -332,7 +332,7 @@ Node* Node::print_tree(Node* root,int output,int max_depth,int depth) {
             if(output) {
                 mov_str(current->move,str);
                 if(depth == 0)
-                    print("\n# %2d %6d %7d %s",
+                    print("\n# %2d %6d %7d   %s",
                         total+1,
                         int(-current->score),
                         current->visits,
@@ -1450,7 +1450,7 @@ static int compare(const void * a, const void * b) {
     else return 0;
 }
 
-bool SEARCHER::pgn_to_epd(char* path,char* book) {
+bool SEARCHER::pgn_to_epd(char* path,char* book,int coord) {
     FILE*  f = fopen(path,"r");
     FILE* fb = fopen(book,"w");
     if(!f || !fb) return false;
@@ -1505,13 +1505,14 @@ bool SEARCHER::pgn_to_epd(char* path,char* book) {
                 if(strchr(command,'-') && strchr(command,'1')) continue;
 
                 /*SAN move*/
-                if(!san_mov(move,command)) {
+                if(coord) {
+                    str_mov(move,command);
+                } else if(!san_mov(move,command)) {
                     print("Incorrect move %s at game %d line %d\n",command,game,line);
                     print_board();
                     illegal = true;
                     break;
                 }
-
 
                 do_move(move);
                 ply++;
