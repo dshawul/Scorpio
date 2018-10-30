@@ -634,8 +634,7 @@ bool parse_commands(char** commands) {
             char source[1024],dest[1024];
             strcpy(source,commands[command_num++]);
             strcpy(dest,commands[command_num++]);
-            int coord = atoi(commands[command_num++]);
-            searcher.pgn_to_epd(source,dest,coord);
+            searcher.pgn_to_epd(source,dest);
         } else if (!strcmp(command,"merge")) {
             char source1[1024] = "book1.dat",source2[1024] = "book2.dat",dest[1024] = "book.dat";
             double w1 = 0,w2 = 0;

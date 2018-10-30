@@ -120,6 +120,25 @@ void mov_str(const MOVE& move,char* s) {
     }
     *s = 0;
 }
+void mov_san(const MOVE& move,char* s) {
+    if(is_castle(move)) {
+        if(m_to(move) > m_from(move)) strcpy(s,"O-O");
+        else strcpy(s,"O-O-O");
+        return;
+    }
+    if(PIECE(m_piece(move)) != pawn) 
+        *s++ = piece_name[PIECE(m_piece(move))];
+    *s++ = file_name[file(m_from(move))];
+    *s++ = rank_name[rank(m_from(move))];
+    if(m_capture(move)) *s++='x';
+    *s++ = file_name[file(m_to(move))];
+    *s++ = rank_name[rank(m_to(move))];
+    if(m_promote(move)) {
+        *s++ = '=';
+        *s++ = piece_name[PIECE(m_promote(move))];
+    }
+    *s = 0;
+}
 void str_mov(MOVE& move,char* s) {
     int promote,from,to;
     s[0] = (char)tolower(s[0]);
@@ -251,7 +270,7 @@ void SEARCHER::print_game(int res, FILE* fw) {
         }
         for(;i < hply;i++) {
             if(i % 16 == 0) fprintf(fw,"\n");
-            mov_strx(hstack[i].move,mvstr);
+            mov_san(hstack[i].move,mvstr);
             if(i % 2 == 0) fprintf(fw,"%d.",i/2 + 1);
             fprintf(fw,"%s ",mvstr);
         }
@@ -266,7 +285,7 @@ void SEARCHER::print_game(int res, FILE* fw) {
         }
         for(;i < hply;i++) {
             if(i % 16 == 0) print_log("\n");
-            mov_strx(hstack[i].move,mvstr);
+            mov_san(hstack[i].move,mvstr);
             if(i % 2 == 0) print_log("%d.",i/2 + 1);
             print_log("%s ",mvstr);
         }
@@ -1450,7 +1469,7 @@ static int compare(const void * a, const void * b) {
     else return 0;
 }
 
-bool SEARCHER::pgn_to_epd(char* path,char* book,int coord) {
+bool SEARCHER::pgn_to_epd(char* path,char* book) {
     FILE*  f = fopen(path,"r");
     FILE* fb = fopen(book,"w");
     if(!f || !fb) return false;
@@ -1505,9 +1524,7 @@ bool SEARCHER::pgn_to_epd(char* path,char* book,int coord) {
                 if(strchr(command,'-') && strchr(command,'1')) continue;
 
                 /*SAN move*/
-                if(coord) {
-                    str_mov(move,command);
-                } else if(!san_mov(move,command)) {
+                if(!san_mov(move,command)) {
                     print("Incorrect move %s at game %d line %d\n",command,game,line);
                     print_board();
                     illegal = true;
