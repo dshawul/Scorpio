@@ -730,7 +730,8 @@ bool parse_commands(char** commands) {
                 if(res == R_DRAW) draws++;
                 else if(res == R_WWIN) wins++;
                 else if(res == R_BWIN) losses++;
-                searcher.print_game(res,fw);
+                searcher.print_game(res,fw,"Training games",
+                    "ScorpioZero","ScorpioZero",wins+losses+draws);
                 print("[%d] Games %d: + %d - %d = %d\n",GETPID(),
                     wins+losses+draws,wins,losses,draws);
                 searcher.set_board(FEN);

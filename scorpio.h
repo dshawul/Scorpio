@@ -621,7 +621,9 @@ typedef struct SEARCHER{
     void  print_board() const;
     void  print_history();
     void  print_stack();
-    void  print_game(int,FILE* = 0);
+    void  print_game(int,FILE* = 0,const char* event = 0, 
+                    const char* whitep = 0, 
+                    const char* blackp = 0, int Round = 0);
     void  print_allmoves();
     int   see(MOVE);
     void  gen_caps(bool = false);

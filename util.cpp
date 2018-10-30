@@ -1,3 +1,4 @@
+#include <ctime>
 #include "scorpio.h"
 static const char piece_name[] = "_KQRBNPkqrbnpZ";
 static const char rank_name[] = "12345678";
@@ -252,17 +253,35 @@ void SEARCHER::print_stack() {
         print("\n");
     }
 }
-void SEARCHER::print_game(int res, FILE* fw) {
+
+void get_date(char* buffer) {
+  time_t rawtime;
+  struct tm * timeinfo;
+  time (&rawtime);
+  timeinfo = localtime(&rawtime);
+  strftime(buffer,80,"%d-%m-%Y %I:%M:%S",timeinfo);
+}
+
+void SEARCHER::print_game(int res, FILE* fw, const char* event, 
+                const char* whitep, const char* blackp, int Round) {
     int i = 0;
     char mvstr[12];
     char str[16];
+    char date[32];
 
+    get_date(date);
     if(res == R_DRAW) strcpy(str,"1/2-1/2");
     else if(res == R_WWIN) strcpy(str,"1-0");
     else if(res == R_BWIN) strcpy(str,"0-1");
 
     if(fw) {
-        fprintf(fw,"\n[Result \"%s\"]\n",str);
+        if(event)  fprintf(fw,"\n[Event \"%s\"]\n",event);
+        fprintf(fw,"[Date \"%s\"]\n",date);
+        if(Round)  fprintf(fw,"[Round \"%d\"]\n",Round);
+        if(whitep) fprintf(fw,"[White \"%s\"]\n",whitep);
+        if(blackp) fprintf(fw,"[Black \"%s\"]\n",blackp);
+        fprintf(fw,"[Result \"%s\"]\n",str);
+        fprintf(fw,"[PlyCount \"%d\"]\n",hply);
         fprintf(fw,"[FEN \"%s\"]\n",HIST_STACK::start_fen);
         if((((hply % 2) + player) % 2)) {
             i = 1;
@@ -277,7 +296,13 @@ void SEARCHER::print_game(int res, FILE* fw) {
         fprintf(fw,"\n\n");
         fflush(fw);
     } else {
-        print_log("\n[Result \"%s\"]\n",str);
+        if(event)  print_log("\n[Event \"%s\"]\n",event);
+        print_log("[Date \"%s\"]\n",date);
+        if(Round)  print_log("[Round \"%d\"]\n",Round);
+        if(whitep) print_log("[White \"%s\"]\n",whitep);
+        if(blackp) print_log("[Black \"%s\"]\n",blackp);
+        print_log("[Result \"%s\"]\n",str);
+        print_log("[PlyCount \"%d\"]\n",hply);
         print_log("[FEN \"%s\"]\n",HIST_STACK::start_fen);
         if((((hply % 2) + player) % 2)) {
             i = 1;
