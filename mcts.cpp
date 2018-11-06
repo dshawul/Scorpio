@@ -47,10 +47,26 @@ Node* Node::allocate(int id) {
 }
 
 Node* Node::reclaim(Node* n,int id,MOVE* except) {
+    if(id < 0) {
+        unsigned mini = 0;
+        unsigned mins = mem_[mini].size();
+        for(int i = 1;i < PROCESSOR::n_processors;i++) {
+            if(mem_[i].size() < mins) {
+                mins = mem_[i].size();
+                mini = i;
+            }
+        }
+        id = mini;
+    }
     Node* current = n->child,*rn = 0;
     while(current) {
-        if(except && (current->move == *except)) rn = current;
-        else reclaim(current,id);
+        if(except && (current->move == *except)) 
+            rn = current;
+        else if(!current->child) {
+            mem_[id].push_back(current);
+            total_nodes--;
+        } else 
+            reclaim(current,id);
         current = current->next;
     }
     mem_[id].push_back(n);
@@ -902,7 +918,6 @@ Manage search tree
 */
 void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
     /*find root node*/
-    int pid;
     if(root) {
         int i,j;
         bool found = false;
@@ -916,13 +931,11 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
             MOVE move;
             for(j = i;j >= 0;--j) {
                 move = hstack[hply - 1 - j].move;
-                pid = rand() % PROCESSOR::n_processors;
-                root = Node::reclaim(root,pid,&move);
+                root = Node::reclaim(root,-1,&move);
                 if(!root) break;
             }
         } else {
-            pid = rand() % PROCESSOR::n_processors;
-            Node::reclaim(root,pid);
+            Node::reclaim(root);
             root = 0;
         }
     }
@@ -940,8 +953,7 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
             current = current->next;
             if(current && current->move == 0) {
                 prev->next = current->next;
-                pid = rand() % PROCESSOR::n_processors;
-                Node::reclaim(current,pid);
+                Node::reclaim(current);
             }
         }
     }

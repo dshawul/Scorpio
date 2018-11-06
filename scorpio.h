@@ -412,7 +412,7 @@ struct Node {
     static unsigned int max_tree_depth;
     static std::vector<Node*> mem_[MAX_CPUS];
     static Node* allocate(int);
-    static Node* reclaim(Node*,int,MOVE* = 0);
+    static Node* reclaim(Node*,int=-1,MOVE* = 0);
     static void  rank_children(Node*);
     static void  reset_bounds(Node*,int,int);
     static Node* print_tree(Node*,int,int = 0,int = 0);
