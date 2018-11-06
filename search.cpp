@@ -1293,8 +1293,10 @@ MOVE SEARCHER::iterative_deepening() {
         root_node = root;
         Node::max_tree_depth = 0;
         /*rank nodes and reset bounds*/
-        Node::rank_children(root_node);
-        Node::reset_bounds(root_node,alpha,beta);
+        if(rollout_type == ALPHABETA) {
+            Node::rank_children(root_node);
+            Node::reset_bounds(root_node,alpha,beta);
+        }
     }
 
     /*iterative deepening*/
