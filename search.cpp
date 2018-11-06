@@ -1264,16 +1264,6 @@ MOVE SEARCHER::iterative_deepening() {
     show_full_pv = false;
     freeze_tree = false;
 
-    /*easy move*/
-    if(pstack->score_st[0] > pstack->score_st[1] + 175
-        && chess_clock.is_timed()
-        ) {
-            easy = true;
-            easy_move = pstack->move_st[0];
-            easy_score = pstack->score_st[0];
-            chess_clock.search_time /= 4;
-    }
-
     /*iterative deepening*/
     int alpha,beta,WINDOW = 3*aspiration_window/2;
     int prev_depth = search_depth;
@@ -1298,6 +1288,23 @@ MOVE SEARCHER::iterative_deepening() {
             Node::reset_bounds(root_node,alpha,beta);
         }
     }
+
+    /*set search time and record start time*/
+    chess_clock.p_time -= (get_time() - start_time);
+    if(!chess_clock.infinite_mode)
+        chess_clock.set_stime(hply);
+    start_time = get_time();
+
+    /*easy move*/
+    if(pstack->score_st[0] > pstack->score_st[1] + 175
+        && chess_clock.is_timed()
+        ) {
+        easy = true;
+        easy_move = pstack->move_st[0];
+        easy_score = pstack->score_st[0];
+        chess_clock.search_time /= 4;
+    }
+   
 
     /*iterative deepening*/
     while(search_depth < chess_clock.max_sd) {
@@ -1487,6 +1494,8 @@ MOVE SEARCHER::iterative_deepening() {
 */
 MOVE SEARCHER::find_best() {
 
+    start_time = get_time();
+
 #ifdef CLUSTER
     /*send initial position to helper hosts*/
     if(PROCESSOR::host_id == 0) {
@@ -1518,7 +1527,6 @@ MOVE SEARCHER::find_best() {
     bad_splits = 0;
     root_failed_low = 0;
     search_calls = 0;
-    start_time = get_time();
     egbb_probes = 0;
     PROCESSOR::set_num_searchers();
 
@@ -1562,10 +1570,6 @@ MOVE SEARCHER::find_best() {
 
     stack[0].pv[0] = pstack->move_st[0];
     stack[0].best_score = pstack->score_st[0];
-
-    /*set search time*/
-    if(!chess_clock.infinite_mode)
-        chess_clock.set_stime(hply);
 
 #ifdef PARALLEL
     /*wakeup threads*/
