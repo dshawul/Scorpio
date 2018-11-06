@@ -37,12 +37,9 @@ Some definitions to include/remove code
 #else
 #   include <sys/time.h>
 #endif
-#  include <list>
+#include <vector>
 #ifdef CLUSTER
 #  include "mpi.h"
-#endif
-#ifdef TUNE
-#  include <vector>
 #endif
 #include "my_types.h"
 
@@ -413,9 +410,8 @@ struct Node {
     static VOLATILE unsigned int total_nodes;
     static unsigned int max_tree_nodes;
     static unsigned int max_tree_depth;
-    static std::list<Node*> mem_[MAX_CPUS];
+    static std::vector<Node*> mem_[MAX_CPUS];
     static Node* allocate(int);
-    static void release(Node*,int);
     static Node* reclaim(Node*,int,MOVE* = 0);
     static void  rank_children(Node*);
     static void  reset_bounds(Node*,int,int);

@@ -21,7 +21,7 @@ int rollout_type = ALPHABETA;
 bool freeze_tree = false;
 
 /*Node*/
-std::list<Node*> Node::mem_[MAX_CPUS];
+std::vector<Node*> Node::mem_[MAX_CPUS];
 VOLATILE unsigned int Node::total_nodes = 0;
 unsigned int Node::max_tree_nodes = 0;
 unsigned int Node::max_tree_depth = 0;
@@ -38,17 +38,14 @@ Node* Node::allocate(int id) {
         for(int i = 0;i < MEM_INC;i++)
             mem_[id].push_back(&n[i]);
     }
-    n = mem_[id].front();
-    mem_[id].pop_front();
+    n = mem_[id].back();
+    mem_[id].pop_back();
     l_add(total_nodes,1);
 
     n->clear();
     return n;
 }
-void Node::release(Node* n, int id) {
-    mem_[id].push_front(n);
-    l_add(total_nodes,-1);
-}
+
 Node* Node::reclaim(Node* n,int id,MOVE* except) {
     Node* current = n->child,*rn = 0;
     while(current) {
@@ -56,7 +53,8 @@ Node* Node::reclaim(Node* n,int id,MOVE* except) {
         else reclaim(current,id);
         current = current->next;
     }
-    Node::release(n,id);
+    mem_[id].push_back(n);
+    total_nodes--;
     return rn;
 }
 
@@ -929,10 +927,10 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
         }
     }
     if(!root) {
-        print_log("[Tree not found]\n");
+        print("[Tree-not-found]\n");
         root = Node::allocate(processor_id);
     } else {
-        print_log("[Tree found : visits %d score %d]\n",
+        print("[Tree-found : visits %d score %d]\n",
             root->visits,int(root->score));
 
         /*remove null moves from root*/
