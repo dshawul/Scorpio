@@ -273,6 +273,7 @@ void SEARCHER::print_game(int res, FILE* fw, const char* event,
     if(res == R_DRAW) strcpy(str,"1/2-1/2");
     else if(res == R_WWIN) strcpy(str,"1-0");
     else if(res == R_BWIN) strcpy(str,"0-1");
+    else strcpy(str,"*");
 
     if(fw) {
         if(event)  fprintf(fw,"\n[Event \"%s\"]\n",event);

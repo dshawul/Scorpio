@@ -14,6 +14,7 @@ static int  alphabeta_depth = 1;
 static int  evaluate_depth = 0;
 static double  frac_width = 1.0;
 static int virtual_loss = 3;
+static unsigned int visit_threshold = 800;
 
 int montecarlo = 0;
 int rollout_type = ALPHABETA;
@@ -342,20 +343,27 @@ float Node::Avg_score_mem(Node* n, double score, int visits) {
 }
 void Node::Backup(Node* n,double& score,int visits, int all_man_c) {
     /*Compute parent's score from children*/
-    if(all_man_c <= 10)
-        score = -Min_score(n);
-    else if(backup_type == CLASSIC)
-        score = Avg_score_mem(n,score,visits);
-    else if(backup_type == AVERAGE)
-        score = -Avg_score(n);
-    else {
-        if(backup_type == MINMAX || backup_type == MINMAX_MEM)
+    if(backup_type == MIX_VISIT) {
+        if(n->visits > visit_threshold)
             score = -Min_score(n);
-        else if(backup_type == MIX  || backup_type == MIX_MEM)
-            score = -(3 * Min_score(n) + Avg_score(n)) / 4;
-
-        if(backup_type >= MINMAX_MEM)
+        else
             score = Avg_score_mem(n,score,visits);
+    } else {
+        if(all_man_c <= 10)
+            score = -Min_score(n);
+        else if(backup_type == CLASSIC)
+            score = Avg_score_mem(n,score,visits);
+        else if(backup_type == AVERAGE)
+            score = -Avg_score(n);
+        else {
+            if(backup_type == MINMAX || backup_type == MINMAX_MEM)
+                score = -Min_score(n);
+            else if(backup_type == MIX  || backup_type == MIX_MEM)
+                score = -(3 * Min_score(n) + Avg_score(n)) / 4;
+
+            if(backup_type >= MINMAX_MEM)
+                score = Avg_score_mem(n,score,visits);
+        }
     }
 
     /*Update alpha-beta bounds. Note: alpha is updated only from 
@@ -982,6 +990,8 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         evaluate_depth = atoi(commands[command_num++]);
     } else if(!strcmp(command, "virtual_loss")) {
         virtual_loss = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "visit_threshold")) {
+        visit_threshold = atoi(commands[command_num++]);
     } else if(!strcmp(command, "montecarlo")) {
         montecarlo = atoi(commands[command_num++]);
     } else if(!strcmp(command, "treeht")) {
@@ -999,7 +1009,7 @@ void print_mcts_params() {
     print("feature option=\"UCTKmin -spin %d 0 100\"\n",int(UCTKmin*100));
     print("feature option=\"UCTKmax -spin %d 0 100\"\n",int(UCTKmax*100));
     print("feature option=\"reuse_tree -check %d\"\n",reuse_tree);
-    print("feature option=\"backup_type -combo *MINMAX AVERAGE MIX MINMAX_MEM AVERAGE_MEM MIX_MEM CLASSIC\"\n");
+    print("feature option=\"backup_type -combo *MINMAX AVERAGE MIX MINMAX_MEM AVERAGE_MEM MIX_MEM CLASSIC MIX_VISIT\"\n");
     print("feature option=\"frac_alphabeta -spin %d 0 100\"\n",int(frac_alphabeta*100));
     print("feature option=\"frac_freeze_tree -spin %d 0 100\"\n",int(frac_freeze_tree*100));
     print("feature option=\"frac_abrollouts -spin %d 0 100\"\n",int(frac_abrollouts*100));
@@ -1008,6 +1018,7 @@ void print_mcts_params() {
     print("feature option=\"alphabeta_depth -spin %d 1 100\"\n",alphabeta_depth);
     print("feature option=\"evaluate_depth -spin %d 0 100\"\n",evaluate_depth);
     print("feature option=\"virtual_loss -spin %d 0 1000\"\n",virtual_loss);
+    print("feature option=\"visit_threshold -spin %d 0 1000\"\n",visit_threshold);
     print("feature option=\"montecarlo -check %d\"\n",montecarlo);
     print("feature option=\"treeht -spin %d 0 131072\"\n",
         int((Node::max_tree_nodes * sizeof(Node)) / double(1024*1024)));
