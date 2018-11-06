@@ -13,6 +13,7 @@ static int  mcts_strategy_depth = 30;
 static int  alphabeta_depth = 1;
 static int  evaluate_depth = 0;
 static double  frac_width = 1.0;
+static int virtual_loss = 3;
 
 int montecarlo = 0;
 int rollout_type = ALPHABETA;
@@ -147,7 +148,7 @@ Node* Node::Max_UCB_select(Node* n) {
 
             vst = current->visits;
 #ifdef PARALLEL
-            vst += current->get_busy();
+            vst += virtual_loss * current->get_busy();
 #endif            
             uct = logistic(-current->score) +
                   dUCTK * sqrt(logn / vst);
@@ -191,7 +192,7 @@ Node* Node::Max_AB_select(Node* n,int alpha,int beta,bool try_null,bool search_b
             }
 #ifdef PARALLEL
             /*Discourage selection of busy node*/
-            uct -= current->get_busy() * 10;
+            uct -= virtual_loss * current->get_busy() * 10;
 #endif
             /*pick best*/
             if(uct > bvalue) {
@@ -923,7 +924,7 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
         print_log("[Tree not found]\n");
         root = Node::allocate(processor_id);
     } else {
-        print_log("[Tree found : visits %d wins %6d]\n",
+        print_log("[Tree found : visits %d score %d]\n",
             root->visits,int(root->score));
 
         /*remove null moves from root*/
@@ -979,6 +980,8 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         alphabeta_depth = atoi(commands[command_num++]);
     } else if(!strcmp(command, "evaluate_depth")) {
         evaluate_depth = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "virtual_loss")) {
+        virtual_loss = atoi(commands[command_num++]);
     } else if(!strcmp(command, "montecarlo")) {
         montecarlo = atoi(commands[command_num++]);
     } else if(!strcmp(command, "treeht")) {
@@ -1004,6 +1007,7 @@ void print_mcts_params() {
     print("feature option=\"mcts_strategy_depth -spin %d 0 100\"\n",mcts_strategy_depth);
     print("feature option=\"alphabeta_depth -spin %d 1 100\"\n",alphabeta_depth);
     print("feature option=\"evaluate_depth -spin %d 0 100\"\n",evaluate_depth);
+    print("feature option=\"virtual_loss -spin %d 0 1000\"\n",virtual_loss);
     print("feature option=\"montecarlo -check %d\"\n",montecarlo);
     print("feature option=\"treeht -spin %d 0 131072\"\n",
         int((Node::max_tree_nodes * sizeof(Node)) / double(1024*1024)));
