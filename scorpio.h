@@ -366,16 +366,17 @@ struct Node {
     VOLATILE unsigned int visits;
     VOLATILE float score;
     unsigned short rank;
+    VOLATILE unsigned char busy;
     VOLATILE unsigned char flag;
 
     /*accessors*/
     enum {
-        BUSY = 1, SCOUTF = 2, PVMOVE = 4, CREATE = 8
+        SCOUTF = 1, PVMOVE = 2, CREATE = 4
     };
     
-    void set_busy() { l_or8(flag,BUSY); }
-    void clear_busy() { l_and8(flag,~BUSY); }
-    bool is_busy() { return (flag & BUSY); }
+    void inc_busy() { l_add8(busy,1); }
+    void dec_busy() { l_add8(busy,-1); }
+    int  get_busy() { return busy; }
 
     void set_pvmove() { l_or8(flag,PVMOVE); }
     void clear_pvmove() { l_and8(flag,~PVMOVE); }
@@ -404,6 +405,7 @@ struct Node {
         next = 0;
         rank = 0;
         flag = 0;
+        busy = 0;
         move = MOVE();
         alpha = -MATE_SCORE;
         beta = MATE_SCORE;

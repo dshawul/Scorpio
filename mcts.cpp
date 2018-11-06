@@ -116,6 +116,7 @@ void Node::reset_bounds(Node* n,int alpha,int beta) {
     while(current) {
         reset_bounds(current,-beta,-alpha);
         current->flag = 0;
+        current->busy = 0;
         current = current->next;
     }
     n->alpha = alpha;
@@ -138,20 +139,19 @@ Node* Node::Max_UCB_select(Node* n) {
     double logn = log(double(n->visits));
     double uct, bvalue = -1;
     Node* current, *bnode = 0;
+    unsigned vst;
 
     current = n->child;
     while(current) {
         if(current->move) {
 
-            uct = logistic(-current->score) +
-                  dUCTK * sqrt(logn / current->visits);
+            vst = current->visits;
 #ifdef PARALLEL
-            /*Discourage selection of busy node*/
-            if(current->is_busy()) {
-                uct -= 0.14;
-                if(!current->child) uct -= 0.14;
-            }
-#endif
+            vst += current->get_busy();
+#endif            
+            uct = logistic(-current->score) +
+                  dUCTK * sqrt(logn / vst);
+
             if(uct > bvalue) {
                 bvalue = uct;
                 bnode = current;
@@ -191,10 +191,7 @@ Node* Node::Max_AB_select(Node* n,int alpha,int beta,bool try_null,bool search_b
             }
 #ifdef PARALLEL
             /*Discourage selection of busy node*/
-            if(current->is_busy()) {
-                uct -= 100;
-                if(!current->child) uct -= 100;
-            }
+            uct -= current->get_busy() * 10;
 #endif
             /*pick best*/
             if(uct > bvalue) {
@@ -209,7 +206,8 @@ Node* Node::Max_AB_select(Node* n,int alpha,int beta,bool try_null,bool search_b
     return bnode;
 }
 /*
-Utility function for random selection of action from discrete prob. distribution
+Utility function for random selection of action from 
+discrete probability distribution
 */
 static int findCeil(int arr[], int r, int l, int h) {
     int mid;
@@ -272,7 +270,6 @@ Node* Node::Best_select(Node* n) {
 
     while(current) {
         if(current->move) {
-
             if(rollout_type == MCTS ||
                 (rollout_type == ALPHABETA && 
                 /* must be finished or ranked first */
@@ -458,7 +455,8 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
     visits = 1;
 
     /*set busy flag*/
-    n->set_busy();
+    bool setb = (n->get_busy() < 255);
+    if(setb) n->inc_busy();
 
 #if 0
     unsigned int nvisits = n->visits;
@@ -719,7 +717,7 @@ BACKUP:
 
 FINISH:
     n->update_visits(visits);
-    n->clear_busy();
+    if(setb) n->dec_busy();
 }
 
 void SEARCHER::search_mc() {
