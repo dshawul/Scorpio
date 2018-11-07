@@ -340,7 +340,7 @@ float Node::Avg_score(Node* n) {
     }
 
 #ifdef RAWAVG
-    return logit(tvalue / tvisits);
+    return tvalue / tvisits;
 #else
     return logit(tvalue / tvisits);
 #endif
@@ -357,27 +357,26 @@ float Node::Avg_score_mem(Node* n, double score, int visits) {
 }
 void Node::Backup(Node* n,double& score,int visits, int all_man_c) {
     /*Compute parent's score from children*/
-    if(backup_type == MIX_VISIT) {
+    if(all_man_c <= 10)
+        score = -Min_score(n);
+    else if(backup_type == MIX_VISIT) {
         if(n->visits > visit_threshold)
             score = -Min_score(n);
         else
             score = Avg_score_mem(n,score,visits);
-    } else {
-        if(all_man_c <= 10)
+    } 
+    else if(backup_type == CLASSIC)
+        score = Avg_score_mem(n,score,visits);
+    else if(backup_type == AVERAGE)
+        score = -Avg_score(n);
+    else {
+        if(backup_type == MINMAX || backup_type == MINMAX_MEM)
             score = -Min_score(n);
-        else if(backup_type == CLASSIC)
-            score = Avg_score_mem(n,score,visits);
-        else if(backup_type == AVERAGE)
-            score = -Avg_score(n);
-        else {
-            if(backup_type == MINMAX || backup_type == MINMAX_MEM)
-                score = -Min_score(n);
-            else if(backup_type == MIX  || backup_type == MIX_MEM)
-                score = -(3 * Min_score(n) + Avg_score(n)) / 4;
+        else if(backup_type == MIX  || backup_type == MIX_MEM)
+            score = -(3 * Min_score(n) + Avg_score(n)) / 4;
 
-            if(backup_type >= MINMAX_MEM)
-                score = Avg_score_mem(n,score,visits);
-        }
+        if(backup_type >= MINMAX_MEM)
+            score = Avg_score_mem(n,score,visits);
     }
 
     /*Update alpha-beta bounds. Note: alpha is updated only from 
