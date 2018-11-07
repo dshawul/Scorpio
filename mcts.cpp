@@ -78,7 +78,7 @@ void Node::rank_children(Node* n) {
 
     /*rank all children*/
     Node* current = n->child, *best = 0;
-    int brank = MAX_MOVES;
+    int brank = MAX_MOVES - 1;
 
     while(current) {
         /*rank subtree first*/
@@ -477,8 +477,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
     visits = 1;
 
     /*set busy flag*/
-    bool setb = (n->get_busy() < 255);
-    if(setb) n->inc_busy();
+    n->inc_busy();
 
 #if 0
     unsigned int nvisits = n->visits;
@@ -739,7 +738,7 @@ BACKUP:
 
 FINISH:
     n->update_visits(visits);
-    if(setb) n->dec_busy();
+    n->dec_busy();
 }
 
 void SEARCHER::search_mc() {
