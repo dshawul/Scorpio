@@ -1037,6 +1037,8 @@ bool  check_search_params(char**,char*,int&);
 void  print_search_params();
 bool  check_mcts_params(char**,char*,int&);
 void  print_mcts_params();
+double logistic(double p);
+double logit(double p);
 
 #ifdef TUNE
 extern int nParameters;

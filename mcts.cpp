@@ -141,11 +141,11 @@ void Node::reset_bounds(Node* n,int alpha,int beta) {
 
 static const double Kfactor = -log(10.0) / 400.0;
 
-static inline double logistic(double score) {
+double logistic(double score) {
     return 1 / (1 + exp(Kfactor * score));
 }
 
-static inline double logit(double p) {
+double logit(double p) {
     if(p < 1e-15) p = 1e-15;
     else if(p > 1 - 1e-15) p = 1 - 1e-15;
     return log((1 - p) / p) / Kfactor;
@@ -285,7 +285,7 @@ Node* Node::Best_select(Node* n) {
     Node* current = n->child, *bnode = n->child;
 
     while(current) {
-        if(current->move) {
+        if(current->move && current->visits > 1) {
             if(rollout_type == MCTS ||
                 (rollout_type == ALPHABETA && 
                 /* must be finished or ranked first */

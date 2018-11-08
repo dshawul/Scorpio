@@ -1509,6 +1509,7 @@ bool SEARCHER::pgn_to_epd(char* path,char* book) {
     bool cap_prom_check = false;
     char* pc;
     bool illegal = false;
+    bool write_pos;
 
     while(fgets(buffer,MAX_FILE_STR,f)) {
         line++;
@@ -1542,6 +1543,7 @@ bool SEARCHER::pgn_to_epd(char* path,char* book) {
             if(strchr(command,'{')) comment++;
             if(strchr(command,'}')) comment--;
             else if(comment == 0) {
+                write_pos = false;
                 if((pc = strchr(command,'.')) != 0) {
                     if(*(pc+1) == ' ' || *(pc+1) == 0 || *(pc+1) == '.') continue;
                     else command = pc + 1;
@@ -1564,15 +1566,31 @@ bool SEARCHER::pgn_to_epd(char* path,char* book) {
                     cap_prom_check = true;
                 } else {
                     if(!cap_prom_check) {
+                        write_pos = true;
+#if 1
                         get_fen(fen);
                         if(result == R_WWIN) strcat(fen," 1-0");
                         else if(result == R_BWIN) strcat(fen," 0-1");
                         else strcat(fen," 1/2-1/2");
                         fprintf(fb,"%s\n",fen);
+#endif
                     }
                     cap_prom_check = false;
                 }
-
+            } else if (write_pos) {
+#if 0
+                char* p = strchr(command,'/');
+                if(p) {
+                    *p = 0;
+                    p = strchr(command,'M');
+                    if(p) *p = '9';
+                    double v = atof(&command[1]) * 100;
+                    v = 1 / (1 + exp(-log(10.0) * v / 400.0));
+                    if(player == white) v = 1 - v;
+                    get_fen(fen);
+                    fprintf(fb,"%s %3.2f\n",fen,v);
+                }
+#endif
             }
         }
     }
