@@ -359,7 +359,10 @@ struct Node {
     Node* next;
     MOVE move;
     VOLATILE int alpha;
-    VOLATILE int beta;
+    union {
+        VOLATILE int beta;
+        VOLATILE int heuristic;
+    };
     VOLATILE unsigned int visits;
     VOLATILE float score;
     VOLATILE unsigned short busy;

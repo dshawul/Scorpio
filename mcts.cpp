@@ -153,7 +153,7 @@ double logit(double p) {
 
 Node* Node::Max_UCB_select(Node* n) {
     double logn = log(double(n->visits));
-    double uct, bvalue = -1;
+    double uct, bvalue = -2;
     Node* current, *bnode = 0;
     unsigned vst;
 
@@ -164,9 +164,10 @@ Node* Node::Max_UCB_select(Node* n) {
             vst = current->visits;
 #ifdef PARALLEL
             vst += virtual_loss * current->get_busy();
-#endif            
-            uct = logistic(-current->score) +
-                  dUCTK * sqrt(logn / vst);
+#endif          
+            uct = logistic(-current->score)
+                + dUCTK * sqrt(logn / vst)
+                + logistic(-current->heuristic) / current->visits;
 
             if(uct > bvalue) {
                 bvalue = uct;
@@ -448,6 +449,7 @@ void SEARCHER::add_children(Node* n) {
         node->visits = 1;
         node->alpha = -MATE_SCORE;
         node->beta = MATE_SCORE;
+        node->heuristic = node->score;
         node->rank = i + 1;
         if(last == n) last->child = node;
         else last->next = node;
@@ -468,6 +470,7 @@ void SEARCHER::add_null_child(Node* n) {
     node->visits = 1;
     node->alpha = -MATE_SCORE;
     node->beta = MATE_SCORE;
+    node->heuristic = node->score;
     node->rank = 0;
     last->next = node;
 }
