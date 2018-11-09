@@ -372,6 +372,9 @@ Node* Node::print_tree(Node* root,int output,int max_depth,int depth) {
     Node* bnode = Node::Best_select(root);
     Node* current = root->child;
 
+    if(depth == 0)
+        print("\n# Move  Value  Policy  Visits                  PV");
+
     while(current) {
         if(current->visits && (depth == 0 || bnode == current) ) {
             if(output) {

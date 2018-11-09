@@ -231,6 +231,9 @@ int CDECL main(int argc, char* argv[]) {
         if(!log_on)
             remove_log_file();
 
+        /* load egbbs */
+        load_egbbs();
+        
         /*
          * Parse commands from stdin.
          */

@@ -167,7 +167,7 @@ Node* Node::Max_UCB_select(Node* n) {
 #endif          
             uct = logistic(-current->score)
                 + dUCTK * sqrt(logn / vst)
-                + logistic(-current->heuristic) / current->visits;
+                + logistic(-current->heuristic) / vst;
 
             if(uct > bvalue) {
                 bvalue = uct;
@@ -941,10 +941,10 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
         }
     }
     if(!root) {
-        print("[Tree-not-found]\n");
+        print_log("[Tree-not-found]\n");
         root = Node::allocate(processor_id);
     } else {
-        print("[Tree-found : visits %d score %d]\n",
+        print_log("[Tree-found : visits %d score %d]\n",
             root->visits,int(root->score));
 
         /*remove null moves from root*/
