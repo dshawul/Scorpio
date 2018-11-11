@@ -9,6 +9,7 @@ static int  backup_type = MINMAX;
 static double frac_alphabeta = 1.0; 
 static double frac_freeze_tree = 0.3;
 static double frac_abrollouts = 0.2;
+static double frac_abprior = 0.3;
 static int  mcts_strategy_depth = 30;
 static int  alphabeta_depth = 1;
 static int  evaluate_depth = 0;
@@ -156,6 +157,7 @@ Node* Node::Max_UCB_select(Node* n) {
     double uct, bvalue = -2;
     Node* current, *bnode = 0;
     unsigned vst;
+    bool has_ab = (n == SEARCHER::root_node && frac_abprior > 0);
 
     current = n->child;
     while(current) {
@@ -165,9 +167,13 @@ Node* Node::Max_UCB_select(Node* n) {
 #ifdef PARALLEL
             vst += virtual_loss * current->get_busy();
 #endif          
+
             uct = logistic(-current->score)
-                + dUCTK * sqrt(logn / vst)
-                + logistic(-current->heuristic) / vst;
+                + dUCTK * sqrt(logn / vst);
+            if(has_ab)
+                uct += logistic(-current->heuristic);
+            else
+                uct += logistic(-current->heuristic)  / vst;
 
             if(uct > bvalue) {
                 bvalue = uct;
@@ -294,6 +300,8 @@ Node* Node::Best_select(Node* n) {
                  current->rank == 1)) 
             ) {
                 double val = -current->score;
+                if(n == SEARCHER::root_node)
+                    val += -current->heuristic;
                 if(val > bvalue || (val == bvalue 
                     && current->rank < bnode->rank)) {
                     bvalue = val;
@@ -422,8 +430,7 @@ void SEARCHER::create_children(Node* n) {
     skip_nn = true;
 
     /*generate and score moves*/
-    if(ply)
-        generate_and_score_moves(evaluate_depth,-MATE_SCORE,MATE_SCORE);
+    generate_and_score_moves(evaluate_depth,-MATE_SCORE,MATE_SCORE);
 
     /*add nodes to tree*/
     add_children(n);
@@ -976,6 +983,46 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
         rollout_type = ALPHABETA;
         use_nn = 0;
     }
+    if(is_selfplay || (chess_clock.max_visits != MAX_NUMBER)) {
+        frac_abprior = 0;
+    }
+
+    /*alpha-beta prior*/
+    if(frac_abprior > 0) {
+
+        /*do ab search*/
+        skip_nn = true;
+
+        chess_clock.set_stime(hply,false);
+        chess_clock.search_time *= frac_abprior;
+        print("Searching root moves with alpha-beta\n");
+        int d;
+        for(d = 2; d < MAX_PLY - 1 ; d++) {
+            evaluate_moves(d,-MATE_SCORE,MATE_SCORE);
+            if(stop_searcher || abort_search)
+                break;
+        }
+        print("Finished with depth %d in %dms\n",
+            d, get_time() - start_time);
+        stop_searcher = 0;
+        abort_search = 0;
+
+        skip_nn = false;
+
+        /*assign prior*/
+        Node* current = root->child;
+        while(current) {
+            for(int i = 0;i < pstack->count; i++) {
+                MOVE& move = pstack->move_st[i];
+                if(move == current->move) {
+                    current->heuristic = -pstack->score_st[i];
+                    current->rank = i + 1;
+                    break;
+                }
+            }
+            current = current->next;
+        }
+    }
 }
 /*
 * Search parameters
@@ -995,6 +1042,8 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         frac_freeze_tree = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "frac_abrollouts")) {
         frac_abrollouts = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "frac_abprior")) {
+        frac_abprior = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "frac_width")) {
         frac_width = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "mcts_strategy_depth")) {
@@ -1028,6 +1077,7 @@ void print_mcts_params() {
     print("feature option=\"frac_alphabeta -spin %d 0 100\"\n",int(frac_alphabeta*100));
     print("feature option=\"frac_freeze_tree -spin %d 0 100\"\n",int(frac_freeze_tree*100));
     print("feature option=\"frac_abrollouts -spin %d 0 100\"\n",int(frac_abrollouts*100));
+    print("feature option=\"frac_abprior -spin %d 0 100\"\n",int(frac_abprior*100));
     print("feature option=\"frac_width -spin %d 0 1000\"\n",int(frac_width*100));
     print("feature option=\"mcts_strategy_depth -spin %d 0 100\"\n",mcts_strategy_depth);
     print("feature option=\"alphabeta_depth -spin %d 1 100\"\n",alphabeta_depth);

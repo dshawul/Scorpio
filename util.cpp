@@ -373,17 +373,18 @@ Node* Node::print_tree(Node* root,int output,int max_depth,int depth) {
     Node* current = root->child;
 
     if(depth == 0)
-        print("\n# Move  Value  Policy  Visits                  PV");
+        print("\n# Move  Value  Policy   V+P    Visits                  PV");
 
     while(current) {
         if(current->visits && (depth == 0 || bnode == current) ) {
             if(output) {
                 mov_str(current->move,str);
                 if(depth == 0)
-                    print("\n# %2d %7.2f %7.2f %7d   %s",
+                    print("\n# %2d %7.2f %7.2f %7.2f %7d   %s",
                         total+1,
                         logistic(-current->score),
                         logistic(-current->heuristic),
+                        logistic(-current->score) + logistic(-current->heuristic),
                         current->visits,
                         str
                         );
@@ -1118,27 +1119,29 @@ CHESS_CLOCK::CHESS_CLOCK() {
 bool CHESS_CLOCK::is_timed() {
     return !infinite_mode && (max_st == MAX_NUMBER) && (max_sd == MAX_PLY);
 }
-void CHESS_CLOCK::set_stime(int hply) {
+void CHESS_CLOCK::set_stime(int hply, bool output) {
+
+    output = output && (SEARCHER::pv_print_style == 0);
 
     /*fixed time/depth*/
     if(max_st != MAX_NUMBER) {
         search_time = max_st;
         maximum_time = max_st;
-        if(SEARCHER::pv_print_style == 0)
+        if(output)
             print("[st = %dms, mt = %dms , hply = %d]\n",search_time,maximum_time,hply);
         return;
     }
     if(max_sd != MAX_PLY) {
         search_time = MAX_NUMBER;
         maximum_time = MAX_NUMBER;
-        if(SEARCHER::pv_print_style == 0)
+        if(output)
             print("[sd = %d , hply = %d]\n",max_sd,hply);
         return;
     }
     if(max_visits != MAX_NUMBER) {
         search_time = MAX_NUMBER;
         maximum_time = MAX_NUMBER;
-        if(SEARCHER::pv_print_style == 0)
+        if(output)
             print("[sv = %d , hply = %d]\n",max_visits,hply);
         return;
     }
@@ -1184,7 +1187,7 @@ void CHESS_CLOCK::set_stime(int hply) {
     /*
     print time
     */
-    if(SEARCHER::pv_print_style == 0)
+    if(output)
         print("[st = %dms, mt = %dms , hply = %d , moves_left %d]\n",
         search_time,maximum_time,hply,moves_left);
 }

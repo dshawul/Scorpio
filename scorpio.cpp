@@ -1051,7 +1051,7 @@ bool parse_commands(char** commands) {
                     if(move == SEARCHER::expected_move) {
                         print("ponder hit\n");
                         SEARCHER::chess_clock.infinite_mode = false;
-                        SEARCHER::chess_clock.set_stime(searcher.hply);
+                        SEARCHER::chess_clock.set_stime(searcher.hply,true);
                         SEARCHER::chess_clock.search_time += int(0.5 * (get_time() - SEARCHER::start_time));
                         return true;
                     } else {

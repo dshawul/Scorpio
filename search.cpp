@@ -1205,13 +1205,17 @@ void SEARCHER::evaluate_moves(int depth, int alpha, int beta) {
         } else {
             pstack->alpha = -beta;
             pstack->beta = -alpha;
-            pstack->depth = depth;
+            pstack->depth = MAX(0, depth - i * UNITDEPTH);
             pstack->node_type = PV_NODE;
             pstack->search_state = NORMAL_MOVE;
+            pstack->extension = 0;
+            pstack->reduction = 0;
             qsearch_calls++;
             get_search_score();
         }
         POP_MOVE();
+        if(!ply && (stop_searcher || abort_search))
+            break;
         pstack->score_st[i] = -(pstack+1)->best_score;
     }
 
@@ -1248,6 +1252,7 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta, bool ski
     if(!skip_eval)
         evaluate_moves(depth,alpha,beta);
 }
+
 /*
 Find best move using alpha-beta or mcts
 */
@@ -1295,7 +1300,7 @@ MOVE SEARCHER::iterative_deepening() {
     /*set search time and record start time*/
     chess_clock.p_time -= (get_time() - start_time);
     if(!chess_clock.infinite_mode)
-        chess_clock.set_stime(hply);
+        chess_clock.set_stime(hply,true);
     start_time = get_time();
 
     /*easy move*/

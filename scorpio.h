@@ -278,7 +278,7 @@ typedef struct CHESS_CLOCK {
     int infinite_mode;
     int pondering;
     CHESS_CLOCK();
-    void set_stime(int);
+    void set_stime(int,bool);
     bool is_timed();
 }*PCHESS_CLOCK;
 /*
