@@ -418,6 +418,7 @@ void SEARCHER::create_children(Node* n) {
     if(ply > (int)Node::max_tree_depth)
         Node::max_tree_depth = ply;
 
+    bool save = skip_nn;
     skip_nn = true;
 
     /*generate and score moves*/
@@ -438,7 +439,7 @@ void SEARCHER::create_children(Node* n) {
         add_null_child(n);
     }
 
-    skip_nn = false;
+    skip_nn = save;
 }
 void SEARCHER::add_children(Node* n) {
     Node* last = n;
@@ -866,6 +867,7 @@ void SEARCHER::search_mc() {
                         && frac > frac_alphabeta) {
                         print("Switching rollout type to MCTS.\n");
                         rollout_type = MCTS;
+                        use_nn = save_use_nn;
                         search_depth = search_depth + mcts_strategy_depth;
                         pstack->depth = search_depth * UNITDEPTH;
                         root_failed_low = 0;
@@ -970,8 +972,10 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
     if(frac_alphabeta == 0) {
         rollout_type = MCTS;
         search_depth = MAX_PLY - 2;
-    } else
+    } else {
         rollout_type = ALPHABETA;
+        use_nn = 0;
+    }
 }
 /*
 * Search parameters

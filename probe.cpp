@@ -41,6 +41,7 @@ int SEARCHER::egbb_cache_size = 16;
 char SEARCHER::egbb_path[MAX_STR] = "egbb/";
 char SEARCHER::nn_path[MAX_STR] = "nets/";
 int SEARCHER::use_nn = 0;
+int SEARCHER::save_use_nn = 0;
 int SEARCHER::n_devices = 1;
 int SEARCHER::device_type = CPU;
 int SEARCHER::delay = 0;

@@ -580,6 +580,7 @@ bool parse_commands(char** commands) {
                 SEARCHER::use_nn = true;
             else
                 SEARCHER::use_nn = false;
+            SEARCHER::save_use_nn = SEARCHER::use_nn;
             command_num++;
         } else if(!strcmp(command, "nn_path")) {
             strcpy(SEARCHER::nn_path,commands[command_num]);

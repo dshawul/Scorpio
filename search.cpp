@@ -315,7 +315,9 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
     pstack->reduction = 0;
 
     /*widening*/
-    if(use_nn && nmoves >= int(ceil(pow(1.1f,depth)))) {
+    if(use_nn && !skip_nn && 
+        nmoves >= int(ceil(pow(1.1f,depth)))
+        ) {
         return true;
     }
 
@@ -1096,10 +1098,11 @@ void SEARCHER::qsearch_nn() {
     if(use_nn && !skip_nn) {
         int sc1, sc2;
 
+        bool save = skip_nn;
         skip_nn = true;
         qsearch();
         sc1 = eval();
-        skip_nn = false;
+        skip_nn = save;
         sc2 = eval();
 
         pstack->best_score = sc2 + (pstack->best_score - sc1);
