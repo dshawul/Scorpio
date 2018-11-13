@@ -885,6 +885,7 @@ typedef struct PROCESSOR {
 
     /*processor count*/
     static int n_processors;
+    static int n_cores;
     static VOLATILE int n_idle_processors;
     static int n_hosts;
 

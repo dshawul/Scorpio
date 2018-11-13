@@ -879,7 +879,7 @@ int SEARCHER::check_split() {
             if(DEPTH(pstack->depth) > PROCESSOR::SMP_SPLIT_DEPTH 
                 && PROCESSOR::n_idle_processors > 0
                 ) {
-                    for(i = 0;i < PROCESSOR::n_processors && n_workers < MAX_CPUS_PER_SPLIT - 1;i++) {
+                    for(i = 0;i < PROCESSOR::n_processors && i < PROCESSOR::n_cores && n_workers < MAX_CPUS_PER_SPLIT - 1;i++) {
                         if(processors[i]->state == WAIT) {
                             attach_processor(i);
                             /*if depth greater than cluster_split_depth, attach only one thread*/

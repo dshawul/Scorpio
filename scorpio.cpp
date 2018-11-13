@@ -33,6 +33,7 @@ parallel search
 */
 PPROCESSOR processors[MAX_CPUS] = {0};
 int PROCESSOR::n_processors;
+int PROCESSOR::n_cores = get_number_of_cpus();
 VOLATILE int PROCESSOR::n_idle_processors;
 int PROCESSOR::n_hosts = 1;
 

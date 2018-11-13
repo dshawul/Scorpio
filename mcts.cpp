@@ -991,7 +991,12 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
     if(frac_abprior > 0) {
 
         /*do ab search*/
-        skip_nn = true;
+#ifdef PARALLEL
+        for(int i = PROCESSOR::n_cores;i < PROCESSOR::n_processors;i++)
+            processors[i]->state = PARK;
+#endif
+        montecarlo = 0;
+        use_nn = 0;
 
         chess_clock.set_stime(hply,false);
         chess_clock.search_time *= frac_abprior;
@@ -1007,8 +1012,13 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
         stop_searcher = 0;
         abort_search = 0;
 
-        skip_nn = false;
-
+        use_nn = 1;
+        montecarlo = 1;
+#ifdef PARALLEL
+        for(int i = PROCESSOR::n_cores;i < PROCESSOR::n_processors;i++)
+            processors[i]->state = WAIT;
+#endif
+        
         /*assign prior*/
         Node* current = root->child;
         while(current) {
