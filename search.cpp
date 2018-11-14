@@ -5,6 +5,7 @@ static int use_probcut = 0;
 static int use_singular = 1;
 static int singular_margin = 32;
 static int probcut_margin = 195;
+static int prev_pv_length;
 
 /* search options */
 const int use_nullmove = 1;
@@ -923,8 +924,19 @@ IDLE_START:
                     sb->pstack->best_score = score;
                     sb->pstack->best_move = move;
 
-                    if(score >= sb->pstack->beta) (sb->pstack + 1)->pv_length = 1;
-                    sb->UPDATE_PV(move);
+                    if(score >= sb->pstack->beta) {
+                        if(sb->pstack->current_index == 1)
+                            sb->pstack->pv_length = prev_pv_length;
+                        else {
+                            (sb->pstack+1)->pv_length = 1;
+                            sb->UPDATE_PV(move);
+                            prev_pv_length = 1;
+                        }
+                    } else if(score <= sb->pstack->alpha) {
+                        sb->pstack->pv_length = prev_pv_length;
+                    } else {
+                        sb->UPDATE_PV(move);
+                    }
 
                     if(score <= sb->pstack->alpha || score >= sb->pstack->beta);
                     else SMP_CODE(if(!use_abdada_smp || !sb->processor_id))
@@ -1194,8 +1206,9 @@ int SEARCHER::get_search_score() {
 Evaluate moves with search
 */
 void SEARCHER::evaluate_moves(int depth, int alpha, int beta) {
-    finish_search = true;
+    int score = 0, WINDOW = 3*aspiration_window/2;
 
+    finish_search = true;
     for(int i = 0;i < pstack->count; i++) {
         pstack->current_move = pstack->move_st[i];
         PUSH_MOVE(pstack->current_move);
@@ -1203,20 +1216,41 @@ void SEARCHER::evaluate_moves(int depth, int alpha, int beta) {
             && bitbase_cutoff()
             ) {
         } else {
+            score = (pstack-1)->score_st[i];
+            if(ply == 1 && depth - i >= 3) {
+                alpha = score - WINDOW;
+                beta  = score + WINDOW;
+            }
+TOP:
             pstack->alpha = -beta;
             pstack->beta = -alpha;
-            pstack->depth = MAX(0, depth - i * UNITDEPTH);
+            pstack->depth = MAX(0, depth - i);
             pstack->node_type = PV_NODE;
             pstack->search_state = NORMAL_MOVE;
             pstack->extension = 0;
             pstack->reduction = 0;
             qsearch_calls++;
             get_search_score();
+            score = -pstack->best_score;
+
+            if(ply == 1 && depth - i >= 3 
+                && abs(score) != MATE_SCORE
+                ) {
+                if(score <= alpha) {
+                    WINDOW = MIN(200, 3 * WINDOW / 2);
+                    alpha = MAX(-MATE_SCORE,score - WINDOW);
+                    goto TOP;
+                } else if(score >= beta) {
+                    WINDOW = MIN(200, 3 * WINDOW / 2);
+                    beta = MIN(MATE_SCORE,score + WINDOW);
+                    goto TOP;
+                }
+            }
         }
         POP_MOVE();
         if(!ply && (stop_searcher || abort_search))
             break;
-        pstack->score_st[i] = -(pstack+1)->best_score;
+        pstack->score_st[i] = score;
     }
 
     finish_search = false;
@@ -1254,6 +1288,28 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta, bool ski
 }
 
 /*
+Insert PV to mcts tree
+*/
+void SEARCHER::insert_pv(Node* n, int p) {
+    if(p >= stack[0].pv_length)
+        return;
+    if(!n->child)
+        create_children(n);
+    MOVE& move = stack[0].pv[p];
+    Node* current = n->child;
+    while(current) {
+        if(move == current->move) {
+            if(ply)
+                current->heuristic -= 50;
+            PUSH_MOVE(move);
+            insert_pv(current,p+1);
+            POP_MOVE();
+            break;
+        }
+        current = current->next;
+    }
+}
+/*
 Find best move using alpha-beta or mcts
 */
 MOVE SEARCHER::iterative_deepening() {
@@ -1286,10 +1342,45 @@ MOVE SEARCHER::iterative_deepening() {
 
     /* manage tree*/
     if(montecarlo) {
+
         Node* root = root_node;
         manage_tree(root,root_key);
         root_node = root;
         Node::max_tree_depth = 0;
+
+#if 0
+        if(frac_abprior > 0) {
+            /*nodes to prior*/
+            UBMP64 maxn = 0;
+            int maxni = 0;
+            for(int i = 1; i < pstack->count; i++) {
+                UBMP64 v = root_score_st[i];
+                if(v > maxn) { maxn = v; maxni = i; }
+            }
+
+            if(root_score_st[0] < 2 * root_score_st[maxni])
+                root_score_st[0] = 2 * root_score_st[maxni];
+
+            /*assign prior*/
+            Node* current = root->child;
+            while(current) {
+                for(int i = 0;i < pstack->count; i++) {
+                    MOVE& move = pstack->move_st[i];
+                    if(move == current->move) {
+                        double v = sqrt(double(root_score_st[i]) / maxn);
+                        current->heuristic = -(v - 0.5) * 100;
+                        current->rank = i + 1;
+                        break;
+                    }
+                }
+                current = current->next;
+            }
+
+            /*insert pv*/
+            insert_pv(root,0);
+        }
+#endif
+
         /*rank nodes and reset bounds*/
         if(rollout_type == ALPHABETA) {
             Node::rank_children(root_node);
@@ -1299,8 +1390,9 @@ MOVE SEARCHER::iterative_deepening() {
 
     /*set search time and record start time*/
     chess_clock.p_time -= (get_time() - start_time);
-    if(!chess_clock.infinite_mode)
+    if(!chess_clock.infinite_mode) {
         chess_clock.set_stime(hply,true);
+    }
     start_time = get_time();
 
     /*easy move*/
@@ -1365,7 +1457,7 @@ MOVE SEARCHER::iterative_deepening() {
         if(score <= alpha) print("--");
         else if(score >= beta) print("++");
         else print("==");
-        print(" %d [%d %d]\n",score,alpha,beta);
+        print(" %d [%d %d] pvlength %d\n",score,alpha,beta,stack[0].pv_length);
         
         if(montecarlo) {
             for(int r = 1; r <= MAX_MOVES; r++) {
@@ -1392,6 +1484,7 @@ MOVE SEARCHER::iterative_deepening() {
             ) {
             alpha = -MATE_SCORE;
             beta = MATE_SCORE;
+            prev_pv_length = stack[0].pv_length;
         } else if(score <= alpha) {
             WINDOW = MIN(200, 3 * WINDOW / 2);
             alpha = MAX(-MATE_SCORE,score - WINDOW);
@@ -1412,6 +1505,7 @@ MOVE SEARCHER::iterative_deepening() {
             WINDOW = aspiration_window;
             alpha = score - WINDOW;
             beta = score + WINDOW;
+            prev_pv_length = stack[0].pv_length;
         }
 
         /*sort moves*/
@@ -1495,6 +1589,54 @@ MOVE SEARCHER::iterative_deepening() {
         /*end*/
     }
 
+    /*search info*/
+    if(montecarlo) {
+        if(pv_print_style == 0) {
+            /*print tree*/
+            Node::print_tree(root_node,1,MAX_PLY);
+
+            /* print result*/
+            int time_used = MAX(1,get_time() - start_time);
+            int pps = int(root_node->visits / (time_used / 1000.0f));
+            print("# nodes = " FMT64 " <%d%% qnodes> time = %dms nps = %d eps = %d nneps = %d\n",nodes,
+                int(BMP64(qnodes) / (BMP64(nodes) / 100.0f)),
+                time_used,int(BMP64(nodes) / (time_used / 1000.0f)),
+                int(BMP64(ecalls) / (time_used / 1000.0f)),
+                int(BMP64(nnecalls) / (time_used / 1000.0f)));
+            print("# Tree: nodes = %d depth = %d pps = %d visits = %d \n"
+                  "#       qsearch_calls = %d search_calls = %d\n",
+                  Node::total_nodes,Node::max_tree_depth,pps,root_node->visits,
+                  qsearch_calls,search_calls);
+        }
+    } else {
+
+#ifdef CLUSTER
+        /*total nps*/
+        if(use_abdada_cluster) {
+            UBMP64 tnodes;
+            PROCESSOR::Sum(&nodes, &tnodes);
+            nodes = (UBMP64)tnodes;
+        }
+#endif
+
+        /*search has ended. display some info*/
+        int time_used = get_time() - start_time;
+        if(!time_used) time_used = 1;
+        if(pv_print_style == 1) {
+            print(" " FMT64W " %8.2f %10d %8d %8d\n",nodes,float(time_used) / 1000,
+                int(BMP64(nodes) / (time_used / 1000.0f)),splits,bad_splits);
+        } else if(pv_print_style == 0) {
+            print("# splits = %d badsplits = %d egbb_probes = %d\n",
+                splits,bad_splits,egbb_probes);
+            print("# nodes = " FMT64 " <%d qnodes> time = %dms nps = %d eps = %d  nneps = %d\n",nodes,
+                int(BMP64(qnodes) / (BMP64(nodes) / 100.0f)),
+                time_used,int(BMP64(nodes) / (time_used / 1000.0f)),
+                int(BMP64(ecalls) / (time_used / 1000.0f)),
+                int(BMP64(nnecalls) / (time_used / 1000.0f)));
+        }
+
+    }
+
     return stack[0].pv[0];
 }
 /*
@@ -1504,8 +1646,10 @@ MOVE SEARCHER::find_best() {
 
     start_time = get_time();
 
+    /*
+    send initial position to helper hosts
+    */
 #ifdef CLUSTER
-    /*send initial position to helper hosts*/
     if(PROCESSOR::host_id == 0) {
         INIT_MESSAGE init;
         get_init_pos(&init);
@@ -1536,7 +1680,10 @@ MOVE SEARCHER::find_best() {
     root_failed_low = 0;
     search_calls = 0;
     egbb_probes = 0;
+    prev_pv_length = 0;
     PROCESSOR::set_num_searchers();
+    if(is_selfplay || (chess_clock.max_visits != MAX_NUMBER))
+        frac_abprior = 0;
 
     /*fen*/
     char fen[MAX_FEN_STR];
@@ -1579,76 +1726,71 @@ MOVE SEARCHER::find_best() {
     stack[0].pv[0] = pstack->move_st[0];
     stack[0].best_score = pstack->score_st[0];
 
+    /*
+    preliminary search
+    */
+
+    MOVE bmove = 0;
+
+#if 0
+    if(montecarlo && frac_abprior > 0) {
+        montecarlo = 0;
+        use_nn = 0;
+
 #ifdef PARALLEL
-    /*wakeup threads*/
-    for(int i = 1;i < PROCESSOR::n_processors;i++)
-        processors[i]->state = WAIT;
+        for(int i = 1;i < PROCESSOR::n_cores;i++)
+            processors[i]->state = WAIT;
 #endif
 
-    /*mcts or alphabeta*/
-    MOVE bmove = iterative_deepening();
+        chess_clock.p_time *= frac_abprior;
 
-#ifdef PARALLEL
-    /*park threads*/
-    for(int i = 1;i < PROCESSOR::n_processors;i++)
-        processors[i]->state = PARK;
+        bmove = iterative_deepening();
+
+        chess_clock.p_time /= frac_abprior;
+
+        montecarlo = 1;
+        use_nn = save_use_nn;
+
+        stop_searcher = 0;
+        abort_search = 0;
+        while(ply > 0) {
+            if(hstack[hply - 1].move) POP_MOVE();
+            else POP_NULL();
+        }
+    }
+
+    /* 
+    primary search 
+    */
+    if(!montecarlo || frac_abprior < 1) {
 #endif
 
+#ifdef PARALLEL
+        /*wakeup threads*/
+        for(int i = 1;i < PROCESSOR::n_cores;i++)
+            processors[i]->state = WAIT;
+#endif
+
+        bmove = iterative_deepening();
+
+#ifdef PARALLEL
+        /*park threads*/
+        for(int i = 1;i < PROCESSOR::n_processors;i++)
+            processors[i]->state = PARK;
+#endif
+
+#if 0
+    }
+#endif
+    /*
+    park hosts
+    */
 #ifdef CLUSTER
-    /*park hosts*/
     if(PROCESSOR::host_id == 0 && use_abdada_cluster) {
         for(int i = 1;i < PROCESSOR::n_hosts;i++)
             PROCESSOR::ISend(i,PROCESSOR::QUIT);
     }
 #endif
-    
-    /*search info*/
-    if(montecarlo) {
-        if(pv_print_style == 0) {
-            /*print tree*/
-            Node::print_tree(root_node,1,MAX_PLY);
-
-            /* print result*/
-            int time_used = MAX(1,get_time() - start_time);
-            int pps = int(root_node->visits / (time_used / 1000.0f));
-            print("nodes = " FMT64 " <%d%% qnodes> time = %dms nps = %d eps = %d nneps = %d\n",nodes,
-                int(BMP64(qnodes) / (BMP64(nodes) / 100.0f)),
-                time_used,int(BMP64(nodes) / (time_used / 1000.0f)),
-                int(BMP64(ecalls) / (time_used / 1000.0f)),
-                int(BMP64(nnecalls) / (time_used / 1000.0f)));
-            print("Tree: nodes = %d depth = %d pps = %d visits = %d \n      "
-                "qsearch_calls = %d search_calls = %d\n",
-                Node::total_nodes,Node::max_tree_depth,pps,root_node->visits,
-                qsearch_calls,search_calls);
-        }
-    } else {
-
-#ifdef CLUSTER
-        /*total nps*/
-        if(use_abdada_cluster) {
-            UBMP64 tnodes;
-            PROCESSOR::Sum(&nodes, &tnodes);
-            nodes = (UBMP64)tnodes;
-        }
-#endif
-
-        /*search has ended. display some info*/
-        int time_used = get_time() - start_time;
-        if(!time_used) time_used = 1;
-        if(pv_print_style == 1) {
-            print(" " FMT64W " %8.2f %10d %8d %8d\n",nodes,float(time_used) / 1000,
-                int(BMP64(nodes) / (time_used / 1000.0f)),splits,bad_splits);
-        } else if(pv_print_style == 0) {
-            print("splits = %d badsplits = %d egbb_probes = %d\n",
-                splits,bad_splits,egbb_probes);
-            print("nodes = " FMT64 " <%d qnodes> time = %dms nps = %d eps = %d  nneps = %d\n",nodes,
-                int(BMP64(qnodes) / (BMP64(nodes) / 100.0f)),
-                time_used,int(BMP64(nodes) / (time_used / 1000.0f)),
-                int(BMP64(ecalls) / (time_used / 1000.0f)),
-                int(BMP64(nnecalls) / (time_used / 1000.0f)));
-        }
-
-    }
 
     /*was this first search?*/
     if(first_search) {

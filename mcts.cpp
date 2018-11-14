@@ -9,7 +9,7 @@ static int  backup_type = MINMAX;
 static double frac_alphabeta = 1.0; 
 static double frac_freeze_tree = 0.3;
 static double frac_abrollouts = 0.2;
-static double frac_abprior = 0.3;
+double frac_abprior = 0.3;
 static int  mcts_strategy_depth = 30;
 static int  alphabeta_depth = 1;
 static int  evaluate_depth = 0;
@@ -300,7 +300,7 @@ Node* Node::Best_select(Node* n) {
                  current->rank == 1)) 
             ) {
                 double val = -current->score;
-                if(n == SEARCHER::root_node)
+                if(n == SEARCHER::root_node && frac_abprior > 0)
                     val += -current->heuristic;
                 if(val > bvalue || (val == bvalue 
                     && current->rank < bnode->rank)) {
@@ -430,7 +430,8 @@ void SEARCHER::create_children(Node* n) {
     skip_nn = true;
 
     /*generate and score moves*/
-    generate_and_score_moves(evaluate_depth,-MATE_SCORE,MATE_SCORE);
+    if(ply)
+        generate_and_score_moves(evaluate_depth,-MATE_SCORE,MATE_SCORE);
 
     /*add nodes to tree*/
     add_children(n);
@@ -983,10 +984,8 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
         rollout_type = ALPHABETA;
         use_nn = 0;
     }
-    if(is_selfplay || (chess_clock.max_visits != MAX_NUMBER)) {
-        frac_abprior = 0;
-    }
 
+#if 1
     /*alpha-beta prior*/
     if(frac_abprior > 0) {
 
@@ -1012,7 +1011,7 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
         stop_searcher = 0;
         abort_search = 0;
 
-        use_nn = 1;
+        use_nn = save_use_nn;
         montecarlo = 1;
 #ifdef PARALLEL
         for(int i = PROCESSOR::n_cores;i < PROCESSOR::n_processors;i++)
@@ -1033,6 +1032,7 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
             current = current->next;
         }
     }
+#endif
 }
 /*
 * Search parameters

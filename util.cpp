@@ -1128,21 +1128,21 @@ void CHESS_CLOCK::set_stime(int hply, bool output) {
         search_time = max_st;
         maximum_time = max_st;
         if(output)
-            print("[st = %dms, mt = %dms , hply = %d]\n",search_time,maximum_time,hply);
+            print("# [st = %dms, mt = %dms , hply = %d]\n",search_time,maximum_time,hply);
         return;
     }
     if(max_sd != MAX_PLY) {
         search_time = MAX_NUMBER;
         maximum_time = MAX_NUMBER;
         if(output)
-            print("[sd = %d , hply = %d]\n",max_sd,hply);
+            print("# [sd = %d , hply = %d]\n",max_sd,hply);
         return;
     }
     if(max_visits != MAX_NUMBER) {
         search_time = MAX_NUMBER;
         maximum_time = MAX_NUMBER;
         if(output)
-            print("[sv = %d , hply = %d]\n",max_visits,hply);
+            print("# [sv = %d , hply = %d]\n",max_visits,hply);
         return;
     }
 
@@ -1188,7 +1188,7 @@ void CHESS_CLOCK::set_stime(int hply, bool output) {
     print time
     */
     if(output)
-        print("[st = %dms, mt = %dms , hply = %d , moves_left %d]\n",
+        print("# [st = %dms, mt = %dms , hply = %d , moves_left %d]\n",
         search_time,maximum_time,hply,moves_left);
 }
 void SEARCHER::check_quit() {

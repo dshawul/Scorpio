@@ -551,6 +551,7 @@ bool parse_commands(char** commands) {
             mt = MIN(mt, MAX_CPUS);
             init_smp(mt);
             print("processors [%d]\n",PROCESSOR::n_processors);
+            PROCESSOR::n_cores = MIN(PROCESSOR::n_cores,PROCESSOR::n_processors);
 #endif
             command_num++;
             /*

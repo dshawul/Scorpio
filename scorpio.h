@@ -637,6 +637,7 @@ typedef struct SEARCHER{
     int   draw() const;
     MOVE  find_best();
     MOVE  iterative_deepening();
+    void  insert_pv(Node*,int);
     int   be_selective(int,bool);
     int   on_node_entry();
     int   on_qnode_entry();
@@ -1001,6 +1002,7 @@ extern int montecarlo;
 extern int rollout_type;
 extern bool freeze_tree;
 extern bool is_selfplay;
+extern double frac_abprior;
 
 
 /** search options */
