@@ -1216,15 +1216,16 @@ void SEARCHER::evaluate_moves(int depth, int alpha, int beta) {
             && bitbase_cutoff()
             ) {
         } else {
+            int newd = (depth > 3) ? (depth - MIN(i, depth - 3)) : (depth - i);
             score = (pstack-1)->score_st[i];
-            if(ply == 1 && depth - i >= 3) {
+            if(ply == 1 && newd >= 3) {
                 alpha = score - WINDOW;
                 beta  = score + WINDOW;
             }
 TOP:
             pstack->alpha = -beta;
             pstack->beta = -alpha;
-            pstack->depth = MAX(0, depth - i);
+            pstack->depth = MAX(0, newd);
             pstack->node_type = PV_NODE;
             pstack->search_state = NORMAL_MOVE;
             pstack->extension = 0;
@@ -1233,7 +1234,7 @@ TOP:
             get_search_score();
             score = -pstack->best_score;
 
-            if(ply == 1 && depth - i >= 3 
+            if(ply == 1 && newd >= 3 
                 && abs(score) != MATE_SCORE
                 ) {
                 if(score <= alpha) {

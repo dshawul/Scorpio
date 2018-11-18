@@ -860,6 +860,7 @@ void SEARCHER::search_mc() {
                         pfrac = frac;
                         if(rollout_type == MCTS) {
                             extract_pv(root);
+                            root_score = root->score;
                             print_pv(root->score);
                             search_depth++;
                         }
