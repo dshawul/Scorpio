@@ -1231,8 +1231,17 @@ TOP:
             pstack->extension = 0;
             pstack->reduction = 0;
             qsearch_calls++;
-            get_search_score();
-            score = -pstack->best_score;
+
+            if(depth == -2) {
+                score = -eval();
+            } else if(depth == -1) {
+                MOVE& move = (pstack-1)->current_move;
+                score = -eval() + 
+                  (see(move) - piece_see_v[m_capture(move)]);
+            } else {
+                get_search_score();
+                score = -pstack->best_score;
+            }
 
             if(ply == 1 && newd >= 3 
                 && abs(score) != MATE_SCORE
