@@ -340,8 +340,10 @@ void Node::print_xml(Node* n,int depth) {
     char mvstr[32];
     mov_str(n->move,mvstr);
 
-    print_log("<node depth=\"%d\" move=\"%s\" alpha=\"%d\" beta=\"%d\" visits=\"%d\" wins=\"%d\">\n",
-        depth,mvstr,n->alpha,n->beta,n->visits,int(n->score));
+    print_log("<node depth=\"%d\" move=\"%s\" alpha=\"%d\" beta=\"%d\" "
+        "visits=\"%d\" score=\"%.2f\" heuristic=\"%.2f\" sum=\"%.2f\">\n",
+        depth,mvstr,n->alpha,n->beta,n->visits,logistic(-n->score),
+        logistic(-n->heuristic), logistic(-n->score)+logistic(-n->heuristic));
 
     Node* current = n->child;
     while(current) {

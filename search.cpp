@@ -1287,29 +1287,6 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta, bool ski
     if(!skip_eval)
         evaluate_moves(depth,alpha,beta);
 }
-
-/*
-Insert PV to mcts tree
-*/
-void SEARCHER::insert_pv(Node* n, int p) {
-    if(p >= stack[0].pv_length)
-        return;
-    if(!n->child)
-        create_children(n);
-    MOVE& move = stack[0].pv[p];
-    Node* current = n->child;
-    while(current) {
-        if(move == current->move) {
-            if(ply)
-                current->heuristic -= 50;
-            PUSH_MOVE(move);
-            insert_pv(current,p+1);
-            POP_MOVE();
-            break;
-        }
-        current = current->next;
-    }
-}
 /*
 Find best move using alpha-beta or mcts
 */
@@ -1349,7 +1326,7 @@ MOVE SEARCHER::iterative_deepening() {
         root_node = root;
         Node::max_tree_depth = 0;
 
-#if 0
+#ifdef NODES_PRIOR
         if(frac_abprior > 0) {
             /*nodes to prior*/
             UBMP64 maxn = 0;
@@ -1376,9 +1353,6 @@ MOVE SEARCHER::iterative_deepening() {
                 }
                 current = current->next;
             }
-
-            /*insert pv*/
-            insert_pv(root,0);
         }
 #endif
 
@@ -1733,7 +1707,7 @@ MOVE SEARCHER::find_best() {
 
     MOVE bmove = 0;
 
-#if 0
+#ifdef NODES_PRIOR
     if(montecarlo && frac_abprior > 0) {
         montecarlo = 0;
         use_nn = 0;
@@ -1780,7 +1754,7 @@ MOVE SEARCHER::find_best() {
             processors[i]->state = PARK;
 #endif
 
-#if 0
+#ifdef NODES_PRIOR
     }
 #endif
     /*

@@ -22,6 +22,8 @@ Some definitions to include/remove code
 // #    define THREAD_POLLING
 // #    define TUNE
 #endif
+// #define NODES_PRIOR
+// #define CUTECHESS_FIX
 
 /*includes*/
 #include <cstdarg>
@@ -637,7 +639,6 @@ typedef struct SEARCHER{
     int   draw() const;
     MOVE  find_best();
     MOVE  iterative_deepening();
-    void  insert_pv(Node*,int);
     int   be_selective(int,bool);
     int   on_node_entry();
     int   on_qnode_entry();

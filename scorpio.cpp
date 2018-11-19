@@ -233,8 +233,10 @@ int CDECL main(int argc, char* argv[]) {
             remove_log_file();
 
         /* load egbbs */
+#ifndef CUTECHESS_FIX
         load_egbbs();
-        
+#endif
+
         /*
          * Parse commands from stdin.
          */

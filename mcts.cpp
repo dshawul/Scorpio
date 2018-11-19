@@ -123,9 +123,8 @@ void Node::rank_children(Node* n) {
     }
 
     /*ensure one child has rank 1*/
-    if(best) {
+    if(best)
         best->rank = 1;
-    }
 }
 
 void Node::reset_bounds(Node* n,int alpha,int beta) {
@@ -168,12 +167,12 @@ Node* Node::Max_UCB_select(Node* n) {
             vst += virtual_loss * current->get_busy();
 #endif          
 
-            uct = logistic(-current->score)
-                + dUCTK * sqrt(logn / vst);
+            uct = logistic(-current->score);
             if(has_ab)
                 uct += logistic(-current->heuristic);
             else
-                uct += logistic(-current->heuristic)  / vst;
+                uct += logistic(-current->heuristic) / vst;
+            uct += dUCTK * sqrt(logn / vst);
 
             if(uct > bvalue) {
                 bvalue = uct;
@@ -290,6 +289,7 @@ Node* Node::Random_select(Node* n) {
 Node* Node::Best_select(Node* n) {
     double bvalue = -MAX_NUMBER;
     Node* current = n->child, *bnode = n->child;
+    bool has_ab = (n == SEARCHER::root_node && frac_abprior > 0);
 
     while(current) {
         if(current->move && current->visits > 1) {
@@ -300,7 +300,7 @@ Node* Node::Best_select(Node* n) {
                  current->rank == 1)) 
             ) {
                 double val = -current->score;
-                if(n == SEARCHER::root_node && frac_abprior > 0)
+                if(has_ab)
                     val += -current->heuristic;
                 if(val > bvalue || (val == bvalue 
                     && current->rank < bnode->rank)) {
@@ -316,53 +316,43 @@ Node* Node::Best_select(Node* n) {
     return bnode;
 }
 float Node::Min_score(Node* n) {
-    Node* current = n->child, *bnode = n->child;
+    Node* current = n->child, *bnode = 0;
+    float bscore = MAX_NUMBER;
     while(current) {
-        if(current->move
-            && (current == n->child || current->visits > 1)
-            ) {
-            if(current->score < bnode->score)
+        if(current->move && current->visits > 1) {
+            if(current->score < bscore) {
+                bscore = current->score;
                 bnode = current;
+            }
         }
         current = current->next;
     }
- 
+    if(!bnode) bnode = n->child;
     return bnode->score;
 }
 float Node::Avg_score(Node* n) {
     double tvalue = 0;
     unsigned int tvisits = 0;
-    
     Node* current = n->child;
     while(current) {
-        if(current->move
-            && (current == n->child || current->visits > 1)
-            ) {
-#if RAWAVG
-            tvalue += current->score * current->visits;
-#else
+        if(current->move && current->visits > 1) {
             tvalue += logistic(current->score) * current->visits;
-#endif
             tvisits += current->visits;
         }
         current = current->next;
     }
-
-#ifdef RAWAVG
-    return tvalue / tvisits;
-#else
+    if(tvisits == 0) {
+        tvalue = logistic(n->child->score);
+        tvisits = 1;
+    }
     return logit(tvalue / tvisits);
-#endif
 }
-float Node::Avg_score_mem(Node* n, double score, int visits) { 
-#ifdef RAWAVG
-    return n->score + (score - n->score) * visits / (n->visits + visits);  
-#else
+float Node::Avg_score_mem(Node* n, double score, int visits) {
+    if(n->visits == 1) return score;
     float sc = logistic(n->score);
     float sc1 = logistic(score);
     sc += (sc1 - sc) * visits / (n->visits + visits);
-    return logit(sc);   
-#endif
+    return logit(sc);
 }
 void Node::Backup(Node* n,double& score,int visits, int all_man_c) {
     /*Compute parent's score from children*/
@@ -973,6 +963,7 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
         create_children(root);
         root->visits++;
     }
+    root->set_pvmove();
     root_key = hash_key;
 
     /*only have root child*/
@@ -986,7 +977,7 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
         use_nn = 0;
     }
 
-#if 1
+#ifndef NODES_PRIOR
     /*alpha-beta prior*/
     if(frac_abprior > 0) {
 
