@@ -1004,6 +1004,7 @@ extern int rollout_type;
 extern bool freeze_tree;
 extern bool is_selfplay;
 extern double frac_abprior;
+extern int qsearch_level;
 
 
 /** search options */

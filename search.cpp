@@ -6,6 +6,7 @@ static int use_singular = 1;
 static int singular_margin = 32;
 static int probcut_margin = 195;
 static int prev_pv_length;
+int qsearch_level = 0;
 
 /* search options */
 const int use_nullmove = 1;
@@ -101,7 +102,9 @@ FORCEINLINE int SEARCHER::on_node_entry() {
     prefetch_tt();
     if(pstack->depth <= 0) {
         prefetch_qtt();
-        if(pstack->node_type == PV_NODE) 
+        if(qsearch_level < 0)
+            pstack->qcheck_depth = 0;
+        else if(pstack->node_type == PV_NODE) 
             pstack->qcheck_depth = 2 * CHECK_DEPTH; 
         else 
             pstack->qcheck_depth = CHECK_DEPTH;
@@ -1232,14 +1235,16 @@ TOP:
             pstack->reduction = 0;
             qsearch_calls++;
 
-            if(depth == -2) {
+            if(depth == -4) {
                 score = -eval();
-            } else if(depth == -1) {
+            } else if(depth == -3) {
                 MOVE& move = (pstack-1)->current_move;
                 score = -eval() + 
                   (see(move) - piece_see_v[m_capture(move)]);
             } else {
+                if(depth < 0) qsearch_level = depth;
                 get_search_score();
+                if(depth < 0) qsearch_level = 0;
                 score = -pstack->best_score;
             }
 

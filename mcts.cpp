@@ -1083,7 +1083,7 @@ void print_mcts_params() {
     print("feature option=\"frac_width -spin %d 0 1000\"\n",int(frac_width*100));
     print("feature option=\"mcts_strategy_depth -spin %d 0 100\"\n",mcts_strategy_depth);
     print("feature option=\"alphabeta_depth -spin %d 1 100\"\n",alphabeta_depth);
-    print("feature option=\"evaluate_depth -spin %d -2 100\"\n",evaluate_depth);
+    print("feature option=\"evaluate_depth -spin %d -4 100\"\n",evaluate_depth);
     print("feature option=\"virtual_loss -spin %d 0 1000\"\n",virtual_loss);
     print("feature option=\"visit_threshold -spin %d 0 1000\"\n",visit_threshold);
     print("feature option=\"montecarlo -check %d\"\n",montecarlo);

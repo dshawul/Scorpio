@@ -1609,8 +1609,9 @@ DO_AGAIN:
                 }
             }
         } else if(pstack->gen_status == GEN_CAPS) {
+            const int cutoff_depth = (qsearch_level < -1) ? 1 : 4;
             const bool recap = (hply >= 1 && 
-                pstack->qcheck_depth <= -4 * UNITDEPTH);
+                pstack->qcheck_depth <= -cutoff_depth * UNITDEPTH);
             gen_caps(recap);
             pstack->sortm = 1;
             for(int i = 0; i < pstack->count;i++) {
