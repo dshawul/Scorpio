@@ -511,7 +511,14 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
     if(!n->child) {
 
         /*run out of memory for nodes*/
-        if(rollout_type == ALPHABETA && 
+        if(rollout_type == MCTS
+            && Node::total_nodes  + MAX_MOVES >= Node::max_tree_nodes
+            ) {
+            abort_search = 1;
+            visits = 0;
+            print("# Maximum number of nodes reached.\n");
+            goto FINISH;
+        } else if(rollout_type == ALPHABETA && 
              (
              Node::total_nodes  + MAX_MOVES >= Node::max_tree_nodes       
              || freeze_tree
@@ -521,7 +528,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
             if(Node::total_nodes  + MAX_MOVES >= Node::max_tree_nodes &&
                 !freeze_tree && processor_id == 0) {
                 freeze_tree = true;
-                print("Maximum number of nodes used.\n");
+                print("# Maximum number of nodes reached.\n");
             }
             search_calls++;
             score = get_search_score();
