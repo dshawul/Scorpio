@@ -1574,7 +1574,7 @@ bool SEARCHER::pgn_to_epd(char* path,char* book) {
                 if(is_cap_prom(move) || hstack[hply - 1].checks) {
                     cap_prom_check = true;
                 } else {
-                    if(!cap_prom_check) {
+                    if(!cap_prom_check && hply >= 20) {
                         write_pos = true;
 #if 1
                         get_fen(fen);

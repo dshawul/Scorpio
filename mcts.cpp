@@ -866,12 +866,12 @@ void SEARCHER::search_mc() {
                     if(rollout_type == ALPHABETA && !freeze_tree && frac_freeze_tree < 1.0 &&
                         frac >= frac_freeze_tree * frac_alphabeta) {
                         freeze_tree = true;
-                        print("Freezing tree.\n");
+                        print("# Freezing tree.\n");
                     }
                     /*Switching rollouts type*/
                     if(rollout_type == ALPHABETA && frac_alphabeta != 1.0 
                         && frac > frac_alphabeta) {
-                        print("Switching rollout type to MCTS.\n");
+                        print("# Switching rollout type to MCTS.\n");
                         rollout_type = MCTS;
                         use_nn = save_use_nn;
                         search_depth = search_depth + mcts_strategy_depth;
@@ -949,10 +949,10 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
         }
     }
     if(!root) {
-        print_log("[Tree-not-found]\n");
+        print_log("# [Tree-not-found]\n");
         root = Node::allocate(processor_id);
     } else {
-        print_log("[Tree-found : visits %d score %d]\n",
+        print_log("# [Tree-found : visits %d score %d]\n",
             root->visits,int(root->score));
 
         /*remove null moves from root*/
@@ -998,15 +998,18 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
 
         chess_clock.set_stime(hply,false);
         chess_clock.search_time *= frac_abprior;
-        print("Searching root moves with alpha-beta\n");
+        int start_t = start_time;
+        start_time = get_time();
+        print("# Searching root moves with alpha-beta\n");
         int d;
         for(d = 2; d < MAX_PLY - 1 ; d++) {
             evaluate_moves(d,-MATE_SCORE,MATE_SCORE);
             if(stop_searcher || abort_search)
                 break;
         }
-        print("Finished with depth %d in %dms\n",
+        print("# Finished with depth %d in %dms\n",
             d, get_time() - start_time);
+        start_time = start_t;
         stop_searcher = 0;
         abort_search = 0;
 
@@ -1092,7 +1095,7 @@ void print_mcts_params() {
     print("feature option=\"alphabeta_depth -spin %d 1 100\"\n",alphabeta_depth);
     print("feature option=\"evaluate_depth -spin %d -4 100\"\n",evaluate_depth);
     print("feature option=\"virtual_loss -spin %d 0 1000\"\n",virtual_loss);
-    print("feature option=\"visit_threshold -spin %d 0 1000\"\n",visit_threshold);
+    print("feature option=\"visit_threshold -spin %d 0 1000000\"\n",visit_threshold);
     print("feature option=\"montecarlo -check %d\"\n",montecarlo);
     print("feature option=\"treeht -spin %d 0 131072\"\n",
         int((Node::max_tree_nodes * sizeof(Node)) / double(1024*1024)));

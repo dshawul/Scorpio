@@ -21,9 +21,9 @@ Some definitions to include/remove code
 // #    define CLUSTER
 // #    define THREAD_POLLING
 // #    define TUNE
+// #    define NODES_PRIOR
+// #    define CUTECHESS_FIX
 #endif
-// #define NODES_PRIOR
-// #define CUTECHESS_FIX
 
 /*includes*/
 #include <cstdarg>

@@ -1212,6 +1212,7 @@ void SEARCHER::evaluate_moves(int depth, int alpha, int beta) {
     int score = 0, WINDOW = 3*aspiration_window/2;
 
     finish_search = true;
+
     for(int i = 0;i < pstack->count; i++) {
         pstack->current_move = pstack->move_st[i];
         PUSH_MOVE(pstack->current_move);
@@ -1737,6 +1738,11 @@ MOVE SEARCHER::find_best() {
 
         chess_clock.p_time /= frac_abprior;
 
+#ifdef PARALLEL
+        for(int i = 1;i < PROCESSOR::n_cores;i++)
+            processors[i]->state = PARK;
+#endif
+
         montecarlo = 1;
         use_nn = save_use_nn;
 
@@ -1756,7 +1762,7 @@ MOVE SEARCHER::find_best() {
 
 #ifdef PARALLEL
         /*wakeup threads*/
-        for(int i = 1;i < PROCESSOR::n_cores;i++)
+        for(int i = 1;i < PROCESSOR::n_processors;i++)
             processors[i]->state = WAIT;
 #endif
 
