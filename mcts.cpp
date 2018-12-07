@@ -1,3 +1,4 @@
+#include <random>
 #include "scorpio.h"
 
 /*mcts parameters*/
@@ -16,6 +17,8 @@ static int  evaluate_depth = 0;
 static double  frac_width = 1.0;
 static int virtual_loss = 3;
 static unsigned int visit_threshold = 800;
+static std::random_device rd;
+static std::mt19937 mtgen(rd());
 
 int montecarlo = 0;
 int rollout_type = ALPHABETA;
@@ -227,66 +230,32 @@ Node* Node::Max_AB_select(Node* n,int alpha,int beta,bool try_null,bool search_b
 
     return bnode;
 }
-/*
-Utility function for random selection of action from 
-discrete probability distribution
-*/
-static int findCeil(int arr[], int r, int l, int h) {
-    int mid;
-    while (l < h) {
-         mid = l + ((h - l) >> 1);
-        (r > arr[mid]) ? (l = mid + 1) : (h = mid);
-    }
-    return (arr[l] >= r) ? l : -1;
-}
-static Node* pickRandMove(Node* arr[], int freq[], int n) {
-    int prefix[n];
-    prefix[0] = freq[0];
-    for(int i = 1; i < n; ++i)
-        prefix[i] = prefix[i - 1] + freq[i];
-
-    int r = (rand() % prefix[n - 1]) + 1;
-    int indexc = findCeil(prefix, r, 0, n - 1);
-
-#if 0
-    for(int i = 0; i < n; ++i) {
-        print("%c%d. %d\n",(i == indexc) ? '*':' ',i,freq[i]);
-    }
-#endif
-
-    return arr[indexc];
-}
- 
-static Node* node_pt[MAX_MOVES];
-static int frequency[MAX_MOVES];
 
 Node* Node::Random_select(Node* n) {
     Node* current, *bnode = n->child;
-    int count, total_visits;
+    int count;
+    std::vector<Node*> node_pt;
+    std::vector<int> freq;
 
     count = 0;
     current = n->child;
-    total_visits = 0;
     while(current) {
         if(current->move && current->visits > 1) {
+            node_pt.push_back(current);
+            freq.push_back(current->visits);
             count++;
-            total_visits += current->visits;
         }
         current = current->next;
     }
-
     if(count) {
-        count = 0;
-        current = n->child;
-        while(current) {
-            if(current->move && current->visits > 1) {
-                node_pt[count] = current;
-                frequency[count] = current->visits;
-                count++;
-            }
-            current = current->next;
+        std::discrete_distribution<int> dist(freq.begin(),freq.end());
+        int indexc = dist(mtgen);
+        bnode = node_pt[indexc];
+#if 0
+        for(int i = 0; i < count; ++i) {
+            print("%c%d. %d\n",(i == indexc) ? '*':' ',i,freq[i]);
         }
-        bnode = pickRandMove(node_pt,frequency,count);
+#endif
     }
 
     return bnode;
@@ -990,6 +959,35 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
         rollout_type = ALPHABETA;
         use_nn = 0;
     }
+
+#if 1
+    /*Dirchilet noise*/
+    if(is_selfplay && hply <= 30) {
+        const float alpha = 0.3, beta = 1.0, frac = 0.25;
+        std::vector<double> noise;
+        std::gamma_distribution<double> dist(alpha,beta);
+        Node* current;
+        double total = 0;
+
+        current = root->child;
+        while(current) {
+            double n = dist(mtgen);
+            noise.push_back(n);
+            total += n;
+            current = current->next;
+        }
+
+        int index = 0;
+        current = root->child;
+        while(current) {
+            double n = ((noise[index] - alpha * beta) / total);
+            double h = logistic(-current->heuristic) * (1 - frac) + n * frac;
+            current->heuristic = -logit(h);
+            current = current->next;
+            index++;
+        }
+    }
+#endif
 
 #ifndef NODES_PRIOR
     /*alpha-beta prior*/

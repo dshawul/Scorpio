@@ -90,16 +90,16 @@ LXXFLAGS = -lpthread -lm
 
 ifeq ($(COMP),win)
     LXXFLAGS += -static
-    CXXFLAGS = -Wall -fstrict-aliasing -fno-exceptions -fno-rtti -Wno-unused-result -msse
+    CXXFLAGS = -Wall -fstrict-aliasing -fno-exceptions -fno-rtti -Wno-unused-result -msse -std=c++11
 else ifeq ($(COMP),pgcc)
-    CXXFLAGS = warn -Mvect=sse
+    CXXFLAGS = warn -Mvect=sse -c11
     LXXFLAGS += -ldl
 else ifeq ($(COMP),icpc)
     CXXFLAGS  = -wd128 -wd981 -wd869 -wd2259 -wd383 -wd1418
-    CXXFLAGS += -fstrict-aliasing -fno-exceptions -fno-rtti -Wno-unused-result -msse
+    CXXFLAGS += -fstrict-aliasing -fno-exceptions -fno-rtti -Wno-unused-result -msse -std=c++11
     LXXFLAGS += -ldl
 else
-    CXXFLAGS = -Wall -fstrict-aliasing -fno-exceptions -fno-rtti -Wno-unused-result -msse
+    CXXFLAGS = -Wall -fstrict-aliasing -fno-exceptions -fno-rtti -Wno-unused-result -msse -std=c++11
     LXXFLAGS += -ldl
 endif
 
