@@ -248,6 +248,12 @@ static Node* pickRandMove(Node* arr[], int freq[], int n) {
     int r = (rand() % prefix[n - 1]) + 1;
     int indexc = findCeil(prefix, r, 0, n - 1);
 
+#if 0
+    for(int i = 0; i < n; ++i) {
+        print("%c%d. %d\n",(i == indexc) ? '*':' ',i,freq[i]);
+    }
+#endif
+
     return arr[indexc];
 }
  
@@ -912,14 +918,15 @@ void SEARCHER::search_mc() {
 
         if(!failed)     
             print_pv(root_score);
-    } else if(is_selfplay && hply <= 30) {
+    } else if(is_selfplay) {
         /*Random selection for self play*/
         for (int j = ply; j > 0 ; j--) {
             MOVE move = hstack[hply - 1].move;
             if(move) POP_MOVE();
             else POP_NULL();
         }
-        extract_pv(root,true);
+        if(hply <= 30)
+            extract_pv(root,true);
     }
 }
 /*
