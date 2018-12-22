@@ -24,8 +24,8 @@ enum {CPU, GPU};
 
 typedef int (CDECL *PPROBE_EGBB) (int player, int* piece, int* square);
 typedef void (CDECL *PLOAD_EGBB) (char* path, int cache_size, int load_options);
-typedef void (CDECL *PLOAD_NN) (char* path, int n_threads, int n_devices, int dev_type, int delay, int float_type);
-typedef int (CDECL *PPROBE_NN) (int player, int* piece, int* square);
+typedef void (CDECL *PLOAD_NN) (char* path, int n_threads, int n_devices, int dev_type, int delay, int float_type, int nn_type);
+typedef int (CDECL *PPROBE_NN) (int player, int cast, int fifty, int hist, int* draw, int* piece, int* square);
 typedef void (CDECL *PSET_NUM_ACTIVE_SEARCHERS) (int n_searchers);
 
 static PPROBE_EGBB probe_egbb;
@@ -46,6 +46,7 @@ int SEARCHER::n_devices = 1;
 int SEARCHER::device_type = CPU;
 int SEARCHER::delay = 0;
 int SEARCHER::float_type = 1;
+int SEARCHER::nn_type = 0;
 
 /*
 Load the dll and get the address of the load and probe functions.
@@ -101,7 +102,7 @@ int LoadEgbbLibrary(char* main_path,int egbb_cache_size) {
             load_egbb(main_path,egbb_cache_size,SEARCHER::egbb_load_type);
         if(load_nn && SEARCHER::use_nn)
             load_nn(SEARCHER::nn_path,PROCESSOR::n_processors,SEARCHER::n_devices,
-                SEARCHER::device_type,SEARCHER::delay,SEARCHER::float_type);
+                SEARCHER::device_type,SEARCHER::delay,SEARCHER::float_type,SEARCHER::nn_type);
         else
             SEARCHER::use_nn = 0;
         return true;
@@ -117,17 +118,16 @@ Change interanal scorpio board representaion to [A1 = 0 ... H8 = 63]
 board representation and then probe bitbase.
 */
 
-void SEARCHER::fill_list(int* piece, int* square) {
+void SEARCHER::fill_list(int& count, int* piece, int* square) {
     PLIST current;
-    int count = 0;
 
 #define ADD_PIECE(list,type) {                  \
        current = list;                          \
        while(current) {                         \
           piece[count] = type;                  \
           square[count] = SQ8864(current->sq);  \
-          current = current->next;              \
           count++;                              \
+          current = current->next;              \
        }                                        \
     };
     ADD_PIECE(plist[wking],_WKING);
@@ -144,12 +144,13 @@ void SEARCHER::fill_list(int* piece, int* square) {
     ADD_PIECE(plist[bpawn],_BPAWN);
     piece[count] = _EMPTY;
     square[count] = SQ8864(epsquare);
+    count++;
 }
 
 int SEARCHER::probe_bitbases(int& score) {
 #ifdef EGBB
-    int piece[MAX_PIECES],square[MAX_PIECES];
-    fill_list(piece,square);
+    int piece[MAX_PIECES],square[MAX_PIECES],count = 0;
+    fill_list(count,piece,square);
     score = probe_egbb(player,piece,square);
     if(score != _NOTFOUND)
         return true;
@@ -159,9 +160,30 @@ int SEARCHER::probe_bitbases(int& score) {
 
 int SEARCHER::probe_neural() {
 #ifdef EGBB
-    int piece[33],square[33];
-    fill_list(piece,square);
-    return probe_nn(player,piece,square);
+    if(nn_type == 0) {
+        int piece[33],square[33],count = 0;
+        fill_list(count,piece,square);
+        return probe_nn(player,castle,fifty,1,0,piece,square);
+    } else {
+
+        int piece[8*33],square[8*33],isdraw[8];
+        int count = 0, hist = 0, phply = hply;
+        
+        for(int i = 0; i < 8; i++) {
+            isdraw[hist++] = draw();
+            fill_list(count,piece,square);
+
+            if(hply > 0 && ply > 0 && hstack[hply - 1].move) 
+                POP_MOVE();
+            else break;
+        }
+
+        count = phply - hply;
+        for(int i = 0; i < count; i++)
+            PUSH_MOVE(hstack[hply].move);
+
+        return probe_nn(player,castle,fifty,hist,isdraw,piece,square);
+    }
 #endif
     return 0;
 }

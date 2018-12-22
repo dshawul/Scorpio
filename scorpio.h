@@ -762,7 +762,7 @@ typedef struct SEARCHER{
     /*
     Bitbases and neural network
     */
-    void fill_list(int*,int*);
+    void fill_list(int&,int*,int*);
     int probe_bitbases(int&);
     bool bitbase_cutoff();
     int probe_neural();
@@ -780,6 +780,7 @@ typedef struct SEARCHER{
     static int device_type;
     static int delay;
     static int float_type;
+    static int nn_type;
     /*
     End
     */
