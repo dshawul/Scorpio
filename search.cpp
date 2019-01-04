@@ -1299,8 +1299,18 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta, bool ski
     pstack->count = legal_moves;
 
     /*compute node score*/
-    if(!skip_eval)
-        evaluate_moves(depth,alpha,beta);
+    if(legal_moves) {
+        if(!skip_eval) {
+            bool save = skip_nn;
+            skip_nn = true;
+            evaluate_moves(depth,alpha,beta);
+            skip_nn = save;
+        }
+        if(use_nn)
+            pstack->best_score = eval();
+        else
+            pstack->best_score = pstack->score_st[0];
+    }
 }
 /*
 Find best move using alpha-beta or mcts
@@ -1681,9 +1691,7 @@ MOVE SEARCHER::find_best() {
     print_log("%s\n",fen);
 
     /*generate and score moves*/
-    skip_nn = true;
     generate_and_score_moves(0,-MATE_SCORE,MATE_SCORE);
-    skip_nn = false;
 
     /*no move*/
     if(pstack->count == 0) {

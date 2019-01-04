@@ -240,7 +240,7 @@ Node* Node::Random_select(Node* n) {
     count = 0;
     current = n->child;
     while(current) {
-        if(current->move && current->visits > 1) {
+        if(current->move && current->visits > 0) {
             node_pt.push_back(current);
             freq.push_back(current->visits);
             count++;
@@ -267,7 +267,7 @@ Node* Node::Best_select(Node* n) {
     bool has_ab = (n == SEARCHER::root_node && frac_abprior > 0);
 
     while(current) {
-        if(current->move && current->visits > 1) {
+        if(current->move && current->visits > 0) {
             if(rollout_type == MCTS ||
                 (rollout_type == ALPHABETA && 
                 /* must be finished or ranked first */
@@ -294,7 +294,7 @@ float Node::Min_score(Node* n) {
     Node* current = n->child, *bnode = 0;
     float bscore = MAX_NUMBER;
     while(current) {
-        if(current->move && current->visits > 1) {
+        if(current->move && current->visits > 0) {
             if(current->score < bscore) {
                 bscore = current->score;
                 bnode = current;
@@ -310,7 +310,7 @@ float Node::Avg_score(Node* n) {
     unsigned int tvisits = 0;
     Node* current = n->child;
     while(current) {
-        if(current->move && current->visits > 1) {
+        if(current->move && current->visits > 0) {
             tvalue += logistic(current->score) * current->visits;
             tvisits += current->visits;
         }
@@ -323,7 +323,7 @@ float Node::Avg_score(Node* n) {
     return logit(tvalue / tvisits);
 }
 float Node::Avg_score_mem(Node* n, double score, int visits) {
-    if(n->visits == 1) return score;
+    if(n->visits == 0) return score;
     float sc = logistic(n->score);
     float sc1 = logistic(score);
     sc += (sc1 - sc) * visits / (n->visits + visits);
@@ -391,17 +391,30 @@ void SEARCHER::create_children(Node* n) {
     if(ply > (int)Node::max_tree_depth)
         Node::max_tree_depth = ply;
 
-    bool save = skip_nn;
-    skip_nn = true;
-
     /*generate and score moves*/
     if(ply)
         generate_and_score_moves(evaluate_depth,-MATE_SCORE,MATE_SCORE);
 
     /*add nodes to tree*/
     add_children(n);
+}
 
-    /*add null move*/
+void SEARCHER::add_children(Node* n) {
+    Node* last = n, *first = 0;
+    for(int i = 0;i < pstack->count; i++) {
+        Node* node = Node::allocate(processor_id);
+        node->move = pstack->move_st[i];
+        node->score = 0;
+        node->heuristic = -pstack->score_st[i];
+        node->visits = 0;
+        node->alpha = -MATE_SCORE;
+        node->beta = MATE_SCORE;
+        node->rank = i + 1;
+        if(last == n) first = node;
+        else last->next = node;
+        last = node;
+    }
+
     if(use_nullmove
         && n->child
         && ply > 0
@@ -409,27 +422,15 @@ void SEARCHER::create_children(Node* n) {
         && piece_c[player]
         && hstack[hply - 1].move != 0
         ) {
-        add_null_child(n);
+            add_null_child(n);
     }
 
-    skip_nn = save;
+    if(pstack->count)
+        n->score = pstack->best_score;
+
+    n->child = first;
 }
-void SEARCHER::add_children(Node* n) {
-    Node* last = n;
-    for(int i = 0;i < pstack->count; i++) {
-        Node* node = Node::allocate(processor_id);
-        node->move = pstack->move_st[i];
-        node->score = -pstack->score_st[i];
-        node->visits = 1;
-        node->alpha = -MATE_SCORE;
-        node->beta = MATE_SCORE;
-        node->heuristic = node->score;
-        node->rank = i + 1;
-        if(last == n) last->child = node;
-        else last->next = node;
-        last = node;
-    }
-}
+
 void SEARCHER::add_null_child(Node* n) {
     Node* current = n->child, *last = 0;
     while(current) {
@@ -438,13 +439,13 @@ void SEARCHER::add_null_child(Node* n) {
     }
     Node* node = Node::allocate(processor_id);
     node->move = 0;
+    node->score = 0;
     PUSH_NULL();
-    node->score = eval();
+    node->heuristic = eval(true);
     POP_NULL();
-    node->visits = 1;
+    node->visits = 0;
     node->alpha = -MATE_SCORE;
     node->beta = MATE_SCORE;
-    node->heuristic = node->score;
     node->rank = 0;
     last->next = node;
 }
@@ -516,7 +517,9 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
                 create_children(n);
                 n->clear_create();
             } else {
-                visits = 0;
+                /*Hack: fake eval. */
+                if(use_nn)
+                    probe_neural();
                 score = n->score;
                 goto FINISH;
             }
@@ -532,16 +535,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
                     goto SELECT;
                 } else  {
                     /*Backup now if MCTS*/
-                    Node* current = n->child;
-                    if(use_nn) {
-                        PUSH_MOVE(current->move);
-                        current->score = eval() + (current->score - eval(true));
-                        POP_MOVE();
-                    }
-                    score = -current->score;
-                    current->visits++;
-                    
-                    Node::Backup(n,score,visits,all_man_c);
+                    score = n->score;
                     goto FINISH;
                 }
             }
@@ -549,8 +543,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
 
 BACKUP_LEAF:
         Node::BackupLeaf(n,score);
-        /*Hack: fake a hard NN eval (without cache) request to 
-          make multi-threaded batching work. We need something better! */
+        /*Hack: fake eval. */
         if(use_nn)
             probe_neural();
 
