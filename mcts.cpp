@@ -2,9 +2,10 @@
 #include "scorpio.h"
 
 /*mcts parameters*/
-static double  UCTKmax = 0.3;
-static double  UCTKmin = 0.005;
-static double  dUCTK = UCTKmax;
+static double  cpuct_beg = 3.0;
+static double  cpuct_end = 3.0;
+static double  dCPUCT = cpuct_beg;
+static double  policy_temp = 2.0;
 static int  reuse_tree = 1;
 static int  backup_type = MINMAX;
 static double frac_alphabeta = 1.0; 
@@ -171,7 +172,7 @@ Node* Node::Max_UCB_select(Node* n) {
             uct = logistic(-current->score);
             if(has_ab)
                 uct += logistic(-current->prior);
-            uct += dUCTK * current->policy * sqrt(double(n->visits) / (vst + 1));
+            uct += dCPUCT * current->policy * sqrt(double(n->visits) / (vst + 1));
 
             if(uct > bvalue) {
                 bvalue = uct;
@@ -406,7 +407,7 @@ void SEARCHER::add_children(Node* n) {
         node->alpha = -MATE_SCORE;
         node->beta = MATE_SCORE;
         node->rank = i + 1;
-        node->policy = pstack->score_st[i] / 1000.0;
+        node->policy = pstack->score_st[i] / 10000.0;
         if(last == n) first = node;
         else last->next = node;
         last = node;
@@ -814,8 +815,8 @@ void SEARCHER::search_mc() {
                     else 
                         frac = double(get_time() - start_time) / chess_clock.search_time;
 
-                    dUCTK = UCTKmax - frac * (UCTKmax - UCTKmin);
-                    if(dUCTK < UCTKmin) dUCTK = UCTKmin;
+                    dCPUCT = cpuct_end - frac * (cpuct_end - cpuct_beg);
+                    if(dCPUCT < cpuct_beg) dCPUCT = cpuct_beg;
                     if(frac - pfrac >= 0.1) {
                         pfrac = frac;
                         if(rollout_type == MCTS) {
@@ -1029,13 +1030,88 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
 #endif
 }
 /*
+Generate all moves
+*/
+void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta, bool skip_eval) {
+    int legal_moves;
+
+    /*generate moves here*/
+    pstack->count = 0;
+    gen_all();
+    legal_moves = 0;
+    for(int i = 0;i < pstack->count; i++) {
+        pstack->current_move = pstack->move_st[i];
+        PUSH_MOVE(pstack->current_move);
+        if(attacks(player,plist[COMBINE(opponent,king)]->sq)) {
+            POP_MOVE();
+            continue;
+        }
+        POP_MOVE();
+        pstack->move_st[legal_moves] = pstack->current_move;
+        pstack->score_st[legal_moves] = (alpha + beta) / 2;
+        legal_moves++;
+    }
+    pstack->count = legal_moves;
+
+    /*compute node score*/
+    if(legal_moves) {
+        if(nn_type == 0 || !use_nn) {
+            if(!skip_eval) {
+                bool save = skip_nn;
+                skip_nn = true;
+                evaluate_moves(depth,alpha,beta);
+                skip_nn = save;
+            }
+            if(use_nn)
+                pstack->best_score = eval();
+            else
+                pstack->best_score = pstack->score_st[0];
+
+            double total = 0.f;
+            for(int i = 0;i < pstack->count; i++) {
+                float p = logistic(pstack->score_st[i]);
+                p *= p;
+                total += p;
+            }
+            for(int i = 0;i < pstack->count; i++) {
+                float p = logistic(pstack->score_st[i]);
+                p *= p;
+                pstack->score_st[i] = 10000 * (p / total);
+            }
+        } else {
+            nnecalls++;
+            pstack->best_score = probe_neural();
+
+            double total = 0.f, maxp = -100;
+            for(int i = 0;i < pstack->count; i++) {
+                float p = pstack->score_st[i] / 10000.0;
+                if(p > maxp) maxp = p;
+            }
+            for(int i = 0;i < pstack->count; i++) {
+                float p = pstack->score_st[i] / 10000.0;
+                total += exp( (p - maxp) / policy_temp );
+            }
+            for(int i = 0;i < pstack->count; i++) {
+                float p = pstack->score_st[i] / 10000.0;
+                p = exp( (p - maxp) / policy_temp );
+                pstack->score_st[i] = 10000 * (p / total);
+            }
+
+            for(int i = 0;i < pstack->count; i++)
+                pstack->sort(i,pstack->count);
+        }
+    }
+}
+/*
 * Search parameters
 */
 bool check_mcts_params(char** commands,char* command,int& command_num) {
-    if(!strcmp(command, "UCTKmin")) {
-        UCTKmin = atoi(commands[command_num++]) / 100.0;
-    } else if(!strcmp(command, "UCTKmax")) {
-        UCTKmax = atoi(commands[command_num++]) / 100.0;
+    if(!strcmp(command, "cpuct_beg")) {
+        cpuct_beg = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "cpuct_end")) {
+        cpuct_end = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "policy_temp")) {
+        policy_temp = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "reuse_tree")) {
         reuse_tree = atoi(commands[command_num++]);
     } else if(!strcmp(command, "backup_type")) {
@@ -1074,8 +1150,9 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
     return true;
 }
 void print_mcts_params() {
-    print("feature option=\"UCTKmin -spin %d 0 100\"\n",int(UCTKmin*100));
-    print("feature option=\"UCTKmax -spin %d 0 100\"\n",int(UCTKmax*100));
+    print("feature option=\"cpuct_beg -spin %d 0 100\"\n",int(cpuct_beg*100));
+    print("feature option=\"cpuct_end -spin %d 0 100\"\n",int(cpuct_end*100));
+    print("feature option=\"policy_temp -spin %d 0 100\"\n",int(policy_temp*100));
     print("feature option=\"reuse_tree -check %d\"\n",reuse_tree);
     print("feature option=\"backup_type -combo *MINMAX AVERAGE MIX MINMAX_MEM AVERAGE_MEM MIX_MEM CLASSIC MIX_VISIT\"\n");
     print("feature option=\"frac_alphabeta -spin %d 0 100\"\n",int(frac_alphabeta*100));

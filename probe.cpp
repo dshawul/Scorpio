@@ -25,7 +25,7 @@ enum {CPU, GPU};
 typedef int (CDECL *PPROBE_EGBB) (int player, int* piece, int* square);
 typedef void (CDECL *PLOAD_EGBB) (char* path, int cache_size, int load_options);
 typedef void (CDECL *PLOAD_NN) (char* path, int n_threads, int n_devices, int dev_type, int delay, int float_type, int nn_type);
-typedef int (CDECL *PPROBE_NN) (int player, int cast, int fifty, int hist, int* draw, int* piece, int* square);
+typedef int (CDECL *PPROBE_NN) (int player, int cast, int fifty, int hist, int* draw, int* piece, int* square, int* moves, int* probs);
 typedef void (CDECL *PSET_NUM_ACTIVE_SEARCHERS) (int n_searchers);
 
 static PPROBE_EGBB probe_egbb;
@@ -163,10 +163,10 @@ int SEARCHER::probe_neural() {
     if(nn_type == 0) {
         int piece[33],square[33],count = 0;
         fill_list(count,piece,square);
-        return probe_nn(player,castle,fifty,1,0,piece,square);
+        return probe_nn(player,castle,fifty,1,0,piece,square,0,0);
     } else {
 
-        int piece[8*33],square[8*33],isdraw[8];
+        int piece[8*33],square[8*33],isdraw[8],moves[3*MAX_MOVES];
         int count = 0, hist = 0, phply = hply;
         
         for(int i = 0; i < 8; i++) {
@@ -182,7 +182,21 @@ int SEARCHER::probe_neural() {
         for(int i = 0; i < count; i++)
             PUSH_MOVE(hstack[hply].move);
 
-        return probe_nn(player,castle,fifty,hist,isdraw,piece,square);
+        int *s = moves;
+        for(int i = 0; i < pstack->count; i++) {
+            MOVE& m = pstack->move_st[i];
+            int from = m_from(m), to = m_to(m);
+            if(is_castle(m)) {
+                if(to > from) to++;
+                else to -= 2;
+            }
+            *s++ = SQ8864(from);
+            *s++ = SQ8864(to); 
+            *s++ = m_promote(m); 
+        }
+        *s++ = -1;
+
+        return probe_nn(player,castle,fifty,hist,isdraw,piece,square,moves,pstack->score_st);
     }
 #endif
     return 0;

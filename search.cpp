@@ -1275,51 +1275,6 @@ TOP:
         pstack->sort(i,pstack->count);
 }
 /*
-Generate all moves
-*/
-void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta, bool skip_eval) {
-    int legal_moves;
-
-    /*generate moves here*/
-    pstack->count = 0;
-    gen_all();
-    legal_moves = 0;
-    for(int i = 0;i < pstack->count; i++) {
-        pstack->current_move = pstack->move_st[i];
-        PUSH_MOVE(pstack->current_move);
-        if(attacks(player,plist[COMBINE(opponent,king)]->sq)) {
-            POP_MOVE();
-            continue;
-        }
-        POP_MOVE();
-        pstack->move_st[legal_moves] = pstack->current_move;
-        pstack->score_st[legal_moves] = (alpha + beta) / 2;
-        legal_moves++;
-    }
-    pstack->count = legal_moves;
-
-    /*compute node score*/
-    if(legal_moves) {
-        if(!skip_eval) {
-            bool save = skip_nn;
-            skip_nn = true;
-            evaluate_moves(depth,alpha,beta);
-            skip_nn = save;
-        }
-        if(use_nn)
-            pstack->best_score = eval();
-        else
-            pstack->best_score = pstack->score_st[0];
-
-        double total = 0.f;
-        for(int i = 0;i < pstack->count; i++)
-            total += logistic(pstack->score_st[i]);
-        for(int i = 0;i < pstack->count; i++)
-            pstack->score_st[i] = 
-                1000 * (logistic(pstack->score_st[i]) / total);
-    }
-}
-/*
 Find best move using alpha-beta or mcts
 */
 MOVE SEARCHER::iterative_deepening() {

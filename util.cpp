@@ -374,20 +374,22 @@ Node* Node::print_tree(Node* root,int output,int max_depth,int depth) {
     Node* bnode = Node::Best_select(root);
     Node* current = root->child;
 
-    if(depth == 0)
-        print("\n# Move  Value=(V,P,V+P) Policy Visits                  PV");
+    if(depth == 0) {
+        print("\n# Move   Value=(V,P,V+P)   Policy  Visits                  PV");
+        print("\n#----------------------------------------------------------------------------------");
+    }
 
     while(current) {
         if(current->visits && (depth == 0 || bnode == current) ) {
             if(output) {
                 mov_str(current->move,str);
                 if(depth == 0)
-                    print("\n# %2d   (%.2f,%0.2f,%0.2f) %5.2f %7d   %s",
+                    print("\n# %2d   (%.3f,%0.3f,%0.3f) %6.2f %7d   %s",
                         total+1,
                         logistic(-current->score),
                         logistic(-current->prior),
                         logistic(-current->score) + logistic(-current->prior),
-                        current->policy,
+                        100*current->policy,
                         current->visits,
                         str
                         );
