@@ -155,7 +155,6 @@ double logit(double p) {
 }
 
 Node* Node::Max_UCB_select(Node* n) {
-    double logn = log(double(n->visits));
     double uct, bvalue = -2;
     Node* current, *bnode = 0;
     unsigned vst;
@@ -169,13 +168,10 @@ Node* Node::Max_UCB_select(Node* n) {
 #ifdef PARALLEL
             vst += virtual_loss * current->get_busy();
 #endif          
-
             uct = logistic(-current->score);
             if(has_ab)
-                uct += logistic(-current->heuristic);
-            else
-                uct += logistic(-current->heuristic) / vst;
-            uct += dUCTK * sqrt(logn / vst);
+                uct += logistic(-current->prior);
+            uct += dUCTK * current->policy * sqrt(double(n->visits) / (vst + 1));
 
             if(uct > bvalue) {
                 bvalue = uct;
@@ -276,7 +272,7 @@ Node* Node::Best_select(Node* n) {
             ) {
                 double val = -current->score;
                 if(has_ab)
-                    val += -current->heuristic;
+                    val += -current->prior;
                 if(val > bvalue || (val == bvalue 
                     && current->rank < bnode->rank)) {
                     bvalue = val;
@@ -401,15 +397,16 @@ void SEARCHER::create_children(Node* n) {
 
 void SEARCHER::add_children(Node* n) {
     Node* last = n, *first = 0;
+
     for(int i = 0;i < pstack->count; i++) {
         Node* node = Node::allocate(processor_id);
         node->move = pstack->move_st[i];
         node->score = 0;
-        node->heuristic = -pstack->score_st[i];
         node->visits = 0;
         node->alpha = -MATE_SCORE;
         node->beta = MATE_SCORE;
         node->rank = i + 1;
+        node->policy = pstack->score_st[i] / 1000.0;
         if(last == n) first = node;
         else last->next = node;
         last = node;
@@ -440,13 +437,11 @@ void SEARCHER::add_null_child(Node* n) {
     Node* node = Node::allocate(processor_id);
     node->move = 0;
     node->score = 0;
-    PUSH_NULL();
-    node->heuristic = eval(true);
-    POP_NULL();
     node->visits = 0;
     node->alpha = -MATE_SCORE;
     node->beta = MATE_SCORE;
     node->rank = 0;
+    node->policy = 0;
     last->next = node;
 }
 void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
@@ -974,8 +969,7 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
         current = root->child;
         while(current) {
             double n = ((noise[index] - alpha * beta) / total);
-            double h = logistic(-current->heuristic) * (1 - frac) + n * frac;
-            current->heuristic = -logit(h);
+            current->policy = current->policy * (1 - frac) + n * frac;
             current = current->next;
             index++;
         }
@@ -1024,7 +1018,7 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
             for(int i = 0;i < pstack->count; i++) {
                 MOVE& move = pstack->move_st[i];
                 if(move == current->move) {
-                    current->heuristic = -pstack->score_st[i];
+                    current->prior = -pstack->score_st[i];
                     current->rank = i + 1;
                     break;
                 }

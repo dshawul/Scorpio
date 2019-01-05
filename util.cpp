@@ -341,9 +341,9 @@ void Node::print_xml(Node* n,int depth) {
     mov_str(n->move,mvstr);
 
     print_log("<node depth=\"%d\" move=\"%s\" alpha=\"%d\" beta=\"%d\" "
-        "visits=\"%d\" score=\"%.2f\" heuristic=\"%.2f\" sum=\"%.2f\">\n",
-        depth,mvstr,n->alpha,n->beta,n->visits,logistic(-n->score),
-        logistic(-n->heuristic), logistic(-n->score)+logistic(-n->heuristic));
+        "visits=\"%d\" policy=\"%.2f\" score=\"%.2f\" prior=\"%.2f\" sum=\"%.2f\">\n",
+        depth,mvstr,n->alpha,n->beta,n->visits,n->policy, logistic(-n->score),
+        logistic(-n->prior),logistic(-n->score)+logistic(-n->prior));
 
     Node* current = n->child;
     while(current) {
@@ -375,18 +375,19 @@ Node* Node::print_tree(Node* root,int output,int max_depth,int depth) {
     Node* current = root->child;
 
     if(depth == 0)
-        print("\n# Move  Value  Policy   V+P    Visits                  PV");
+        print("\n# Move  Value=(V,P,V+P) Policy Visits                  PV");
 
     while(current) {
         if(current->visits && (depth == 0 || bnode == current) ) {
             if(output) {
                 mov_str(current->move,str);
                 if(depth == 0)
-                    print("\n# %2d %7.2f %7.2f %7.2f %7d   %s",
+                    print("\n# %2d   (%.2f,%0.2f,%0.2f) %5.2f %7d   %s",
                         total+1,
                         logistic(-current->score),
-                        logistic(-current->heuristic),
-                        logistic(-current->score) + logistic(-current->heuristic),
+                        logistic(-current->prior),
+                        logistic(-current->score) + logistic(-current->prior),
+                        current->policy,
                         current->visits,
                         str
                         );

@@ -1310,6 +1310,13 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta, bool ski
             pstack->best_score = eval();
         else
             pstack->best_score = pstack->score_st[0];
+
+        double total = 0.f;
+        for(int i = 0;i < pstack->count; i++)
+            total += logistic(pstack->score_st[i]);
+        for(int i = 0;i < pstack->count; i++)
+            pstack->score_st[i] = 
+                1000 * (logistic(pstack->score_st[i]) / total);
     }
 }
 /*
