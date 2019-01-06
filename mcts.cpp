@@ -261,7 +261,6 @@ Node* Node::Random_select(Node* n) {
 Node* Node::Best_select(Node* n) {
     double bvalue = -MAX_NUMBER;
     Node* current = n->child, *bnode = n->child;
-    bool has_ab = (n == SEARCHER::root_node && frac_abprior > 0);
 
     while(current) {
         if(current->move && current->visits > 0) {
@@ -271,9 +270,12 @@ Node* Node::Best_select(Node* n) {
                 (current->alpha >= current->beta ||
                  current->rank == 1)) 
             ) {
-                double val = -current->score;
-                if(has_ab)
-                    val += -current->prior;
+                double val;
+                if(rollout_type == MCTS)
+                    val = current->visits;
+                else
+                    val = -current->score;
+
                 if(val > bvalue || (val == bvalue 
                     && current->rank < bnode->rank)) {
                     bvalue = val;
@@ -1053,7 +1055,7 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta, bool ski
     }
     pstack->count = legal_moves;
 
-    /*compute node score*/
+    /*compute move probabilities*/
     if(legal_moves) {
         if(nn_type == 0 || !use_nn) {
             if(!skip_eval) {
@@ -1070,12 +1072,12 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta, bool ski
             double total = 0.f;
             for(int i = 0;i < pstack->count; i++) {
                 float p = logistic(pstack->score_st[i]);
-                p *= p;
+                p = pow(p, 2.0 / policy_temp);
                 total += p;
             }
             for(int i = 0;i < pstack->count; i++) {
                 float p = logistic(pstack->score_st[i]);
-                p *= p;
+                p = pow(p, 2.0 / policy_temp);
                 pstack->score_st[i] = 10000 * (p / total);
             }
         } else {
