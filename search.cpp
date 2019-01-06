@@ -1358,7 +1358,8 @@ MOVE SEARCHER::iterative_deepening() {
     start_time = get_time();
 
     /*easy move*/
-    if(pstack->score_st[0] > pstack->score_st[1] + 175
+    if(!montecarlo
+        && pstack->score_st[0] > pstack->score_st[1] + 175
         && chess_clock.is_timed()
         ) {
         easy = true;

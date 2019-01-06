@@ -1069,16 +1069,18 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta, bool ski
             else
                 pstack->best_score = pstack->score_st[0];
 
-            double total = 0.f;
-            for(int i = 0;i < pstack->count; i++) {
-                float p = logistic(pstack->score_st[i]);
-                p = pow(p, 2.0 / policy_temp);
-                total += p;
-            }
-            for(int i = 0;i < pstack->count; i++) {
-                float p = logistic(pstack->score_st[i]);
-                p = pow(p, 2.0 / policy_temp);
-                pstack->score_st[i] = 10000 * (p / total);
+            if(montecarlo) {
+                double total = 0.f;
+                for(int i = 0;i < pstack->count; i++) {
+                    float p = logistic(pstack->score_st[i]);
+                    p = exp(p * 10 / policy_temp);
+                    total += p;
+                }
+                for(int i = 0;i < pstack->count; i++) {
+                    float p = logistic(pstack->score_st[i]);
+                    p = exp(p * 10 / policy_temp);
+                    pstack->score_st[i] = 10000 * (p / total);
+                }
             }
         } else {
             nnecalls++;
