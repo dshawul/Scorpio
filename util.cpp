@@ -934,6 +934,16 @@ void SEARCHER::COPY(SEARCHER* srcSearcher) {
     /*history stack*/
     memcpy(&hstack[0],&srcSearcher->hstack[0], (hply + 1) * sizeof(HIST_STACK));
 
+    PHIST_STACK dhstack,shstack;
+    for(i = 0;i < (hply + 1);i++) {
+        dhstack = &hstack[i];
+        shstack = &srcSearcher->hstack[i];
+        if(shstack->pCapt)
+            dhstack->pCapt = list[shstack->pCapt->sq];
+        if(shstack->pProm)
+            dhstack->pProm = list[shstack->pProm->sq];
+    }
+
     /*killers*/
     for(i = 0;i < MAX_PLY;i++) {
         stack[i].killer[0] = srcSearcher->stack[i].killer[0];

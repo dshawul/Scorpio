@@ -173,7 +173,7 @@ int SEARCHER::probe_neural() {
             isdraw[hist++] = draw();
             fill_list(count,piece,square);
 
-            if(hply > 0 && ply > 0 && hstack[hply - 1].move) 
+            if(hply > 0 && hstack[hply - 1].move) 
                 POP_MOVE();
             else break;
         }
