@@ -1057,7 +1057,7 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta, bool ski
 
     /*compute move probabilities*/
     if(legal_moves) {
-        if(nn_type == 0 || !use_nn) {
+        if(!use_nn) {
             if(!skip_eval) {
                 bool save = skip_nn;
                 skip_nn = true;

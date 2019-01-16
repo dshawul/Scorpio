@@ -160,13 +160,30 @@ int SEARCHER::probe_bitbases(int& score) {
 
 int SEARCHER::probe_neural() {
 #ifdef EGBB
+    int moves[3*MAX_MOVES];
+    int *s = moves;
+    for(int i = 0; i < pstack->count; i++) {
+        MOVE& m = pstack->move_st[i];
+        int from = m_from(m), to = m_to(m);
+        if(is_castle(m)) {
+            if(to > from) to++;
+            else to -= 2;
+        }
+        *s++ = SQ8864(from);
+        *s++ = SQ8864(to); 
+        *s++ = m_promote(m); 
+    }
+    *s++ = -1;
+
     if(nn_type == 0) {
-        int piece[33],square[33],count = 0;
+        int piece[33],square[33],isdraw[1];
+        int count = 0, hist = 1;
         fill_list(count,piece,square);
-        return probe_nn(player,castle,fifty,1,0,piece,square,0,0);
+
+        return probe_nn(player,castle,fifty,hist,isdraw,piece,square,moves,pstack->score_st);
     } else {
 
-        int piece[8*33],square[8*33],isdraw[8],moves[3*MAX_MOVES];
+        int piece[8*33],square[8*33],isdraw[8];
         int count = 0, hist = 0, phply = hply;
         
         for(int i = 0; i < 8; i++) {
@@ -181,20 +198,6 @@ int SEARCHER::probe_neural() {
         count = phply - hply;
         for(int i = 0; i < count; i++)
             PUSH_MOVE(hstack[hply].move);
-
-        int *s = moves;
-        for(int i = 0; i < pstack->count; i++) {
-            MOVE& m = pstack->move_st[i];
-            int from = m_from(m), to = m_to(m);
-            if(is_castle(m)) {
-                if(to > from) to++;
-                else to -= 2;
-            }
-            *s++ = SQ8864(from);
-            *s++ = SQ8864(to); 
-            *s++ = m_promote(m); 
-        }
-        *s++ = -1;
 
         return probe_nn(player,castle,fifty,hist,isdraw,piece,square,moves,pstack->score_st);
     }

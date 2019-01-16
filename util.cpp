@@ -1517,6 +1517,81 @@ static int compare(const void * a, const void * b) {
     else return 0;
 }
 
+/*
+Move policy formact according to lczero
+*/
+static const int MOVE_TAB_SIZE = 64*64+8*3*3;
+
+static unsigned short move_index_table[MOVE_TAB_SIZE];
+
+static void init_index_table() {
+
+    memset(move_index_table, 0, MOVE_TAB_SIZE * sizeof(short));
+
+    int cnt = 0;
+
+    for(int from = 0; from < 64; from++) {
+
+        int from88 = SQ6488(from);
+        for(int to = 0; to < 64; to++) {
+            int to88 = SQ6488(to);
+            if(from != to) {
+                if(sqatt_pieces(to88 - from88))
+                    move_index_table[from * 64 + to] = cnt++;
+            }
+        }
+
+    }
+
+    for(int from = 48; from < 56; from++) {
+        int idx = 4096 + file64(from) * 9;
+
+        if(from > 48) {
+            move_index_table[idx+0] = cnt++;
+            move_index_table[idx+1] = cnt++;
+            move_index_table[idx+2] = cnt++;
+        }
+
+        move_index_table[idx+3] = cnt++;
+        move_index_table[idx+4] = cnt++;
+        move_index_table[idx+5] = cnt++;
+
+        if(from < 55) {
+            move_index_table[idx+6] = cnt++;
+            move_index_table[idx+7] = cnt++;
+            move_index_table[idx+8] = cnt++;
+        }
+    }
+
+}
+
+static int compute_move_index(MOVE& m, int player) {
+
+    int from = m_from(m), to = m_to(m), prom, compi;
+    if(is_castle(m)) {
+        if(to > from) to++;
+        else to -= 2;
+    }
+    from = SQ8864(from);
+    to = SQ8864(to); 
+    prom = m_promote(m); 
+
+    if(player == black) {
+        from = MIRRORR64(from);
+        to = MIRRORR64(to);
+    }
+    compi = from * 64 + to;
+    if(prom) {
+        prom = PIECE(prom);
+        if(prom != knight) {
+            compi = 4096 +  file64(from) * 9 + 
+                    (to - from - 7) * 3 + (prom - queen);
+        }
+    }
+
+    return move_index_table[compi];
+}
+
 bool SEARCHER::pgn_to_epd(char* path,char* book) {
     FILE*  f = fopen(path,"r");
     FILE* fb = fopen(book,"w");
@@ -1528,10 +1603,10 @@ bool SEARCHER::pgn_to_epd(char* path,char* book) {
     int    comment = 0,line = 0,game = 0;
     MOVE   move;
     char   fen[256];
-    bool cap_prom_check = false;
     char* pc;
     bool illegal = false;
-    bool write_pos;
+
+    init_index_table();
 
     while(fgets(buffer,MAX_FILE_STR,f)) {
         line++;
@@ -1546,7 +1621,6 @@ bool SEARCHER::pgn_to_epd(char* path,char* book) {
                 game++;
                 print("Game %d\t\r",game);
                 new_board();
-                cap_prom_check = false;
                 illegal = false;
 
             } else if(strncmp(buffer + 1, "FEN ",4) == 0) {
@@ -1565,7 +1639,6 @@ bool SEARCHER::pgn_to_epd(char* path,char* book) {
             if(strchr(command,'{')) comment++;
             if(strchr(command,'}')) comment--;
             else if(comment == 0) {
-                write_pos = false;
                 if((pc = strchr(command,'.')) != 0) {
                     if(*(pc+1) == ' ' || *(pc+1) == 0 || *(pc+1) == '.') continue;
                     else command = pc + 1;
@@ -1581,38 +1654,17 @@ bool SEARCHER::pgn_to_epd(char* path,char* book) {
                     break;
                 }
 
+                /*Write fen with score and best move*/
+                get_fen(fen);
+                if(result == R_WWIN) strcat(fen," 1-0");
+                else if(result == R_BWIN) strcat(fen," 0-1");
+                else strcat(fen," 1/2-1/2");
+                int index = compute_move_index(move,player);
+                fprintf(fb,"%s %d\n",fen, index);
+
+                /*make move*/
                 do_move(move);
                 ply++;
-
-                if(is_cap_prom(move) || hstack[hply - 1].checks) {
-                    cap_prom_check = true;
-                } else {
-                    if(!cap_prom_check && hply >= 20) {
-                        write_pos = true;
-#if 1
-                        get_fen(fen);
-                        if(result == R_WWIN) strcat(fen," 1-0");
-                        else if(result == R_BWIN) strcat(fen," 0-1");
-                        else strcat(fen," 1/2-1/2");
-                        fprintf(fb,"%s\n",fen);
-#endif
-                    }
-                    cap_prom_check = false;
-                }
-            } else if (write_pos) {
-#if 0
-                char* p = strchr(command,'/');
-                if(p) {
-                    *p = 0;
-                    p = strchr(command,'M');
-                    if(p) *p = '9';
-                    double v = atof(&command[1]) * 100;
-                    v = 1 / (1 + exp(-log(10.0) * v / 400.0));
-                    if(player == white) v = 1 - v;
-                    get_fen(fen);
-                    fprintf(fb,"%s %3.2f\n",fen,v);
-                }
-#endif
             }
         }
     }
@@ -1700,6 +1752,7 @@ bool SEARCHER::build_book(char* path,char* book,int BOOK_SIZE,int BOOK_DEPTH,int
                 }
                 do_move(move);
                 ply++;
+                
                 player = invert(player);
                 if(ply < BOOK_DEPTH && result != R_UNKNOWN && player != color) {
                     for(i = 0;i < n_entries[player];i++) {
