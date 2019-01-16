@@ -1,6 +1,6 @@
 #include "scorpio.h"
 
-#define VERSION "2.8.9 MCTS+NN"
+#define VERSION "2.9.0 MCTS+NN"
 
 /*
 all external variables declared here
