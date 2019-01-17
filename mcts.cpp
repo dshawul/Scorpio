@@ -157,6 +157,7 @@ double logit(double p) {
 
 Node* Node::Max_UCB_select(Node* n) {
     double uct, bvalue = -2;
+    double factor = dCPUCT * sqrt(double(n->visits));
     Node* current, *bnode = 0;
     unsigned vst;
     bool has_ab = (n == SEARCHER::root_node && frac_abprior > 0);
@@ -172,7 +173,7 @@ Node* Node::Max_UCB_select(Node* n) {
             uct = logistic(-current->score);
             if(has_ab)
                 uct += logistic(-current->prior);
-            uct += dCPUCT * current->policy * sqrt(double(n->visits) / (vst + 1));
+            uct += current->policy * factor / (vst + 1);
 
             if(uct > bvalue) {
                 bvalue = uct;
