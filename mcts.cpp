@@ -6,6 +6,7 @@ static double  cpuct_init = 1.25;
 static unsigned int  cpuct_base = 19652;
 static double  policy_temp = 2.0;
 static double  fpu_red = 0.2;
+static int fpu_is_loss = 1;
 static int  reuse_tree = 1;
 static int  backup_type = MINMAX;
 static double frac_alphabeta = 1.0; 
@@ -164,13 +165,15 @@ Node* Node::Max_UCB_select(Node* n) {
     bool has_ab = (n == SEARCHER::root_node && frac_abprior > 0);
 
     double tvp = 0.;
-    current = n->child;
-    while(current) {
-        if(current->visits && current->move)
-            tvp += current->policy;
-        current = current->next;
+    if(!fpu_is_loss) {
+        current = n->child;
+        while(current) {
+            if(current->visits && current->move)
+                tvp += current->policy;
+            current = current->next;
+        }
+        tvp = fpu_red * sqrt(tvp);
     }
-    tvp = fpu_red * sqrt(tvp);
 
     current = n->child;
     while(current) {
@@ -182,9 +185,15 @@ Node* Node::Max_UCB_select(Node* n) {
 #endif          
             uct = logistic(-current->score);
             if(has_ab)
-                uct += logistic(-current->prior);
-            if(!current->visits)
-                uct -= tvp;
+                uct = (uct + logistic(-current->prior)) / 2;
+
+            if(!current->visits) {
+                if(fpu_is_loss)
+                    uct = 0;
+                else
+                    uct -= tvp;
+            }
+
             uct += current->policy * factor / (vst + 1);
 
             if(uct > bvalue) {
@@ -1127,6 +1136,8 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         cpuct_base = atoi(commands[command_num++]);
     } else if(!strcmp(command, "fpu_red")) {
         fpu_red = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "fpu_is_loss")) {
+        fpu_is_loss = atoi(commands[command_num++]);
     } else if(!strcmp(command, "policy_temp")) {
         policy_temp = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "reuse_tree")) {
@@ -1171,6 +1182,7 @@ void print_mcts_params() {
     print("feature option=\"cpuct_base -spin %d 0 100000000\"\n",cpuct_base);
     print("feature option=\"policy_temp -spin %d 0 100\"\n",int(policy_temp*100));
     print("feature option=\"fpu_red -spin %d -100 100\"\n",int(fpu_red*100));
+    print("feature option=\"fpu_is_loss -check %d\"\n",fpu_is_loss);
     print("feature option=\"reuse_tree -check %d\"\n",reuse_tree);
     print("feature option=\"backup_type -combo *MINMAX AVERAGE MIX MINMAX_MEM AVERAGE_MEM MIX_MEM CLASSIC MIX_VISIT\"\n");
     print("feature option=\"frac_alphabeta -spin %d 0 100\"\n",int(frac_alphabeta*100));
