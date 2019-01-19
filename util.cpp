@@ -380,7 +380,7 @@ Node* Node::print_tree(Node* root,int output,int max_depth,int depth) {
     }
 
     while(current) {
-        if(current->visits && (depth == 0 || bnode == current) ) {
+        if((depth == 0 || bnode == current) ) {
             if(output) {
                 mov_str(current->move,str);
                 if(depth == 0)

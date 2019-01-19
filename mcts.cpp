@@ -402,10 +402,13 @@ void SEARCHER::create_children(Node* n) {
 void SEARCHER::add_children(Node* n) {
     Node* last = n, *first = 0;
 
+    if(pstack->count)
+        n->score = pstack->best_score;
+
     for(int i = 0;i < pstack->count; i++) {
         Node* node = Node::allocate(processor_id);
         node->move = pstack->move_st[i];
-        node->score = 0;
+        node->score = -n->score;
         node->visits = 0;
         node->alpha = -MATE_SCORE;
         node->beta = MATE_SCORE;
@@ -426,9 +429,6 @@ void SEARCHER::add_children(Node* n) {
             add_null_child(n);
     }
 
-    if(pstack->count)
-        n->score = pstack->best_score;
-
     n->child = first;
 }
 
@@ -440,7 +440,7 @@ void SEARCHER::add_null_child(Node* n) {
     }
     Node* node = Node::allocate(processor_id);
     node->move = 0;
-    node->score = 0;
+    node->score = -n->score;
     node->visits = 0;
     node->alpha = -MATE_SCORE;
     node->beta = MATE_SCORE;
@@ -817,9 +817,9 @@ void SEARCHER::search_mc() {
                         frac = double(root->visits) / chess_clock.max_visits;
                     else 
                         frac = double(get_time() - start_time) / chess_clock.search_time;
+                    if(frac > 1.0) frac = 1.0;
 
-                    dCPUCT = cpuct_end - frac * (cpuct_end - cpuct_beg);
-                    if(dCPUCT < cpuct_beg) dCPUCT = cpuct_beg;
+                    dCPUCT = cpuct_beg + frac * (cpuct_end - cpuct_beg);
                     if(frac - pfrac >= 0.1) {
                         pfrac = frac;
                         if(rollout_type == MCTS) {

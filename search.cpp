@@ -1685,7 +1685,6 @@ MOVE SEARCHER::find_best() {
 #endif
 
     stack[0].pv[0] = pstack->move_st[0];
-    stack[0].best_score = pstack->score_st[0];
 
     /*
     preliminary search
