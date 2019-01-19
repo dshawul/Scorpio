@@ -2,9 +2,8 @@
 #include "scorpio.h"
 
 /*mcts parameters*/
-static double  cpuct_beg = 1.7;
-static double  cpuct_end = 1.7;
-static double  dCPUCT = cpuct_beg;
+static double  cpuct_init = 1.25;
+static unsigned int  cpuct_base = 19652;
 static double  policy_temp = 2.0;
 static double  fpu_red = 0.2;
 static int  reuse_tree = 1;
@@ -158,6 +157,7 @@ double logit(double p) {
 
 Node* Node::Max_UCB_select(Node* n) {
     double uct, bvalue = -10;
+    double dCPUCT = cpuct_init + log((n->visits + cpuct_base + 1.0) / cpuct_base);
     double factor = dCPUCT * sqrt(double(n->visits));
     Node* current, *bnode = 0;
     unsigned vst;
@@ -829,9 +829,7 @@ void SEARCHER::search_mc() {
                         frac = double(root->visits) / chess_clock.max_visits;
                     else 
                         frac = double(get_time() - start_time) / chess_clock.search_time;
-                    if(frac > 1.0) frac = 1.0;
 
-                    dCPUCT = cpuct_beg + frac * (cpuct_end - cpuct_beg);
                     if(frac - pfrac >= 0.1) {
                         pfrac = frac;
                         if(rollout_type == MCTS) {
@@ -1123,10 +1121,10 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta, bool ski
 * Search parameters
 */
 bool check_mcts_params(char** commands,char* command,int& command_num) {
-    if(!strcmp(command, "cpuct_beg")) {
-        cpuct_beg = atoi(commands[command_num++]) / 100.0;
-    } else if(!strcmp(command, "cpuct_end")) {
-        cpuct_end = atoi(commands[command_num++]) / 100.0;
+    if(!strcmp(command, "cpuct_init")) {
+        cpuct_init = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "cpuct_base")) {
+        cpuct_base = atoi(commands[command_num++]);
     } else if(!strcmp(command, "fpu_red")) {
         fpu_red = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "policy_temp")) {
@@ -1169,8 +1167,8 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
     return true;
 }
 void print_mcts_params() {
-    print("feature option=\"cpuct_beg -spin %d 0 100\"\n",int(cpuct_beg*100));
-    print("feature option=\"cpuct_end -spin %d 0 100\"\n",int(cpuct_end*100));
+    print("feature option=\"cpuct_init -spin %d 0 100\"\n",int(cpuct_init*100));
+    print("feature option=\"cpuct_base -spin %d 0 100000000\"\n",cpuct_base);
     print("feature option=\"policy_temp -spin %d 0 100\"\n",int(policy_temp*100));
     print("feature option=\"fpu_red -spin %d -100 100\"\n",int(fpu_red*100));
     print("feature option=\"reuse_tree -check %d\"\n",reuse_tree);
