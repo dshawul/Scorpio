@@ -1651,7 +1651,7 @@ MOVE SEARCHER::find_best() {
     /*fen*/
     char fen[MAX_FEN_STR];
     get_fen(fen);
-    print_log("%s\n",fen);
+    print("# %s\n",fen);
 
     /*generate and score moves*/
     generate_and_score_moves(0,-MATE_SCORE,MATE_SCORE);

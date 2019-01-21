@@ -1518,80 +1518,8 @@ static int compare(const void * a, const void * b) {
 }
 
 /*
-Move policy formact according to lczero
+PGN to epd
 */
-static const int MOVE_TAB_SIZE = 64*64+8*3*3;
-
-static unsigned short move_index_table[MOVE_TAB_SIZE];
-
-static void init_index_table() {
-
-    memset(move_index_table, 0, MOVE_TAB_SIZE * sizeof(short));
-
-    int cnt = 0;
-
-    for(int from = 0; from < 64; from++) {
-
-        int from88 = SQ6488(from);
-        for(int to = 0; to < 64; to++) {
-            int to88 = SQ6488(to);
-            if(from != to) {
-                if(sqatt_pieces(to88 - from88))
-                    move_index_table[from * 64 + to] = cnt++;
-            }
-        }
-
-    }
-
-    for(int from = 48; from < 56; from++) {
-        int idx = 4096 + file64(from) * 9;
-
-        if(from > 48) {
-            move_index_table[idx+0] = cnt++;
-            move_index_table[idx+1] = cnt++;
-            move_index_table[idx+2] = cnt++;
-        }
-
-        move_index_table[idx+3] = cnt++;
-        move_index_table[idx+4] = cnt++;
-        move_index_table[idx+5] = cnt++;
-
-        if(from < 55) {
-            move_index_table[idx+6] = cnt++;
-            move_index_table[idx+7] = cnt++;
-            move_index_table[idx+8] = cnt++;
-        }
-    }
-
-}
-
-static int compute_move_index(MOVE& m, int player) {
-
-    int from = m_from(m), to = m_to(m), prom, compi;
-    if(is_castle(m)) {
-        if(to > from) to++;
-        else to -= 2;
-    }
-    from = SQ8864(from);
-    to = SQ8864(to); 
-    prom = m_promote(m); 
-
-    if(player == black) {
-        from = MIRRORR64(from);
-        to = MIRRORR64(to);
-    }
-    compi = from * 64 + to;
-    if(prom) {
-        prom = PIECE(prom);
-        if(prom != knight) {
-            compi = 4096 +  file64(from) * 9 + 
-                    (to - from - 7) * 3 + (prom - queen);
-        }
-    }
-
-    return move_index_table[compi];
-}
-
 bool SEARCHER::pgn_to_epd(char* path,char* book) {
     FILE*  f = fopen(path,"r");
     FILE* fb = fopen(book,"w");
@@ -1605,8 +1533,6 @@ bool SEARCHER::pgn_to_epd(char* path,char* book) {
     char   fen[256];
     char* pc;
     bool illegal = false;
-
-    init_index_table();
 
     while(fgets(buffer,MAX_FILE_STR,f)) {
         line++;
@@ -1659,8 +1585,9 @@ bool SEARCHER::pgn_to_epd(char* path,char* book) {
                 if(result == R_WWIN) strcat(fen," 1-0");
                 else if(result == R_BWIN) strcat(fen," 0-1");
                 else strcat(fen," 1/2-1/2");
-                int index = compute_move_index(move,player);
-                fprintf(fb,"%s %d\n",fen, index);
+                char mv[16];
+                mov_strx(move,mv);
+                fprintf(fb,"%s %s\n",fen, mv);
 
                 /*make move*/
                 do_move(move);
