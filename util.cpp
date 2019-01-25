@@ -388,7 +388,8 @@ Node* Node::print_tree(Node* root,int output,int max_depth,int depth) {
                         total+1,
                         logistic(-current->score),
                         logistic(-current->prior),
-                        logistic(-current->score) + logistic(-current->prior),
+                        (1 - frac_abprior) * logistic(-current->score) + 
+                        (frac_abprior) * logistic(-current->prior),
                         100*current->policy,
                         current->visits,
                         str

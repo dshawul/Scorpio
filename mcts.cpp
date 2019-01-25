@@ -185,7 +185,8 @@ Node* Node::Max_UCB_select(Node* n) {
 #endif          
             uct = logistic(-current->score);
             if(has_ab)
-                uct = (uct + logistic(-current->prior)) / 2;
+                uct = (1 - frac_abprior) * uct + 
+                       frac_abprior * logistic(-current->prior);
 
             if(!current->visits) {
                 if(fpu_is_loss)
