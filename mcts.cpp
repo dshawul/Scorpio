@@ -184,9 +184,12 @@ Node* Node::Max_UCB_select(Node* n) {
             vst += virtual_loss * current->get_busy();
 #endif          
             uct = logistic(-current->score);
-            if(has_ab)
-                uct = (1 - frac_abprior) * uct + 
-                       frac_abprior * logistic(-current->prior);
+            if(has_ab) {
+                double uctp = logistic(-current->prior);
+                uct = 0.5 * ((1 - frac_abprior) * uct + 
+                            frac_abprior * uctp + 
+                            MIN(uct,uctp));
+            }
 
             if(!current->visits) {
                 if(fpu_is_loss)
