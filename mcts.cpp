@@ -1182,10 +1182,10 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
     return true;
 }
 void print_mcts_params() {
-    print("feature option=\"cpuct_init -spin %d 0 100\"\n",int(cpuct_init*100));
+    print("feature option=\"cpuct_init -spin %d 0 1000\"\n",int(cpuct_init*100));
     print("feature option=\"cpuct_base -spin %d 0 100000000\"\n",cpuct_base);
-    print("feature option=\"policy_temp -spin %d 0 100\"\n",int(policy_temp*100));
-    print("feature option=\"fpu_red -spin %d -100 100\"\n",int(fpu_red*100));
+    print("feature option=\"policy_temp -spin %d 0 1000\"\n",int(policy_temp*100));
+    print("feature option=\"fpu_red -spin %d -1000 1000\"\n",int(fpu_red*100));
     print("feature option=\"fpu_is_loss -check %d\"\n",fpu_is_loss);
     print("feature option=\"reuse_tree -check %d\"\n",reuse_tree);
     print("feature option=\"backup_type -combo *MINMAX AVERAGE MIX MINMAX_MEM AVERAGE_MEM MIX_MEM CLASSIC MIX_VISIT\"\n");
