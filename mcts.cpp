@@ -287,6 +287,7 @@ Node* Node::Random_select(Node* n) {
 Node* Node::Best_select(Node* n) {
     double bvalue = -MAX_NUMBER;
     Node* current = n->child, *bnode = n->child;
+    bool has_ab = (n == SEARCHER::root_node && frac_abprior > 0);
 
     while(current) {
         if(current->move && current->visits > 0) {
@@ -297,10 +298,22 @@ Node* Node::Best_select(Node* n) {
                  current->rank == 1)) 
             ) {
                 double val;
-                if(rollout_type == MCTS)
+                if(rollout_type == MCTS &&
+                    ( backup_type == AVERAGE || 
+                      backup_type == CLASSIC || 
+                     (backup_type == MIX_VISIT && n->visits <= visit_threshold) )
+                ) {
                     val = current->visits;
-                else
-                    val = -current->score;
+                } else {
+                    val = logistic(-current->score);
+
+                    if(has_ab && (rollout_type == MCTS)) {
+                        double valp = logistic(-current->prior);
+                        val = 0.5 * ((1 - frac_abprior) * val + 
+                                    frac_abprior * valp + 
+                                    MIN(val,valp));
+                    }
+                }
 
                 if(val > bvalue || (val == bvalue 
                     && current->rank < bnode->rank)) {
