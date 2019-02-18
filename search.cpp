@@ -465,7 +465,8 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
 Back up to previous ply
 */
 #define GOBACK(save) {                                                                                          \
-    if(use_tt && save && ((sb->pstack->search_state & ~MOVE_MASK) != SINGULAR_SEARCH)) {                        \
+    if(use_tt && save && !sb->abort_search && !sb->stop_searcher &&                                             \
+        ((sb->pstack->search_state & ~MOVE_MASK) != SINGULAR_SEARCH)) {                                         \
         sb->RECORD_HASH(sb->player,sb->hash_key,sb->pstack->depth,sb->ply,sb->pstack->flag,                     \
         sb->pstack->best_score,sb->pstack->best_move,sb->pstack->mate_threat,sb->pstack->singular);             \
     }                                                                                                           \
@@ -1031,7 +1032,7 @@ SPECIAL:
 Back up to previous ply
 */
 #define GOBACK_Q(save) {                                            \
-    if(use_tt && save) {                                            \
+    if(use_tt && save && !abort_search && !stop_searcher) {         \
         int depth = 0;                                              \
         if( (hply >= 1 && hstack[hply - 1].checks) ||               \
              pstack->qcheck_depth > 0) depth = UNITDEPTH;           \
@@ -1202,6 +1203,8 @@ void SEARCHER::search() {
 Get search score
 */
 int SEARCHER::get_search_score() {
+    if(pstack->depth <= 0) qsearch_calls++;
+    else search_calls++;
     ::search(processors[processor_id]);
     return pstack->best_score;
 }
@@ -1209,18 +1212,23 @@ int SEARCHER::get_search_score() {
 Evaluate moves with search
 */
 void SEARCHER::evaluate_moves(int depth, int alpha, int beta) {
-    int score = 0, WINDOW = 3*aspiration_window/2;
+    int score = 0, WINDOW = 2*aspiration_window, bscore = -MATE_SCORE;
 
     finish_search = true;
 
     for(int i = 0;i < pstack->count; i++) {
         pstack->current_move = pstack->move_st[i];
         PUSH_MOVE(pstack->current_move);
+        alpha = -MATE_SCORE;
+        beta = MATE_SCORE;
+        
         if(egbb_is_loaded && all_man_c <= MAX_EGBB 
             && bitbase_cutoff()
             ) {
+            score = -pstack->best_score;
+            pstack->pv_length = ply;
         } else {
-            int newd = (depth > 3) ? (depth - MIN(i, depth - 3)) : (depth - i);
+            int newd = (depth > 3) ? (depth - MIN(i, depth - 3)) : MAX(1, depth - i);
             score = (pstack-1)->score_st[i];
             if(ply == 1 && newd >= 3) {
                 alpha = score - WINDOW;
@@ -1229,12 +1237,13 @@ void SEARCHER::evaluate_moves(int depth, int alpha, int beta) {
 TOP:
             pstack->alpha = -beta;
             pstack->beta = -alpha;
-            pstack->depth = MAX(0, newd);
+            pstack->depth = newd;
             pstack->node_type = PV_NODE;
             pstack->search_state = NORMAL_MOVE;
             pstack->extension = 0;
             pstack->reduction = 0;
-            qsearch_calls++;
+            pstack->pv_length = ply;
+            pstack->best_score = -MATE_SCORE;
 
             if(depth == -4) {
                 score = -eval();
@@ -1249,8 +1258,8 @@ TOP:
                 score = -pstack->best_score;
             }
 
-            if(ply == 1 && newd >= 3 
-                && abs(score) != MATE_SCORE
+            if(!abort_search &&
+                ply == 1 && newd >= 3
                 ) {
                 if(score <= alpha) {
                     WINDOW = MIN(200, 3 * WINDOW / 2);
@@ -1262,10 +1271,21 @@ TOP:
                     goto TOP;
                 }
             }
+
         }
         POP_MOVE();
-        if(!ply && (stop_searcher || abort_search))
+
+        if(!ply && abort_search)
             break;
+
+#if 1
+        if(!ply && depth >= 10 && score > bscore) {
+            UPDATE_PV(pstack->current_move);
+            print_pv(score);
+            bscore = score;
+        }
+#endif
+
         pstack->score_st[i] = score;
     }
 
@@ -1273,6 +1293,7 @@ TOP:
 
     for(int i = 0;i < pstack->count; i++)
         pstack->sort(i,pstack->count);
+
 }
 /*
 Find best move using alpha-beta or mcts
@@ -1642,6 +1663,7 @@ MOVE SEARCHER::find_best() {
     bad_splits = 0;
     root_failed_low = 0;
     search_calls = 0;
+    qsearch_calls = 0;
     egbb_probes = 0;
     prev_pv_length = 0;
     PROCESSOR::set_num_searchers();
@@ -1655,6 +1677,7 @@ MOVE SEARCHER::find_best() {
         print("# %s\n",fen);
 
     /*generate and score moves*/
+    chess_clock.set_stime(hply,false);
     generate_and_score_moves(0,-MATE_SCORE,MATE_SCORE);
 
     /*no move*/

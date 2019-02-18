@@ -477,7 +477,7 @@ void SEARCHER::print_pv(int score) {
     }
     /*add moves from hash table*/
     int dummy;
-    while(1) {
+    while(ply < MAX_PLY - 1) {
         move = 0;
         probe_hash(player,hash_key,0,0,dummy,move,
             -MATE_SCORE,MATE_SCORE,dummy,dummy,dummy,0);

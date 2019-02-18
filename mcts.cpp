@@ -543,7 +543,6 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
                 freeze_tree = true;
                 print("# Maximum number of nodes reached.\n");
             }
-            search_calls++;
             score = get_search_score();
             if(stop_searcher || abort_search)
                 goto FINISH;
@@ -1028,22 +1027,26 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
         montecarlo = 0;
         use_nn = 0;
 
-        chess_clock.set_stime(hply,false);
-        chess_clock.search_time *= frac_abprior;
-        int start_t = start_time;
+        chess_clock.p_time *= frac_abprior;
+        chess_clock.set_stime(hply,true);
+        chess_clock.p_time /= frac_abprior;
+
+        int start_t = start_time, d;
         start_time = get_time();
-        print("# Searching root moves with alpha-beta\n");
-        int d;
         for(d = 2; d < MAX_PLY - 1 ; d++) {
+            stop_searcher = 0;
+            search_depth = d;
             evaluate_moves(d,-MATE_SCORE,MATE_SCORE);
-            if(stop_searcher || abort_search)
+            if(abort_search)
                 break;
         }
-        print("# Finished with depth %d in %dms\n",
+        print("# Finished alphabeta to depth %d in %dms\n",
             d, get_time() - start_time);
         start_time = start_t;
+
         stop_searcher = 0;
         abort_search = 0;
+        search_depth = MAX_PLY - 2;
 
         use_nn = save_use_nn;
         montecarlo = 1;
