@@ -555,8 +555,9 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
             } else {
                 /*Hack: fake eval. */
                 if(use_nn)
-                    probe_neural();
-                score = n->score;
+                    score = probe_neural();
+                else
+                    score = n->score;
                 goto FINISH;
             }
 
@@ -1123,7 +1124,6 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta, bool ski
                 }
             }
         } else {
-            nnecalls++;
             pstack->best_score = probe_neural();
 
             double total = 0.f, maxp = -100;

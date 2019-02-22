@@ -175,6 +175,7 @@ int SEARCHER::probe_neural() {
     }
     *s++ = -1;
 
+    nnecalls++;
     if(nn_type == 0) {
         int piece[33],square[33],isdraw[1];
         int count = 0, hist = 1;
