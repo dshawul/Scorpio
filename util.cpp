@@ -1530,16 +1530,16 @@ bool SEARCHER::pgn_to_epd(char* path,char* book) {
     FILE* fb = fopen(book,"w");
     if(!f || !fb) return false;
 
-    char   buffer[MAX_FILE_STR];
-    char   *commands[MAX_STR],*command;
-    int    result = 0,command_num;
+    char   buffer[4 * MAX_FILE_STR];
+    char   *commands[4 * MAX_STR],*command;
+    int    result = R_UNKNOWN,command_num;
     int    comment = 0,line = 0,game = 0;
     MOVE   move;
     char   fen[256];
     char* pc;
     bool illegal = false;
 
-    while(fgets(buffer,MAX_FILE_STR,f)) {
+    while(fgets(buffer,4 * MAX_FILE_STR,f)) {
         line++;
 
         if(buffer[0] == '[' && !comment) {
@@ -1574,31 +1574,75 @@ bool SEARCHER::pgn_to_epd(char* path,char* book) {
                     if(*(pc+1) == ' ' || *(pc+1) == 0 || *(pc+1) == '.') continue;
                     else command = pc + 1;
                 }
-                if(strchr(command,'*')) continue;
-                if(strchr(command,'-') && strchr(command,'1')) continue;
+                if(strchr(command,'*')) {
+                    if(result == R_UNKNOWN) {
+                        game++;
+                        print("Game %d\t\r",game);
+                        new_board();
+                        illegal = false;
+                        result = R_UNKNOWN;
+                    }
+                    break;
+                }
+                if(strchr(command,'-') && strchr(command,'1')) {
+
+                    if(result == R_UNKNOWN) {
+                        if(!strncmp(command,"1-0",3)) result = R_WWIN;
+                        else if(!strncmp(command,"0-1",3)) result = R_BWIN;
+                        else if(!strncmp(command,"1/2-1/2",7)) result = R_DRAW;
+
+                        int shply = hply;
+                        while(hply > 0) undo_move();
+                        for(int i = 0; i < shply; i++) {
+                            MOVE& move = hstack[hply].move;
+
+                            get_fen(fen);
+                            if(result == R_WWIN) strcat(fen," 1-0");
+                            else if(result == R_BWIN) strcat(fen," 0-1");
+                            else strcat(fen," 1/2-1/2");
+                            char mv[16];
+                            mov_strx(move,mv);
+                            fprintf(fb,"%s %s\n",fen, mv);
+
+                            do_move(move);
+                        }
+
+                        game++;
+                        print("Game %d\t\r",game);
+                        new_board();
+                        illegal = false;
+                        result = R_UNKNOWN;
+                        break;
+                    }
+
+                    continue;
+                }
 
                 /*SAN move*/
                 if(!san_mov(move,command)) {
                     print("Incorrect move %s at game %d line %d\n",command,game,line);
                     print_board();
+                    print_history();
                     illegal = true;
                     break;
                 }
 
                 /*Write fen with score and best move*/
-                get_fen(fen);
-                if(result == R_WWIN) strcat(fen," 1-0");
-                else if(result == R_BWIN) strcat(fen," 0-1");
-                else strcat(fen," 1/2-1/2");
-                char mv[16];
-                mov_strx(move,mv);
-                fprintf(fb,"%s %s\n",fen, mv);
+                if(result != R_UNKNOWN) {
+                    get_fen(fen);
+                    if(result == R_WWIN) strcat(fen," 1-0");
+                    else if(result == R_BWIN) strcat(fen," 0-1");
+                    else strcat(fen," 1/2-1/2");
+                    char mv[16];
+                    mov_strx(move,mv);
+                    fprintf(fb,"%s %s\n",fen, mv);
+                }
 
                 /*make move*/
                 do_move(move);
-                ply++;
             }
         }
+
     }
 
     fclose(f);
