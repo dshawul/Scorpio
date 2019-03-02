@@ -1354,7 +1354,7 @@ MOVE SEARCHER::iterative_deepening() {
                     MOVE& move = pstack->move_st[i];
                     if(move == current->move) {
                         double v = sqrt(double(root_score_st[i]) / maxn);
-                        current->heuristic = -(v - 0.5) * 100;
+                        current->prior = -(v - 0.5) * 100;
                         current->rank = i + 1;
                         break;
                     }

@@ -12,7 +12,6 @@ static int  backup_type = MINMAX;
 static double frac_alphabeta = 1.0; 
 static double frac_freeze_tree = 0.3;
 static double frac_abrollouts = 0.2;
-double frac_abprior = 0.3;
 static int  mcts_strategy_depth = 30;
 static int  alphabeta_depth = 1;
 static int  evaluate_depth = 0;
@@ -25,6 +24,7 @@ static std::mt19937 mtgen(rd());
 int montecarlo = 0;
 int rollout_type = ALPHABETA;
 bool freeze_tree = false;
+double frac_abprior = 0.3;
 
 /*Node*/
 std::vector<Node*> Node::mem_[MAX_CPUS];

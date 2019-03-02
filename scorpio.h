@@ -360,14 +360,10 @@ struct Node {
     Node* VOLATILE child;
     Node* next;
     MOVE move;
-    union {
-        VOLATILE int alpha;
-        VOLATILE float policy;
-    };
-    union {
-        VOLATILE int beta;
-        VOLATILE int prior;
-    };
+    VOLATILE int alpha;
+    VOLATILE int beta;
+    VOLATILE float policy;
+    VOLATILE int prior;
     VOLATILE unsigned int visits;
     VOLATILE float score;
     VOLATILE unsigned short busy;
