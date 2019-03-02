@@ -1106,14 +1106,30 @@ bool read_line(char* buffer) {
 /*
 Get number of physical/logical processors
 */
+
 int get_number_of_cpus() {
+    int cores, active;
 #ifdef _WIN32
     SYSTEM_INFO info;
     GetSystemInfo(&info);
-    return info.dwNumberOfProcessors;
+    cores = info.dwNumberOfProcessors;
+
+    DWORD dwProcessAffinity, dwSystemAffinity;
+    GetProcessAffinityMask(GetCurrentProcess(), 
+        (DWORD_PTR*)&dwProcessAffinity, (DWORD_PTR*)&dwSystemAffinity);
+    active = 0;
+    for(int i = 0;i < cores; i++) {
+        if(dwProcessAffinity & (DWORD(1) << i))
+            active++;
+    }
 #else
-    return sysconf(_SC_NPROCESSORS_ONLN);
+    cpu_set_t mask;
+    cores = sysconf(_SC_NPROCESSORS_ONLN);
+    sched_getaffinity(0, sizeof(cpu_set_t), &mask);
+    active = CPU_COUNT(&mask);
 #endif
+    printf("Number of cores %d of %d\n",active,cores);
+    return active;
 }
 
 int tokenize(char *str, char** tokens, const char *str2) {

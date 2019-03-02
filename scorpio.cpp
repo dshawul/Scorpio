@@ -33,7 +33,7 @@ parallel search
 */
 PPROCESSOR processors[MAX_CPUS] = {0};
 int PROCESSOR::n_processors;
-int PROCESSOR::n_cores = get_number_of_cpus();
+int PROCESSOR::n_cores;
 VOLATILE int PROCESSOR::n_idle_processors;
 int PROCESSOR::n_hosts = 1;
 
@@ -272,6 +272,7 @@ void init_game() {
     l_create(lock_smp);
 #endif
     scorpio_start_time = get_time();
+    PROCESSOR::n_cores = get_number_of_cpus();
     PROCESSOR::n_idle_processors = 0;
     PROCESSOR::n_processors = 1;
     PROCESSOR::set_main();
