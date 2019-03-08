@@ -932,10 +932,11 @@ Manage search tree
 void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
     /*find root node*/
     if(root) {
-        int i,j;
+        int i = 0,j;
         bool found = false;
-        for(i = 0;i < 8;i++) {
-            if(hstack[hply - 1 - i].hash_key == root_key) {
+        for( ;i < 8 && hply >= i + 1; i++) {
+            if(hply >= (i + 1) && 
+                hstack[hply - 1 - i].hash_key == root_key) {
                 found = true;
                 break;
             }
@@ -1191,7 +1192,7 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         UBMP32 size = ht * ((1024 * 1024) / sizeof(Node));
         print("treeht %d X %d = %.1f MB\n",size,sizeof(Node),
             (size * sizeof(Node)) / double(1024 * 1024));
-        Node::max_tree_nodes = size / PROCESSOR::n_processors;
+        Node::max_tree_nodes = size;
     } else {
         return false;
     }
