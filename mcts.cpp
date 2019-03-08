@@ -52,29 +52,21 @@ Node* Node::allocate(int id) {
     return n;
 }
 
-Node* Node::reclaim(Node* n,int id,MOVE* except) {
-    if(id < 0) {
-        unsigned mini = 0;
-        unsigned mins = mem_[mini].size();
-        for(int i = 1;i < PROCESSOR::n_processors;i++) {
-            if(mem_[i].size() < mins) {
-                mins = mem_[i].size();
-                mini = i;
-            }
-        }
-        id = mini;
-    }
+Node* Node::reclaim(Node* n,MOVE* except) {
     Node* current = n->child,*rn = 0;
+    int id;
     while(current) {
+        id = rand() % PROCESSOR::n_processors;
         if(except && (current->move == *except)) 
             rn = current;
         else if(!current->child) {
             mem_[id].push_back(current);
             total_nodes--;
         } else 
-            reclaim(current,id);
+            reclaim(current);
         current = current->next;
     }
+    id = rand() % PROCESSOR::n_processors;
     mem_[id].push_back(n);
     total_nodes--;
     return rn;
@@ -527,9 +519,9 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
         if(rollout_type == MCTS
             && Node::total_nodes  + MAX_MOVES >= Node::max_tree_nodes
             ) {
-            abort_search = 1;
+            if(l_set(abort_search,1) == 0)
+                print("# Maximum number of nodes reached.\n");
             visits = 0;
-            print("# Maximum number of nodes reached.\n");
             goto FINISH;
         } else if(rollout_type == ALPHABETA && 
              (
@@ -945,13 +937,28 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
             MOVE move;
             for(j = i;j >= 0;--j) {
                 move = hstack[hply - 1 - j].move;
-                root = Node::reclaim(root,-1,&move);
+                root = Node::reclaim(root,&move);
                 if(!root) break;
             }
         } else {
             Node::reclaim(root);
             root = 0;
         }
+#if 1
+        unsigned int tot = 0;
+        for(int i = 0;i < PROCESSOR::n_processors;i++) {
+#if 0
+            print("# Proc %d: %d\n",i,Node::mem_[i].size());
+#endif
+            tot += Node::mem_[i].size();
+        }
+        print("# Memory for mcts nodes: %.1fMB unused + %.1fMB intree = %.1fMB of %.1fMB total\n", 
+            double(tot * sizeof(Node)) / (1024 * 1024), 
+            double(Node::total_nodes * sizeof(Node)) / (1024 * 1024),
+            double((Node::total_nodes+tot) * sizeof(Node)) / (1024 * 1024),
+            double(Node::max_tree_nodes * sizeof(Node)) / (1024 * 1024)
+            );
+#endif
     }
     if(!root) {
         print_log("# [Tree-not-found]\n");

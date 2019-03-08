@@ -360,10 +360,21 @@ struct Node {
     Node* VOLATILE child;
     Node* next;
     MOVE move;
+#if 1
     VOLATILE int alpha;
     VOLATILE int beta;
     VOLATILE float policy;
     VOLATILE int prior;
+#else
+    union {
+        VOLATILE int alpha;
+        VOLATILE float policy;
+    };
+    union {
+        VOLATILE int beta;
+        VOLATILE int prior;
+    };
+#endif
     VOLATILE unsigned int visits;
     VOLATILE float score;
     VOLATILE unsigned short busy;
@@ -416,7 +427,7 @@ struct Node {
     static unsigned int max_tree_depth;
     static std::vector<Node*> mem_[MAX_CPUS];
     static Node* allocate(int);
-    static Node* reclaim(Node*,int=-1,MOVE* = 0);
+    static Node* reclaim(Node*,MOVE* = 0);
     static void  rank_children(Node*);
     static void  reset_bounds(Node*,int,int);
     static Node* print_tree(Node*,int,int = 0,int = 0);
