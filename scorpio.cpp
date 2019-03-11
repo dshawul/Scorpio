@@ -68,6 +68,7 @@ MOVE SEARCHER::refutation[14][64];
 CHESS_CLOCK SEARCHER::chess_clock;
 int SEARCHER::search_depth;
 int SEARCHER::start_time;
+int SEARCHER::start_time_o;
 int SEARCHER::scorpio;
 int SEARCHER::pv_print_style;
 int SEARCHER::root_score;
@@ -1130,7 +1131,6 @@ REDO2:
                     SEARCHER::resign_count = 0;
                 }
                 if(SEARCHER::resign_count == 3) {
-                    mov_strx(move,mv_str);
                     print("resign\n");
                     continue;
                 }

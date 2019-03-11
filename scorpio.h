@@ -747,6 +747,7 @@ typedef struct SEARCHER{
     */
     static int search_depth;
     static int start_time;
+    static int start_time_o;
     static int scorpio;
     static int pv_print_style;
     static int root_score;

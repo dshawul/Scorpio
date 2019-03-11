@@ -1372,10 +1372,18 @@ MOVE SEARCHER::iterative_deepening() {
     }
 
     /*set search time and record start time*/
-    chess_clock.p_time -= (get_time() - start_time);
     if(!chess_clock.infinite_mode) {
-        chess_clock.set_stime(hply,true);
+        if(montecarlo && frac_abprior > 0) {
+            chess_clock.p_time *= (1 - frac_abprior);
+            chess_clock.inc *= (1 - frac_abprior);
+            chess_clock.set_stime(hply,false);
+            chess_clock.p_time /= (1 - frac_abprior);
+            chess_clock.inc /= (1 - frac_abprior);
+        } else {
+            chess_clock.set_stime(hply,false);
+        }
     }
+
     start_time = get_time();
 
     /*easy move*/
@@ -1581,11 +1589,12 @@ MOVE SEARCHER::iterative_deepening() {
 
             /* print result*/
             int time_used = MAX(1,get_time() - start_time);
+            int time_used_o = MAX(1,get_time() - start_time_o);
             int pps = int(root_node->visits / (time_used / 1000.0f));
             print("# nodes = " FMT64 " <%d%% qnodes> time = %dms nps = %d eps = %d nneps = %d\n",nodes,
                 int(BMP64(qnodes) / (BMP64(nodes) / 100.0f)),
-                time_used,int(BMP64(nodes) / (time_used / 1000.0f)),
-                int(BMP64(ecalls) / (time_used / 1000.0f)),
+                time_used_o,int(BMP64(nodes) / (time_used_o / 1000.0f)),
+                int(BMP64(ecalls) / (time_used_o / 1000.0f)),
                 int(BMP64(nnecalls) / (time_used / 1000.0f)));
             print("# Tree: nodes = %d depth = %d pps = %d visits = %d \n"
                   "#       qsearch_calls = %d search_calls = %d\n",
@@ -1628,7 +1637,7 @@ MOVE SEARCHER::iterative_deepening() {
 */
 MOVE SEARCHER::find_best() {
 
-    start_time = get_time();
+    start_time = start_time_o = get_time();
 
     /*
     send initial position to helper hosts
@@ -1677,7 +1686,7 @@ MOVE SEARCHER::find_best() {
         print("# %s\n",fen);
 
     /*generate and score moves*/
-    chess_clock.set_stime(hply,false);
+    chess_clock.set_stime(hply,true);
     generate_and_score_moves(0,-MATE_SCORE,MATE_SCORE);
 
     /*no move*/
@@ -1727,10 +1736,12 @@ MOVE SEARCHER::find_best() {
 #endif
 
         chess_clock.p_time *= frac_abprior;
+        chess_clock.inc *= frac_abprior;
 
         bmove = iterative_deepening();
 
         chess_clock.p_time /= frac_abprior;
+        chess_clock.inc /= frac_abprior;
 
 #ifdef PARALLEL
         for(int i = 1;i < PROCESSOR::n_cores;i++)

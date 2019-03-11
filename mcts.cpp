@@ -26,6 +26,19 @@ int rollout_type = ALPHABETA;
 bool freeze_tree = false;
 double frac_abprior = 0.3;
 
+/*elo*/
+static const double Kfactor = -log(10.0) / 400.0;
+
+double logistic(double score) {
+    return 1 / (1 + exp(Kfactor * score));
+}
+
+double logit(double p) {
+    if(p < 1e-15) p = 1e-15;
+    else if(p > 1 - 1e-15) p = 1 - 1e-15;
+    return log((1 - p) / p) / Kfactor;
+}
+
 /*Node*/
 std::vector<Node*> Node::mem_[MAX_CPUS];
 VOLATILE unsigned int Node::total_nodes = 0;
@@ -134,18 +147,6 @@ void Node::reset_bounds(Node* n,int alpha,int beta) {
     }
     n->alpha = alpha;
     n->beta = beta;
-}
-
-static const double Kfactor = -log(10.0) / 400.0;
-
-double logistic(double score) {
-    return 1 / (1 + exp(Kfactor * score));
-}
-
-double logit(double p) {
-    if(p < 1e-15) p = 1e-15;
-    else if(p > 1 - 1e-15) p = 1 - 1e-15;
-    return log((1 - p) / p) / Kfactor;
 }
 
 Node* Node::Max_UCB_select(Node* n) {
@@ -1037,21 +1038,22 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
         use_nn = 0;
 
         chess_clock.p_time *= frac_abprior;
-        chess_clock.set_stime(hply,true);
+        chess_clock.inc *= frac_abprior;
+        chess_clock.set_stime(hply,false);
         chess_clock.p_time /= frac_abprior;
+        chess_clock.inc /= frac_abprior;
 
-        int start_t = start_time, d;
         start_time = get_time();
-        for(d = 2; d < MAX_PLY - 1 ; d++) {
+
+        for(int d = 2; d < MAX_PLY - 1 ; d++) {
             stop_searcher = 0;
             search_depth = d;
             evaluate_moves(d,-MATE_SCORE,MATE_SCORE);
-            if(abort_search)
+
+            int time_used = get_time() - start_time;
+            if(abort_search || time_used >= 0.75 * chess_clock.search_time)
                 break;
         }
-        print("# Finished alphabeta to depth %d in %dms\n",
-            d, get_time() - start_time);
-        start_time = start_t;
 
         stop_searcher = 0;
         abort_search = 0;
