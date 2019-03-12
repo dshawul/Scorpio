@@ -431,7 +431,7 @@ struct Node {
     static void  rank_children(Node*);
     static void  reset_bounds(Node*,int,int);
     static Node* print_tree(Node*,int,int = 0,int = 0);
-    static Node* Max_UCB_select(Node*);
+    static Node* Max_UCB_select(Node*, bool);
     static Node* Max_AB_select(Node*,int,int,bool,bool);
     static Node* Best_select(Node*);
     static Node* Random_select(Node*);
