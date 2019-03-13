@@ -773,7 +773,7 @@ typedef struct SEARCHER{
     void fill_list(int&,int*,int*);
     int probe_bitbases(int&);
     bool bitbase_cutoff();
-    int probe_neural();
+    int probe_neural(bool=false);
     static int egbb_is_loaded;
     static int egbb_load_type;
     static int egbb_depth_limit;
@@ -782,6 +782,7 @@ typedef struct SEARCHER{
     static int egbb_cache_size;
     static char egbb_path[MAX_STR];
     static char nn_path[MAX_STR];
+    static int nn_cache_size;
     static int use_nn;
     static int save_use_nn;
     static int n_devices;
@@ -1082,7 +1083,7 @@ void bound_params(double*);
 /*
 Bitbases
 */
-int LoadEgbbLibrary(char* path,int);
+int LoadEgbbLibrary(char* path,int,int);
 /*
 Bitboards.
 */

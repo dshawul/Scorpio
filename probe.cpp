@@ -24,8 +24,10 @@ enum {CPU, GPU};
 
 typedef int (CDECL *PPROBE_EGBB) (int player, int* piece, int* square);
 typedef void (CDECL *PLOAD_EGBB) (char* path, int cache_size, int load_options);
-typedef void (CDECL *PLOAD_NN) (char* path, int n_threads, int n_devices, int dev_type, int delay, int float_type, int nn_type);
-typedef int (CDECL *PPROBE_NN) (int player, int cast, int fifty, int hist, int* draw, int* piece, int* square, int* moves, int* probs);
+typedef void (CDECL *PLOAD_NN) (char* path, int nn_cache_size, int n_threads, 
+    int n_devices, int dev_type, int delay, int float_type, int nn_type);
+typedef int (CDECL *PPROBE_NN) (int player, int cast, int fifty, int hist, int* draw,
+    int* piece, int* square, int* moves, int* probs, int nmoves, UBMP64 hash_key);
 typedef void (CDECL *PSET_NUM_ACTIVE_SEARCHERS) (int n_searchers);
 
 static PPROBE_EGBB probe_egbb;
@@ -40,6 +42,7 @@ int SEARCHER::egbb_ply_limit;
 int SEARCHER::egbb_cache_size = 16;
 char SEARCHER::egbb_path[MAX_STR] = "egbb/";
 char SEARCHER::nn_path[MAX_STR] = "nets/";
+int SEARCHER::nn_cache_size = 16;
 int SEARCHER::use_nn = 0;
 int SEARCHER::save_use_nn = 0;
 int SEARCHER::n_devices = 1;
@@ -73,7 +76,7 @@ Load the dll and get the address of the load and probe functions.
 #    define GetProcAddress dlsym
 #endif
 
-int LoadEgbbLibrary(char* main_path,int egbb_cache_size) {
+int LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
 #ifdef EGBB
     static HMODULE hmod = 0;
     PLOAD_EGBB load_egbb;
@@ -101,7 +104,7 @@ int LoadEgbbLibrary(char* main_path,int egbb_cache_size) {
         if(load_egbb)
             load_egbb(main_path,egbb_cache_size,SEARCHER::egbb_load_type);
         if(load_nn && SEARCHER::use_nn)
-            load_nn(SEARCHER::nn_path,PROCESSOR::n_processors,SEARCHER::n_devices,
+            load_nn(SEARCHER::nn_path,nn_cache_size,PROCESSOR::n_processors,SEARCHER::n_devices,
                 SEARCHER::device_type,SEARCHER::delay,SEARCHER::float_type,SEARCHER::nn_type);
         else
             SEARCHER::use_nn = 0;
@@ -158,8 +161,12 @@ int SEARCHER::probe_bitbases(int& score) {
     return false;
 }
 
-int SEARCHER::probe_neural() {
+int SEARCHER::probe_neural(bool hard_probe) {
 #ifdef EGBB
+    const UBMP64 hkey = hard_probe ? 0 :
+            ((player == white) ? hash_key : 
+             (hash_key ^ UINT64(0x2bc3964f82352234)));
+
     int moves[3*MAX_MOVES];
     int *s = moves;
     for(int i = 0; i < pstack->count; i++) {
@@ -181,7 +188,8 @@ int SEARCHER::probe_neural() {
         int count = 0, hist = 1;
         fill_list(count,piece,square);
 
-        return probe_nn(player,castle,fifty,hist,isdraw,piece,square,moves,pstack->score_st);
+        return probe_nn(player,castle,fifty,hist,isdraw,piece,square,moves,
+            pstack->score_st,pstack->count,hkey);
     } else {
 
         int piece[8*33],square[8*33],isdraw[8];
@@ -200,7 +208,8 @@ int SEARCHER::probe_neural() {
         for(int i = 0; i < count; i++)
             PUSH_MOVE(hstack[hply].move);
 
-        return probe_nn(player,castle,fifty,hist,isdraw,piece,square,moves,pstack->score_st);
+        return probe_nn(player,castle,fifty,hist,isdraw,piece,square,moves,
+            pstack->score_st,pstack->count,hkey);
     }
 #endif
     return 0;

@@ -556,7 +556,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
                     if(rollout_type == MCTS)
                         visits = 0;
                     else
-                        score = probe_neural();
+                        score = probe_neural(true);
                 } else
                     score = n->score;
                 goto FINISH;
@@ -583,7 +583,7 @@ BACKUP_LEAF:
         Node::BackupLeaf(n,score);
         /*Hack: fake eval. */
         if(use_nn)
-            probe_neural();
+            probe_neural(true);
 
     /*Has children*/
     } else {
@@ -666,7 +666,7 @@ RESEARCH:
                     if(ply == 1) {
                         visits = 1;
                         next->inc_busy();
-                        score = probe_neural();
+                        score = probe_neural(true);
                         next->update_visits(visits);
                         next->dec_busy();
                     /*undo and try again at previous ply*/

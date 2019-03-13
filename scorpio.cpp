@@ -139,7 +139,8 @@ static void wait_for_egbb() {
 static void CDECL egbb_thread_proc(void*) {
     int start = get_time();
     int egbb_cache_sizeb = (SEARCHER::egbb_cache_size * 1024 * 1024);
-    SEARCHER::egbb_is_loaded = LoadEgbbLibrary(SEARCHER::egbb_path,egbb_cache_sizeb);
+    int nn_cache_sizeb = (SEARCHER::nn_cache_size * 1024 * 1024);
+    SEARCHER::egbb_is_loaded = LoadEgbbLibrary(SEARCHER::egbb_path,egbb_cache_sizeb,nn_cache_sizeb);
     int end = get_time();
     print("loading_time = %ds\n",(end - start) / 1000);
     egbb_is_loading = false;
@@ -400,6 +401,7 @@ bool parse_commands(char** commands) {
             print("feature option=\"egbb_load_type -spin %d 0 3\"\n", SEARCHER::egbb_load_type);
             print("feature option=\"egbb_depth_limit -spin %d 0 %d\"\n", SEARCHER::egbb_depth_limit, MAX_PLY);
             print("feature option=\"egbb_ply_limit_percent -spin %d 0 100\"\n", SEARCHER::egbb_ply_limit_percent);
+            print("feature option=\"nn_cache_size -spin %d 1 16384\"\n", SEARCHER::nn_cache_size);
             print("feature option=\"n_devices -spin %d 1 128\"\n",SEARCHER::n_devices);
             print("feature option=\"device_type -combo *CPU /// GPU \"\n");
             print("feature option=\"delay -spin %d 0 1000\"\n",SEARCHER::delay);
@@ -580,6 +582,10 @@ bool parse_commands(char** commands) {
             command_num++;
         } else if(!strcmp(command, "egbb_ply_limit_percent")) {
             SEARCHER::egbb_ply_limit_percent = atoi(commands[command_num]);
+            command_num++;
+        } else if(!strcmp(command, "nn_cache_size")) {
+            egbb_setting_changed = true;
+            SEARCHER::nn_cache_size = atoi(commands[command_num]);
             command_num++;
         } else if (!strcmp(command, "use_nn")) {
             if(!strcmp(commands[command_num],"on") ||
