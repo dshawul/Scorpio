@@ -66,21 +66,21 @@ Node* Node::allocate(int id) {
 }
 
 Node* Node::reclaim(Node* n,MOVE* except) {
+    static int id = 0;
     Node* current = n->child,*rn = 0;
-    int id;
     while(current) {
-        id = rand() % PROCESSOR::n_processors;
         if(except && (current->move == *except)) 
             rn = current;
         else if(!current->child) {
-            mem_[id].push_back(current);
+            mem_[id++].push_back(current);
+            if(id >= PROCESSOR::n_processors) id = 0;
             total_nodes--;
         } else 
             reclaim(current);
         current = current->next;
     }
-    id = rand() % PROCESSOR::n_processors;
-    mem_[id].push_back(n);
+    mem_[id++].push_back(n);
+    if(id >= PROCESSOR::n_processors) id = 0;
     total_nodes--;
     return rn;
 }
@@ -967,6 +967,7 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
                 break;
             }
         }
+        int st = get_time();
         if(found && reuse_tree) {
             MOVE move;
             for(j = i;j >= 0;--j) {
@@ -978,6 +979,8 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
             Node::reclaim(root);
             root = 0;
         }
+        int en = get_time();
+        print("# Reclaimed nodes in %dms\n",en-st);
 #if 1
         unsigned int tot = 0;
         for(int i = 0;i < PROCESSOR::n_processors;i++) {
