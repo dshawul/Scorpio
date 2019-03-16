@@ -1057,63 +1057,6 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
         }
     }
 #endif
-
-#ifndef NODES_PRIOR
-    /*alpha-beta prior*/
-    if(frac_abprior > 0) {
-
-        /*do ab search*/
-#ifdef PARALLEL
-        for(int i = PROCESSOR::n_cores;i < PROCESSOR::n_processors;i++)
-            processors[i]->state = PARK;
-#endif
-        montecarlo = 0;
-        use_nn = 0;
-
-        chess_clock.p_time *= frac_abprior;
-        chess_clock.inc *= frac_abprior;
-        chess_clock.set_stime(hply,false);
-        chess_clock.p_time /= frac_abprior;
-        chess_clock.inc /= frac_abprior;
-
-        start_time = get_time();
-
-        for(int d = 2; d < MAX_PLY - 1 ; d++) {
-            stop_searcher = 0;
-            search_depth = d;
-            evaluate_moves(d,-MATE_SCORE,MATE_SCORE);
-
-            int time_used = get_time() - start_time;
-            if(abort_search || time_used >= 0.75 * chess_clock.search_time)
-                break;
-        }
-
-        stop_searcher = 0;
-        abort_search = 0;
-        search_depth = MAX_PLY - 2;
-
-        use_nn = save_use_nn;
-        montecarlo = 1;
-#ifdef PARALLEL
-        for(int i = PROCESSOR::n_cores;i < PROCESSOR::n_processors;i++)
-            processors[i]->state = WAIT;
-#endif
-        
-        /*assign prior*/
-        Node* current = root->child;
-        while(current) {
-            for(int i = 0;i < pstack->count; i++) {
-                MOVE& move = pstack->move_st[i];
-                if(move == current->move) {
-                    current->prior = -pstack->score_st[i];
-                    current->rank = i + 1;
-                    break;
-                }
-            }
-            current = current->next;
-        }
-    }
-#endif
 }
 /*
 Generate all moves

@@ -1326,6 +1326,17 @@ MOVE SEARCHER::iterative_deepening() {
     pstack->extension = 0;
     pstack->reduction = 0;
 
+    /*easy move*/
+    if(!montecarlo && !use_nn
+        && pstack->score_st[0] > pstack->score_st[1] + 175
+        && chess_clock.is_timed()
+        ) {
+        easy = true;
+        easy_move = pstack->move_st[0];
+        easy_score = pstack->score_st[0];
+        chess_clock.search_time /= 4;
+    }
+
     /* manage tree*/
     if(montecarlo) {
 
@@ -1334,8 +1345,10 @@ MOVE SEARCHER::iterative_deepening() {
         root_node = root;
         Node::max_tree_depth = 0;
 
-#ifdef NODES_PRIOR
+        /*Alpha-beta prior */
         if(frac_abprior > 0) {
+
+#ifdef NODES_PRIOR
             /*nodes to prior*/
             UBMP64 maxn = 0;
             int maxni = 0;
@@ -1361,8 +1374,70 @@ MOVE SEARCHER::iterative_deepening() {
                 }
                 current = current->next;
             }
-        }
+#else
+            /*do ab search*/
+#ifdef PARALLEL
+            for(int i = PROCESSOR::n_cores;i < PROCESSOR::n_processors;i++)
+                processors[i]->state = PARK;
 #endif
+            montecarlo = 0;
+            use_nn = 0;
+
+            chess_clock.p_time *= frac_abprior;
+            chess_clock.inc *= frac_abprior;
+            chess_clock.set_stime(hply,false);
+            chess_clock.p_time /= frac_abprior;
+            chess_clock.inc /= frac_abprior;
+
+            start_time = get_time();
+
+            for(int d = 2; d < MAX_PLY - 1 ; d++) {
+                stop_searcher = 0;
+                search_depth = d;
+                evaluate_moves(d,-MATE_SCORE,MATE_SCORE);
+
+                int time_used = get_time() - start_time;
+                if(abort_search || time_used >= 0.75 * chess_clock.search_time)
+                    break;
+                if(!easy 
+                    && pstack->score_st[0] > pstack->score_st[1] + 175
+                    && chess_clock.is_timed()
+                    ) {
+                    easy = true;
+                    easy_move = pstack->move_st[0];
+                    easy_score = pstack->score_st[0];
+                } else if(easy && 
+                    (easy_move != pstack->pv[0] || pstack->score_st[0] <= easy_score - 60)) {
+                    easy = false;
+                }
+            }
+
+            stop_searcher = 0;
+            abort_search = 0;
+            search_depth = MAX_PLY - 2;
+
+            use_nn = save_use_nn;
+            montecarlo = 1;
+#ifdef PARALLEL
+            for(int i = PROCESSOR::n_cores;i < PROCESSOR::n_processors;i++)
+                processors[i]->state = WAIT;
+#endif
+            
+            /*assign prior*/
+            Node* current = root->child;
+            while(current) {
+                for(int i = 0;i < pstack->count; i++) {
+                    MOVE& move = pstack->move_st[i];
+                    if(move == current->move) {
+                        current->prior = -pstack->score_st[i];
+                        current->rank = i + 1;
+                        break;
+                    }
+                }
+                current = current->next;
+            }
+#endif
+        }
 
         /*rank nodes and reset bounds*/
         if(rollout_type == ALPHABETA) {
@@ -1382,22 +1457,11 @@ MOVE SEARCHER::iterative_deepening() {
         } else {
             chess_clock.set_stime(hply,false);
         }
+        if(easy) chess_clock.search_time /= 4;
     }
 
     start_time = get_time();
-
-    /*easy move*/
-    if(!montecarlo
-        && pstack->score_st[0] > pstack->score_st[1] + 175
-        && chess_clock.is_timed()
-        ) {
-        easy = true;
-        easy_move = pstack->move_st[0];
-        easy_score = pstack->score_st[0];
-        chess_clock.search_time /= 4;
-    }
    
-
     /*iterative deepening*/
     while(search_depth < chess_clock.max_sd) {
 
