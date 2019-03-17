@@ -27,7 +27,7 @@ typedef void (CDECL *PLOAD_EGBB) (char* path, int cache_size, int load_options);
 typedef void (CDECL *PLOAD_NN) (char* path, int nn_cache_size, int n_threads, 
     int n_devices, int dev_type, int delay, int float_type, int nn_type);
 typedef int (CDECL *PPROBE_NN) (int player, int cast, int fifty, int hist, int* draw,
-    int* piece, int* square, int* moves, int* probs, int nmoves, UBMP64 hash_key);
+    int* piece, int* square, int* moves, float* probs, int nmoves, UBMP64 hash_key);
 typedef void (CDECL *PSET_NUM_ACTIVE_SEARCHERS) (int n_searchers);
 
 static PPROBE_EGBB probe_egbb;
@@ -178,7 +178,7 @@ int SEARCHER::probe_neural(bool hard_probe) {
         }
         *s++ = SQ8864(from);
         *s++ = SQ8864(to); 
-        *s++ = m_promote(m); 
+        *s++ = m_promote(m);
     }
     *s++ = -1;
 
@@ -189,7 +189,7 @@ int SEARCHER::probe_neural(bool hard_probe) {
         fill_list(count,piece,square);
 
         return probe_nn(player,castle,fifty,hist,isdraw,piece,square,moves,
-            pstack->score_st,pstack->count,hkey);
+            (float*)pstack->score_st,pstack->count,hkey);
     } else {
 
         int piece[8*33],square[8*33],isdraw[8];
@@ -209,7 +209,7 @@ int SEARCHER::probe_neural(bool hard_probe) {
             PUSH_MOVE(hstack[hply].move);
 
         return probe_nn(player,castle,fifty,hist,isdraw,piece,square,moves,
-            pstack->score_st,pstack->count,hkey);
+            (float*)pstack->score_st,pstack->count,hkey);
     }
 #endif
     return 0;

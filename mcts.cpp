@@ -447,20 +447,23 @@ void SEARCHER::add_children(Node* n) {
         node->alpha = -MATE_SCORE;
         node->beta = MATE_SCORE;
         node->rank = i + 1;
-        node->policy = pstack->score_st[i] / 10000.0;
+        float* pp = (float*)&pstack->score_st[i];
+        node->policy = *pp;
+        node->prior = node->score;
         if(last == n) first = node;
         else last->next = node;
         last = node;
     }
 
     if(use_nullmove
-        && n->child
+        && rollout_type != MCTS
+        && first
         && ply > 0
         && !hstack[hply - 1].checks
         && piece_c[player]
         && hstack[hply - 1].move != 0
         ) {
-            add_null_child(n);
+        add_null_child(n);
     }
 
     n->child = first;
@@ -480,6 +483,7 @@ void SEARCHER::add_null_child(Node* n) {
     node->beta = MATE_SCORE;
     node->rank = 0;
     node->policy = 0;
+    node->prior = node->score;
     last->next = node;
 }
 void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
@@ -1109,7 +1113,8 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta, bool ski
                 for(int i = 0;i < pstack->count; i++) {
                     float p = logistic(pstack->score_st[i]);
                     p = exp(p * 10 / policy_temp);
-                    pstack->score_st[i] = 10000 * (p / total);
+                    float* pp = (float*)&pstack->score_st[i];
+                    *pp = p / total;
                 }
             }
         } else {
@@ -1117,17 +1122,17 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta, bool ski
 
             double total = 0.f, maxp = -100;
             for(int i = 0;i < pstack->count; i++) {
-                float p = pstack->score_st[i] / 10000.0;
-                if(p > maxp) maxp = p;
+                float* p = (float*)&pstack->score_st[i];
+                if(*p > maxp) maxp = *p;
             }
             for(int i = 0;i < pstack->count; i++) {
-                float p = pstack->score_st[i] / 10000.0;
-                total += exp( (p - maxp) / policy_temp );
+                float* p = (float*)&pstack->score_st[i];
+                total += exp( (*p - maxp) / policy_temp );
             }
             for(int i = 0;i < pstack->count; i++) {
-                float p = pstack->score_st[i] / 10000.0;
-                p = exp( (p - maxp) / policy_temp );
-                pstack->score_st[i] = 10000 * (p / total);
+                float* p = (float*)&pstack->score_st[i];
+                *p = exp( (*p - maxp) / policy_temp );
+                *p /= total;
             }
 
             for(int i = 0;i < pstack->count; i++)
