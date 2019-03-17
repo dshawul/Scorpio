@@ -1003,6 +1003,7 @@ global data
 extern const HASHKEY piece_hkey[14][64];
 extern const HASHKEY ep_hkey[8];
 extern const HASHKEY cast_hkey[16];
+extern const HASHKEY fifty_hkey[100];
 extern const int piece_cv[14];
 extern const int piece_see_v[14];
 extern const int pic_tab[14];

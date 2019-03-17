@@ -971,6 +971,7 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
                 break;
             }
         }
+
         int st = get_time();
         if(found && reuse_tree) {
             MOVE move;

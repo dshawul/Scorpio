@@ -163,7 +163,7 @@ int SEARCHER::probe_bitbases(int& score) {
 
 int SEARCHER::probe_neural(bool hard_probe) {
 #ifdef EGBB
-    const UBMP64 hkey = hard_probe ? 0 :
+    UBMP64 hkey = hard_probe ? 0 :
             ((player == white) ? hash_key : 
              (hash_key ^ UINT64(0x2bc3964f82352234)));
 
@@ -207,6 +207,12 @@ int SEARCHER::probe_neural(bool hard_probe) {
         count = phply - hply;
         for(int i = 0; i < count; i++)
             PUSH_MOVE(hstack[hply].move);
+
+        if(!hard_probe) {
+            if(isdraw[0])
+                hkey ^= UINT64(0xc7e9153edee38dcb);
+            hkey ^= fifty_hkey[fifty];
+        }
 
         return probe_nn(player,castle,fifty,hist,isdraw,piece,square,moves,
             (float*)pstack->score_st,pstack->count,hkey);
