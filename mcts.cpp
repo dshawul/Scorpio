@@ -891,7 +891,7 @@ void SEARCHER::search_mc() {
                         if(rollout_type == MCTS) {
                             extract_pv(root);
                             root_score = root->score;
-                            print_pv(root->score);
+                            print_pv(root_score);
                             search_depth++;
                         }
                     }
@@ -945,15 +945,18 @@ void SEARCHER::search_mc() {
 
         if(!failed)     
             print_pv(root_score);
-    } else if(is_selfplay) {
-        /*Random selection for self play*/
+    } else if(rollout_type == MCTS) {
+        /*Search is aborted, print last pv*/
         for (int j = ply; j > 0 ; j--) {
             MOVE move = hstack[hply - 1].move;
             if(move) POP_MOVE();
             else POP_NULL();
         }
-        if(hply <= 30)
-            extract_pv(root,true);
+        /*Random selection for self play*/
+        extract_pv(root,(is_selfplay && (hply <= 30)));
+        root_score = root->score;  
+        print_pv(root_score);
+        search_depth++;
     }
 }
 /*
