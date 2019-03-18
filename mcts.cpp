@@ -26,6 +26,8 @@ int rollout_type = ALPHABETA;
 bool freeze_tree = false;
 double frac_abprior = 0.3;
 
+static VOLATILE int n_terminal = 0;
+
 /*elo*/
 static const double Kfactor = -log(10.0) / 400.0;
 
@@ -149,7 +151,7 @@ void Node::reset_bounds(Node* n,int alpha,int beta) {
     n->beta = beta;
 }
 
-Node* Node::Max_UCB_select(Node* n, bool choose_nonbusy) {
+Node* Node::Max_UCB_select(Node* n) {
     double uct, bvalue = -10;
     double dCPUCT = cpuct_init + log((n->visits + cpuct_base + 1.0) / cpuct_base);
     double factor = dCPUCT * sqrt(double(n->visits));
@@ -192,10 +194,7 @@ Node* Node::Max_UCB_select(Node* n, bool choose_nonbusy) {
             }
 
             uct += current->policy * factor / (vst + 1);
-#ifdef PARALLEL
-            if(choose_nonbusy && current->get_busy())
-                uct -= 9;
-#endif
+
             if(uct > bvalue) {
                 bvalue = uct;
                 bnode = current;
@@ -351,7 +350,7 @@ float Node::Avg_score(Node* n) {
         current = current->next;
     }
     if(tvisits == 0) {
-        tvalue = logistic(n->child->score);
+        tvalue = logistic(-n->score);
         tvisits = 1;
     }
     return logit(tvalue / tvisits);
@@ -486,6 +485,15 @@ void SEARCHER::add_null_child(Node* n) {
     node->prior = node->score;
     last->next = node;
 }
+
+void SEARCHER::handle_terminal() {
+    if(rollout_type == MCTS &&
+        l_add(n_terminal,1) <= (PROCESSOR::n_processors >> 2) )
+        ;
+    else
+        probe_neural(true);
+}
+
 void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
 
     nodes++;
@@ -497,8 +505,6 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
 #if 0
     unsigned int nvisits = n->visits;
 #endif
-
-    bool choose_nonbusy = false;
 
     /*Terminal node*/
     if(ply) {
@@ -555,12 +561,9 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
                 create_children(n);
                 n->clear_create();
             } else {
-                /*Hack: fake eval. */
                 if(use_nn) {
-                    if(rollout_type == MCTS)
-                        visits = 0;
-                    else
-                        score = probe_neural(true);
+                    handle_terminal();
+                    visits = 0;
                 } else
                     score = n->score;
                 goto FINISH;
@@ -585,9 +588,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
 
 BACKUP_LEAF:
         Node::BackupLeaf(n,score);
-        /*Hack: fake eval. */
-        if(use_nn)
-            probe_neural(true);
+        handle_terminal();
 
     /*Has children*/
     } else {
@@ -603,7 +604,7 @@ SELECT:
             next = Node::Max_AB_select(n,-pstack->beta,-pstack->alpha,
                 try_null,search_by_rank);
         } else {
-            next = Node::Max_UCB_select(n, choose_nonbusy);
+            next = Node::Max_UCB_select(n);
         }
 
         /*This could happen in parallel search*/
@@ -661,31 +662,6 @@ RESEARCH:
             /*Simulate selected move*/
             play_simulation(next,score,visits);
 
-            /* Collision detected (i.e. visits = 0): 
-               Try another move. This almost completely avoids
-               the 6.5% collision rate without it. */
-            if(visits == 0 && !(stop_searcher || abort_search) ) {
-                if(choose_nonbusy) {
-                    /*do a fake probe at the root*/
-                    if(ply == 1) {
-                        visits = 1;
-                        next->inc_busy();
-                        score = probe_neural(true);
-                        next->update_visits(visits);
-                        next->dec_busy();
-                    /*undo and try again at previous ply*/
-                    } else {
-                        POP_MOVE();
-                        goto FINISH;
-                    }
-                    choose_nonbusy = false;
-                } else {
-                    POP_MOVE();
-                    choose_nonbusy = true;
-                    goto SELECT;
-                }
-            }
-
             score = -score;
             if(stop_searcher || abort_search)
                 goto FINISH;
@@ -724,6 +700,9 @@ RESEARCH:
 
             /*Undo move*/
             POP_MOVE();
+
+            if(visits == 0)
+                goto FINISH;
         } else {
             /*Make nullmove*/
             PUSH_NULL();
@@ -1123,6 +1102,7 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta, bool ski
             }
         } else {
             pstack->best_score = probe_neural();
+            n_terminal = 0;
 
             double total = 0.f, maxp = -100;
             for(int i = 0;i < pstack->count; i++) {
