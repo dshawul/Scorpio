@@ -156,7 +156,7 @@ Node* Node::Max_UCB_select(Node* n) {
     double dCPUCT = cpuct_init + log((n->visits + cpuct_base + 1.0) / cpuct_base);
     double factor = dCPUCT * sqrt(double(n->visits));
     Node* current, *bnode = 0;
-    unsigned vst;
+    unsigned vst, vvst = 0;
     bool has_ab = (n == SEARCHER::root_node && frac_abprior > 0);
 
     double tvp = 0.;
@@ -176,9 +176,12 @@ Node* Node::Max_UCB_select(Node* n) {
 
             vst = current->visits;
 #ifdef PARALLEL
-            vst += virtual_loss * current->get_busy();
+            vvst = virtual_loss * current->get_busy();
+            vst += vvst;
 #endif          
             uct = logistic(-current->score);
+            uct += (-uct * vvst) / (vst + 1);
+
             if(has_ab) {
                 double uctp = logistic(-current->prior);
                 uct = 0.5 * ((1 - frac_abprior) * uct + 
