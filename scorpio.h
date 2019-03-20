@@ -775,7 +775,7 @@ typedef struct SEARCHER{
     int probe_bitbases(int&);
     bool bitbase_cutoff();
     int probe_neural(bool=false);
-    void handle_terminal();
+    void handle_terminal(Node*,bool);
     static int egbb_is_loaded;
     static int egbb_load_type;
     static int egbb_depth_limit;

@@ -49,13 +49,13 @@ unsigned int Node::max_tree_depth = 0;
 Node* VOLATILE SEARCHER::root_node = 0;
 HASHKEY SEARCHER::root_key = 0;
 
-static const int MEM_INC = 1024;
-
 Node* Node::allocate(int id) {
+    static const int MEM_INC = 1024;
     Node* n;
     
     if(mem_[id].empty()) {
         n = new Node[MEM_INC];
+        mem_[id].reserve(MEM_INC);
         for(int i = 0;i < MEM_INC;i++)
             mem_[id].push_back(&n[i]);
     }
@@ -489,12 +489,33 @@ void SEARCHER::add_null_child(Node* n) {
     last->next = node;
 }
 
-void SEARCHER::handle_terminal() {
+void SEARCHER::handle_terminal(Node* n, bool is_terminal) {
+    /*wait until collision limit is reached*/
     if(rollout_type == MCTS &&
         l_add(n_terminal,1) <= (PROCESSOR::n_processors >> 2) )
         ;
-    else
+    else {
+        /*we are about to do a useless NN call for the sake of 
+        completing batch_size. Do something useful by moving to 
+        next ply instead, and cache result.*/
+        if(!is_terminal) {
+            gen_all_legal();
+            if(pstack->count > 0) {
+                int idx = n->get_busy() - 2;
+                if(idx >= pstack->count || idx < 0) idx = 0;
+                PUSH_MOVE(pstack->move_st[idx]);
+                gen_all_legal();
+                if(pstack->count > 0) {
+                    probe_neural(true);
+                    POP_MOVE();
+                    return;
+                }
+                POP_MOVE();
+            }
+        }
+        /*Do useless hard probe without caching*/
         probe_neural(true);
+    }
 }
 
 void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
@@ -565,7 +586,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
                 n->clear_create();
             } else {
                 if(use_nn) {
-                    handle_terminal();
+                    handle_terminal(n,false);
                     visits = 0;
                 } else
                     score = n->score;
@@ -591,7 +612,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
 
 BACKUP_LEAF:
         Node::BackupLeaf(n,score);
-        handle_terminal();
+        handle_terminal(n,true);
 
     /*Has children*/
     } else {
