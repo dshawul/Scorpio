@@ -1054,36 +1054,19 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
 /*
 Generate all moves
 */
-void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta, bool skip_eval) {
-    int legal_moves;
+void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta) {
 
     /*generate moves here*/
-    pstack->count = 0;
-    gen_all();
-    legal_moves = 0;
-    for(int i = 0;i < pstack->count; i++) {
-        pstack->current_move = pstack->move_st[i];
-        PUSH_MOVE(pstack->current_move);
-        if(attacks(player,plist[COMBINE(opponent,king)]->sq)) {
-            POP_MOVE();
-            continue;
-        }
-        POP_MOVE();
-        pstack->move_st[legal_moves] = pstack->current_move;
-        pstack->score_st[legal_moves] = (alpha + beta) / 2;
-        legal_moves++;
-    }
-    pstack->count = legal_moves;
+    gen_all_legal();
 
     /*compute move probabilities*/
-    if(legal_moves) {
+    if(pstack->count) {
         if(!use_nn) {
-            if(!skip_eval) {
-                bool save = skip_nn;
-                skip_nn = true;
-                evaluate_moves(depth,alpha,beta);
-                skip_nn = save;
-            }
+            bool save = skip_nn;
+            skip_nn = true;
+            evaluate_moves(depth,alpha,beta);
+            skip_nn = save;
+
             if(use_nn)
                 pstack->best_score = eval();
             else

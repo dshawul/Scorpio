@@ -646,6 +646,7 @@ typedef struct SEARCHER{
     void  gen_all();
     MOVE  get_move();
     MOVE  get_qmove();
+    void  gen_all_legal();
     int   draw() const;
     MOVE  find_best();
     MOVE  iterative_deepening();
@@ -690,7 +691,7 @@ typedef struct SEARCHER{
     int   get_root_search_score();
     int   get_search_score();
     void  evaluate_moves(int,int,int);
-    void  generate_and_score_moves(int,int,int,bool=false);
+    void  generate_and_score_moves(int,int,int);
     /*mcts stuff*/
     void  extract_pv(Node*,bool=false);
     void  create_children(Node*);

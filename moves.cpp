@@ -1658,6 +1658,29 @@ DO_AGAIN:
     pstack->current_index++;
     return pstack->current_move;
 }
+
+/*
+generate all legal moves here
+*/
+void SEARCHER::gen_all_legal() {
+    int legal_moves = 0;
+    pstack->count = 0;
+    gen_all();
+    for(int i = 0;i < pstack->count; i++) {
+        pstack->current_move = pstack->move_st[i];
+        do_move(pstack->current_move);
+        if(attacks(player,plist[COMBINE(opponent,king)]->sq)) {
+            undo_move();
+            continue;
+        }
+        undo_move();
+        pstack->move_st[legal_moves] = pstack->current_move;
+        pstack->score_st[legal_moves] = 0;
+        legal_moves++;
+    }
+    pstack->count = legal_moves;
+}
+
 /*
 * History and killers
 */

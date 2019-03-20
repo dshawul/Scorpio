@@ -319,17 +319,9 @@ void SEARCHER::print_game(int res, FILE* fw, const char* event,
     }
 }
 void SEARCHER::print_allmoves() {
-    pstack->count = 0;
-    gen_all();
+    gen_all_legal();
     for(int i = 0;i < pstack->count; i++) {
-        pstack->current_move = pstack->move_st[i];
-        do_move(pstack->current_move);
-        if(attacks(player,plist[COMBINE(opponent,king)]->sq)) {
-            undo_move();
-            continue;
-        }
-        undo_move();
-        print_move(pstack->current_move);
+        print_move(pstack->move_st[i]);
         print("\n");
     }
 }
@@ -1442,23 +1434,7 @@ MOVE SEARCHER::get_book_move() {
 }
 
 void SEARCHER::show_book_moves() {
-    int legal_moves = 0;
-    pstack->count = 0;
-    gen_all();
-    for(int i = 0;i < pstack->count; i++) {
-        pstack->current_move = pstack->move_st[i];
-        PUSH_MOVE(pstack->current_move);
-        if(attacks(player,plist[COMBINE(opponent,king)]->sq)) {
-            POP_MOVE();
-            continue;
-        }
-        POP_MOVE();
-        pstack->move_st[legal_moves] = pstack->current_move;
-        pstack->score_st[legal_moves] = 0;
-        legal_moves++;
-    }
-    pstack->count = legal_moves;
-
+    gen_all_legal();
     get_book_move();
 }
 
