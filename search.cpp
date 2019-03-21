@@ -1345,6 +1345,10 @@ MOVE SEARCHER::iterative_deepening() {
         root_node = root;
         Node::max_tree_depth = 0;
 
+        /*Take out so far spent time in the last move*/
+        if(chess_clock.maximum_time <= 2 * chess_clock.search_time)
+            chess_clock.p_time -= (get_time() - start_time);
+
         /*Alpha-beta prior */
         if(frac_abprior > 0) {
 

@@ -582,7 +582,8 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
         } else {
 
             if(n->try_create()) {
-                create_children(n);
+                if(!n->child)
+                    create_children(n);
                 n->clear_create();
             } else {
                 if(use_nn) {
