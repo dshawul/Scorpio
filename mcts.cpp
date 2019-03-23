@@ -67,24 +67,43 @@ Node* Node::allocate(int id) {
     return n;
 }
 
-Node* Node::reclaim(Node* n,MOVE* except) {
-    static int id = 0;
-    Node* current = n->child,*rn = 0;
+void Node::reclaim(Node* n, int id) {
+    Node* current = n->child;
     while(current) {
-        if(except && (current->move == *except)) 
-            rn = current;
-        else if(!current->child) {
-            mem_[id++].push_back(current);
-            if(id >= PROCESSOR::n_processors) id = 0;
-            total_nodes--;
+        if(!current->child) {
+            mem_[id].push_back(current);
+            l_add(total_nodes,-1);
         } else 
-            reclaim(current);
+            reclaim(current,id);
         current = current->next;
     }
-    mem_[id++].push_back(n);
-    if(id >= PROCESSOR::n_processors) id = 0;
-    total_nodes--;
-    return rn;
+    mem_[id].push_back(n);
+    l_add(total_nodes,-1);
+}
+
+void Node::split(Node* n, std::vector<Node*>* pn, const int S, int& T) {
+    static int id = 0;
+    Node* current = n->child, *prev = 0;
+    while(current) {
+        if(current->visits <= (unsigned)S || !current->child) {
+            pn[id].push_back(current);
+
+            T += current->visits;
+            if(T >= S) {
+                T = 0;
+                if(++id >= PROCESSOR::n_processors) id = 0;
+            }
+
+            if(current == n->child)
+                n->child = current->next;
+            else 
+                prev->next = current->next;
+        } else {
+            split(current,pn,S,T);
+            prev = current;
+        }
+        current = current->next;
+    }
 }
 
 void Node::rank_children(Node* n) {
@@ -964,12 +983,57 @@ void SEARCHER::search_mc() {
     }
 }
 /*
+Reclaim nodes in parallel
+*/
+static std::vector<Node*> gc[MAX_CPUS];
+static VOLATILE int gc_count = 0;
+static void CDECL gc_thread_proc(void* tid_) {
+    int* tid = (int*)tid_;
+    for(int proc_id = tid[0]; proc_id < tid[1]; proc_id++)
+        for(unsigned int i = 0; i < gc[proc_id].size(); i++)
+            Node::reclaim(gc[proc_id][i],proc_id);
+    l_add(gc_count,1);
+}
+
+static void parallel_reclaim(Node* n) {
+    int ncores = PROCESSOR::n_cores;
+    int nprocs = PROCESSOR::n_processors;
+    int T = 0, S = n->visits / (8 * nprocs),
+                 V = nprocs / ncores;
+
+    Node::split(n, gc, S, T);
+
+    int* tid = new int[2 * ncores];
+    gc_count = 0;
+    for(int i = 0; i < ncores; i++) {
+        tid[2*i] = i * V;
+        tid[2*i+1] = (i == ncores - 1) ? nprocs : ((i + 1) * V); 
+        t_create(gc_thread_proc,&tid[2*i]);
+    }
+    while(gc_count < ncores)
+        t_sleep(1);
+    delete[] tid;
+
+    Node::reclaim(n,0);
+
+    for(int i = 0; i < nprocs;i++)
+        gc[i].clear();
+}
+/*
 Manage search tree
 */
 void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
-    /*find root node*/
     if(root) {
-        int i = 0,j;
+
+#ifdef PARALLEL
+        for(int i = 1;i < PROCESSOR::n_processors;i++)
+            processors[i]->state = PARK;
+#endif
+
+        unsigned int s_total_nodes = Node::total_nodes;
+
+        /*find root node*/
+        int i = 0;
         bool found = false;
         for( ;i < 8 && hply >= i + 1; i++) {
             if(hply >= (i + 1) && 
@@ -978,22 +1042,56 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
                 break;
             }
         }
-
+        
+        /*Recycle nodes in parallel*/
         int st = get_time();
+
         if(found && reuse_tree) {
             MOVE move;
-            for(j = i;j >= 0;--j) {
+
+            Node* oroot = root, *new_root = 0;
+            for(int j = i; j >= 0; --j) {
                 move = hstack[hply - 1 - j].move;
-                root = Node::reclaim(root,&move);
-                if(!root) break;
+
+                Node* current = root->child, *prev = 0;
+                while(current) {
+                    if(current->move == move) {
+                        if(j == 0) {
+                            new_root = current;
+                            if(current == root->child)
+                                root->child = current->next;
+                            else
+                                prev->next = current->next;
+                            current->next = 0;
+                        }
+                        root = current;
+                        break;
+                    }
+                    prev = current;
+                    current = current->next;
+                }
+                if(!current) break;
             }
+
+            parallel_reclaim(oroot);
+            if(new_root) 
+                root = new_root;
+            else
+                root = 0;
         } else {
-            Node::reclaim(root);
+            parallel_reclaim(root);
             root = 0;
         }
+
         int en = get_time();
-        print("# Reclaimed nodes in %dms\n",en-st);
-#if 1
+        print("# Reclaimed %d nodes in %dms\n",(s_total_nodes - Node::total_nodes), en-st);
+
+#ifdef PARALLEL
+        for(int i = 1;i < PROCESSOR::n_processors;i++)
+            processors[i]->state = WAIT;
+#endif
+
+        /*print mem stat*/
         unsigned int tot = 0;
         for(int i = 0;i < PROCESSOR::n_processors;i++) {
 #if 0
@@ -1007,8 +1105,8 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
             double((Node::total_nodes+tot) * sizeof(Node)) / (1024 * 1024),
             double(Node::max_tree_nodes * sizeof(Node)) / (1024 * 1024)
             );
-#endif
     }
+
     if(!root) {
         print_log("# [Tree-not-found]\n");
         root = Node::allocate(processor_id);
@@ -1023,7 +1121,7 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
             current = current->next;
             if(current && current->move == 0) {
                 prev->next = current->next;
-                Node::reclaim(current);
+                Node::reclaim(current,0);
             }
         }
     }
@@ -1045,7 +1143,6 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
         use_nn = 0;
     }
 
-#if 1
     /*Dirchilet noise*/
     if(is_selfplay && hply <= 30) {
         const float alpha = 0.3, beta = 1.0, frac = 0.25;
@@ -1071,7 +1168,6 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
             index++;
         }
     }
-#endif
 }
 /*
 Generate all moves
