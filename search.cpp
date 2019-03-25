@@ -1228,7 +1228,7 @@ void SEARCHER::evaluate_moves(int depth, int alpha, int beta) {
             score = -pstack->best_score;
             pstack->pv_length = ply;
         } else {
-            int newd = (depth > 3) ? (depth - MIN(i, depth - 3)) : MAX(1, depth - i);
+            int newd = (depth > 3) ? (depth - MIN(i, depth - 3)) : MAX(0, depth - i);
             score = (pstack-1)->score_st[i];
             if(ply == 1 && newd >= 3) {
                 alpha = score - WINDOW;
@@ -1278,13 +1278,11 @@ TOP:
         if(!ply && abort_search)
             break;
 
-#if 1
         if(!ply && depth >= 10 && score > bscore) {
             UPDATE_PV(pstack->current_move);
             print_pv(score);
             bscore = score;
         }
-#endif
 
         pstack->score_st[i] = score;
     }

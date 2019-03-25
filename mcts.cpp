@@ -484,18 +484,13 @@ void SEARCHER::add_children(Node* n) {
         && piece_c[player]
         && hstack[hply - 1].move != 0
         ) {
-        add_null_child(n);
+        add_null_child(n,last);
     }
 
     n->child = first;
 }
 
-void SEARCHER::add_null_child(Node* n) {
-    Node* current = n->child, *last = 0;
-    while(current) {
-        last = current;
-        current = current->next;
-    }
+void SEARCHER::add_null_child(Node* n, Node* last) {
     Node* node = Node::allocate(processor_id);
     node->move = 0;
     node->score = -n->score;
@@ -632,7 +627,8 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
 
 BACKUP_LEAF:
         Node::BackupLeaf(n,score);
-        handle_terminal(n,true);
+        if(use_nn)
+            handle_terminal(n,true);
 
     /*Has children*/
     } else {
@@ -1140,7 +1136,6 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
         search_depth = MAX_PLY - 2;
     } else {
         rollout_type = ALPHABETA;
-        use_nn = 0;
     }
 
     /*Dirchilet noise*/
@@ -1185,10 +1180,7 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta) {
             evaluate_moves(depth,alpha,beta);
             skip_nn = save;
 
-            if(use_nn)
-                pstack->best_score = eval();
-            else
-                pstack->best_score = pstack->score_st[0];
+            pstack->best_score = pstack->score_st[0];
 
             if(montecarlo) {
                 double total = 0.f;
