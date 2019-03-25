@@ -1347,10 +1347,38 @@ MOVE SEARCHER::iterative_deepening() {
         if(chess_clock.maximum_time <= 2 * chess_clock.search_time)
             chess_clock.p_time -= (get_time() - start_time);
 
-        /*Alpha-beta prior */
+        /*Alpha-beta prior search */
         if(frac_abprior > 0) {
 
+#ifdef PARALLEL
+        for(int i = PROCESSOR::n_cores;i < PROCESSOR::n_processors;i++)
+            processors[i]->state = PARK;
+#endif
+
 #ifdef NODES_PRIOR
+            /*do ab search*/
+            montecarlo = 0;
+            use_nn = 0;
+
+            chess_clock.p_time *= frac_abprior;
+            chess_clock.inc *= frac_abprior;
+
+            iterative_deepening();
+
+            chess_clock.p_time /= frac_abprior;
+            chess_clock.inc /= frac_abprior;
+
+            stop_searcher = 0;
+            abort_search = 0;
+            montecarlo = 1;
+            use_nn = save_use_nn;
+            search_depth = MAX_PLY - 2;
+
+            while(ply > 0) {
+                if(hstack[hply - 1].move) POP_MOVE();
+                else POP_NULL();
+            }
+
             /*nodes to prior*/
             UBMP64 maxn = 0;
             int maxni = 0;
@@ -1378,10 +1406,6 @@ MOVE SEARCHER::iterative_deepening() {
             }
 #else
             /*do ab search*/
-#ifdef PARALLEL
-            for(int i = PROCESSOR::n_cores;i < PROCESSOR::n_processors;i++)
-                processors[i]->state = PARK;
-#endif
             montecarlo = 0;
             use_nn = 0;
 
@@ -1416,15 +1440,15 @@ MOVE SEARCHER::iterative_deepening() {
 
             stop_searcher = 0;
             abort_search = 0;
-            search_depth = MAX_PLY - 2;
-
             use_nn = save_use_nn;
             montecarlo = 1;
-#ifdef PARALLEL
-            for(int i = PROCESSOR::n_cores;i < PROCESSOR::n_processors;i++)
-                processors[i]->state = WAIT;
-#endif
-            
+            search_depth = MAX_PLY - 2;
+
+            while(ply > 0) {
+                if(hstack[hply - 1].move) POP_MOVE();
+                else POP_NULL();
+            }
+
             /*assign prior*/
             Node* current = root->child;
             while(current) {
@@ -1438,6 +1462,11 @@ MOVE SEARCHER::iterative_deepening() {
                 }
                 current = current->next;
             }
+#endif
+
+#ifdef PARALLEL
+            for(int i = PROCESSOR::n_cores;i < PROCESSOR::n_processors;i++)
+                processors[i]->state = WAIT;
 #endif
         }
 
@@ -1786,68 +1815,25 @@ MOVE SEARCHER::find_best() {
     stack[0].pv[0] = pstack->move_st[0];
 
     /*
-    preliminary search
+    Iterative deepening
     */
 
     MOVE bmove = 0;
 
-#ifdef NODES_PRIOR
-    if(montecarlo && frac_abprior > 0) {
-        montecarlo = 0;
-        use_nn = 0;
+#ifdef PARALLEL
+    /*wakeup threads*/
+    for(int i = 1;i < PROCESSOR::n_processors;i++)
+        processors[i]->state = WAIT;
+#endif
+
+    bmove = iterative_deepening();
 
 #ifdef PARALLEL
-        for(int i = 1;i < PROCESSOR::n_cores;i++)
-            processors[i]->state = WAIT;
+    /*park threads*/
+    for(int i = 1;i < PROCESSOR::n_processors;i++)
+        processors[i]->state = PARK;
 #endif
 
-        chess_clock.p_time *= frac_abprior;
-        chess_clock.inc *= frac_abprior;
-
-        bmove = iterative_deepening();
-
-        chess_clock.p_time /= frac_abprior;
-        chess_clock.inc /= frac_abprior;
-
-#ifdef PARALLEL
-        for(int i = 1;i < PROCESSOR::n_cores;i++)
-            processors[i]->state = PARK;
-#endif
-
-        montecarlo = 1;
-        use_nn = save_use_nn;
-
-        stop_searcher = 0;
-        abort_search = 0;
-        while(ply > 0) {
-            if(hstack[hply - 1].move) POP_MOVE();
-            else POP_NULL();
-        }
-    }
-
-    /* 
-    primary search 
-    */
-    if(!montecarlo || frac_abprior < 1) {
-#endif
-
-#ifdef PARALLEL
-        /*wakeup threads*/
-        for(int i = 1;i < PROCESSOR::n_processors;i++)
-            processors[i]->state = WAIT;
-#endif
-
-        bmove = iterative_deepening();
-
-#ifdef PARALLEL
-        /*park threads*/
-        for(int i = 1;i < PROCESSOR::n_processors;i++)
-            processors[i]->state = PARK;
-#endif
-
-#ifdef NODES_PRIOR
-    }
-#endif
     /*
     park hosts
     */
