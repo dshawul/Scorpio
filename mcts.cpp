@@ -70,40 +70,16 @@ Node* Node::allocate(int id) {
 void Node::reclaim(Node* n, int id) {
     Node* current = n->child;
     while(current) {
-        if(!current->child) {
+        if(current->is_dead());
+        else if(!current->child) {
             mem_[id].push_back(current);
             l_add(total_nodes,-1);
-        } else 
+        } else
             reclaim(current,id);
         current = current->next;
     }
     mem_[id].push_back(n);
     l_add(total_nodes,-1);
-}
-
-void Node::split(Node* n, std::vector<Node*>* pn, const int S, int& T) {
-    static int id = 0;
-    Node* current = n->child, *prev = 0;
-    while(current) {
-        if(current->visits <= (unsigned)S || !current->child) {
-            pn[id].push_back(current);
-
-            T += current->visits;
-            if(T >= S) {
-                T = 0;
-                if(++id >= PROCESSOR::n_processors) id = 0;
-            }
-
-            if(current == n->child)
-                n->child = current->next;
-            else 
-                prev->next = current->next;
-        } else {
-            split(current,pn,S,T);
-            prev = current;
-        }
-        current = current->next;
-    }
 }
 
 void Node::rank_children(Node* n) {
@@ -114,7 +90,8 @@ void Node::rank_children(Node* n) {
 
     while(current) {
         /*rank subtree first*/
-        rank_children(current);
+        if(!current->is_dead())
+            rank_children(current);
 
         /*rank current node*/
         if(current->move) {
@@ -158,16 +135,37 @@ void Node::rank_children(Node* n) {
         best->rank = 1;
 }
 
-void Node::reset_bounds(Node* n,int alpha,int beta) {
+void Node::reset_bounds(Node* n) {
     Node* current = n->child;
     while(current) {
-        reset_bounds(current,-beta,-alpha);
+        current->alpha = -n->beta;
+        current->beta = -n->alpha;
+        if(!current->is_dead())
+            reset_bounds(current);
         current->flag = 0;
         current->busy = 0;
         current = current->next;
     }
-    n->alpha = alpha;
-    n->beta = beta;
+}
+
+void Node::split(Node* n, std::vector<Node*>* pn, const int S, int& T) {
+    static int id = 0;
+    Node* current = n->child;
+    while(current) {
+        if(current->visits <= (unsigned)S || !current->child) {
+            pn[id].push_back(current);
+            current->set_dead();
+
+            T += current->visits;
+            if(T >= S) {
+                T = 0;
+                if(++id >= PROCESSOR::n_processors) id = 0;
+            }
+        } else {
+            split(current,pn,S,T);
+        }
+        current = current->next;
+    }
 }
 
 Node* Node::Max_UCB_select(Node* n) {
@@ -730,7 +728,9 @@ RESEARCH:
                     if(next->try_failed_scout()) {
                         try_scout = false;
                         next_node_t = PV_NODE;
-                        Node::reset_bounds(next,alphac,betac);
+                        next->alpha = alphac;
+                        next->beta = betac;
+                        Node::reset_bounds(next);
                         goto RESEARCH;
                     } else {
                         next->set_bounds(alphac,betac);
@@ -979,52 +979,107 @@ void SEARCHER::search_mc() {
     }
 }
 /*
-Reclaim nodes in parallel
+Traverse tree in parallel
 */
 static std::vector<Node*> gc[MAX_CPUS];
 static VOLATILE int gc_count = 0;
+
 static void CDECL gc_thread_proc(void* tid_) {
     int* tid = (int*)tid_;
-    for(int proc_id = tid[0]; proc_id < tid[1]; proc_id++)
-        for(unsigned int i = 0; i < gc[proc_id].size(); i++)
+    for(int proc_id = tid[0]; proc_id < tid[1]; proc_id++) {
+        for(unsigned int i = 0; i < gc[proc_id].size(); i++) {
             Node::reclaim(gc[proc_id][i],proc_id);
+        }
+    }
+    l_add(gc_count,1);
+}
+static void CDECL rank_reset_thread_proc(void* tid_) {
+    int* tid = (int*)tid_;
+    for(int proc_id = tid[0]; proc_id < tid[1]; proc_id++) {
+        for(unsigned int i = 0; i < gc[proc_id].size(); i++) {
+            Node::rank_children(gc[proc_id][i]);
+            Node::reset_bounds(gc[proc_id][i]);
+        }
+    }
     l_add(gc_count,1);
 }
 
-static void parallel_reclaim(Node* n) {
+void Node::parallel_reclaim(Node* n) {
     int ncores = PROCESSOR::n_cores;
     int nprocs = PROCESSOR::n_processors;
     int T = 0, S = n->visits / (8 * nprocs),
                  V = nprocs / ncores;
 
+#ifdef PARALLEL
+    for(int i = 1;i < PROCESSOR::n_processors;i++)
+        processors[i]->state = PARK;
+#endif
+
     Node::split(n, gc, S, T);
+
+    gc[0].push_back(n);
 
     int* tid = new int[2 * ncores];
     gc_count = 0;
     for(int i = 0; i < ncores; i++) {
-        tid[2*i] = i * V;
-        tid[2*i+1] = (i == ncores - 1) ? nprocs : ((i + 1) * V); 
+        tid[2*i+0] = i * V;
+        tid[2*i+1] = (i == ncores - 1) ? nprocs : ((i + 1) * V);
         t_create(gc_thread_proc,&tid[2*i]);
     }
     while(gc_count < ncores)
         t_sleep(1);
     delete[] tid;
 
-    Node::reclaim(n,0);
+    for(int i = 0; i < nprocs;i++)
+        gc[i].clear();
+
+#ifdef PARALLEL
+    for(int i = 1;i < PROCESSOR::n_processors;i++)
+        processors[i]->state = WAIT;
+#endif
+
+}
+void Node::parallel_rank_reset(Node* n) {
+    int ncores = PROCESSOR::n_cores;
+    int nprocs = PROCESSOR::n_processors;
+    int T = 0, S = n->visits / (8 * nprocs),
+                 V = nprocs / ncores;
+
+#ifdef PARALLEL
+ for(int i = 1;i < PROCESSOR::n_processors;i++)
+     processors[i]->state = PARK;
+#endif
+
+    Node::split(n, gc, S, T);
+
+    Node::rank_children(n);
+    Node::reset_bounds(n);
+
+    int* tid = new int[2 * ncores];
+    gc_count = 0;
+    for(int i = 0; i < ncores; i++) {
+        tid[2*i+0] = i * V;
+        tid[2*i+1] = (i == ncores - 1) ? nprocs : ((i + 1) * V);
+        t_create(rank_reset_thread_proc,&tid[2*i]);
+    }
+
+    while(gc_count < ncores)
+        t_sleep(1);
+    delete[] tid;
 
     for(int i = 0; i < nprocs;i++)
         gc[i].clear();
+
+#ifdef PARALLEL
+    for(int i = 1;i < PROCESSOR::n_processors;i++)
+        processors[i]->state = WAIT;
+#endif
 }
 /*
 Manage search tree
 */
 void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
     if(root) {
-
-#ifdef PARALLEL
-        for(int i = 1;i < PROCESSOR::n_processors;i++)
-            processors[i]->state = PARK;
-#endif
 
         unsigned int s_total_nodes = Node::total_nodes;
 
@@ -1069,23 +1124,19 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
                 if(!current) break;
             }
 
-            parallel_reclaim(oroot);
+            Node::parallel_reclaim(oroot);
             if(new_root) 
                 root = new_root;
             else
                 root = 0;
         } else {
-            parallel_reclaim(root);
+            Node::parallel_reclaim(root);
             root = 0;
         }
 
         int en = get_time();
         print("# Reclaimed %d nodes in %dms\n",(s_total_nodes - Node::total_nodes), en-st);
 
-#ifdef PARALLEL
-        for(int i = 1;i < PROCESSOR::n_processors;i++)
-            processors[i]->state = WAIT;
-#endif
 
         /*print mem stat*/
         unsigned int tot = 0;

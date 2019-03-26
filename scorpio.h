@@ -383,7 +383,7 @@ struct Node {
     
     /*accessors*/
     enum {
-        SCOUTF = 1, PVMOVE = 2, CREATE = 4
+        SCOUTF = 1, PVMOVE = 2, CREATE = 4, DEAD = 8
     };
     
     void inc_busy() { l_add16(busy,1); }
@@ -393,6 +393,10 @@ struct Node {
     void set_pvmove() { l_or8(flag,PVMOVE); }
     void clear_pvmove() { l_and8(flag,~PVMOVE); }
     bool is_pvmove() { return (flag & PVMOVE); }
+
+    void set_dead() { l_or8(flag,DEAD); }
+    void clear_dead() { l_and8(flag,~DEAD); }
+    bool is_dead() { return (flag & DEAD); }
 
     bool try_failed_scout() { return !(l_or8(flag,SCOUTF) & SCOUTF); }
     void clear_failed_scout() { l_and8(flag,~SCOUTF); }
@@ -427,10 +431,12 @@ struct Node {
     static unsigned int max_tree_depth;
     static std::vector<Node*> mem_[MAX_CPUS];
     static Node* allocate(int);
-    static void  reclaim(Node*,int);
     static void  split(Node*, std::vector<Node*>*, const int, int&);
+    static void  reclaim(Node*,int);
     static void  rank_children(Node*);
-    static void  reset_bounds(Node*,int,int);
+    static void  reset_bounds(Node*);
+    static void  parallel_reclaim(Node*);
+    static void  parallel_rank_reset(Node*);
     static Node* print_tree(Node*,int,int = 0,int = 0);
     static Node* Max_UCB_select(Node*);
     static Node* Max_AB_select(Node*,int,int,bool,bool);

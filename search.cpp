@@ -1472,8 +1472,9 @@ MOVE SEARCHER::iterative_deepening() {
 
         /*rank nodes and reset bounds*/
         if(rollout_type == ALPHABETA) {
-            Node::rank_children(root_node);
-            Node::reset_bounds(root_node,alpha,beta);
+            root_node->alpha = alpha;
+            root_node->beta = beta;
+            Node::parallel_rank_reset(root_node);
         }
     }
 
@@ -1565,7 +1566,7 @@ MOVE SEARCHER::iterative_deepening() {
 #endif
         
         /*aspiration search*/
-        if(!use_aspiration || 
+        if(true || !use_aspiration || 
             ABS(score) >= 1000 || 
             search_depth <= 3
             ) {
@@ -1660,8 +1661,9 @@ MOVE SEARCHER::iterative_deepening() {
             }
             /*rank children*/
             if(rollout_type == ALPHABETA) {
-                Node::rank_children(root_node);
-                Node::reset_bounds(root_node,alpha,beta);
+                root_node->alpha = alpha;
+                root_node->beta = beta;
+                Node::parallel_rank_reset(root_node);
             }
         }
 
