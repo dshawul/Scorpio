@@ -2,21 +2,20 @@
 #include "scorpio.h"
 
 /*mcts parameters*/
-static double  cpuct_init = 1.25;
+static double  cpuct_init = 1.5;
 static unsigned int  cpuct_base = 19652;
 static double  policy_temp = 2.0;
-static double  fpu_red = 0.2;
+static double  fpu_red = 0.6;
 static int fpu_is_loss = 1;
 static int  reuse_tree = 1;
-static int  backup_type = MINMAX;
-static double frac_alphabeta = 1.0; 
-static double frac_freeze_tree = 0.3;
+static int  backup_type = MIX_VISIT;
+static double frac_alphabeta = 0.0; 
+static double frac_freeze_tree = 1.0;
 static double frac_abrollouts = 0.2;
 static int  mcts_strategy_depth = 30;
 static int  alphabeta_depth = 1;
 static int  evaluate_depth = 0;
-static double  frac_width = 1.0;
-static int virtual_loss = 3;
+static int virtual_loss = 1;
 static unsigned int visit_threshold = 800;
 static std::random_device rd;
 static std::mt19937 mtgen(rd());
@@ -376,7 +375,6 @@ float Node::Avg_score(Node* n) {
     return logit(tvalue / tvisits);
 }
 float Node::Avg_score_mem(Node* n, double score, int visits) {
-    if(n->visits == 0) return score;
     double sc = logistic(n->score);
     double sc1 = logistic(score);
     sc += (sc1 - sc) * visits / (n->visits + visits);
@@ -1297,8 +1295,6 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         frac_abrollouts = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "frac_abprior")) {
         frac_abprior = atoi(commands[command_num++]) / 100.0;
-    } else if(!strcmp(command, "frac_width")) {
-        frac_width = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "mcts_strategy_depth")) {
         mcts_strategy_depth = atoi(commands[command_num++]);
     } else if(!strcmp(command, "alphabeta_depth")) {
@@ -1334,7 +1330,6 @@ void print_mcts_params() {
     print("feature option=\"frac_freeze_tree -spin %d 0 100\"\n",int(frac_freeze_tree*100));
     print("feature option=\"frac_abrollouts -spin %d 0 100\"\n",int(frac_abrollouts*100));
     print("feature option=\"frac_abprior -spin %d 0 100\"\n",int(frac_abprior*100));
-    print("feature option=\"frac_width -spin %d 0 1000\"\n",int(frac_width*100));
     print("feature option=\"mcts_strategy_depth -spin %d 0 100\"\n",mcts_strategy_depth);
     print("feature option=\"alphabeta_depth -spin %d 1 100\"\n",alphabeta_depth);
     print("feature option=\"evaluate_depth -spin %d -4 100\"\n",evaluate_depth);
