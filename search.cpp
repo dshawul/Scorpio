@@ -1319,6 +1319,7 @@ MOVE SEARCHER::iterative_deepening() {
     alpha = -MATE_SCORE; 
     beta = MATE_SCORE;
     root_failed_low = 0;
+    root_unstable = 0;
     pstack->node_type = PV_NODE;
     pstack->search_state = NORMAL_MOVE;
     pstack->extension = 0;
@@ -1527,7 +1528,7 @@ MOVE SEARCHER::iterative_deepening() {
         score = pstack->best_score;
 
         /*fail low at root*/
-        if(root_failed_low && score > alpha) {
+        if(!montecarlo && root_failed_low && score > alpha) {
             root_failed_low--;
             if(root_failed_low && prev_root_score - root_score < 50) 
                 root_failed_low--;
@@ -1767,7 +1768,6 @@ MOVE SEARCHER::find_best() {
     nnecalls = 0;
     splits = 0;
     bad_splits = 0;
-    root_failed_low = 0;
     search_calls = 0;
     qsearch_calls = 0;
     egbb_probes = 0;

@@ -670,6 +670,7 @@ typedef struct SEARCHER{
     void  print_pv(int);
     int   print_result(bool);
     void  check_quit();
+    void  check_mcts_quit();
     int   eval(bool = false);
     void  eval_pawn_cover(int,int,UBMP8*,UBMP8*);
     SCORE eval_pawns(int,int,UBMP8*,UBMP8*);
@@ -760,6 +761,7 @@ typedef struct SEARCHER{
     static int pv_print_style;
     static int root_score;
     static int root_failed_low;
+    static int root_unstable;
     static int last_book_move;
     static int first_search;
     static int analysis_mode;

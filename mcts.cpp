@@ -193,22 +193,21 @@ Node* Node::Max_UCB_select(Node* n) {
             vst = current->visits;
 #ifdef PARALLEL
             vvst = virtual_loss * current->get_busy();
-            vst += vvst;
-#endif          
-            uct = logistic(-current->score);
-            uct += (-uct * vvst) / (vst + 1);
+            vst += vvst;  
+#endif
+            if(!current->visits && fpu_is_loss) {
+                uct = 0;
+            } else {
+                uct = logistic(-current->score);
+                uct += (-uct * vvst) / (vst + 1);
 
-            if(has_ab) {
-                double uctp = logistic(-current->prior);
-                uct = 0.5 * ((1 - frac_abprior) * uct + 
-                            frac_abprior * uctp + 
-                            MIN(uct,uctp));
-            }
-
-            if(!current->visits) {
-                if(fpu_is_loss)
-                    uct = 0;
-                else
+                if(has_ab) {
+                    double uctp = logistic(-current->prior);
+                    uct = 0.5 * ((1 - frac_abprior) * uct + 
+                                frac_abprior * uctp + 
+                                MIN(uct,uctp));
+                }
+                if(!current->visits)
                     uct -= tvp;
             }
 
@@ -802,6 +801,43 @@ FINISH:
     n->dec_busy();
 }
 
+void SEARCHER::check_mcts_quit() {
+    unsigned int max_visits[2] = {0};
+    Node* current = root_node->child;
+    Node* bnval = current, *bnvis = current;
+    while(current) {
+        if(current->visits > max_visits[0]) {
+            max_visits[1] = max_visits[0];
+            max_visits[0] = current->visits;
+        } else if(current->visits > max_visits[1]) {
+            max_visits[1] = current->visits;
+        }
+        if(current->visits > 0) {
+            if(-current->score > -bnval->score)
+                bnval = current;
+            if(current->visits > bnvis->visits)
+                bnvis = current;
+        }
+        current = current->next;
+    }
+
+    bool in_trouble = (root_node->score <= -30);
+    int time_used = MAX(1,get_time() - start_time);
+    int remain_time = (in_trouble ? 1.3 * chess_clock.search_time : 
+                    chess_clock.search_time) - time_used;
+    unsigned int remain_visits = (remain_time * root_node->visits) / time_used;
+
+    if(bnval == bnvis) {
+        if(max_visits[0] - max_visits[1] >= remain_visits)
+            abort_search = 1;
+        root_unstable = 0;
+        if(in_trouble)
+            root_unstable = 1;
+    } else {
+        root_unstable = 1;
+    }
+}
+
 void SEARCHER::search_mc() {
     Node* root = root_node;
     double pfrac = 0,score;
@@ -896,6 +932,7 @@ void SEARCHER::search_mc() {
                 if(root->visits - ovisits >= visits_poll) {
                     ovisits = root->visits;
                     check_quit();
+                    check_mcts_quit();
 
                     double frac = 1;
                     if(chess_clock.max_visits != MAX_NUMBER)

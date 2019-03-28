@@ -1273,6 +1273,10 @@ void SEARCHER::check_quit() {
     if(root_failed_low)
         return;
 
+    /*root unstable*/
+    if(root_unstable && time_used < 1.3 * chess_clock.search_time)
+        return;
+
     /*avoid exceeding allocated search time*/
     if(time_used >= chess_clock.search_time) {
         abort_search = 1;

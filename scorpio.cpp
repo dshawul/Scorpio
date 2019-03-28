@@ -73,6 +73,7 @@ int SEARCHER::scorpio;
 int SEARCHER::pv_print_style;
 int SEARCHER::root_score;
 int SEARCHER::root_failed_low;
+int SEARCHER::root_unstable;
 int SEARCHER::last_book_move;
 int SEARCHER::first_search;
 int SEARCHER::analysis_mode = false;
