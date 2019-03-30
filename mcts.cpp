@@ -175,15 +175,15 @@ Node* Node::Max_UCB_select(Node* n) {
     unsigned vst, vvst = 0;
     bool has_ab = (n == SEARCHER::root_node && frac_abprior > 0);
 
-    double tvp = 0.;
+    double fpu = 0.;
     if(!fpu_is_loss) {
         current = n->child;
         while(current) {
             if(current->visits && current->move)
-                tvp += current->policy;
+                fpu += current->policy;
             current = current->next;
         }
-        tvp = fpu_red * sqrt(tvp);
+        fpu = logistic(n->score) - fpu_red * sqrt(fpu);
     }
 
     current = n->child;
@@ -195,20 +195,18 @@ Node* Node::Max_UCB_select(Node* n) {
             vvst = virtual_loss * current->get_busy();
             vst += vvst;  
 #endif
-            if(!current->visits && fpu_is_loss) {
-                uct = 0;
+            if(!current->visits) {
+                uct = fpu;
             } else {
                 uct = logistic(-current->score);
                 uct += (-uct * vvst) / (vst + 1);
-
-                if(has_ab) {
-                    double uctp = logistic(-current->prior);
-                    uct = 0.5 * ((1 - frac_abprior) * uct + 
-                                frac_abprior * uctp + 
-                                MIN(uct,uctp));
-                }
-                if(!current->visits)
-                    uct -= tvp;
+            }
+            
+            if(has_ab) {
+                double uctp = logistic(-current->prior);
+                uct = 0.5 * ((1 - frac_abprior) * uct + 
+                            frac_abprior * uctp + 
+                            MIN(uct,uctp));
             }
 
             uct += current->policy * factor / (vst + 1);
