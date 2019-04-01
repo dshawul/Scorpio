@@ -188,7 +188,7 @@ Node* Node::Max_UCB_select(Node* n) {
 
     current = n->child;
     while(current) {
-        if(current->move) {
+        if(current->move && !current->is_dead()) {
 
             vst = current->visits;
 #ifdef PARALLEL
@@ -819,11 +819,19 @@ void SEARCHER::check_mcts_quit() {
         current = current->next;
     }
 
-    bool in_trouble = (root_node->score <= -30);
-    int time_used = MAX(1,get_time() - start_time);
-    int remain_time = (in_trouble ? 1.3 * chess_clock.search_time : 
-                    chess_clock.search_time) - time_used;
-    unsigned int remain_visits = (remain_time * root_node->visits) / time_used;
+    bool in_trouble;
+    unsigned int remain_visits;
+
+    if(chess_clock.max_visits == MAX_NUMBER) {
+        in_trouble = (root_node->score <= -30);
+        int time_used = MAX(1,get_time() - start_time);
+        int remain_time = (in_trouble ? 1.3 * chess_clock.search_time : 
+                        chess_clock.search_time) - time_used;
+        remain_visits = (remain_time / (double)time_used) * root_node->visits;
+    } else {
+        in_trouble = false;
+        remain_visits = chess_clock.max_visits - root_node->visits;
+    }
 
     if(bnval == bnvis) {
         if(max_visits[0] - max_visits[1] >= remain_visits)
@@ -831,6 +839,16 @@ void SEARCHER::check_mcts_quit() {
         root_unstable = 0;
         if(in_trouble)
             root_unstable = 1;
+        if(!root_unstable && !abort_search) {
+            Node* current = root_node->child;
+            while(current) {
+                if(!current->is_dead() && 
+                    bnvis->visits - current->visits >= remain_visits) {
+                    current->set_dead();
+                }
+                current = current->next;
+            }
+        }
     } else {
         root_unstable = 1;
     }
@@ -1168,8 +1186,6 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
         }
 
         int en = get_time();
-        print("# Reclaimed %d nodes in %dms\n",(s_total_nodes - Node::total_nodes), en-st);
-
 
         /*print mem stat*/
         unsigned int tot = 0;
@@ -1179,12 +1195,16 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
 #endif
             tot += Node::mem_[i].size();
         }
-        print("# Memory for mcts nodes: %.1fMB unused + %.1fMB intree = %.1fMB of %.1fMB total\n", 
-            double(tot * sizeof(Node)) / (1024 * 1024), 
-            double(Node::total_nodes * sizeof(Node)) / (1024 * 1024),
-            double((Node::total_nodes+tot) * sizeof(Node)) / (1024 * 1024),
-            double(Node::max_tree_nodes * sizeof(Node)) / (1024 * 1024)
-            );
+
+        if(pv_print_style == 0) {
+            print("# Reclaimed %d nodes in %dms\n",(s_total_nodes - Node::total_nodes), en-st);
+            print("# Memory for mcts nodes: %.1fMB unused + %.1fMB intree = %.1fMB of %.1fMB total\n", 
+                double(tot * sizeof(Node)) / (1024 * 1024), 
+                double(Node::total_nodes * sizeof(Node)) / (1024 * 1024),
+                double((Node::total_nodes+tot) * sizeof(Node)) / (1024 * 1024),
+                double(Node::max_tree_nodes * sizeof(Node)) / (1024 * 1024)
+                );
+        }
     }
 
     if(!root) {
@@ -1198,6 +1218,7 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
         Node* current = root->child, *prev;
         while(current) {
             prev = current;
+            if(current) current->clear_dead();
             current = current->next;
             if(current && current->move == 0) {
                 prev->next = current->next;
