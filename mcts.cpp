@@ -1328,6 +1328,112 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta) {
     }
 }
 /*
+* Self-play with policy
+*/
+static FILE* spfile = 0;
+static int spgames = 0;
+
+void SEARCHER::self_play_thread_all(FILE* fw, int ngames) {
+    spfile = fw;
+    spgames = ngames;
+    
+#ifdef PARALLEL
+    /*attach helper processor here once*/
+    l_lock(lock_smp);
+    for(int i = 1;i < PROCESSOR::n_processors;i++) {
+        attach_processor(i);
+        processors[i]->state = GOSP;
+    }
+    l_unlock(lock_smp);
+
+    /*montecarlo search*/
+    self_play_thread();
+
+    /*wait till all helpers become idle*/
+    idle_loop_main();
+#else
+    self_play_thread();
+#endif
+}
+
+void SEARCHER::self_play_thread() {
+    static VOLATILE int wins = 0, losses = 0, draws = 0;
+
+    MOVE move;
+    int phply = hply;
+
+    while(true) {
+
+        while(true) {
+
+            /*game ended?*/
+            int res = print_result(false);
+            if(res != R_UNKNOWN) {
+                if(res == R_DRAW) l_add(draws,1);
+                else if(res == R_WWIN) l_add(wins,1);
+                else if(res == R_BWIN) l_add(losses,1);
+                int ngames = wins+losses+draws;
+                print("[%d] Games %d: + %d - %d = %d\n",GETPID(),
+                    ngames,wins,losses,draws);
+                print_game(
+                    res,spfile,"Training games",
+                    "ScorpioZero","ScorpioZero",
+                    ngames);
+                if(ngames >= spgames)
+                    abort_search = 1;
+                else
+                    break;
+            }
+
+            /*abort*/
+            if(abort_search)
+                return;
+
+            /*generate and score moves*/
+            generate_and_score_moves(0, -MATE_SCORE, MATE_SCORE);
+
+            /*dirchilet noise*/
+            if(hply <= 30) {
+                const float alpha = 0.3, beta = 1.0, frac = 0.25;
+                std::vector<double> noise;
+                std::gamma_distribution<double> dist(alpha,beta);
+                double total = 0;
+
+                for(int i = 0;i < pstack->count; i++) {
+                    double n = dist(mtgen);
+                    noise.push_back(n);
+                    total += n;
+                }
+                for(int i = 0;i < pstack->count; i++) {
+                    double n = ((noise[i] - alpha * beta) / total);
+                    float* p = (float*) &pstack->score_st[i];
+                    *p = *p * (1 - frac) + n * frac;
+                }
+            }
+
+            /*random select move*/
+            {
+                std::vector<int> freq;
+                for(int i = 0;i < pstack->count; i++) {
+                    float* p = (float*) &pstack->score_st[i];
+                    int v = (*p * 10000);
+                    freq.push_back(v);
+                }
+                std::discrete_distribution<int> dist(freq.begin(),freq.end());
+                int indexc = dist(mtgen);
+                move = pstack->move_st[indexc];
+            }
+
+            /*we have a move, make it*/
+            do_move(move);
+        }
+
+        int count = hply - phply;
+        for(int i = 0; i < count; i++)
+            undo_move();
+    }
+}
+/*
 * Search parameters
 */
 bool check_mcts_params(char** commands,char* command,int& command_num) {

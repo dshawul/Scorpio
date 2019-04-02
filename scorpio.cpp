@@ -759,7 +759,17 @@ bool parse_commands(char** commands) {
                     wins+losses+draws,wins,losses,draws);
                 searcher.set_board(FEN);
             }
+            print("Finished\n");
+            fclose(fw);
+        } else if(!strcmp(command,"selfplayp")) {
+            int N = atoi(commands[command_num++]);
+            FILE* fw = fopen(commands[command_num++],"w");
+            
+            print("Starting %d selfplay games\n",N);
+            is_selfplay = true;
+            searcher.self_play_thread_all(fw,N);
 
+            print("Finished\n");
             fclose(fw);
             /*********************************************
             *     Processing epd files                  *
@@ -1307,4 +1317,3 @@ static int self_play() {
         }
     }
 }
-

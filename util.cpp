@@ -276,6 +276,7 @@ void SEARCHER::print_game(int res, FILE* fw, const char* event,
     else strcpy(str,"*");
 
     if(fw) {
+        l_lock(lock_io);
         if(event)  fprintf(fw,"\n[Event \"%s\"]\n",event);
         fprintf(fw,"[Date \"%s\"]\n",date);
         if(Round)  fprintf(fw,"[Round \"%d\"]\n",Round);
@@ -296,6 +297,7 @@ void SEARCHER::print_game(int res, FILE* fw, const char* event,
         }
         fprintf(fw,"\n\n");
         fflush(fw);
+        l_unlock(lock_io);
     } else {
         if(event)  print_log("\n[Event \"%s\"]\n",event);
         print_log("[Date \"%s\"]\n",date);
@@ -564,6 +566,10 @@ int SEARCHER::print_result(bool output) {
                 if(output) print("1/2-1/2 {Draw by insufficent material}\n");
                 return R_DRAW;
         }    
+    }
+    if(hply >= MAX_HSTACK - 4) {
+        if(output) print("1/2-1/2 {Draw by foolishness.}\n");
+        return R_DRAW;
     }
     return R_UNKNOWN;
 }  

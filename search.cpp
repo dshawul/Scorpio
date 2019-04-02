@@ -801,10 +801,13 @@ IDLE_START:
                             PROCESSOR::set_num_searchers();
                             l_unlock(lock_smp);
                         }
-                        if(proc->state == GO) {
+                        if(proc->state == GO || proc->state == GOSP) {
                             sb = proc->searcher;
                             if(montecarlo) {
-                                sb->search_mc();
+                                if(proc->state == GOSP)
+                                    sb->self_play_thread();
+                                else
+                                    sb->search_mc();
 
                                 l_lock(lock_smp);
                                 sb->used = false;
@@ -1129,7 +1132,7 @@ void SEARCHER::qsearch_nn() {
 /*
 searcher's search function
 */
-static void idle_loop_main() {
+void SEARCHER::idle_loop_main() {
     l_lock(lock_smp);       
     PROCESSOR::n_idle_processors++;
     PROCESSOR::set_num_searchers();

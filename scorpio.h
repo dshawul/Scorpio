@@ -709,6 +709,7 @@ typedef struct SEARCHER{
     void  play_simulation(Node*,double&,int&);
     void  search_mc();
     void  print_status();
+    void  idle_loop_main();
     /*counts*/
     UBMP64 nodes;
     UBMP64 qnodes;
@@ -785,6 +786,8 @@ typedef struct SEARCHER{
     bool bitbase_cutoff();
     int probe_neural(bool=false);
     void handle_terminal(Node*,bool);
+    void self_play_thread();
+    void self_play_thread_all(FILE*,int);
     static int egbb_is_loaded;
     static int egbb_load_type;
     static int egbb_depth_limit;
@@ -901,7 +904,7 @@ FORCEINLINE void STACK::sort(const int start,const int end) {
 PROCESSOR
 */
 enum thread_states {
-    PARK,WAIT,GO,KILL
+    PARK,WAIT,GO,KILL,GOSP
 };
 typedef struct PROCESSOR {
     /*searchers*/
