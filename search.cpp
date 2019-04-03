@@ -1341,10 +1341,7 @@ MOVE SEARCHER::iterative_deepening() {
 
     /* manage tree*/
     if(montecarlo) {
-
-        Node* root = root_node;
-        manage_tree(root,root_key);
-        root_node = root;
+        manage_tree();
         Node::max_tree_depth = 0;
 
         /*Take out so far spent time in the last move*/
@@ -1395,7 +1392,7 @@ MOVE SEARCHER::iterative_deepening() {
                 root_score_st[0] = 2 * root_score_st[maxni];
 
             /*assign prior*/
-            Node* current = root->child;
+            Node* current = root_node->child;
             while(current) {
                 for(int i = 0;i < pstack->count; i++) {
                     MOVE& move = pstack->move_st[i];
@@ -1454,7 +1451,7 @@ MOVE SEARCHER::iterative_deepening() {
             }
 
             /*assign prior*/
-            Node* current = root->child;
+            Node* current = root_node->child;
             while(current) {
                 for(int i = 0;i < pstack->count; i++) {
                     MOVE& move = pstack->move_st[i];

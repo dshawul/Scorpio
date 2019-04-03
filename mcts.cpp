@@ -271,9 +271,13 @@ Node* Node::Random_select(Node* n) {
     count = 0;
     current = n->child;
     while(current) {
-        if(current->move && current->visits > 0) {
+        if(current->move) {
             node_pt.push_back(current);
-            freq.push_back(current->visits);
+            int d = current->visits;
+            if(n->visits < 300) 
+                d += (300 - n->visits) * current->policy;
+            if(d <= 0) d = 1;
+            freq.push_back(d);
             count++;
         }
         current = current->next;
@@ -851,7 +855,7 @@ void SEARCHER::check_mcts_quit() {
     }
 }
 
-void SEARCHER::search_mc() {
+void SEARCHER::search_mc(bool single) {
     Node* root = root_node;
     double pfrac = 0,score;
     int visits;
@@ -867,13 +871,15 @@ void SEARCHER::search_mc() {
 #endif
 
     /*wait until all idle processors are awake*/
-    static VOLATILE int t_count = 0;
-    int p_t_count = l_add(t_count,1);
-    if(p_t_count == PROCESSOR::n_processors - 1)
-        t_count = 0;
-    while(t_count > 0 && t_count < PROCESSOR::n_processors) {
-        t_yield();
-        if(SEARCHER::use_nn) t_sleep(SEARCHER::delay);
+    if(!single) {
+        static VOLATILE int t_count = 0;
+        int p_t_count = l_add(t_count,1);
+        if(p_t_count == PROCESSOR::n_processors - 1)
+            t_count = 0;
+        while(t_count > 0 && t_count < PROCESSOR::n_processors) {
+            t_yield();
+            if(SEARCHER::use_nn) t_sleep(SEARCHER::delay);
+        }
     }
 
     /*Set alphabeta rollouts depth*/
@@ -896,7 +902,7 @@ void SEARCHER::search_mc() {
         
         /*fixed nodes*/
         if(root->visits >= (unsigned)chess_clock.max_visits) {
-            abort_search = 1;
+            if(!single) abort_search = 1;
             break;
         }
 
@@ -928,7 +934,7 @@ void SEARCHER::search_mc() {
         }
 
         /*book keeping*/
-        if(processor_id == 0) {
+        if(processor_id == 0 && !single) {
 
             /*check for messages from other hosts*/
 #ifdef CLUSTER
@@ -990,13 +996,13 @@ void SEARCHER::search_mc() {
     }
 
     /*update statistics of parent*/
-    if(master) {
+    if(!single && master) {
         l_lock(lock_smp);
         l_lock(master->lock);
         update_master(1);
         l_unlock(master->lock);
         l_unlock(lock_smp);
-    } else if(!abort_search && !stop_searcher) {
+    } else if(!single && !abort_search && !stop_searcher) {
         bool failed = (-best->score <= oalpha) || 
                       (-best->score >= obeta);
         if(!failed) {
@@ -1023,8 +1029,9 @@ void SEARCHER::search_mc() {
         }
         /*Random selection for self play*/
         extract_pv(root,(is_selfplay && (hply <= 30)));
-        root_score = root->score;  
-        print_pv(root_score);
+        root_score = root->score;
+        if(!single)
+            print_pv(root_score);
         search_depth++;
     }
 }
@@ -1130,8 +1137,8 @@ void Node::parallel_rank_reset(Node* n) {
 /*
 Manage search tree
 */
-void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
-    if(root) {
+void SEARCHER::manage_tree(bool single) {
+    if(root_node) {
 
         unsigned int s_total_nodes = Node::total_nodes;
 
@@ -1152,22 +1159,22 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
         if(found && reuse_tree) {
             MOVE move;
 
-            Node* oroot = root, *new_root = 0;
+            Node* oroot = root_node, *new_root = 0;
             for(int j = i; j >= 0; --j) {
                 move = hstack[hply - 1 - j].move;
 
-                Node* current = root->child, *prev = 0;
+                Node* current = root_node->child, *prev = 0;
                 while(current) {
                     if(current->move == move) {
                         if(j == 0) {
                             new_root = current;
-                            if(current == root->child)
-                                root->child = current->next;
+                            if(current == root_node->child)
+                                root_node->child = current->next;
                             else
                                 prev->next = current->next;
                             current->next = 0;
                         }
-                        root = current;
+                        root_node = current;
                         break;
                     }
                     prev = current;
@@ -1176,14 +1183,16 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
                 if(!current) break;
             }
 
-            Node::parallel_reclaim(oroot);
+            if(single) Node::reclaim(oroot,processor_id);
+            else Node::parallel_reclaim(oroot);
             if(new_root) 
-                root = new_root;
+                root_node = new_root;
             else
-                root = 0;
+                root_node = 0;
         } else {
-            Node::parallel_reclaim(root);
-            root = 0;
+            if(single) Node::reclaim(root_node,processor_id);
+            else Node::parallel_reclaim(root_node);
+            root_node = 0;
         }
 
         int en = get_time();
@@ -1208,15 +1217,15 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
         }
     }
 
-    if(!root) {
+    if(!root_node) {
         print_log("# [Tree-not-found]\n");
-        root = Node::allocate(processor_id);
+        root_node = Node::allocate(processor_id);
     } else {
         print_log("# [Tree-found : visits %d score %d]\n",
-            root->visits,int(root->score));
+            root_node->visits,int(root_node->score));
 
         /*remove null moves from root*/
-        Node* current = root->child, *prev;
+        Node* current = root_node->child, *prev;
         while(current) {
             prev = current;
             if(current) current->clear_dead();
@@ -1227,11 +1236,11 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
             }
         }
     }
-    if(!root->child) {
-        create_children(root);
-        root->visits++;
+    if(!root_node->child) {
+        create_children(root_node);
+        root_node->visits++;
     }
-    root->set_pvmove();
+    root_node->set_pvmove();
     root_key = hash_key;
 
     /*only have root child*/
@@ -1252,7 +1261,7 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
         Node* current;
         double total = 0;
 
-        current = root->child;
+        current = root_node->child;
         while(current) {
             double n = dist(mtgen);
             noise.push_back(n);
@@ -1261,7 +1270,7 @@ void SEARCHER::manage_tree(Node*& root, HASHKEY& root_key) {
         }
 
         int index = 0;
-        current = root->child;
+        current = root_node->child;
         while(current) {
             double n = ((noise[index] - alpha * beta) / total);
             current->policy = current->policy * (1 - frac) + n * frac;
@@ -1388,42 +1397,15 @@ void SEARCHER::self_play_thread() {
             if(abort_search)
                 return;
 
-            /*generate and score moves*/
+            /*do fixed nodes mcts search*/
             generate_and_score_moves(0, -MATE_SCORE, MATE_SCORE);
-
-            /*dirchilet noise*/
-            if(hply <= 30) {
-                const float alpha = 0.3, beta = 1.0, frac = 0.25;
-                std::vector<double> noise;
-                std::gamma_distribution<double> dist(alpha,beta);
-                double total = 0;
-
-                for(int i = 0;i < pstack->count; i++) {
-                    double n = dist(mtgen);
-                    noise.push_back(n);
-                    total += n;
-                }
-                for(int i = 0;i < pstack->count; i++) {
-                    double n = ((noise[i] - alpha * beta) / total);
-                    float* p = (float*) &pstack->score_st[i];
-                    *p = *p * (1 - frac) + n * frac;
-                }
-            }
-
-            /*random select move*/
-            {
-                std::vector<int> freq;
-                for(int i = 0;i < pstack->count; i++) {
-                    float* p = (float*) &pstack->score_st[i];
-                    int v = (*p * 10000);
-                    freq.push_back(v);
-                }
-                std::discrete_distribution<int> dist(freq.begin(),freq.end());
-                int indexc = dist(mtgen);
-                move = pstack->move_st[indexc];
-            }
-
+            manage_tree(true);
+            SEARCHER::egbb_ply_limit = 8;
+            pstack->depth = search_depth * UNITDEPTH;
+            search_mc(true);
+            
             /*we have a move, make it*/
+            move = stack[0].pv[0];
             do_move(move);
         }
 

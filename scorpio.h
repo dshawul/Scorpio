@@ -705,9 +705,9 @@ typedef struct SEARCHER{
     void  create_children(Node*);
     void  add_children(Node*);
     void  add_null_child(Node*,Node*);
-    void  manage_tree(Node*&,HASHKEY&);
+    void  manage_tree(bool=false);
     void  play_simulation(Node*,double&,int&);
-    void  search_mc();
+    void  search_mc(bool=false);
     void  print_status();
     void  idle_loop_main();
     /*counts*/
