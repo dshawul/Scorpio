@@ -45,8 +45,6 @@ std::vector<Node*> Node::mem_[MAX_CPUS];
 VOLATILE unsigned int Node::total_nodes = 0;
 unsigned int Node::max_tree_nodes = 0;
 unsigned int Node::max_tree_depth = 0;
-Node* VOLATILE SEARCHER::root_node = 0;
-HASHKEY SEARCHER::root_key = 0;
 
 Node* Node::allocate(int id) {
     static const int MEM_INC = 1024;
@@ -167,13 +165,12 @@ void Node::split(Node* n, std::vector<Node*>* pn, const int S, int& T) {
     }
 }
 
-Node* Node::Max_UCB_select(Node* n) {
+Node* Node::Max_UCB_select(Node* n, bool has_ab) {
     double uct, bvalue = -10;
     double dCPUCT = cpuct_init + log((n->visits + cpuct_base + 1.0) / cpuct_base);
     double factor = dCPUCT * sqrt(double(n->visits));
     Node* current, *bnode = 0;
     unsigned vst, vvst = 0;
-    bool has_ab = (n == SEARCHER::root_node && frac_abprior > 0);
 
     double fpu = 0.;
     if(!fpu_is_loss) {
@@ -295,10 +292,9 @@ Node* Node::Random_select(Node* n) {
     return bnode;
 }
 
-Node* Node::Best_select(Node* n) {
+Node* Node::Best_select(Node* n, bool has_ab) {
     double bvalue = -MAX_NUMBER;
     Node* current = n->child, *bnode = n->child;
-    bool has_ab = (n == SEARCHER::root_node && frac_abprior > 0);
 
     while(current) {
         if(current->move && current->visits > 0) {
@@ -637,7 +633,8 @@ SELECT:
             next = Node::Max_AB_select(n,-pstack->beta,-pstack->alpha,
                 try_null,search_by_rank);
         } else {
-            next = Node::Max_UCB_select(n);
+            bool has_ab = (n == root_node && frac_abprior > 0);
+            next = Node::Max_UCB_select(n, has_ab);
         }
 
         /*This could happen in parallel search*/
@@ -1002,8 +999,10 @@ void SEARCHER::search_mc() {
     } else if(!abort_search && !stop_searcher) {
         bool failed = (-best->score <= oalpha) || 
                       (-best->score >= obeta);
-        if(!failed)
-            best = Node::Best_select(root);
+        if(!failed) {
+            bool has_ab = (frac_abprior > 0);
+            best = Node::Best_select(root,has_ab);
+        }
 
         root->score = -best->score;
         root_score = root->score;

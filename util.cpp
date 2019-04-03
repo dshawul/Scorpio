@@ -351,8 +351,10 @@ void SEARCHER::extract_pv(Node* n, bool rand) {
     Node* best;
     if(rand)
         best = Node::Random_select(n);
-    else
-        best = Node::Best_select(n);
+    else {
+        bool has_ab = (n == root_node && frac_abprior > 0);
+        best = Node::Best_select(n, has_ab);
+    }
     if(best) {
         pstack->pv[ply] = best->move;
         pstack->pv_length = ply+1;
@@ -365,7 +367,8 @@ void SEARCHER::extract_pv(Node* n, bool rand) {
 Node* Node::print_tree(Node* root,int output,int max_depth,int depth) {
     char str[16];
     int total = 0;
-    Node* bnode = Node::Best_select(root);
+    bool has_ab = (depth == 0 && frac_abprior > 0);
+    Node* bnode = Node::Best_select(root, has_ab);
     Node* current = root->child;
 
     if(depth == 0) {
@@ -880,6 +883,8 @@ SEARCHER::SEARCHER() : board(&temp_board[36])
     host_workers.clear();
     n_host_workers = 0;
 #endif
+    root_node = 0;
+    root_key = 0;
 }
 /*
 SEARCHER copier
@@ -933,6 +938,8 @@ void SEARCHER::COPY(SEARCHER* srcSearcher) {
     pcsq_score[black] = srcSearcher->pcsq_score[black];
     memcpy(man_c,srcSearcher->man_c,sizeof(man_c));
     all_man_c = srcSearcher->all_man_c;
+    root_node = srcSearcher->root_node;
+    root_key = srcSearcher->root_key;
 
     /*history stack*/
     memcpy(&hstack[0],&srcSearcher->hstack[0], (hply + 1) * sizeof(HIST_STACK));

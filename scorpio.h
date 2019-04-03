@@ -438,9 +438,9 @@ struct Node {
     static void  parallel_reclaim(Node*);
     static void  parallel_rank_reset(Node*);
     static Node* print_tree(Node*,int,int = 0,int = 0);
-    static Node* Max_UCB_select(Node*);
+    static Node* Max_UCB_select(Node*,bool);
     static Node* Max_AB_select(Node*,int,int,bool,bool);
-    static Node* Best_select(Node*);
+    static Node* Best_select(Node*,bool);
     static Node* Random_select(Node*);
     static float Min_score(Node*);
     static float Avg_score(Node*);
@@ -752,6 +752,12 @@ typedef struct SEARCHER{
     int get_cluster_move(SPLIT_MESSAGE*,bool=false);
     void get_init_pos(INIT_MESSAGE*);
 #endif
+    Node* root_node;
+    HASHKEY root_key;
+    void copy_root(SEARCHER* src) {
+        root_node = src->root_node;
+        root_key  = src->root_key;
+    }
     /*
     things that are shared among multiple searchers.
     */
@@ -776,8 +782,6 @@ typedef struct SEARCHER{
     static UBMP64 root_score_st[MAX_MOVES];
     static CACHE_ALIGN int history[14][64];
     static CACHE_ALIGN MOVE refutation[14][64];
-    static Node* VOLATILE root_node;
-    static HASHKEY root_key;
     /*
     Bitbases and neural network
     */

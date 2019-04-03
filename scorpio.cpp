@@ -948,6 +948,7 @@ bool parse_commands(char** commands) {
                         PROCESSOR::clear_hash_tables();
                         main_searcher->COPY(&searcher);
                         move = main_searcher->find_best();
+                        searcher.copy_root(main_searcher);
 
                         if(test == RUNSEARCH) {
                             if(SEARCHER::pv_print_style == 0) 
@@ -1114,6 +1115,7 @@ bool parse_commands(char** commands) {
                 SEARCHER::chess_clock.infinite_mode = true;
                 main_searcher->COPY(&searcher);
                 main_searcher->find_best();
+                searcher.copy_root(main_searcher);
                 SEARCHER::chess_clock.infinite_mode = false;
                 /*search is finished without abort flag -> book moves etc*/
                 if(!SEARCHER::abort_search) {
@@ -1136,6 +1138,7 @@ REDO1:
             /*search*/
             main_searcher->COPY(&searcher);
             move = main_searcher->find_best();
+            searcher.copy_root(main_searcher);
 REDO2:
             /*we have a move, make it*/
             if(SEARCHER::scorpio != searcher.player) continue;
@@ -1181,6 +1184,7 @@ REDO2:
                         print("Pondering for opponent's move ...\n");
                         main_searcher->COPY(&searcher);
                         move = main_searcher->find_best();
+                        searcher.copy_root(main_searcher);
                         /*interrupted*/
                         if(!SEARCHER::chess_clock.pondering)
                             goto REDO1;
@@ -1194,6 +1198,7 @@ REDO2:
                         main_searcher->COPY(&searcher);
                         main_searcher->do_move(move);
                         move = main_searcher->find_best();
+                        searcher.copy_root(main_searcher);
 
                         /*ponder hit*/
                         if(!SEARCHER::chess_clock.infinite_mode)
@@ -1244,6 +1249,7 @@ int SEARCHER::get_root_search_score() {
         //regular search score
         main_searcher->COPY(this);
         main_searcher->find_best();
+        this->copy_root(main_searcher);
         sce = main_searcher->pstack->best_score;
     }
     return sce;
@@ -1298,6 +1304,7 @@ static int self_play() {
         /*search*/
         main_searcher->COPY(&searcher);
         move = main_searcher->find_best();
+        searcher.copy_root(main_searcher);
 
         /*we have a move, make it*/
         if(move != 0) {
