@@ -174,13 +174,16 @@ Prefetch
 */
 #if defined _WIN32
 #   include <process.h>
-#   define t_create(f,p)  _beginthread(f,0,(void*)p)
+#   define pthread_t HANDLE
+#   define t_create(h,f,p)  h=(HANDLE)_beginthread(f,0,(void*)p)
+#   define t_join(h)      WaitForSingleObject(h,INFINITE)
 #   define t_sleep(x)     Sleep(x)
 #   define t_yield()      SwitchToThread()
 #   define t_pause()      YieldProcessor()
 #else
 #   include <pthread.h>
-#   define t_create(f,p)  {pthread_t t = 0; pthread_create(&t,0,(void*(*)(void*))&f,(void*)p);}
+#   define t_create(h,f,p)  pthread_create(&h,0,(void*(*)(void*))&f,(void*)p)
+#   define t_join(h)      pthread_join((pthread_t)h,0)
 #   define t_sleep(x)     usleep((x) * 1000)
 #   define t_yield()      sched_yield()
 #   define t_pause()      asm volatile("pause\n": : :"memory")

@@ -1033,32 +1033,29 @@ void SEARCHER::search_mc() {
 Traverse tree in parallel
 */
 static std::vector<Node*> gc[MAX_CPUS];
-static VOLATILE int gc_count = 0;
 
-static void CDECL gc_thread_proc(void* tid_) {
-    int* tid = (int*)tid_;
-    for(int proc_id = tid[0]; proc_id < tid[1]; proc_id++) {
+static void CDECL gc_thread_proc(void* seid_) {
+    int* seid = (int*)seid_;
+    for(int proc_id = seid[0]; proc_id < seid[1]; proc_id++) {
         for(unsigned int i = 0; i < gc[proc_id].size(); i++) {
             Node::reclaim(gc[proc_id][i],proc_id);
         }
     }
-    l_add(gc_count,1);
 }
-static void CDECL rank_reset_thread_proc(void* tid_) {
-    int* tid = (int*)tid_;
-    for(int proc_id = tid[0]; proc_id < tid[1]; proc_id++) {
+static void CDECL rank_reset_thread_proc(void* seid_) {
+    int* seid = (int*)seid_;
+    for(int proc_id = seid[0]; proc_id < seid[1]; proc_id++) {
         for(unsigned int i = 0; i < gc[proc_id].size(); i++) {
             Node::rank_children(gc[proc_id][i]);
             Node::reset_bounds(gc[proc_id][i]);
         }
     }
-    l_add(gc_count,1);
 }
 
 void Node::parallel_reclaim(Node* n) {
     int ncores = PROCESSOR::n_cores;
     int nprocs = PROCESSOR::n_processors;
-    int T = 0, S = n->visits / (8 * nprocs),
+    int T = 0, S = MAX(1,n->visits / (8 * nprocs)),
                  V = nprocs / ncores;
 
 #ifdef PARALLEL
@@ -1070,15 +1067,18 @@ void Node::parallel_reclaim(Node* n) {
 
     gc[0].push_back(n);
 
-    int* tid = new int[2 * ncores];
-    gc_count = 0;
+    int* seid = new int[2 * ncores];
+    pthread_t* tid = new pthread_t[ncores];
+
     for(int i = 0; i < ncores; i++) {
-        tid[2*i+0] = i * V;
-        tid[2*i+1] = (i == ncores - 1) ? nprocs : ((i + 1) * V);
-        t_create(gc_thread_proc,&tid[2*i]);
+        seid[2*i+0] = i * V;
+        seid[2*i+1] = (i == ncores - 1) ? nprocs : ((i + 1) * V);
+        t_create(tid[i],gc_thread_proc,&seid[2*i]);
     }
-    while(gc_count < ncores)
-        t_sleep(1);
+    for(int i = 0; i < ncores; i++)
+        t_join(tid[i]);
+
+    delete[] seid;
     delete[] tid;
 
     for(int i = 0; i < nprocs;i++)
@@ -1093,7 +1093,7 @@ void Node::parallel_reclaim(Node* n) {
 void Node::parallel_rank_reset(Node* n) {
     int ncores = PROCESSOR::n_cores;
     int nprocs = PROCESSOR::n_processors;
-    int T = 0, S = n->visits / (8 * nprocs),
+    int T = 0, S = MAX(1,n->visits / (8 * nprocs)),
                  V = nprocs / ncores;
 
 #ifdef PARALLEL
@@ -1106,16 +1106,18 @@ void Node::parallel_rank_reset(Node* n) {
     Node::rank_children(n);
     Node::reset_bounds(n);
 
-    int* tid = new int[2 * ncores];
-    gc_count = 0;
+    int* seid = new int[2 * ncores];
+    pthread_t* tid = new pthread_t[ncores];
+    
     for(int i = 0; i < ncores; i++) {
-        tid[2*i+0] = i * V;
-        tid[2*i+1] = (i == ncores - 1) ? nprocs : ((i + 1) * V);
-        t_create(rank_reset_thread_proc,&tid[2*i]);
+        seid[2*i+0] = i * V;
+        seid[2*i+1] = (i == ncores - 1) ? nprocs : ((i + 1) * V);
+        t_create(tid[i],rank_reset_thread_proc,&seid[2*i]);
     }
+    for(int i = 0; i < ncores; i++)
+        t_join(tid[i]);
 
-    while(gc_count < ncores)
-        t_sleep(1);
+    delete[] seid;
     delete[] tid;
 
     for(int i = 0; i < nprocs;i++)

@@ -152,7 +152,9 @@ static void load_egbbs() {
         wait_for_egbb();
         egbb_setting_changed = false;
         egbb_is_loading = true;
-        t_create(egbb_thread_proc,0);
+        pthread_t dummy;
+        t_create(dummy,egbb_thread_proc,0);
+        (void)dummy;
     }
     wait_for_egbb();
 }

@@ -51,8 +51,11 @@ void PROCESSOR::init(int argc, char* argv[]) {
     /*global split point*/
     global_split = new SPLIT_MESSAGE[n_hosts];
 #ifdef THREAD_POLLING
-    if(n_hosts > 1)
-        t_create(check_messages,0);
+    if(n_hosts > 1) {
+        pthread_t dummy;
+        t_create(dummy,check_messages,0);
+        (void)dummy;
+    }
 #endif
 }
 /*
@@ -743,8 +746,10 @@ void CDECL thread_proc(void* id) {
     search((PPROCESSOR)proc);
 }
 void PROCESSOR::create(int id) {
+    pthread_t dummy;
     long tid = id;
-    t_create(thread_proc,&tid);
+    t_create(dummy,thread_proc,&tid);
+    (void)dummy;
     int nidx = n_idle_processors;
     while(n_idle_processors == nidx) 
         t_yield();
