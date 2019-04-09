@@ -19,6 +19,10 @@ static int virtual_loss = 1;
 static unsigned int visit_threshold = 800;
 static std::random_device rd;
 static std::mt19937 mtgen(rd());
+static double noise_frac = 0.25;
+static double noise_alpha = 0.3;
+static double noise_beta = 1.0;
+static double noise_ply = 30;
 
 int montecarlo = 0;
 int rollout_type = ALPHABETA;
@@ -1028,7 +1032,7 @@ void SEARCHER::search_mc(bool single) {
             else POP_NULL();
         }
         /*Random selection for self play*/
-        extract_pv(root,(is_selfplay && (hply <= 30)));
+        extract_pv(root,(is_selfplay && (hply <= noise_ply)));
         root_score = root->score;
         if(!single)
             print_pv(root_score);
@@ -1254,8 +1258,8 @@ void SEARCHER::manage_tree(bool single) {
     }
 
     /*Dirchilet noise*/
-    if(is_selfplay && hply <= 30) {
-        const float alpha = 0.3, beta = 1.0, frac = 0.25;
+    if(is_selfplay) {
+        const float alpha = noise_alpha, beta = noise_beta, frac = noise_frac;
         std::vector<double> noise;
         std::gamma_distribution<double> dist(alpha,beta);
         Node* current;
@@ -1428,6 +1432,14 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         fpu_is_loss = atoi(commands[command_num++]);
     } else if(!strcmp(command, "policy_temp")) {
         policy_temp = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "noise_alpha")) {
+        noise_alpha = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "noise_beta")) {
+        noise_beta = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "noise_frac")) {
+        noise_frac = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "noise_ply")) {
+        noise_ply = atoi(commands[command_num++]);
     } else if(!strcmp(command, "reuse_tree")) {
         reuse_tree = atoi(commands[command_num++]);
     } else if(!strcmp(command, "backup_type")) {
@@ -1467,10 +1479,14 @@ void print_mcts_params() {
     print("feature option=\"cpuct_init -spin %d 0 1000\"\n",int(cpuct_init*100));
     print("feature option=\"cpuct_base -spin %d 0 100000000\"\n",cpuct_base);
     print("feature option=\"policy_temp -spin %d 0 1000\"\n",int(policy_temp*100));
+    print("feature option=\"noise_alpha -spin %d 0 100\"\n",int(noise_alpha*100));
+    print("feature option=\"noise_beta -spin %d 0 100\"\n",int(noise_beta*100));
+    print("feature option=\"noise_frac -spin %d 0 100\"\n",int(noise_frac*100));
+    print("feature option=\"noise_ply -spin %d 0 100\"\n",noise_ply);
     print("feature option=\"fpu_red -spin %d -1000 1000\"\n",int(fpu_red*100));
     print("feature option=\"fpu_is_loss -check %d\"\n",fpu_is_loss);
     print("feature option=\"reuse_tree -check %d\"\n",reuse_tree);
-    print("feature option=\"backup_type -combo *MINMAX AVERAGE MIX MINMAX_MEM AVERAGE_MEM MIX_MEM CLASSIC MIX_VISIT\"\n");
+    print("feature option=\"backup_type -combo MINMAX /// AVERAGE /// MIX /// MINMAX_MEM /// AVERAGE_MEM /// MIX_MEM /// CLASSIC /// *MIX_VISIT\"\n");
     print("feature option=\"frac_alphabeta -spin %d 0 100\"\n",int(frac_alphabeta*100));
     print("feature option=\"frac_freeze_tree -spin %d 0 100\"\n",int(frac_freeze_tree*100));
     print("feature option=\"frac_abrollouts -spin %d 0 100\"\n",int(frac_abrollouts*100));
