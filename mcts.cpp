@@ -23,6 +23,7 @@ static double noise_frac = 0.25;
 static double noise_alpha = 0.3;
 static double noise_beta = 1.0;
 static double noise_ply = 30;
+static const int low_visits_threshold = 100;
 
 int montecarlo = 0;
 int rollout_type = ALPHABETA;
@@ -268,7 +269,7 @@ Node* Node::Max_AB_select(Node* n,int alpha,int beta,bool try_null,bool search_b
 
 Node* Node::Random_select(Node* n) {
     Node* current, *bnode = n->child;
-    int count;
+    int count, val;
     std::vector<Node*> node_pt;
     std::vector<int> freq;
 
@@ -277,11 +278,10 @@ Node* Node::Random_select(Node* n) {
     while(current) {
         if(current->move) {
             node_pt.push_back(current);
-            int d = current->visits;
-            if(n->visits < 300) 
-                d += (300 - n->visits) * current->policy;
-            if(d <= 0) d = 1;
-            freq.push_back(d);
+            val = current->visits + 1;
+            if(n->visits < low_visits_threshold) 
+                val += (low_visits_threshold - n->visits) * current->policy;
+            freq.push_back(val);
             count++;
         }
         current = current->next;
@@ -305,7 +305,7 @@ Node* Node::Best_select(Node* n, bool has_ab) {
     Node* current = n->child, *bnode = n->child;
 
     while(current) {
-        if(current->move && current->visits > 0) {
+        if(current->move) {
             if(rollout_type == MCTS ||
                 (rollout_type == ALPHABETA && 
                 /* must be finished or ranked first */
@@ -318,9 +318,14 @@ Node* Node::Best_select(Node* n, bool has_ab) {
                       backup_type == CLASSIC || 
                      (backup_type == MIX_VISIT && n->visits <= visit_threshold) )
                 ) {
-                    val = current->visits;
+                    val = current->visits + 1;
+                    if(n->visits < low_visits_threshold) 
+                        val += (low_visits_threshold - n->visits) * current->policy;
                 } else {
-                    val = logistic(-current->score);
+                    if(current->visits)
+                        val = logistic(-current->score);
+                    else
+                        val = bvalue - 1;
 
                     if(has_ab && (rollout_type == MCTS)) {
                         double valp = logistic(-current->prior);
@@ -1319,11 +1324,37 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta) {
             pstack->best_score = probe_neural();
             n_terminal = 0;
 
-            double total = 0.f, maxp = -100;
+            double total = 0.f, maxp = -100, minp = 100;
             for(int i = 0;i < pstack->count; i++) {
                 float* p = (float*)&pstack->score_st[i];
                 if(*p > maxp) maxp = *p;
+                if(*p < minp) minp = *p;
             }
+            /*Minimize draws for low visits training*/
+            if(is_selfplay && !ply) {
+                int score = pstack->best_score;
+                for(int i = 0;i < pstack->count; i++) {
+                    float* p = (float*)&pstack->score_st[i];
+                    MOVE& move = pstack->move_st[i];
+                    int sfifty = fifty;
+
+                    PUSH_MOVE(move);
+                    gen_all_legal();
+                    if(!pstack->count) {
+                        if(hstack[hply - 1].checks) {      //mate
+                            *p = 5 * maxp;
+                        } else if(score >= -100) {         //stale-mate
+                            *p = minp;
+                        }
+                    } else if(draw() && score >= -100) {   //repetition & 50-move draws
+                        *p = minp;
+                    } else if(sfifty > 0 && fifty == 0) {  //encourage progress
+                        *p += sfifty * (maxp - minp) / 50;
+                    }
+                    POP_MOVE();
+                }
+            }
+            /*normalize policy*/
             for(int i = 0;i < pstack->count; i++) {
                 float* p = (float*)&pstack->score_st[i];
                 total += exp( (*p - maxp) / policy_temp );
