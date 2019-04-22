@@ -830,7 +830,7 @@ void SEARCHER::check_mcts_quit() {
     }
 
     bool in_trouble;
-    unsigned int remain_visits;
+    int remain_visits;
 
     if(chess_clock.max_visits == MAX_NUMBER) {
         in_trouble = (root_node->score <= -30);
@@ -844,7 +844,8 @@ void SEARCHER::check_mcts_quit() {
     }
 
     if(bnval == bnvis) {
-        if(max_visits[0] - max_visits[1] >= remain_visits)
+        int visdiff = max_visits[0] - max_visits[1];
+        if(visdiff >= remain_visits)
             abort_search = 1;
         root_unstable = 0;
         if(in_trouble)
@@ -852,10 +853,9 @@ void SEARCHER::check_mcts_quit() {
         if(!root_unstable && !abort_search) {
             Node* current = root_node->child;
             while(current) {
-                if(!current->is_dead() && 
-                    bnvis->visits - current->visits >= remain_visits) {
+                visdiff = bnvis->visits - current->visits;
+                if(!current->is_dead() && visdiff >= remain_visits)
                     current->set_dead();
-                }
                 current = current->next;
             }
         }
