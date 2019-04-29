@@ -1642,9 +1642,9 @@ bool SEARCHER::pgn_to_epd(char* path,char* book) {
                     if(result == R_WWIN) strcat(fen," 1-0");
                     else if(result == R_BWIN) strcat(fen," 0-1");
                     else strcat(fen," 1/2-1/2");
-                    char mv[16];
-                    mov_strx(move,mv);
-                    fprintf(fb,"%s %s\n",fen, mv);
+                    int mind = compute_move_index(move, player);
+                    float score = logistic( eval(true) );
+                    fprintf(fb,"%s %f 1 %d 1.0\n", fen, score, mind);
                 }
 
                 /*make move*/
@@ -1865,6 +1865,230 @@ void merge_books(char* path1,char* path2,char* path,double w1 = 1.0,double w2 = 
 }
 
 #   endif   //BOOK_CREATE
+
+/*
+Move policy format
+*/
+
+/* 1. AlphaZero format: 56=queen moves, 8=knight moves, 9 pawn promotions */
+static const UBMP8 t_move_map[] = {
+  0,  0,  0,  0,  0,  0,  0,  0,  0, 35,  0,  0,  0,  0,  0,  0,
+ 27,  0,  0,  0,  0,  0,  0, 55,  0,  0, 36,  0,  0,  0,  0,  0,
+ 26,  0,  0,  0,  0,  0, 54,  0,  0,  0,  0, 37,  0,  0,  0,  0,
+ 25,  0,  0,  0,  0, 53,  0,  0,  0,  0,  0,  0, 38,  0,  0,  0,
+ 24,  0,  0,  0, 52,  0,  0,  0,  0,  0,  0,  0,  0, 39,  0,  0,
+ 23,  0,  0, 51,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 40, 60,
+ 22, 56, 50,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 61, 41,
+ 21, 49, 57,  0,  0,  0,  0,  0,  0,  7,  8,  9, 10, 11, 12, 13,
+  0,  0,  1,  2,  3,  4,  5,  6,  0,  0,  0,  0,  0,  0, 63, 48,
+ 14, 28, 59,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 47, 62,
+ 15, 58, 29,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 46,  0,  0,
+ 16,  0,  0, 30,  0,  0,  0,  0,  0,  0,  0,  0, 45,  0,  0,  0,
+ 17,  0,  0,  0, 31,  0,  0,  0,  0,  0,  0, 44,  0,  0,  0,  0,
+ 18,  0,  0,  0,  0, 32,  0,  0,  0,  0, 43,  0,  0,  0,  0,  0,
+ 19,  0,  0,  0,  0,  0, 33,  0,  0, 42,  0,  0,  0,  0,  0,  0,
+ 20,  0,  0,  0,  0,  0,  0, 34,  0,  0,  0,  0,  0,  0,  0,  0
+};
+static const UBMP8* const move_map = t_move_map + 0x80;
+
+int compute_move_index(MOVE& m, int player) {
+
+    int from = m_from(m), to = m_to(m), prom, index;
+    if(is_castle(m)) {
+        if(to > from) to++;
+        else to -= 2;
+    }
+    from = SQ8864(from);
+    to = SQ8864(to); 
+    prom = m_promote(m); 
+
+    if(player == black) {
+        from = MIRRORR64(from);
+        to = MIRRORR64(to);
+    }
+
+    index = from * 73;
+    if(prom) {
+        prom = PIECE(prom);
+        if(prom != queen)
+            index += 64 + (to - from - 7) * 3  + (prom - queen);
+        else
+            index += move_map[SQ6488(to) - SQ6488(from)];
+    } else {
+        index += move_map[SQ6488(to) - SQ6488(from)];
+    }
+
+    return index;
+}
+
+/*
+   Fill input planes
+*/
+#define CHANNELS 24
+#define NPARAMS   5
+#define invert_color(x)  (((x) > 6) ? ((x) - 6) : ((x) + 6))
+
+void fill_input_planes(
+    int player, int cast, int fifty, int hist, int* draw, 
+    int* piece, int* square, float* data, float* adata
+    ) {
+    
+    int pc, col, sq, to;
+
+    /* 
+       Add the attack map planes 
+    */
+#define DHWC(sq,C)     data[rank(sq) * 8 * CHANNELS + file(sq) * CHANNELS + C]
+#define DCHW(sq,C)     data[C * 8 * 8 + rank(sq) * 8 + file(sq)]
+#define D(sq,C)        DHWC(sq,C)
+
+#define NK_MOVES(dir, off) {                    \
+        to = sq + dir;                          \
+        if(!(to & 0x88)) D(to, off) = 1.0f;     \
+}
+
+#define BRQ_MOVES(dir, off) {                   \
+        to = sq + dir;                          \
+        while(!(to & 0x88)) {                   \
+            D(to, off) = 1.0f;                  \
+            if(board[to] != 0) break;           \
+                to += dir;                      \
+        }                                       \
+}
+
+    memset(data,  0, sizeof(float) * 8 * 8 * CHANNELS);
+
+    int board[128];
+    memset(board, 0, sizeof(int) * 128);
+    memset(adata, 0, sizeof(float) * NPARAMS);
+
+    for(int i = 0; (pc = piece[i]) != blank; i++) {
+        sq = SQ6488(square[i]);
+        if(player == black) {
+            sq = MIRRORR(sq);
+            pc = invert_color(pc);
+        }
+
+        board[sq] = pc;
+    }
+
+    for(int i = 0; (pc = piece[i]) != blank; i++) {
+        sq = SQ6488(square[i]);
+        if(player == black) {
+            sq = MIRRORR(sq);
+            pc = invert_color(pc);
+        }
+        D(sq,(pc+11)) = 1.0f;
+        switch(pc) {
+            case wking:
+                NK_MOVES(RU,0);
+                NK_MOVES(LD,0);
+                NK_MOVES(LU,0);
+                NK_MOVES(RD,0);
+                NK_MOVES(UU,0);
+                NK_MOVES(DD,0);
+                NK_MOVES(RR,0);
+                NK_MOVES(LL,0);
+                break;
+            case wqueen:
+                BRQ_MOVES(RU,1);
+                BRQ_MOVES(LD,1);
+                BRQ_MOVES(LU,1);
+                BRQ_MOVES(RD,1);
+                BRQ_MOVES(UU,1);
+                BRQ_MOVES(DD,1);
+                BRQ_MOVES(RR,1);
+                BRQ_MOVES(LL,1);
+                break;
+            case wrook:
+                BRQ_MOVES(UU,2);
+                BRQ_MOVES(DD,2);
+                BRQ_MOVES(RR,2);
+                BRQ_MOVES(LL,2);
+                break;
+            case wbishop:
+                BRQ_MOVES(RU,3);
+                BRQ_MOVES(LD,3);
+                BRQ_MOVES(LU,3);
+                BRQ_MOVES(RD,3);
+                break;
+            case wknight:
+                NK_MOVES(RRU,4);
+                NK_MOVES(LLD,4);
+                NK_MOVES(RUU,4);
+                NK_MOVES(LDD,4);
+                NK_MOVES(LLU,4);
+                NK_MOVES(RRD,4);
+                NK_MOVES(RDD,4);
+                NK_MOVES(LUU,4);
+                break;
+            case wpawn:
+                NK_MOVES(RU,5);
+                NK_MOVES(LU,5);
+                break;
+            case bking:
+                NK_MOVES(RU,6);
+                NK_MOVES(LD,6);
+                NK_MOVES(LU,6);
+                NK_MOVES(RD,6);
+                NK_MOVES(UU,6);
+                NK_MOVES(DD,6);
+                NK_MOVES(RR,6);
+                NK_MOVES(LL,6);
+                break;
+            case bqueen:
+                BRQ_MOVES(RU,7);
+                BRQ_MOVES(LD,7);
+                BRQ_MOVES(LU,7);
+                BRQ_MOVES(RD,7);
+                BRQ_MOVES(UU,7);
+                BRQ_MOVES(DD,7);
+                BRQ_MOVES(RR,7);
+                BRQ_MOVES(LL,7);
+                break;
+            case brook:
+                BRQ_MOVES(UU,8);
+                BRQ_MOVES(DD,8);
+                BRQ_MOVES(RR,8);
+                BRQ_MOVES(LL,8);
+                break;
+            case bbishop:
+                BRQ_MOVES(RU,9);
+                BRQ_MOVES(LD,9);
+                BRQ_MOVES(LU,9);
+                BRQ_MOVES(RD,9);
+                break;
+            case bknight:
+                NK_MOVES(RRU,10);
+                NK_MOVES(LLD,10);
+                NK_MOVES(RUU,10);
+                NK_MOVES(LDD,10);
+                NK_MOVES(LLU,10);
+                NK_MOVES(RRD,10);
+                NK_MOVES(RDD,10);
+                NK_MOVES(LUU,10);
+                break;
+            case bpawn:
+                NK_MOVES(RD,11);
+                NK_MOVES(LD,11);
+                break;
+        }
+
+        col = PCOLOR(pc);
+        pc = PIECE(pc);
+
+        if(pc != king) {
+            if(col == white)
+                adata[pc - queen]++;
+            else
+                adata[pc - queen]--;
+        }
+    }
+
+#undef NK_MOVES
+#undef BRQ_MOVES
+#undef D
+}
 
 /*
 pseudo random numbers generated using rand();

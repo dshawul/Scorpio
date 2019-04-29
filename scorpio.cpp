@@ -764,13 +764,15 @@ bool parse_commands(char** commands) {
         } else if(!strcmp(command,"selfplayp")) {
             int N = atoi(commands[command_num++]);
             FILE* fw = fopen(commands[command_num++],"w");
+            FILE* fw2 = fopen(commands[command_num++],"w");
             
             print("Starting %d selfplay games\n",N);
             is_selfplay = true;
-            searcher.self_play_thread_all(fw,N);
+            searcher.self_play_thread_all(fw,fw2,N);
 
             print("Finished\n");
             fclose(fw);
+            fclose(fw2);
             /*********************************************
             *     Processing epd files                  *
             *********************************************/

@@ -1283,6 +1283,7 @@ void SEARCHER::manage_tree(bool single) {
         while(current) {
             double n = ((noise[index] - alpha * beta) / total);
             current->policy = current->policy * (1 - frac) + n * frac;
+            if(current->policy < 0) current->policy = 0;
             current = current->next;
             index++;
         }
@@ -1374,10 +1375,12 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta) {
 * Self-play with policy
 */
 static FILE* spfile = 0;
+static FILE* spfile2 = 0;
 static int spgames = 0;
 
-void SEARCHER::self_play_thread_all(FILE* fw, int ngames) {
+void SEARCHER::self_play_thread_all(FILE* fw, FILE* fw2, int ngames) {
     spfile = fw;
+    spfile2 = fw2;
     spgames = ngames;
     
 #ifdef PARALLEL
@@ -1399,11 +1402,27 @@ void SEARCHER::self_play_thread_all(FILE* fw, int ngames) {
 #endif
 }
 
+typedef struct TRAIN {
+   int   nmoves;
+   float value;
+   int   moves[MAX_MOVES];
+   float probs[MAX_MOVES];
+   int   piece[33];
+   int   square[33];
+} *PTRAIN;
+
 void SEARCHER::self_play_thread() {
     static VOLATILE int wins = 0, losses = 0, draws = 0;
+    static const int NPLANE = 8 * 8 * 24;
+    static const int NPARAM = 5;
 
     MOVE move;
     int phply = hply;
+    PTRAIN trn = new TRAIN[MAX_HSTACK];
+    float* data  = (float*) malloc(sizeof(float) * NPLANE);
+    float* adata = (float*) malloc(sizeof(float) * NPARAM);
+    char buffer[4096];
+    int bcount;
 
     while(true) {
 
@@ -1418,10 +1437,65 @@ void SEARCHER::self_play_thread() {
                 int ngames = wins+losses+draws;
                 print("[%d] Games %d: + %d - %d = %d\n",GETPID(),
                     ngames,wins,losses,draws);
+
+                /*save pgn*/
                 print_game(
                     res,spfile,"Training games",
                     "ScorpioZero","ScorpioZero",
                     ngames);
+
+                /*save training data*/
+                int vres;
+                if(res == R_WWIN) vres = 0;
+                else if(res == R_BWIN) vres = 1;
+                else vres = 2;
+
+                l_lock(lock_io);
+                int pl = white;
+                for(int h = 0; h < hply; h++) {
+                    PTRAIN ptrn = &trn[h];
+                    PHIST_STACK phst = &hstack[h];
+
+                    int isdraw[1], hist = 1;
+                    fill_input_planes(pl,phst->castle,phst->fifty,hist,
+                        isdraw,ptrn->piece,ptrn->square,data,adata);
+
+                    bcount = 0;
+#if 1
+                    bcount += sprintf(&buffer[bcount], "%d %d %f %d ", 
+                        pl, vres, ptrn->value, ptrn->nmoves);
+                    for(int i = 0; i < ptrn->nmoves; i++)
+                        bcount += sprintf(&buffer[bcount], "%d %f ", 
+                            ptrn->moves[i], ptrn->probs[i]);
+#else
+                    int midx = compute_move_index(phst->move, pl);
+                    bcount += sprintf(&buffer[bcount], "%d %d %f 1 ", 
+                        pl, vres, ptrn->value);
+                    bcount += sprintf(&buffer[bcount], "%d 1.0", midx);
+#endif
+                    /*params*/
+                    for(int i = 0; i < NPARAM; i++)
+                        bcount += sprintf(&buffer[bcount], "%d ", int(adata[i]));
+                    /*run length encoding of planes*/
+                    int cnt = 1, val = data[0];
+                    bcount += sprintf(&buffer[bcount], "%d ", ((val > 0.5) ? 1 : 0) );
+                    for(int i = 1; i < NPLANE; i++) {
+                        if(val > 0.5 && data[i] > 0.5) cnt++;
+                        else if(val < 0.5 && data[i] < 0.5) cnt++;
+                        else {
+                            bcount += sprintf(&buffer[bcount], "%d ", cnt);
+                            cnt = 1;
+                            val = data[i];
+                        }
+                    }
+                    bcount += sprintf(&buffer[bcount], "%d\n", cnt);
+                    fwrite(buffer, bcount, 1, spfile2);
+
+                    pl = invert(pl);
+                }
+                l_unlock(lock_io);
+
+                /*abort*/
                 if(ngames >= spgames)
                     abort_search = 1;
                 else
@@ -1429,8 +1503,12 @@ void SEARCHER::self_play_thread() {
             }
 
             /*abort*/
-            if(abort_search)
+            if(abort_search) {
+                delete[] trn;
+                delete[] data;
+                delete[] adata;
                 return;
+            }
 
             /*do fixed nodes mcts search*/
             generate_and_score_moves(0, -MATE_SCORE, MATE_SCORE);
@@ -1438,9 +1516,45 @@ void SEARCHER::self_play_thread() {
             SEARCHER::egbb_ply_limit = 8;
             pstack->depth = search_depth * UNITDEPTH;
             search_mc(true);
+            move = stack[0].pv[0];
+
+            /*save training data*/
+            PTRAIN ptrn = &trn[hply];
+            ptrn->value = logistic(root_node->score);
+            if(player == black) 
+                ptrn->value = 1 - ptrn->value;
+            ptrn->nmoves = stack[0].count;
+
+#if 1
+            double val, total_visits = 0;
+            int cnt = 0, diff = low_visits_threshold - root_node->visits;
+            Node* current = root_node->child;
+            while(current) {
+                val = current->visits + 1;
+                if(diff > 0) 
+                    val += diff * current->policy;
+                total_visits += val;
+                ptrn->moves[cnt] = compute_move_index(current->move, player);
+                ptrn->probs[cnt] = val;
+                cnt++;
+                current = current->next;
+            }
+            for(int i = 0; i < cnt; i++)
+                ptrn->probs[i] /= (2 * total_visits);
+            int midx = compute_move_index(move, player);
+            for(int i = 0; i < cnt; i++) {
+                if(midx == ptrn->moves[i]) {
+                    ptrn->probs[i] += 0.5;
+                    break;
+                }
+            }
+#endif
+
+            /*fill piece list*/
+            int pcnt = 0;
+            fill_list(pcnt,ptrn->piece,ptrn->square);
             
             /*we have a move, make it*/
-            move = stack[0].pv[0];
             do_move(move);
         }
 

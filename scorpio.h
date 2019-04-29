@@ -791,7 +791,7 @@ typedef struct SEARCHER{
     int probe_neural(bool=false);
     void handle_terminal(Node*,bool);
     void self_play_thread();
-    void self_play_thread_all(FILE*,int);
+    void self_play_thread_all(FILE*,FILE*,int);
     static int egbb_is_loaded;
     static int egbb_load_type;
     static int egbb_depth_limit;
@@ -1080,6 +1080,8 @@ bool  check_mcts_params(char**,char*,int&);
 void  print_mcts_params();
 double logistic(double p);
 double logit(double p);
+int compute_move_index(MOVE&, int);
+void fill_input_planes(int, int, int, int, int*, int*, int*, float*, float*);
 
 #ifdef TUNE
 extern int nParameters;
