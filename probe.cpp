@@ -18,16 +18,19 @@ enum egbb_load_types {
     LOAD_NONE,LOAD_4MEN,SMART_LOAD,LOAD_5MEN
 };
 enum {CPU, GPU};
+enum {DEFAULT, LCZERO, SIMPLE};
 
 #define _NOTFOUND 99999
 #define MAX_PIECES 9
 
 typedef int (CDECL *PPROBE_EGBB) (int player, int* piece, int* square);
 typedef void (CDECL *PLOAD_EGBB) (char* path, int cache_size, int load_options);
-typedef void (CDECL *PLOAD_NN) (char* path, int nn_cache_size, int n_threads, 
-    int n_devices, int dev_type, int delay, int float_type, int nn_type);
-typedef int (CDECL *PPROBE_NN) (int player, int cast, int fifty, int hist, int* draw,
-    int* piece, int* square, int* moves, float* probs, int nmoves, UBMP64 hash_key, bool hard_probe);
+typedef void (CDECL *PPROBE_NN) (float** iplanes, unsigned short* pindex, 
+                                 float* probs, float* scores, int nmoves, 
+                                 UBMP64 hash_key, bool hard_probe);
+typedef void (CDECL *PLOAD_NN)(char* path, int nn_cache_size, int n_threads, 
+                               int n_devices, int dev_type, int delay, int float_type, 
+                               char* inps, char* outs, char* inp_shapes, char* out_shapes);
 typedef void (CDECL *PSET_NUM_ACTIVE_SEARCHERS) (int n_searchers);
 
 static PPROBE_EGBB probe_egbb;
@@ -50,6 +53,11 @@ int SEARCHER::device_type = CPU;
 int SEARCHER::delay = 0;
 int SEARCHER::float_type = 1;
 int SEARCHER::nn_type = 0;
+static bool is_trt = false;
+static int CHANNELS = 24;
+static int NPARAMS = 5;
+static int NVALUE = 3;
+static int NPOLICY = 4672;
 
 /*
 Load the dll and get the address of the load and probe functions.
@@ -76,6 +84,9 @@ Load the dll and get the address of the load and probe functions.
 #    define GetProcAddress dlsym
 #endif
 
+void init_index_table();
+void init_input_planes();
+
 int LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
 #ifdef EGBB
     static HMODULE hmod = 0;
@@ -101,12 +112,55 @@ int LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
         load_nn = (PLOAD_NN) GetProcAddress(hmod,"load_neural_network");
         probe_nn = (PPROBE_NN) GetProcAddress(hmod,"probe_neural_network");
         set_num_active_searchers = (PSET_NUM_ACTIVE_SEARCHERS) GetProcAddress(hmod,"set_num_active_searchers");
+
         if(load_egbb)
             load_egbb(main_path,egbb_cache_size,SEARCHER::egbb_load_type);
-        if(load_nn && SEARCHER::use_nn)
+
+        if(load_nn && SEARCHER::use_nn) {
+
+            char input_names[256];
+            char output_names[256];
+            char input_shapes[256];
+            char output_shapes[256];
+
+            if(SEARCHER::nn_type == DEFAULT) {
+                CHANNELS = 24;
+                NPOLICY = 4672;
+                NVALUE = 3;
+                strcpy(input_names, "main_input aux_input");
+                strcpy(output_names, "value/Softmax policy/Reshape");
+                strcpy(input_shapes, "24 8 8  5 1 1");
+                strcpy(output_shapes, "3 1 1  4672 1 1");
+            } else if(SEARCHER::nn_type == SIMPLE) {
+                CHANNELS = 12;
+                NPOLICY = 4672;
+                NVALUE = 3;
+                strcpy(input_names, "main_input aux_input");
+                strcpy(output_names, "value/Softmax policy/Reshape");
+                strcpy(input_shapes, "12 8 8");
+                strcpy(output_shapes, "3 1 1  4672 1 1");
+            } else if(SEARCHER::nn_type == LCZERO) {
+                CHANNELS = 112;
+                NPOLICY = 1858;
+                NVALUE = 1;
+                strcpy(input_names, "main_input");
+                strcpy(output_names, "value_head policy_head");
+                strcpy(input_shapes, "112 8 8");
+                strcpy(output_shapes, "1 1 1  1858 1 1");
+            }
+
+            if(strstr(SEARCHER::nn_path, ".uff") != NULL)
+                is_trt = true;
+            else
+                is_trt = false;
+
+            init_index_table();
+            init_input_planes();
+
             load_nn(SEARCHER::nn_path,nn_cache_size,PROCESSOR::n_processors,SEARCHER::n_devices,
-                SEARCHER::device_type,SEARCHER::delay,SEARCHER::float_type,SEARCHER::nn_type);
-        else
+                SEARCHER::device_type,SEARCHER::delay,SEARCHER::float_type, 
+                input_names, output_names, input_shapes, output_shapes);
+        } else
             SEARCHER::use_nn = 0;
         return true;
     } else {
@@ -161,74 +215,6 @@ int SEARCHER::probe_bitbases(int& score) {
     return false;
 }
 
-int SEARCHER::probe_neural(bool hard_probe) {
-#ifdef EGBB
-    UBMP64 hkey = ((player == white) ? hash_key : 
-             (hash_key ^ UINT64(0x2bc3964f82352234)));
-
-    int moves[3*MAX_MOVES];
-    int *s = moves;
-    for(int i = 0; i < pstack->count; i++) {
-        MOVE& m = pstack->move_st[i];
-        int from = m_from(m), to = m_to(m);
-        if(is_castle(m)) {
-            if(to > from) to++;
-            else to -= 2;
-        }
-        *s++ = SQ8864(from);
-        *s++ = SQ8864(to); 
-        *s++ = m_promote(m);
-    }
-    *s++ = -1;
-
-    nnecalls++;
-    if(nn_type == 0) {
-        int piece[33],square[33],isdraw[1];
-        int count = 0, hist = 1;
-        fill_list(count,piece,square);
-
-        return probe_nn(player,castle,fifty,hist,isdraw,piece,square,moves,
-            (float*)pstack->score_st,pstack->count,hkey,hard_probe);
-    } else {
-
-        int piece[8*33],square[8*33],isdraw[8];
-        int count = 0, hist = 0, phply = hply;
-        
-        for(int i = 0; i < 8; i++) {
-            isdraw[hist++] = draw();
-            fill_list(count,piece,square);
-
-            if(hply > 0 && hstack[hply - 1].move) 
-                POP_MOVE();
-            else break;
-        }
-
-        count = phply - hply;
-        for(int i = 0; i < count; i++)
-            PUSH_MOVE(hstack[hply].move);
-
-        if(isdraw[0])
-            hkey ^= UINT64(0xc7e9153edee38dcb);
-        hkey ^= fifty_hkey[fifty];
-
-        return probe_nn(player,castle,fifty,hist,isdraw,piece,square,moves,
-            (float*)pstack->score_st,pstack->count,hkey,hard_probe);
-    }
-#endif
-    return 0;
-}
-
-void PROCESSOR::set_num_searchers() {
-#ifdef EGBB
-    if(SEARCHER::use_nn && set_num_active_searchers) {
-        int n_searchers = n_processors - n_idle_processors;
-        set_num_active_searchers(n_searchers);
-    }
-#endif
-}
-/*
-* EGBB cutoff
-*/
 bool SEARCHER::bitbase_cutoff() {
 #ifdef EGBB
     int score;
@@ -254,4 +240,465 @@ bool SEARCHER::bitbase_cutoff() {
     }
 #endif
     return false;
+}
+
+/*
+Neural network
+*/
+static float* inp_planes;
+
+void init_input_planes() {
+    inp_planes = (float*) malloc(
+        PROCESSOR::n_processors * sizeof(float) * ( 8 * 8 * CHANNELS + NPARAMS) );
+}
+
+int SEARCHER::probe_neural(bool hard_probe) {
+#ifdef EGBB
+    UBMP64 hkey = ((player == white) ? hash_key : 
+             (hash_key ^ UINT64(0x2bc3964f82352234)));
+
+    unsigned short pindex[MAX_MOVES];
+    for(int i = 0; i < pstack->count; i++) {
+        MOVE& m = pstack->move_st[i];
+        pindex[i] = compute_move_index(m, player);
+    }
+
+    nnecalls++;
+
+    if(nn_type == DEFAULT) {
+
+        int piece[33],square[33],isdraw[1];
+        int count = 0, hist = 1;
+        fill_list(count,piece,square);
+
+        const int NPLANE = 8 * 8 * CHANNELS;
+        float* iplanes[2];
+        iplanes[0] = inp_planes + processor_id * (NPLANE + NPARAMS);
+        iplanes[1] = iplanes[0] + NPLANE;
+        fill_input_planes(player,castle,fifty,hist,
+            isdraw,piece,square,iplanes[0],iplanes[1]);
+
+        float wdl[3];
+        probe_nn(iplanes,pindex,(float*)pstack->score_st,wdl,pstack->count,hkey,hard_probe);
+        float p = wdl[0] * 1.0 + wdl[1] * 0.5;
+        return logit(p);
+
+    } else if(nn_type == SIMPLE) {
+
+        int piece[33],square[33],isdraw[1];
+        int count = 0, hist = 1;
+        fill_list(count,piece,square);
+
+        const int NPLANE = 8 * 8 * CHANNELS;
+        float* iplanes[1];
+        iplanes[0] = inp_planes + processor_id * NPLANE;
+        fill_input_planes(player,castle,fifty,hist,
+            isdraw,piece,square,iplanes[0],0);
+
+        float wdl[3];
+        probe_nn(iplanes,pindex,(float*)pstack->score_st,wdl,pstack->count,hkey,hard_probe);
+        float p = wdl[0] * 1.0 + wdl[1] * 0.5;
+        return logit(p);
+    } else {
+
+        int piece[8*33],square[8*33],isdraw[8];
+        int count = 0, hist = 0, phply = hply;
+        
+        for(int i = 0; i < 8; i++) {
+            isdraw[hist++] = draw();
+            fill_list(count,piece,square);
+
+            if(hply > 0 && hstack[hply - 1].move) 
+                POP_MOVE();
+            else break;
+        }
+
+        count = phply - hply;
+        for(int i = 0; i < count; i++)
+            PUSH_MOVE(hstack[hply].move);
+
+        if(isdraw[0])
+            hkey ^= UINT64(0xc7e9153edee38dcb);
+        hkey ^= fifty_hkey[fifty];
+
+        const int NPLANE = 8 * 8 * CHANNELS;
+        float* iplanes[1];
+        iplanes[0] = inp_planes + processor_id * NPLANE;
+        fill_input_planes(player,castle,fifty,hist,
+            isdraw,piece,square,iplanes[0],0);
+        
+        float wdl[1];
+        probe_nn(iplanes,pindex,(float*)pstack->score_st,wdl,pstack->count,hkey,hard_probe);
+        float p = (wdl[0] + 1.0) * 0.5;
+        return logit(p);
+    }
+#endif
+    return 0;
+}
+
+void PROCESSOR::set_num_searchers() {
+#ifdef EGBB
+    if(SEARCHER::use_nn && set_num_active_searchers) {
+        int n_searchers = n_processors - n_idle_processors;
+        set_num_active_searchers(n_searchers);
+    }
+#endif
+}
+
+/*
+Move policy format
+*/
+
+/* 1. AlphaZero format: 56=queen moves, 8=knight moves, 9 pawn promotions */
+static const UBMP8 t_move_map[] = {
+  0,  0,  0,  0,  0,  0,  0,  0,  0, 35,  0,  0,  0,  0,  0,  0,
+ 27,  0,  0,  0,  0,  0,  0, 55,  0,  0, 36,  0,  0,  0,  0,  0,
+ 26,  0,  0,  0,  0,  0, 54,  0,  0,  0,  0, 37,  0,  0,  0,  0,
+ 25,  0,  0,  0,  0, 53,  0,  0,  0,  0,  0,  0, 38,  0,  0,  0,
+ 24,  0,  0,  0, 52,  0,  0,  0,  0,  0,  0,  0,  0, 39,  0,  0,
+ 23,  0,  0, 51,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 40, 60,
+ 22, 56, 50,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 61, 41,
+ 21, 49, 57,  0,  0,  0,  0,  0,  0,  7,  8,  9, 10, 11, 12, 13,
+  0,  0,  1,  2,  3,  4,  5,  6,  0,  0,  0,  0,  0,  0, 63, 48,
+ 14, 28, 59,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 47, 62,
+ 15, 58, 29,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 46,  0,  0,
+ 16,  0,  0, 30,  0,  0,  0,  0,  0,  0,  0,  0, 45,  0,  0,  0,
+ 17,  0,  0,  0, 31,  0,  0,  0,  0,  0,  0, 44,  0,  0,  0,  0,
+ 18,  0,  0,  0,  0, 32,  0,  0,  0,  0, 43,  0,  0,  0,  0,  0,
+ 19,  0,  0,  0,  0,  0, 33,  0,  0, 42,  0,  0,  0,  0,  0,  0,
+ 20,  0,  0,  0,  0,  0,  0, 34,  0,  0,  0,  0,  0,  0,  0,  0
+};
+static const UBMP8* const move_map = t_move_map + 0x80;
+
+/* 2. LcZero format: flat move representation */
+static const int MOVE_TAB_SIZE = 64*64+8*3*3;
+
+static unsigned short move_index_table[MOVE_TAB_SIZE];
+
+void init_index_table() {
+
+    memset(move_index_table, 0, MOVE_TAB_SIZE * sizeof(short));
+
+    int cnt = 0;
+
+    for(int from = 0; from < 64; from++) {
+
+        int from88 = SQ6488(from);
+        for(int to = 0; to < 64; to++) {
+            int to88 = SQ6488(to);
+            if(from != to) {
+                if(sqatt_pieces(to88 - from88))
+                    move_index_table[from * 64 + to] = cnt++;
+            }
+        }
+
+    }
+
+    for(int from = 48; from < 56; from++) {
+        int idx = 4096 + file64(from) * 9;
+
+        if(from > 48) {
+            move_index_table[idx+0] = cnt++;
+            move_index_table[idx+1] = cnt++;
+            move_index_table[idx+2] = cnt++;
+        }
+
+        move_index_table[idx+3] = cnt++;
+        move_index_table[idx+4] = cnt++;
+        move_index_table[idx+5] = cnt++;
+
+        if(from < 55) {
+            move_index_table[idx+6] = cnt++;
+            move_index_table[idx+7] = cnt++;
+            move_index_table[idx+8] = cnt++;
+        }
+    }
+}
+
+int compute_move_index(MOVE& m, int player) {
+
+    int from = m_from(m), to = m_to(m), prom, index;
+    if(is_castle(m)) {
+        if(to > from) to++;
+        else to -= 2;
+    }
+    from = SQ8864(from);
+    to = SQ8864(to); 
+    prom = m_promote(m); 
+
+    if(player == black) {
+        from = MIRRORR64(from);
+        to = MIRRORR64(to);
+    }
+
+    if(SEARCHER::nn_type == DEFAULT || SEARCHER::nn_type == SIMPLE) {
+        index = from * 73;
+        if(prom) {
+            prom = PIECE(prom);
+            if(prom != queen)
+                index += 64 + (to - from - 7) * 3  + (prom - queen);
+            else
+                index += move_map[SQ6488(to) - SQ6488(from)];
+        } else {
+            index += move_map[SQ6488(to) - SQ6488(from)];
+        }
+    } else {
+        int compi = from * 64 + to;
+        if(prom) {
+            prom = PIECE(prom);
+            if(prom != knight) {
+                compi = 4096 +  file64(from) * 9 + 
+                        (to - from - 7) * 3 + (prom - queen);
+            }
+        }
+
+        index = move_index_table[compi];
+    }
+
+    return index;
+}
+
+/*
+   Fill input planes
+*/
+#define invert_color(x)  (((x) > 6) ? ((x) - 6) : ((x) + 6))
+
+void fill_input_planes(
+    int player, int cast, int fifty, int hist, int* draw, 
+    int* piece, int* square, float* data, float* adata
+    ) {
+    
+    int pc, col, sq, to;
+
+    /* 
+       Add the attack map planes 
+    */
+#define DHWC(sq,C)     data[rank(sq) * 8 * CHANNELS + file(sq) * CHANNELS + C]
+#define DCHW(sq,C)     data[C * 8 * 8 + rank(sq) * 8 + file(sq)]
+#define D(sq,C)        ( (is_trt || (SEARCHER::nn_type > DEFAULT) ) ? DCHW(sq,C) : DHWC(sq,C) )
+
+#define NK_MOVES(dir, off) {                    \
+        to = sq + dir;                          \
+        if(!(to & 0x88)) D(to, off) = 1.0f;     \
+}
+
+#define BRQ_MOVES(dir, off) {                   \
+        to = sq + dir;                          \
+        while(!(to & 0x88)) {                   \
+            D(to, off) = 1.0f;                  \
+            if(board[to] != 0) break;           \
+                to += dir;                      \
+        }                                       \
+}
+
+    memset(data,  0, sizeof(float) * 8 * 8 * CHANNELS);
+
+    if(SEARCHER::nn_type == DEFAULT) {
+
+        int board[128];
+
+        memset(board, 0, sizeof(int) * 128);
+        memset(adata, 0, sizeof(float) * NPARAMS);
+
+        for(int i = 0; (pc = piece[i]) != _EMPTY; i++) {
+            sq = SQ6488(square[i]);
+            if(player == _BLACK) {
+                sq = MIRRORR(sq);
+                pc = invert_color(pc);
+            }
+
+            board[sq] = pc;
+        }
+
+        for(int i = 0; (pc = piece[i]) != _EMPTY; i++) {
+            sq = SQ6488(square[i]);
+            if(player == _BLACK) {
+                sq = MIRRORR(sq);
+                pc = invert_color(pc);
+            }
+            D(sq,(pc+11)) = 1.0f;
+            switch(pc) {
+                case wking:
+                    NK_MOVES(RU,0);
+                    NK_MOVES(LD,0);
+                    NK_MOVES(LU,0);
+                    NK_MOVES(RD,0);
+                    NK_MOVES(UU,0);
+                    NK_MOVES(DD,0);
+                    NK_MOVES(RR,0);
+                    NK_MOVES(LL,0);
+                    break;
+                case wqueen:
+                    BRQ_MOVES(RU,1);
+                    BRQ_MOVES(LD,1);
+                    BRQ_MOVES(LU,1);
+                    BRQ_MOVES(RD,1);
+                    BRQ_MOVES(UU,1);
+                    BRQ_MOVES(DD,1);
+                    BRQ_MOVES(RR,1);
+                    BRQ_MOVES(LL,1);
+                    break;
+                case wrook:
+                    BRQ_MOVES(UU,2);
+                    BRQ_MOVES(DD,2);
+                    BRQ_MOVES(RR,2);
+                    BRQ_MOVES(LL,2);
+                    break;
+                case wbishop:
+                    BRQ_MOVES(RU,3);
+                    BRQ_MOVES(LD,3);
+                    BRQ_MOVES(LU,3);
+                    BRQ_MOVES(RD,3);
+                    break;
+                case wknight:
+                    NK_MOVES(RRU,4);
+                    NK_MOVES(LLD,4);
+                    NK_MOVES(RUU,4);
+                    NK_MOVES(LDD,4);
+                    NK_MOVES(LLU,4);
+                    NK_MOVES(RRD,4);
+                    NK_MOVES(RDD,4);
+                    NK_MOVES(LUU,4);
+                    break;
+                case wpawn:
+                    NK_MOVES(RU,5);
+                    NK_MOVES(LU,5);
+                    break;
+                case bking:
+                    NK_MOVES(RU,6);
+                    NK_MOVES(LD,6);
+                    NK_MOVES(LU,6);
+                    NK_MOVES(RD,6);
+                    NK_MOVES(UU,6);
+                    NK_MOVES(DD,6);
+                    NK_MOVES(RR,6);
+                    NK_MOVES(LL,6);
+                    break;
+                case bqueen:
+                    BRQ_MOVES(RU,7);
+                    BRQ_MOVES(LD,7);
+                    BRQ_MOVES(LU,7);
+                    BRQ_MOVES(RD,7);
+                    BRQ_MOVES(UU,7);
+                    BRQ_MOVES(DD,7);
+                    BRQ_MOVES(RR,7);
+                    BRQ_MOVES(LL,7);
+                    break;
+                case brook:
+                    BRQ_MOVES(UU,8);
+                    BRQ_MOVES(DD,8);
+                    BRQ_MOVES(RR,8);
+                    BRQ_MOVES(LL,8);
+                    break;
+                case bbishop:
+                    BRQ_MOVES(RU,9);
+                    BRQ_MOVES(LD,9);
+                    BRQ_MOVES(LU,9);
+                    BRQ_MOVES(RD,9);
+                    break;
+                case bknight:
+                    NK_MOVES(RRU,10);
+                    NK_MOVES(LLD,10);
+                    NK_MOVES(RUU,10);
+                    NK_MOVES(LDD,10);
+                    NK_MOVES(LLU,10);
+                    NK_MOVES(RRD,10);
+                    NK_MOVES(RDD,10);
+                    NK_MOVES(LUU,10);
+                    break;
+                case bpawn:
+                    NK_MOVES(RD,11);
+                    NK_MOVES(LD,11);
+                    break;
+            }
+
+            col = PCOLOR(pc);
+            pc = PIECE(pc);
+
+            if(pc != king) {
+                if(col == white)
+                    adata[pc - queen]++;
+                else
+                    adata[pc - queen]--;
+            }
+        }
+    } else if (SEARCHER::nn_type == SIMPLE) {
+        for(int i = 0; (pc = piece[i]) != _EMPTY; i++) {
+            sq = SQ6488(square[i]);
+            if(player == _BLACK) {
+                sq = MIRRORR(sq);
+                pc = invert_color(pc);
+            }
+            D(sq,(pc-1)) = 1.0f;
+        }
+    } else {
+
+        static const int piece_map[2][12] = {
+            {
+                wpawn,wknight,wbishop,wrook,wqueen,wking,
+                bpawn,bknight,bbishop,brook,bqueen,bking
+            },
+            {
+                bpawn,bknight,bbishop,brook,bqueen,bking,
+                wpawn,wknight,wbishop,wrook,wqueen,wking
+            }
+        };
+
+        for(int h = 0, i = 0; h < hist; h++) {
+            for(; (pc = piece[i]) != _EMPTY; i++) {
+                sq = SQ6488(square[i]);
+                if(player == _BLACK) 
+                    sq = MIRRORR(sq);
+                int off = piece_map[player][pc - wking]
+                         - wking + 13 * h;
+                D(sq,off) = 1.0f;
+            }
+            if(draw && draw[h]) {
+                int off = 13 * h + 12;
+                for(int i = 0; i < 64; i++) {
+                    sq = SQ6488(i);
+                    D(sq,off) = 1.0;
+                }
+            }
+            i++;
+        }
+
+        for(int i = 0; i < 64; i++) {
+            sq = SQ6488(i);
+            if(player == _BLACK) {
+                if(cast & 8) D(sq,(CHANNELS - 8)) = 1.0;
+                if(cast & 4) D(sq,(CHANNELS - 7)) = 1.0;
+                if(cast & 2) D(sq,(CHANNELS - 6)) = 1.0;
+                if(cast & 1) D(sq,(CHANNELS - 5)) = 1.0;
+                D(sq,(CHANNELS - 4)) = 1.0;
+            } else {
+                if(cast & 2) D(sq,(CHANNELS - 8)) = 1.0;
+                if(cast & 1) D(sq,(CHANNELS - 7)) = 1.0;
+                if(cast & 8) D(sq,(CHANNELS - 6)) = 1.0;
+                if(cast & 4) D(sq,(CHANNELS - 5)) = 1.0;
+                D(sq,(CHANNELS - 4)) = 0.0;
+            }
+            D(sq,(CHANNELS - 3)) = fifty / 100.0;
+            D(sq,(CHANNELS - 1)) = 1.0;
+        }
+    }
+
+#if 0
+        for(int c = 0; c < CHANNELS;c++) {
+            printf("Channel %d\n",c);
+            for(int i = 0; i < 8; i++) {
+                for(int j = 0; j < 8; j++) {
+                    int sq = SQ(i,j);
+                    printf("%d ",int(D(sq,c)));
+                }
+                printf("\n");
+            }
+            printf("\n");
+        }
+        fflush(stdout);
+#endif
+
+#undef NK_MOVES
+#undef BRQ_MOVES
+#undef D
 }
