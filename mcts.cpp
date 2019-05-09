@@ -22,7 +22,7 @@ static std::mt19937 mtgen(rd());
 static double noise_frac = 0.25;
 static double noise_alpha = 0.3;
 static double noise_beta = 1.0;
-static double noise_ply = 30;
+static int noise_ply = 30;
 static const int low_visits_threshold = 100;
 
 int montecarlo = 0;

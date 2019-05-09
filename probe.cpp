@@ -30,7 +30,8 @@ typedef void (CDECL *PPROBE_NN) (float** iplanes, unsigned short* pindex,
                                  UBMP64 hash_key, bool hard_probe);
 typedef void (CDECL *PLOAD_NN)(char* path, int nn_cache_size, int n_threads, 
                                int n_devices, int dev_type, int delay, int float_type, 
-                               char* inps, char* outs, char* inp_shapes, char* out_shapes);
+                               char* inps, char* outs, char* inp_shapes, char* out_shapes, 
+                               int max_moves);
 typedef void (CDECL *PSET_NUM_ACTIVE_SEARCHERS) (int n_searchers);
 
 static PPROBE_EGBB probe_egbb;
@@ -159,7 +160,7 @@ int LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
 
             load_nn(SEARCHER::nn_path,nn_cache_size,PROCESSOR::n_processors,SEARCHER::n_devices,
                 SEARCHER::device_type,SEARCHER::delay,SEARCHER::float_type, 
-                input_names, output_names, input_shapes, output_shapes);
+                input_names, output_names, input_shapes, output_shapes, MAX_MOVES);
         } else
             SEARCHER::use_nn = 0;
         return true;
@@ -245,11 +246,12 @@ bool SEARCHER::bitbase_cutoff() {
 /*
 Neural network
 */
-static float* inp_planes;
+
+static float* inp_planes[MAX_CPUS];
 
 void init_input_planes() {
-    inp_planes = (float*) malloc(
-        PROCESSOR::n_processors * sizeof(float) * ( 8 * 8 * CHANNELS + NPARAMS) );
+    for(int i = 0; i < PROCESSOR::n_processors;i++)
+        aligned_reserve<float>(inp_planes[i], (8 * 8 * CHANNELS + NPARAMS));
 }
 
 int SEARCHER::probe_neural(bool hard_probe) {
@@ -270,11 +272,10 @@ int SEARCHER::probe_neural(bool hard_probe) {
         int piece[33],square[33],isdraw[1];
         int count = 0, hist = 1;
         fill_list(count,piece,square);
-
-        const int NPLANE = 8 * 8 * CHANNELS;
+        
         float* iplanes[2];
-        iplanes[0] = inp_planes + processor_id * (NPLANE + NPARAMS);
-        iplanes[1] = iplanes[0] + NPLANE;
+        iplanes[0] = inp_planes[processor_id];
+        iplanes[1] = iplanes[0] + (8 * 8 * CHANNELS);
         fill_input_planes(player,castle,fifty,hist,
             isdraw,piece,square,iplanes[0],iplanes[1]);
 
@@ -289,9 +290,8 @@ int SEARCHER::probe_neural(bool hard_probe) {
         int count = 0, hist = 1;
         fill_list(count,piece,square);
 
-        const int NPLANE = 8 * 8 * CHANNELS;
         float* iplanes[1];
-        iplanes[0] = inp_planes + processor_id * NPLANE;
+        iplanes[0] = inp_planes[processor_id];
         fill_input_planes(player,castle,fifty,hist,
             isdraw,piece,square,iplanes[0],0);
 
@@ -321,9 +321,8 @@ int SEARCHER::probe_neural(bool hard_probe) {
             hkey ^= UINT64(0xc7e9153edee38dcb);
         hkey ^= fifty_hkey[fifty];
 
-        const int NPLANE = 8 * 8 * CHANNELS;
         float* iplanes[1];
-        iplanes[0] = inp_planes + processor_id * NPLANE;
+        iplanes[0] = inp_planes[processor_id];
         fill_input_planes(player,castle,fifty,hist,
             isdraw,piece,square,iplanes[0],0);
         

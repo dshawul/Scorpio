@@ -1777,10 +1777,11 @@ MOVE SEARCHER::find_best() {
         frac_abprior = 0;
 
     /*fen*/
-    char fen[MAX_FEN_STR];
-    get_fen(fen);
-    if(!is_selfplay)
+    if(pv_print_style == 0) {
+        char fen[MAX_FEN_STR];
+        get_fen(fen);
         print("# %s\n",fen);
+    }
 
     /*generate and score moves*/
     chess_clock.set_stime(hply,true);

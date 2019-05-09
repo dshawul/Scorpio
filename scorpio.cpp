@@ -768,7 +768,8 @@ bool parse_commands(char** commands) {
             
             print("Starting %d selfplay games\n",N);
             is_selfplay = true;
-            searcher.self_play_thread_all(fw,fw2,N);
+            main_searcher->COPY(&searcher);
+            main_searcher->self_play_thread_all(fw,fw2,N);
 
             print("Finished\n");
             fclose(fw);
