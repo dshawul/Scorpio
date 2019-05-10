@@ -268,6 +268,8 @@ void SEARCHER::print_game(int res, FILE* fw, const char* event,
     char mvstr[12];
     char str[16];
     char date[32];
+    char buffer[4096];
+    int bcount;
 
     get_date(date);
     if(res == R_DRAW) strcpy(str,"1/2-1/2");
@@ -275,49 +277,35 @@ void SEARCHER::print_game(int res, FILE* fw, const char* event,
     else if(res == R_BWIN) strcpy(str,"0-1");
     else strcpy(str,"*");
 
+    bcount = 0;
+
+    if(event)  bcount += sprintf(&buffer[bcount],"\n[Event \"%s\"]\n",event);
+    bcount += sprintf(&buffer[bcount],"[Date \"%s\"]\n",date);
+    if(Round)  bcount += sprintf(&buffer[bcount],"[Round \"%d\"]\n",Round);
+    if(whitep) bcount += sprintf(&buffer[bcount],"[White \"%s\"]\n",whitep);
+    if(blackp) bcount += sprintf(&buffer[bcount],"[Black \"%s\"]\n",blackp);
+    bcount += sprintf(&buffer[bcount],"[Result \"%s\"]\n",str);
+    bcount += sprintf(&buffer[bcount],"[PlyCount \"%d\"]\n",hply);
+    bcount += sprintf(&buffer[bcount],"[FEN \"%s\"]\n",HIST_STACK::start_fen);
+    if((((hply % 2) + player) % 2)) {
+        i = 1;
+        bcount += sprintf(&buffer[bcount],"\n1... ");
+    }
+    for(;i < hply;i++) {
+        if(i % 16 == 0) bcount += sprintf(&buffer[bcount],"\n");
+        mov_san(hstack[i].move,mvstr);
+        if(i % 2 == 0) bcount += sprintf(&buffer[bcount],"%d.",i/2 + 1);
+        bcount += sprintf(&buffer[bcount],"%s ",mvstr);
+    }
+    bcount += sprintf(&buffer[bcount],"\n\n");
+
     if(fw) {
         l_lock(lock_io);
-        if(event)  fprintf(fw,"\n[Event \"%s\"]\n",event);
-        fprintf(fw,"[Date \"%s\"]\n",date);
-        if(Round)  fprintf(fw,"[Round \"%d\"]\n",Round);
-        if(whitep) fprintf(fw,"[White \"%s\"]\n",whitep);
-        if(blackp) fprintf(fw,"[Black \"%s\"]\n",blackp);
-        fprintf(fw,"[Result \"%s\"]\n",str);
-        fprintf(fw,"[PlyCount \"%d\"]\n",hply);
-        fprintf(fw,"[FEN \"%s\"]\n",HIST_STACK::start_fen);
-        if((((hply % 2) + player) % 2)) {
-            i = 1;
-            fprintf(fw,"\n1... ");
-        }
-        for(;i < hply;i++) {
-            if(i % 16 == 0) fprintf(fw,"\n");
-            mov_san(hstack[i].move,mvstr);
-            if(i % 2 == 0) fprintf(fw,"%d.",i/2 + 1);
-            fprintf(fw,"%s ",mvstr);
-        }
-        fprintf(fw,"\n\n");
+        fwrite(buffer, bcount, 1, fw);
         fflush(fw);
         l_unlock(lock_io);
     } else {
-        if(event)  print_log("\n[Event \"%s\"]\n",event);
-        print_log("[Date \"%s\"]\n",date);
-        if(Round)  print_log("[Round \"%d\"]\n",Round);
-        if(whitep) print_log("[White \"%s\"]\n",whitep);
-        if(blackp) print_log("[Black \"%s\"]\n",blackp);
-        print_log("[Result \"%s\"]\n",str);
-        print_log("[PlyCount \"%d\"]\n",hply);
-        print_log("[FEN \"%s\"]\n",HIST_STACK::start_fen);
-        if((((hply % 2) + player) % 2)) {
-            i = 1;
-            print_log("\n1... ");
-        }
-        for(;i < hply;i++) {
-            if(i % 16 == 0) print_log("\n");
-            mov_san(hstack[i].move,mvstr);
-            if(i % 2 == 0) print_log("%d.",i/2 + 1);
-            print_log("%s ",mvstr);
-        }
-        print_log("\n\n");
+        print_log("%s\n",buffer);
     }
 }
 void SEARCHER::print_allmoves() {

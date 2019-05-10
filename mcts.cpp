@@ -1450,7 +1450,6 @@ void SEARCHER::self_play_thread() {
                 else if(res == R_BWIN) vres = 1;
                 else vres = 2;
 
-                l_lock(lock_io);
                 int pl = white;
                 for(int h = 0; h < hply; h++) {
                     PTRAIN ptrn = &trn[h];
@@ -1489,11 +1488,14 @@ void SEARCHER::self_play_thread() {
                         }
                     }
                     bcount += sprintf(&buffer[bcount], "%d\n", cnt);
+
+                    l_lock(lock_io);
                     fwrite(buffer, bcount, 1, spfile2);
+                    fflush(spfile2);
+                    l_unlock(lock_io);
 
                     pl = invert(pl);
                 }
-                l_unlock(lock_io);
 
                 /*abort*/
                 if(ngames >= spgames)
