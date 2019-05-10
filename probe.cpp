@@ -25,13 +25,11 @@ enum {DEFAULT, LCZERO, SIMPLE};
 
 typedef int (CDECL *PPROBE_EGBB) (int player, int* piece, int* square);
 typedef void (CDECL *PLOAD_EGBB) (char* path, int cache_size, int load_options);
-typedef void (CDECL *PPROBE_NN) (float** iplanes, unsigned short* pindex, 
-                                 float* probs, float* scores, int nmoves, 
-                                 UBMP64 hash_key, bool hard_probe);
+typedef void (CDECL *PPROBE_NN) (float** iplanes, unsigned short** p_index, int* p_size,
+                                 float** p_outputs, UBMP64 hash_key, bool hard_probe);
 typedef void (CDECL *PLOAD_NN)(char* path, int nn_cache_size, int n_threads, 
                                int n_devices, int dev_type, int delay, int float_type, 
-                               char* inps, char* outs, char* inp_shapes, char* out_shapes, 
-                               int max_moves);
+                               char* inps, char* outs, char* inp_shapes, char* output_sizes);
 typedef void (CDECL *PSET_NUM_ACTIVE_SEARCHERS) (int n_searchers);
 
 static PPROBE_EGBB probe_egbb;
@@ -57,8 +55,6 @@ int SEARCHER::nn_type = 0;
 static bool is_trt = false;
 static int CHANNELS = 24;
 static int NPARAMS = 5;
-static int NVALUE = 3;
-static int NPOLICY = 4672;
 
 /*
 Load the dll and get the address of the load and probe functions.
@@ -122,32 +118,26 @@ int LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
             char input_names[256];
             char output_names[256];
             char input_shapes[256];
-            char output_shapes[256];
+            char output_sizes[256];
 
             if(SEARCHER::nn_type == DEFAULT) {
                 CHANNELS = 24;
-                NPOLICY = 4672;
-                NVALUE = 3;
                 strcpy(input_names, "main_input aux_input");
-                strcpy(output_names, "value/Softmax policy/Reshape");
                 strcpy(input_shapes, "24 8 8  5 1 1");
-                strcpy(output_shapes, "3 1 1  4672 1 1");
+                strcpy(output_names, "value/Softmax policy/Reshape");
+                strcpy(output_sizes, "3 256");
             } else if(SEARCHER::nn_type == SIMPLE) {
                 CHANNELS = 12;
-                NPOLICY = 4672;
-                NVALUE = 3;
                 strcpy(input_names, "main_input aux_input");
-                strcpy(output_names, "value/Softmax policy/Reshape");
                 strcpy(input_shapes, "12 8 8");
-                strcpy(output_shapes, "3 1 1  4672 1 1");
+                strcpy(output_names, "value/Softmax policy/Reshape");
+                strcpy(output_sizes, "3 256");
             } else if(SEARCHER::nn_type == LCZERO) {
                 CHANNELS = 112;
-                NPOLICY = 1858;
-                NVALUE = 1;
                 strcpy(input_names, "main_input");
-                strcpy(output_names, "value_head policy_head");
                 strcpy(input_shapes, "112 8 8");
-                strcpy(output_shapes, "1 1 1  1858 1 1");
+                strcpy(output_names, "value_head policy_head");
+                strcpy(output_sizes, "1 256");
             }
 
             if(strstr(SEARCHER::nn_path, ".uff") != NULL)
@@ -160,7 +150,7 @@ int LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
 
             load_nn(SEARCHER::nn_path,nn_cache_size,PROCESSOR::n_processors,SEARCHER::n_devices,
                 SEARCHER::device_type,SEARCHER::delay,SEARCHER::float_type, 
-                input_names, output_names, input_shapes, output_shapes, MAX_MOVES);
+                input_names, output_names, input_shapes, output_sizes);
         } else
             SEARCHER::use_nn = 0;
         return true;
@@ -248,10 +238,20 @@ Neural network
 */
 
 static float* inp_planes[MAX_CPUS];
+static unsigned short* all_pindex[MAX_CPUS];
 
 void init_input_planes() {
-    for(int i = 0; i < PROCESSOR::n_processors;i++)
-        aligned_reserve<float>(inp_planes[i], (8 * 8 * CHANNELS + NPARAMS));
+    float* planes = 0;
+    unsigned short* index = 0;
+    const unsigned int N_PLANE = (8 * 8 * CHANNELS) + 
+                ( (SEARCHER::nn_type == DEFAULT) ? NPARAMS : 0);
+
+    aligned_reserve<float>(planes, PROCESSOR::n_processors * N_PLANE);
+    aligned_reserve<unsigned short>(index, PROCESSOR::n_processors * MAX_MOVES);
+    for(int i = 0; i < PROCESSOR::n_processors;i++) {
+        inp_planes[i] = planes + i * N_PLANE;
+        all_pindex[i] = index + i * MAX_MOVES;
+    }
 }
 
 int SEARCHER::probe_neural(bool hard_probe) {
@@ -259,46 +259,35 @@ int SEARCHER::probe_neural(bool hard_probe) {
     UBMP64 hkey = ((player == white) ? hash_key : 
              (hash_key ^ UINT64(0x2bc3964f82352234)));
 
-    unsigned short pindex[MAX_MOVES];
+    unsigned short* const mindex = all_pindex[processor_id];
     for(int i = 0; i < pstack->count; i++) {
         MOVE& m = pstack->move_st[i];
-        pindex[i] = compute_move_index(m, player);
+        mindex[i] = compute_move_index(m, player);
     }
 
     nnecalls++;
 
-    if(nn_type == DEFAULT) {
+    if(nn_type == DEFAULT || nn_type == SIMPLE) {
 
         int piece[33],square[33],isdraw[1];
         int count = 0, hist = 1;
         fill_list(count,piece,square);
-        
+
         float* iplanes[2];
         iplanes[0] = inp_planes[processor_id];
-        iplanes[1] = iplanes[0] + (8 * 8 * CHANNELS);
+        if(nn_type == DEFAULT)
+            iplanes[1] = iplanes[0] + (8 * 8 * CHANNELS);
         fill_input_planes(player,castle,fifty,hist,
             isdraw,piece,square,iplanes[0],iplanes[1]);
 
         float wdl[3];
-        probe_nn(iplanes,pindex,(float*)pstack->score_st,wdl,pstack->count,hkey,hard_probe);
+        unsigned short* p_index[2] = {0, mindex};
+        int p_size[2] = {3, pstack->count};
+        float* p_outputs[2] = {wdl,(float*)pstack->score_st};
+        probe_nn(iplanes,p_index,p_size,p_outputs,hkey,hard_probe);
         float p = wdl[0] * 1.0 + wdl[1] * 0.5;
         return logit(p);
 
-    } else if(nn_type == SIMPLE) {
-
-        int piece[33],square[33],isdraw[1];
-        int count = 0, hist = 1;
-        fill_list(count,piece,square);
-
-        float* iplanes[1];
-        iplanes[0] = inp_planes[processor_id];
-        fill_input_planes(player,castle,fifty,hist,
-            isdraw,piece,square,iplanes[0],0);
-
-        float wdl[3];
-        probe_nn(iplanes,pindex,(float*)pstack->score_st,wdl,pstack->count,hkey,hard_probe);
-        float p = wdl[0] * 1.0 + wdl[1] * 0.5;
-        return logit(p);
     } else {
 
         int piece[8*33],square[8*33],isdraw[8];
@@ -327,7 +316,10 @@ int SEARCHER::probe_neural(bool hard_probe) {
             isdraw,piece,square,iplanes[0],0);
         
         float wdl[1];
-        probe_nn(iplanes,pindex,(float*)pstack->score_st,wdl,pstack->count,hkey,hard_probe);
+        unsigned short* p_index[2] = {0, mindex};
+        int p_size[2] = {1, pstack->count};
+        float* p_outputs[2] = {wdl,(float*)pstack->score_st};
+        probe_nn(iplanes,p_index,p_size,p_outputs,hkey,hard_probe);
         float p = (wdl[0] + 1.0) * 0.5;
         return logit(p);
     }
