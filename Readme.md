@@ -213,9 +213,9 @@ with the TensorRT backend.
 This is very straightforward:
 
     git clone https://github.com/dshawul/Scorpio.git
-    cd Scorpio && make && cd ..
+    cd Scorpio && ./build.sh && cd ..
 
-This will get you a linux scorpio executable.
+This will build you a scorpio executable in the bin/ directory.
 
 #### Testing on the CPU
 

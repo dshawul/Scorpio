@@ -1,7 +1,7 @@
 ############################
 # Target executable and files
 ############################
-EXE = scorpio
+EXE = ../bin/scorpio
 RM = rm -rf
 OBJ = attack.o scorpio.o eval.o hash.o moves.o parallel.o probe.o search.o mcts.o see.o magics.o util.o
 HPP = scorpio.h my_types.h params.h
