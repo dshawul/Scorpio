@@ -306,15 +306,15 @@ int SEARCHER::probe_neural(bool hard_probe) {
         for(int i = 0; i < count; i++)
             PUSH_MOVE(hstack[hply].move);
 
-        if(isdraw[0])
-            hkey ^= UINT64(0xc7e9153edee38dcb);
-        hkey ^= fifty_hkey[fifty];
-
         float* iplanes[1];
         iplanes[0] = inp_planes[processor_id];
         fill_input_planes(player,castle,fifty,hist,
             isdraw,piece,square,iplanes[0],0);
         
+        if(isdraw[0])
+            hkey ^= UINT64(0xc7e9153edee38dcb);
+        hkey ^= fifty_hkey[fifty];
+
         float wdl[1];
         unsigned short* p_index[2] = {0, mindex};
         int p_size[2] = {1, pstack->count};
@@ -692,4 +692,53 @@ void fill_input_planes(
 #undef NK_MOVES
 #undef BRQ_MOVES
 #undef D
+}
+
+/*
+Write input planes to file
+*/
+void SEARCHER::write_input_planes(FILE* file) {
+
+    float* iplanes[2] = {0, 0};
+
+    if(nn_type == DEFAULT || nn_type == SIMPLE) {
+
+        int piece[33],square[33],isdraw[1];
+        int count = 0, hist = 1;
+        fill_list(count,piece,square);
+
+        
+        iplanes[0] = inp_planes[processor_id];
+        if(nn_type == DEFAULT)
+            iplanes[1] = iplanes[0] + (8 * 8 * CHANNELS);
+        fill_input_planes(player,castle,fifty,hist,
+            isdraw,piece,square,iplanes[0],iplanes[1]);
+
+    } else {
+
+        int piece[8*33],square[8*33],isdraw[8];
+        int count = 0, hist = 0, phply = hply;
+        
+        for(int i = 0; i < 8; i++) {
+            isdraw[hist++] = draw();
+            fill_list(count,piece,square);
+
+            if(hply > 0 && hstack[hply - 1].move) 
+                POP_MOVE();
+            else break;
+        }
+
+        count = phply - hply;
+        for(int i = 0; i < count; i++)
+            PUSH_MOVE(hstack[hply].move);
+
+        iplanes[0] = inp_planes[processor_id];
+        fill_input_planes(player,castle,fifty,hist,
+            isdraw,piece,square,iplanes[0],0);
+    }
+
+    const int NPLANE = 8 * 8 * CHANNELS;
+    fwrite(iplanes[0], NPLANE * sizeof(float), 1, file);
+    if(nn_type == DEFAULT)
+        fwrite(iplanes[1], NPARAMS * sizeof(float), 1, file);
 }

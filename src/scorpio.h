@@ -792,6 +792,7 @@ typedef struct SEARCHER{
     void handle_terminal(Node*,bool);
     void self_play_thread();
     void self_play_thread_all(FILE*,FILE*,int);
+    void write_input_planes(FILE*);
     static int egbb_is_loaded;
     static int egbb_load_type;
     static int egbb_depth_limit;

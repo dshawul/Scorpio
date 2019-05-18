@@ -782,6 +782,7 @@ bool parse_commands(char** commands) {
                    !strcmp(command, "runsearch") ||
                    !strcmp(command, "runsearchepd") ||
                    !strcmp(command, "runquietepd") ||
+                   !strcmp(command, "runinpnn") ||
                    !strcmp(command, "jacobian") ||
                    !strcmp(command, "mse") ||
                    !strcmp(command, "gmse") ||
@@ -794,17 +795,18 @@ bool parse_commands(char** commands) {
             double frac = 1;
             int sc,sce,test,visited,result,nwords = 0;
             static const int DRAW_MARGIN = 35;
-            enum {RUNEVAL = 0, RUNEVALEPD, RUNSEARCH, RUNSEARCHEPD, RUNQUIETEPD, JACOBIAN, MSE, GMSE, TUNE};
+            enum {RUNEVAL = 0, RUNEVALEPD, RUNSEARCH, RUNSEARCHEPD, RUNQUIETEPD, RUNINPNN, JACOBIAN, MSE, GMSE, TUNE};
 
             if(!strcmp(command,"runeval")) test = RUNEVAL;
             else if(!strcmp(command,"runevalepd")) test = RUNEVALEPD;
             else if(!strcmp(command,"runsearch")) test = RUNSEARCH;
             else if(!strcmp(command,"runsearchepd")) test = RUNSEARCHEPD;
             else if(!strcmp(command,"runquietepd")) test = RUNQUIETEPD;
+            else if(!strcmp(command,"runinpnn")) test = RUNINPNN;
             else if(!strcmp(command,"jacobian")) test = JACOBIAN;
             else if(!strcmp(command,"mse")) test = MSE;
             else if(!strcmp(command,"gmse")) test = GMSE;
-            else  test = TUNE;
+            else test = TUNE;
 
             /*open file*/
             bool getfen = ((test <= JACOBIAN) 
@@ -828,8 +830,11 @@ bool parse_commands(char** commands) {
                     }
                 }
             }
-            if(test == RUNEVALEPD || test == RUNSEARCHEPD || test == RUNQUIETEPD) {
-                fw = fopen(commands[command_num++],"w");
+            if(test == RUNEVALEPD || test == RUNSEARCHEPD || test == RUNQUIETEPD || test == RUNINPNN) {
+                if(test == RUNINPNN)
+                    fw = fopen(commands[command_num++],"wb");
+                else
+                    fw = fopen(commands[command_num++],"w");
             }
             if(!epdfile_count) {
                 while(fgets(input,MAX_STR,fd))
@@ -980,6 +985,9 @@ bool parse_commands(char** commands) {
                             }
                         }
                         break;
+                    case RUNINPNN:
+                        searcher.write_input_planes(fw);
+                        break;
                     case JACOBIAN:
                     case MSE:
                     case GMSE:
@@ -1053,7 +1061,7 @@ bool parse_commands(char** commands) {
                 if(test != TUNE) break;
             }
 #ifdef TUNE
-            if(test >= 4) {
+            if(test >= GMSE) {
                 free(gse);
                 free(gmse);
                 free(dmse);
