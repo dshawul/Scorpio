@@ -12,7 +12,9 @@ For others, they are set in Makefile
 #define PARALLEL
 #define USE_SPINLOCK
 #endif
-#define HAS_BSF HAS_POPCNT
+#ifdef HAS_BSF
+#define HAS_BSF
+#endif
 /*
 int types
 */
@@ -133,6 +135,7 @@ cache line memory alignment (64 bytes)
 
 template<typename T>
 void aligned_reserve(T*& mem,const size_t& size) {
+#ifndef __ANDROID__
     if((sizeof(T) & (sizeof(T) - 1)) == 0) {
 #ifdef _WIN32
         if(mem) _aligned_free(mem);
@@ -141,7 +144,9 @@ void aligned_reserve(T*& mem,const size_t& size) {
         if(mem) free(mem);
         posix_memalign((void**)&mem,CACHE_LINE_SIZE,size * sizeof(T));
 #endif
-    } else {
+    } else 
+#endif
+    {
         if(mem) free(mem);
         mem = (T*) malloc(size * sizeof(T));
     }

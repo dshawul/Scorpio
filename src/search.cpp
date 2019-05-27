@@ -1133,6 +1133,7 @@ void SEARCHER::qsearch_nn() {
 searcher's search function
 */
 void SEARCHER::idle_loop_main() {
+#ifdef PARALLEL
     l_lock(lock_smp);       
     PROCESSOR::n_idle_processors++;
     PROCESSOR::set_num_searchers();
@@ -1147,6 +1148,7 @@ void SEARCHER::idle_loop_main() {
     PROCESSOR::n_idle_processors--;
     PROCESSOR::set_num_searchers();
     l_unlock(lock_smp);
+#endif
 }
 
 void SEARCHER::search() {
@@ -1208,7 +1210,11 @@ Get search score
 int SEARCHER::get_search_score() {
     if(pstack->depth <= 0) qsearch_calls++;
     else search_calls++;
+#ifdef PARALLEL
     ::search(processors[processor_id]);
+#else
+    ::search(this);
+#endif
     return pstack->best_score;
 }
 /*
@@ -1772,7 +1778,9 @@ MOVE SEARCHER::find_best() {
     qsearch_calls = 0;
     egbb_probes = 0;
     prev_pv_length = 0;
+#ifdef PARALLEL
     PROCESSOR::set_num_searchers();
+#endif
     if(is_selfplay || (chess_clock.max_visits != MAX_NUMBER))
         frac_abprior = 0;
 

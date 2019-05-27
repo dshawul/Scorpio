@@ -817,7 +817,7 @@ bool parse_commands(char** commands) {
 
             FILE *fd = 0, *fw = 0;
             if(getfen) {
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(__ANDROID__)
                 if(mem_epdfile)
                     fd = fmemopen(mem_epdfile, strlen(mem_epdfile), "r");
                 else 

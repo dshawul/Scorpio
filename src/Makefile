@@ -29,11 +29,13 @@ HPP = scorpio.h my_types.h params.h
 #  DEGBB           --  Include EGBB probing code
 #########################################################################
 DEFINES = 
+DEFINES += -DPARALLEL
 DEFINES += -DARC_64BIT
 DEFINES += -DHAS_POPCNT
-DEFINES += -DHAS_PREFETCH
-DEFINES += -DPARALLEL
-DEFINES += -DUSE_SPINLOCK
+ifneq ($(COMP),arm)
+    DEFINES += -DHAS_PREFETCH
+    DEFINES += -DUSE_SPINLOCK
+endif
 DEFINES += -DTHREAD_POLLING
 DEFINES += -DLOG_FILE
 DEFINES += -DBOOK_PROBE
@@ -86,21 +88,39 @@ STRIP += $(EXE)
 #  Compiler flags
 ###########################
 
-LXXFLAGS = -lpthread -lm
+ifeq ($(COMP),arm)
+    LXXFLAGS = -lm
+else
+    LXXFLAGS = -lpthread -lm
+endif
+
+UNUSED = -Wno-unused-variable -Wno-unused-result  -Wno-unused-result 
+ifeq ($(COMP),clang)
+else
+    UNUSED += -Wno-unused-but-set-variable -Wno-maybe-uninitialized -Wno-psabi
+endif
 
 ifeq ($(COMP),win)
     LXXFLAGS += -static
-    CXXFLAGS = -Wall -fstrict-aliasing -fno-exceptions -fno-rtti -Wno-unused-result -msse -std=c++11
+    CXXFLAGS = -Wall -fstrict-aliasing -fno-exceptions -fno-rtti $(UNUSED) -std=c++11
 else ifeq ($(COMP),pgcc)
     CXXFLAGS = warn -Mvect=sse -c11
     LXXFLAGS += -ldl
 else ifeq ($(COMP),icpc)
     CXXFLAGS  = -wd128 -wd981 -wd869 -wd2259 -wd383 -wd1418
-    CXXFLAGS += -fstrict-aliasing -fno-exceptions -fno-rtti -Wno-unused-result -msse -std=c++11
+    CXXFLAGS += -fstrict-aliasing -fno-exceptions -fno-rtti $(UNUSED) -std=c++11
     LXXFLAGS += -ldl
 else
-    CXXFLAGS = -Wall -fstrict-aliasing -fno-exceptions -fno-rtti -Wno-unused-result -msse -std=c++11
+    CXXFLAGS = -Wall -fstrict-aliasing -fno-exceptions -fno-rtti $(UNUSED) -std=c++11
     LXXFLAGS += -ldl
+endif
+
+ifeq ($(COMP),pgcc)
+else ifeq ($(COMP),arm)
+     CXXFLAGS += -fPIE -pie
+     LXXFLAGS += -fPIE -pie
+else
+     CXXFLAGS += -msse
 endif
 
 ifeq ($(DEBUG),3)

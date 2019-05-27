@@ -1005,13 +1005,16 @@ void SEARCHER::search_mc(bool single) {
     }
 
     /*update statistics of parent*/
+#ifdef PARALLEL
     if(!single && master) {
         l_lock(lock_smp);
         l_lock(master->lock);
         update_master(1);
         l_unlock(master->lock);
         l_unlock(lock_smp);
-    } else if(!single && !abort_search && !stop_searcher) {
+    } else
+#endif
+    if(!single && !abort_search && !stop_searcher) {
         bool failed = (-best->score <= oalpha) || 
                       (-best->score >= obeta);
         if(!failed) {

@@ -779,7 +779,7 @@ void SEARCHER::get_fen(char* fen) const {
     *fen = 0;
 
     /*fifty & hply*/
-    char str[12];
+    char str[32];
     int move_number = (hply - (player == black)) / 2 + 1;
     sprintf(str," %d %d",fifty,move_number);
     strcat(fen,str);
@@ -1099,7 +1099,6 @@ bool read_line(char* buffer) {
 /*
 Get number of physical/logical processors
 */
-
 int get_number_of_cpus() {
     int cores, active;
 #ifdef _WIN32
@@ -1115,6 +1114,9 @@ int get_number_of_cpus() {
         if(dwProcessAffinity & (DWORD(1) << i))
             active++;
     }
+#elif defined(__ANDROID__)
+    cores = sysconf(_SC_NPROCESSORS_ONLN);
+    active = cores;
 #else
     cpu_set_t mask;
     cores = sysconf(_SC_NPROCESSORS_ONLN);
