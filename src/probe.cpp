@@ -23,14 +23,24 @@ enum {DEFAULT, LCZERO, SIMPLE};
 #define _NOTFOUND 99999
 #define MAX_PIECES 9
 
-typedef int (CDECL *PPROBE_EGBB) (int player, int* piece, int* square);
-typedef void (CDECL *PLOAD_EGBB) (char* path, int cache_size, int load_options);
-typedef void (CDECL *PPROBE_NN) (float** iplanes, unsigned short** p_index, int* p_size,
-                                 float** p_outputs, UBMP64 hash_key, bool hard_probe);
-typedef void (CDECL *PLOAD_NN)(char* path, int nn_cache_size, int n_threads, 
-                               int n_devices, int dev_type, int delay, int float_type, 
-                               char* inps, char* outs, char* inp_shapes, char* output_sizes);
-typedef void (CDECL *PSET_NUM_ACTIVE_SEARCHERS) (int n_searchers);
+typedef int (CDECL *PPROBE_EGBB) (
+    int player, int* piece, int* square);
+typedef void (CDECL *PLOAD_EGBB) (
+    char* path, int cache_size, int load_options);
+typedef void (CDECL *PPROBE_NN) (
+    float** iplanes, float** p_outputs,
+    int* p_size, unsigned short** p_index, 
+    UBMP64 hash_key, bool hard_probe
+);
+typedef void (CDECL *PLOAD_NN)(
+    char* path,
+    char* input_names, char* output_names,
+    char* input_shapes, char* output_sizes,
+    int nn_cache_size, int dev_type, int n_devices,
+    int max_threads, int float_type, int delay
+);
+typedef void (CDECL *PSET_NUM_ACTIVE_SEARCHERS) (
+    int n_searchers);
 
 static PPROBE_EGBB probe_egbb;
 static PPROBE_NN probe_nn;
@@ -148,9 +158,9 @@ int LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
             init_index_table();
             init_input_planes();
 
-            load_nn(SEARCHER::nn_path,nn_cache_size,PROCESSOR::n_processors,SEARCHER::n_devices,
-                SEARCHER::device_type,SEARCHER::delay,SEARCHER::float_type, 
-                input_names, output_names, input_shapes, output_sizes);
+            load_nn(SEARCHER::nn_path,input_names, output_names, input_shapes, output_sizes,
+                nn_cache_size,SEARCHER::device_type,SEARCHER::n_devices,PROCESSOR::n_processors,
+                SEARCHER::float_type, SEARCHER::delay);
         } else
             SEARCHER::use_nn = 0;
         return true;
@@ -284,10 +294,9 @@ int SEARCHER::probe_neural(bool hard_probe) {
         unsigned short* p_index[2] = {0, mindex};
         int p_size[2] = {3, pstack->count};
         float* p_outputs[2] = {wdl,(float*)pstack->score_st};
-        probe_nn(iplanes,p_index,p_size,p_outputs,hkey,hard_probe);
+        probe_nn(iplanes,p_outputs,p_size,p_index,hkey,hard_probe);
         float p = wdl[0] * 1.0 + wdl[1] * 0.5;
         return logit(p);
-
     } else {
 
         int piece[8*33],square[8*33],isdraw[8];
@@ -319,7 +328,7 @@ int SEARCHER::probe_neural(bool hard_probe) {
         unsigned short* p_index[2] = {0, mindex};
         int p_size[2] = {1, pstack->count};
         float* p_outputs[2] = {wdl,(float*)pstack->score_st};
-        probe_nn(iplanes,p_index,p_size,p_outputs,hkey,hard_probe);
+        probe_nn(iplanes,p_outputs,p_size,p_index,hkey,hard_probe);
         float p = (wdl[0] + 1.0) * 0.5;
         return logit(p);
     }
@@ -678,11 +687,11 @@ void fill_input_planes(
 
 #if 0
         for(int c = 0; c < CHANNELS;c++) {
-            printf("Channel %d\n",c);
+            printf("//Channel %d\n",c);
             for(int i = 0; i < 8; i++) {
                 for(int j = 0; j < 8; j++) {
                     int sq = SQ(i,j);
-                    printf("%d ",int(D(sq,c)));
+                    printf("%d, ",int(D(sq,c)));
                 }
                 printf("\n");
             }
