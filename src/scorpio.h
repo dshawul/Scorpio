@@ -1105,7 +1105,7 @@ void bound_params(double*);
 /*
 Bitbases
 */
-int LoadEgbbLibrary(char* path,int,int);
+void LoadEgbbLibrary(char* path,int,int);
 /*
 Bitboards.
 */

@@ -94,7 +94,7 @@ Load the dll and get the address of the load and probe functions.
 void init_index_table();
 void init_input_planes();
 
-int LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
+void LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
 #ifdef EGBB
     static HMODULE hmod = 0;
     PLOAD_EGBB load_egbb;
@@ -118,11 +118,13 @@ int LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
         probe_egbb = (PPROBE_EGBB) GetProcAddress(hmod,"probe_egbb_xmen");
         load_nn = (PLOAD_NN) GetProcAddress(hmod,"load_neural_network");
         probe_nn = (PPROBE_NN) GetProcAddress(hmod,"probe_neural_network");
-        set_num_active_searchers = (PSET_NUM_ACTIVE_SEARCHERS) GetProcAddress(hmod,"set_num_active_searchers");
+        set_num_active_searchers = 
+            (PSET_NUM_ACTIVE_SEARCHERS) GetProcAddress(hmod,"set_num_active_searchers");
 
-        if(load_egbb)
+        if(load_egbb) {
             load_egbb(main_path,egbb_cache_size,SEARCHER::egbb_load_type);
-
+            SEARCHER::egbb_is_loaded = 1;
+        }
         if(load_nn && SEARCHER::use_nn) {
 
             char input_names[256];
@@ -163,12 +165,10 @@ int LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
                 SEARCHER::float_type, SEARCHER::delay);
         } else
             SEARCHER::use_nn = 0;
-        return true;
     } else {
         print("EgbbProbe not Loaded!\n");
     }
 #endif
-    return false;
 }
 /*
 Probe:

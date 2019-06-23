@@ -141,7 +141,7 @@ static void CDECL egbb_thread_proc(void*) {
     int start = get_time();
     int egbb_cache_sizeb = (SEARCHER::egbb_cache_size * 1024 * 1024);
     int nn_cache_sizeb = (SEARCHER::nn_cache_size * 1024 * 1024);
-    SEARCHER::egbb_is_loaded = LoadEgbbLibrary(SEARCHER::egbb_path,egbb_cache_sizeb,nn_cache_sizeb);
+    LoadEgbbLibrary(SEARCHER::egbb_path,egbb_cache_sizeb,nn_cache_sizeb);
     int end = get_time();
     print("loading_time = %ds\n",(end - start) / 1000);
     egbb_is_loading = false;
@@ -282,7 +282,7 @@ void init_game() {
     PROCESSOR::n_processors = 1;
     PROCESSOR::set_main();
     main_searcher = processors[0]->searcher;
-    SEARCHER::egbb_is_loaded = false;
+    SEARCHER::egbb_is_loaded = 0;
     initmagicmoves();
     SEARCHER::pre_calculate();
     searcher.new_board();
