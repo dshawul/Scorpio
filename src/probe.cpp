@@ -249,6 +249,7 @@ Neural network
 
 static float* inp_planes[MAX_CPUS];
 static unsigned short* all_pindex[MAX_CPUS];
+static float all_wdl[MAX_CPUS][3];
 
 void init_input_planes() {
     float* planes = 0;
@@ -290,7 +291,7 @@ int SEARCHER::probe_neural(bool hard_probe) {
         fill_input_planes(player,castle,fifty,hist,
             isdraw,piece,square,iplanes[0],iplanes[1]);
 
-        float wdl[3];
+        float* wdl = &all_wdl[processor_id][0];
         unsigned short* p_index[2] = {0, mindex};
         int p_size[2] = {3, pstack->count};
         float* p_outputs[2] = {wdl,(float*)pstack->score_st};
@@ -324,7 +325,7 @@ int SEARCHER::probe_neural(bool hard_probe) {
             hkey ^= UINT64(0xc7e9153edee38dcb);
         hkey ^= fifty_hkey[fifty];
 
-        float wdl[1];
+        float* wdl = &all_wdl[processor_id][0];
         unsigned short* p_index[2] = {0, mindex};
         int p_size[2] = {1, pstack->count};
         float* p_outputs[2] = {wdl,(float*)pstack->score_st};
