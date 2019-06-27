@@ -471,8 +471,8 @@ void SEARCHER::add_children(Node* n) {
         node->beta = MATE_SCORE;
         node->rank = i + 1;
         float* pp = (float*)&pstack->score_st[i];
-        node->policy = *pp;
         node->prior = node->score;
+        node->policy = *pp;
         if(last == n) first = node;
         else last->next = node;
         last = node;
@@ -500,8 +500,8 @@ void SEARCHER::add_null_child(Node* n, Node* last) {
     node->alpha = -MATE_SCORE;
     node->beta = MATE_SCORE;
     node->rank = 0;
-    node->policy = 0;
     node->prior = node->score;
+    node->policy = 0;
     last->next = node;
 }
 

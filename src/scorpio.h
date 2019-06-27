@@ -50,7 +50,7 @@ parallel search options
 */
 #ifdef  PARALLEL
 #   if !defined(MAX_CPUS)
-#       define MAX_CPUS            4096
+#       define MAX_CPUS             512
 #   endif
 #   define MAX_SEARCHERS_PER_CPU     32
 #   define MAX_CPUS_PER_SPLIT         8
@@ -369,8 +369,6 @@ struct Node {
     union {
         VOLATILE int alpha;
         VOLATILE float policy;
-    };
-    union {
         VOLATILE int beta;
         VOLATILE int prior;
     };
