@@ -40,6 +40,7 @@ Some definitions to include/remove code
 #   include <sys/time.h>
 #endif
 #include <vector>
+#include <map>
 #ifdef CLUSTER
 #  include "mpi.h"
 #endif
@@ -354,11 +355,41 @@ typedef struct tagEVALHASH {
     BMP16   age;
 } EVALHASH,*PEVALHASH;
 /*
-* In-memory tree
+* Edges of the tree
+*/
+struct Edges {
+    int* _data;
+    float score;
+    unsigned short count;
+    VOLATILE unsigned short n_children; 
+
+    MOVE* const moves() { return (MOVE*)_data; };
+    float* const scores() { return (float*)(((MOVE*)_data) + count); };
+
+    enum { CREATE = (1 << 14) };
+
+    bool try_create() { return !(l_or16(n_children,CREATE) & CREATE); }
+    void clear_create() { l_and16(n_children,~CREATE); };
+    void inc_children() { l_add16(n_children,1); };
+    unsigned short get_children() { return (n_children & ~CREATE); }
+
+    void clear() {
+        count = 0;
+        _data = 0;
+        n_children = 0;
+    }
+
+    static void allocate(Edges&, int, int);
+    static void reclaim(Edges&, int);
+    static std::map<int, std::vector<int*> > mem_[MAX_CPUS];
+};
+/*
+* Nodes of the tree
 */
 struct Node {
     Node* VOLATILE child;
     Node* next;
+    Edges edges;
     MOVE move;
 #if 1
     VOLATILE int alpha;
@@ -378,7 +409,7 @@ struct Node {
     VOLATILE unsigned short busy;
     VOLATILE unsigned char flag;
     unsigned char rank;
-    
+
     /*accessors*/
     enum {
         SCOUTF = 1, PVMOVE = 2, CREATE = 4, DEAD = 8
@@ -412,6 +443,9 @@ struct Node {
     void update_visits(unsigned int v) { l_add(visits,v); }
     void update_score(double s) { score = s; } /* Assume atomic until fixed! */
 
+    Node* add_child(int,int,MOVE,float,float);
+    Node* add_null_child(int,float);
+
     void clear() {
         score = 0;
         visits = 0;
@@ -423,6 +457,7 @@ struct Node {
         move = MOVE();
         alpha = -MATE_SCORE;
         beta = MATE_SCORE;
+        edges.clear();
     }
     static VOLATILE unsigned int total_nodes;
     static unsigned int max_tree_nodes;
@@ -436,8 +471,8 @@ struct Node {
     static void  parallel_reclaim(Node*);
     static void  parallel_rank_reset(Node*);
     static Node* print_tree(Node*,int,int = 0,int = 0);
-    static Node* Max_UCB_select(Node*,bool);
-    static Node* Max_AB_select(Node*,int,int,bool,bool);
+    static Node* Max_UCB_select(Node*,bool,int);
+    static Node* Max_AB_select(Node*,int,int,bool,bool,int);
     static Node* Best_select(Node*,bool);
     static Node* Random_select(Node*);
     static float Min_score(Node*);
@@ -701,8 +736,6 @@ typedef struct SEARCHER{
     /*mcts stuff*/
     void  extract_pv(Node*,bool=false);
     void  create_children(Node*);
-    void  add_children(Node*);
-    void  add_null_child(Node*,Node*);
     void  manage_tree(bool=false);
     void  play_simulation(Node*,double&,int&);
     void  search_mc(bool=false);

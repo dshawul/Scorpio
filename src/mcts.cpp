@@ -24,6 +24,8 @@ static double noise_alpha = 0.3;
 static double noise_beta = 1.0;
 static int noise_ply = 30;
 static const int low_visits_threshold = 100;
+static const int node_size = 
+    (sizeof(Node) + 32 * (sizeof(MOVE) + sizeof(float))) / 32;
 
 int montecarlo = 0;
 int rollout_type = ALPHABETA;
@@ -45,8 +47,9 @@ double logit(double p) {
     return log((1 - p) / p) / Kfactor;
 }
 
-/*Node*/
+/*Nodes and edges of tree*/
 std::vector<Node*> Node::mem_[MAX_CPUS];
+std::map<int, std::vector<int*> > Edges::mem_[MAX_CPUS];
 VOLATILE unsigned int Node::total_nodes = 0;
 unsigned int Node::max_tree_nodes = 0;
 unsigned int Node::max_tree_depth = 0;
@@ -74,14 +77,77 @@ void Node::reclaim(Node* n, int id) {
     while(current) {
         if(current->is_dead());
         else if(!current->child) {
+            Edges::reclaim(current->edges,id);
             mem_[id].push_back(current);
             l_add(total_nodes,-1);
         } else
             reclaim(current,id);
         current = current->next;
     }
+    Edges::reclaim(n->edges,id);
     mem_[id].push_back(n);
     l_add(total_nodes,-1);
+}
+
+void Edges::allocate(Edges& edges, int id, int sz) {
+    if(mem_[id].count(sz) > 0) {
+        std::vector<int*>& vec = mem_[id][sz];
+        if(!vec.empty()) {
+            edges._data = vec.back();
+            vec.pop_back();
+            return;
+        }
+    }
+    size_t bytes = sz * (sizeof(MOVE) + sizeof(int));
+    edges._data = (int*) malloc(bytes);
+}
+
+void Edges::reclaim(Edges& edges, int id) {
+    std::vector<int*>& vec = mem_[id][edges.count];
+    vec.push_back(edges._data);
+}
+
+static void add_node(Node* n, Node* node) {
+    if(!n->child)
+        n->child = node;
+    else {
+        Node* current = n->child, *prev;
+        while(current) {
+            prev = current;
+            current = current->next;
+        }
+        prev->next = node;
+    }
+}
+
+Node* Node::add_child(int processor_id, int idx, 
+    MOVE move, float policy, float score
+    ) {
+    Node* node = Node::allocate(processor_id);
+    node->move = move;
+    node->score = score;
+    node->visits = 0;
+    node->alpha = -MATE_SCORE;
+    node->beta = MATE_SCORE;
+    node->rank = idx + 1;
+    node->prior = node->score;
+    node->policy = policy;
+    add_node(this,node);
+    return node;
+}
+
+Node* Node::add_null_child(int processor_id, float score) {
+    Node* node = Node::allocate(processor_id);
+    node->move = 0;
+    node->score = score;
+    node->visits = 0;
+    node->alpha = -MATE_SCORE;
+    node->beta = MATE_SCORE;
+    node->rank = 0;
+    node->prior = node->score;
+    node->policy = 0;
+    add_node(this,node);
+    return node;
 }
 
 void Node::rank_children(Node* n) {
@@ -170,7 +236,7 @@ void Node::split(Node* n, std::vector<Node*>* pn, const int S, int& T) {
     }
 }
 
-Node* Node::Max_UCB_select(Node* n, bool has_ab) {
+Node* Node::Max_UCB_select(Node* n, bool has_ab, int processor_id) {
     double uct, bvalue = -10;
     double dCPUCT = cpuct_init + log((n->visits + cpuct_base + 1.0) / cpuct_base);
     double factor = dCPUCT * sqrt(double(n->visits));
@@ -222,9 +288,30 @@ Node* Node::Max_UCB_select(Node* n, bool has_ab) {
         current = current->next;
     }
 
+    /*check edges and add child*/
+    if(n->edges.try_create()) {
+        int idx = n->edges.get_children();
+        if(idx < n->edges.count) {
+            uct = fpu;
+            uct += n->edges.scores()[idx] * factor;
+            if(uct > bvalue) {
+                bnode = n->add_child(processor_id, idx,
+                    n->edges.moves()[idx],
+                    n->edges.scores()[idx],
+                    -n->edges.score);
+                n->edges.inc_children();
+                n->edges.clear_create();
+                return bnode;
+            }
+        }
+        n->edges.clear_create();
+    }
+
     return bnode;
 }
-Node* Node::Max_AB_select(Node* n,int alpha,int beta,bool try_null,bool search_by_rank) {
+Node* Node::Max_AB_select(Node* n, int alpha, int beta, bool try_null,
+    bool search_by_rank, int processor_id
+    ) {
     double bvalue = -MAX_NUMBER, uct;
     Node* current, *bnode = 0;
     int alphac, betac;
@@ -442,6 +529,7 @@ void Node::BackupLeaf(Node* n,double& score) {
         n->set_bounds(score,score);
     }
 }
+
 void SEARCHER::create_children(Node* n) {
 
     /*maximum tree depth*/
@@ -452,57 +540,43 @@ void SEARCHER::create_children(Node* n) {
     if(ply)
         generate_and_score_moves(evaluate_depth,-MATE_SCORE,MATE_SCORE);
 
-    /*add nodes to tree*/
-    add_children(n);
-}
-
-void SEARCHER::add_children(Node* n) {
-    Node* last = n, *first = 0;
-
     if(pstack->count)
         n->score = pstack->best_score;
 
-    for(int i = 0;i < pstack->count; i++) {
-        Node* node = Node::allocate(processor_id);
-        node->move = pstack->move_st[i];
-        node->score = -n->score;
-        node->visits = 0;
-        node->alpha = -MATE_SCORE;
-        node->beta = MATE_SCORE;
-        node->rank = i + 1;
-        float* pp = (float*)&pstack->score_st[i];
-        node->prior = node->score;
-        node->policy = *pp;
-        if(last == n) first = node;
-        else last->next = node;
-        last = node;
+    /*add edges tree*/
+    n->edges.count = pstack->count;
+    n->edges.score = n->score;
+    if(pstack->count) {
+        Edges::allocate(n->edges, processor_id, pstack->count);
+        memcpy(n->edges.moves(), pstack->move_st,
+            pstack->count * sizeof(MOVE));
+        memcpy(n->edges.scores(), pstack->score_st,
+            pstack->count * sizeof(int));
     }
 
+    /*add only one child if not at the root*/
+    int nleaf = (ply && rollout_type == MCTS) ? 
+        MIN(1,pstack->count) : pstack->count;
+    for(int i = 0; i < nleaf; i++) {
+        float* pp =(float*)&pstack->score_st[i];
+        n->add_child(processor_id, i,
+            pstack->move_st[i], *pp, -n->score);
+    }
+
+    /*add nullmove*/
     if(use_nullmove
+        && pstack->count
         && rollout_type != MCTS
-        && first
         && ply > 0
         && !hstack[hply - 1].checks
         && piece_c[player]
         && hstack[hply - 1].move != 0
         ) {
-        add_null_child(n,last);
+        n->add_null_child(processor_id, -n->score);
     }
 
-    n->child = first;
-}
-
-void SEARCHER::add_null_child(Node* n, Node* last) {
-    Node* node = Node::allocate(processor_id);
-    node->move = 0;
-    node->score = -n->score;
-    node->visits = 0;
-    node->alpha = -MATE_SCORE;
-    node->beta = MATE_SCORE;
-    node->rank = 0;
-    node->prior = node->score;
-    node->policy = 0;
-    last->next = node;
+    /*set number of children now*/
+    n->edges.n_children = nleaf;
 }
 
 void SEARCHER::handle_terminal(Node* n, bool is_terminal) {
@@ -569,7 +643,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
     }
 
     /*No children*/
-    if(!n->child) {
+    if(!n->edges.n_children) {
 
         /*run out of memory for nodes*/
         if(rollout_type == MCTS
@@ -598,7 +672,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
         } else {
 
             if(n->try_create()) {
-                if(!n->child)
+                if(!n->edges.n_children)
                     create_children(n);
                 n->clear_create();
             } else {
@@ -610,7 +684,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
                 goto FINISH;
             }
 
-            if(!n->child) {
+            if(!n->edges.n_children) {
                 if(hstack[hply - 1].checks)
                     score = -MATE_SCORE + WIN_PLY * (ply + 1);
                 else 
@@ -644,10 +718,10 @@ SELECT:
             bool search_by_rank = (pstack->node_type == PV_NODE);
 
             next = Node::Max_AB_select(n,-pstack->beta,-pstack->alpha,
-                try_null,search_by_rank);
+                try_null,search_by_rank, processor_id);
         } else {
             bool has_ab = (n == root_node && frac_abprior > 0);
-            next = Node::Max_UCB_select(n, has_ab);
+            next = Node::Max_UCB_select(n, has_ab, processor_id);
         }
 
         /*This could happen in parallel search*/
@@ -1197,8 +1271,19 @@ void SEARCHER::manage_tree(bool single) {
 
             if(single) Node::reclaim(oroot,processor_id);
             else Node::parallel_reclaim(oroot);
-            if(new_root) 
+            if(new_root) {
                 root_node = new_root;
+
+                Node* n = root_node;
+                for(int i = n->edges.n_children; i < n->edges.count; i++) {
+                    n->add_child(processor_id, i,
+                        n->edges.moves()[i],
+                        n->edges.scores()[i],
+                        -n->edges.score);
+                    n->edges.inc_children();
+                    n->edges.clear_create();
+                }
+            }
             else
                 root_node = 0;
         } else {
@@ -1221,10 +1306,10 @@ void SEARCHER::manage_tree(bool single) {
         if(pv_print_style == 0) {
             print("# Reclaimed %d nodes in %dms\n",(s_total_nodes - Node::total_nodes), en-st);
             print("# Memory for mcts nodes: %.1fMB unused + %.1fMB intree = %.1fMB of %.1fMB total\n", 
-                double(tot * sizeof(Node)) / (1024 * 1024), 
-                double(Node::total_nodes * sizeof(Node)) / (1024 * 1024),
-                double((Node::total_nodes+tot) * sizeof(Node)) / (1024 * 1024),
-                double(Node::max_tree_nodes * sizeof(Node)) / (1024 * 1024)
+                (double(tot) / (1024 * 1024)) * node_size, 
+                (double(Node::total_nodes) / (1024 * 1024)) * node_size,
+                (double(Node::total_nodes+tot) / (1024 * 1024)) * node_size,
+                (double(Node::max_tree_nodes) / (1024 * 1024)) * node_size
                 );
         }
     }
@@ -1616,9 +1701,9 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         montecarlo = atoi(commands[command_num++]);
     } else if(!strcmp(command, "treeht")) {
         UBMP32 ht = atoi(commands[command_num++]);
-        UBMP32 size = ht * ((1024 * 1024) / sizeof(Node));
-        print("treeht %d X %d = %.1f MB\n",size,sizeof(Node),
-            (size * sizeof(Node)) / double(1024 * 1024));
+        UBMP32 size = ht * ((1024 * 1024) / node_size);
+        print("treeht %d X %d = %.1f MB\n",size, node_size,
+            (size / double(1024 * 1024)) * node_size);
         Node::max_tree_nodes = size;
     } else {
         return false;
@@ -1648,5 +1733,5 @@ void print_mcts_params() {
     print("feature option=\"visit_threshold -spin %d 0 1000000\"\n",visit_threshold);
     print("feature option=\"montecarlo -check %d\"\n",montecarlo);
     print("feature option=\"treeht -spin %d 0 131072\"\n",
-        int((Node::max_tree_nodes * sizeof(Node)) / double(1024*1024)));
+        int((Node::max_tree_nodes / double(1024*1024)) * node_size));
 }
