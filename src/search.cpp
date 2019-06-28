@@ -1322,7 +1322,7 @@ MOVE SEARCHER::iterative_deepening() {
     freeze_tree = false;
 
     /*iterative deepening*/
-    int alpha,beta,WINDOW = 3*aspiration_window/2;
+    int alpha,beta,WINDOW = 2*aspiration_window;
     int prev_depth = search_depth;
     int prev_root_score = 0;
     alpha = -MATE_SCORE; 
@@ -1573,7 +1573,7 @@ MOVE SEARCHER::iterative_deepening() {
 #endif
         
         /*aspiration search*/
-        if(true || !use_aspiration || 
+        if(!use_aspiration || 
             ABS(score) >= 1000 || 
             search_depth <= 3
             ) {

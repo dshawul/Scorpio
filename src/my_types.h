@@ -193,6 +193,10 @@ Prefetch
 #   define t_yield()      sched_yield()
 #   define t_pause()      asm volatile("pause\n": : :"memory")
 #endif
+#if defined __ANDROID__
+#   undef t_pause
+#   define t_pause()
+#endif
 /*
 *locks
 */

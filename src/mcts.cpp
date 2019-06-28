@@ -351,6 +351,27 @@ Node* Node::Max_AB_select(Node* n, int alpha, int beta, bool try_null,
         current = current->next;
     }
 
+    /*check edges and add child*/
+    uct = -n->edges.score;
+    if(search_by_rank)
+        uct = MAX_MOVES - n->edges.n_children;
+
+    if(uct > bvalue) {
+        if(n->edges.try_create()) {
+            int idx = n->edges.get_children();
+            if(idx < n->edges.count) {
+                bnode = n->add_child(processor_id, idx,
+                    n->edges.moves()[idx],
+                    n->edges.scores()[idx],
+                    -n->edges.score);
+                n->edges.inc_children();
+                n->edges.clear_create();
+                return bnode;
+            }
+            n->edges.clear_create();
+        }
+    }
+
     return bnode;
 }
 
@@ -474,8 +495,14 @@ float Node::Avg_score_mem(Node* n, double score, int visits) {
     return logit(sc);
 }
 void Node::Backup(Node* n,double& score,int visits, int all_man_c) {
+    /*lock*/
+    if(rollout_type == ALPHABETA) {
+        while(!n->edges.try_create())
+            t_pause();
+    }
+    
     /*Compute parent's score from children*/
-    if(all_man_c <= 10)
+    if(rollout_type == ALPHABETA || all_man_c <= 10)
         score = -Min_score(n);
     else if(backup_type == MIX_VISIT) {
         if(n->visits > visit_threshold)
@@ -504,21 +531,33 @@ void Node::Backup(Node* n,double& score,int visits, int all_man_c) {
         n->update_score(score);
     } else if(n->alpha < n->beta) {
         n->update_score(score);
+        /*nodes*/
         int alpha = -MATE_SCORE;
         int beta = -MATE_SCORE;
         Node* current = n->child;
         while(current) {
             if(current->move) {
-                if(-current->beta > alpha) alpha = -current->beta;
-                if(-current->alpha > beta) beta = -current->alpha;
+                if(-current->beta > alpha)
+                    alpha = -current->beta;
+                if(-current->alpha > beta)
+                    beta = -current->alpha;
             }
             current = current->next;
         }
+        /*edges*/
+        if(n->edges.get_children() < n->edges.count)
+            beta = n->beta;
+        /*update*/
         if(n->alpha >= alpha)
             alpha = n->alpha;
         if(n->beta <= beta)
             beta = n->beta;
         n->set_bounds(alpha,beta);
+    }
+
+    /*unlock*/
+    if(rollout_type == ALPHABETA) {
+        n->edges.clear_create();
     }
 }
 void Node::BackupLeaf(Node* n,double& score) {
@@ -555,8 +594,7 @@ void SEARCHER::create_children(Node* n) {
     }
 
     /*add only one child if not at the root*/
-    int nleaf = (ply && rollout_type == MCTS) ? 
-        MIN(1,pstack->count) : pstack->count;
+    int nleaf = ply ? MIN(1,pstack->count) : pstack->count;
     for(int i = 0; i < nleaf; i++) {
         float* pp =(float*)&pstack->score_st[i];
         n->add_child(processor_id, i,
@@ -725,7 +763,10 @@ SELECT:
         }
 
         /*This could happen in parallel search*/
-        if(!next) goto FINISH;
+        if(!next) {
+            score = n->score;
+            goto FINISH;
+        }
 
         /*Determine next node type*/
         int next_node_t;
@@ -784,7 +825,8 @@ RESEARCH:
                 goto FINISH;
 
             /*Research if necessary when window closes*/
-            if(rollout_type == ALPHABETA
+            if(visits
+                && rollout_type == ALPHABETA
                 && next->alpha >= next->beta
                 ) {
 #if 0
@@ -846,7 +888,7 @@ RESEARCH:
             POP_NULL();
 
             /*Nullmove cutoff*/
-            if(next->alpha >= next->beta) {
+            if(visits && next->alpha >= next->beta) {
                 if(score >= pstack->beta)
                     n->set_bounds(score,score);
             }
