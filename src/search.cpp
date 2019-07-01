@@ -931,18 +931,23 @@ IDLE_START:
                     sb->pstack->best_score = score;
                     sb->pstack->best_move = move;
 
-                    if(score >= sb->pstack->beta) {
-                        if(sb->pstack->current_index == 1)
-                            sb->pstack->pv_length = prev_pv_length;
-                        else {
-                            (sb->pstack+1)->pv_length = 1;
-                            sb->UPDATE_PV(move);
-                            prev_pv_length = 1;
-                        }
-                    } else if(score <= sb->pstack->alpha) {
-                        sb->pstack->pv_length = prev_pv_length;
-                    } else {
+                    if(use_abdada_smp) {
+                        if(score >= sb->pstack->beta) (sb->pstack + 1)->pv_length = 1;
                         sb->UPDATE_PV(move);
+                    } else {
+                        if(score >= sb->pstack->beta) {
+                            if(sb->pstack->current_index == 1)
+                                sb->pstack->pv_length = prev_pv_length;
+                            else {
+                                (sb->pstack+1)->pv_length = 1;
+                                sb->UPDATE_PV(move);
+                                prev_pv_length = 1;
+                            }
+                        } else if(score <= sb->pstack->alpha) {
+                            sb->pstack->pv_length = prev_pv_length;
+                        } else {
+                            sb->UPDATE_PV(move);
+                        }
                     }
 
                     if(score <= sb->pstack->alpha || score >= sb->pstack->beta);
