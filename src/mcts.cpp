@@ -1551,6 +1551,7 @@ void SEARCHER::self_play_thread() {
     PTRAIN trn = new TRAIN[MAX_HSTACK];
     float* data  = (float*) malloc(sizeof(float) * NPLANE);
     float* adata = (float*) malloc(sizeof(float) * NPARAM);
+    float* iplanes[2] = {data, adata};
     char buffer[4096];
     int bcount;
 
@@ -1586,7 +1587,7 @@ void SEARCHER::self_play_thread() {
                     PHIST_STACK phst = &hstack[h];
 
                     int isdraw[1], hist = 1;
-                    fill_input_planes(pl,phst->castle,phst->fifty,hist,
+                    ::fill_input_planes(pl,phst->castle,phst->fifty,hist,
                         isdraw,ptrn->piece,ptrn->square,data,adata);
 
                     bcount = 0;
@@ -1602,22 +1603,7 @@ void SEARCHER::self_play_thread() {
                         pl, vres, ptrn->value);
                     bcount += sprintf(&buffer[bcount], "%d 1.0", midx);
 #endif
-                    /*params*/
-                    for(int i = 0; i < NPARAM; i++)
-                        bcount += sprintf(&buffer[bcount], "%d ", int(adata[i]));
-                    /*run length encoding of planes*/
-                    int cnt = 1, val = data[0];
-                    bcount += sprintf(&buffer[bcount], "%d ", ((val > 0.5) ? 1 : 0) );
-                    for(int i = 1; i < NPLANE; i++) {
-                        if(val > 0.5 && data[i] > 0.5) cnt++;
-                        else if(val < 0.5 && data[i] < 0.5) cnt++;
-                        else {
-                            bcount += sprintf(&buffer[bcount], "%d ", cnt);
-                            cnt = 1;
-                            val = data[i];
-                        }
-                    }
-                    bcount += sprintf(&buffer[bcount], "%d\n", cnt);
+                    bcount = compress_input_planes(iplanes, buffer);
 
                     l_lock(lock_io);
                     fwrite(buffer, bcount, 1, spfile2);
@@ -1763,7 +1749,8 @@ void print_mcts_params() {
     print("feature option=\"fpu_red -spin %d -1000 1000\"\n",int(fpu_red*100));
     print("feature option=\"fpu_is_loss -check %d\"\n",fpu_is_loss);
     print("feature option=\"reuse_tree -check %d\"\n",reuse_tree);
-    print("feature option=\"backup_type -combo MINMAX /// AVERAGE /// MIX /// MINMAX_MEM /// AVERAGE_MEM /// MIX_MEM /// CLASSIC /// *MIX_VISIT\"\n");
+    print("feature option=\"backup_type -combo MINMAX /// AVERAGE /// MIX /// "
+        "MINMAX_MEM /// AVERAGE_MEM /// MIX_MEM /// CLASSIC /// *MIX_VISIT\"\n");
     print("feature option=\"frac_alphabeta -spin %d 0 100\"\n",int(frac_alphabeta*100));
     print("feature option=\"frac_freeze_tree -spin %d 0 100\"\n",int(frac_freeze_tree*100));
     print("feature option=\"frac_abrollouts -spin %d 0 100\"\n",int(frac_abrollouts*100));

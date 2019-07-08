@@ -140,9 +140,9 @@ void LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
                 strcpy(output_sizes, "3 256");
             } else if(SEARCHER::nn_type == SIMPLE) {
                 CHANNELS = 12;
-                strcpy(input_names, "main_input aux_input");
+                strcpy(input_names, "main_input");
                 strcpy(input_shapes, "12 8 8");
-                strcpy(output_names, "value/Softmax policy/Reshape");
+                strcpy(output_names, "value/Softmax policy/BiasAdd");
                 strcpy(output_sizes, "3 256");
             } else if(SEARCHER::nn_type == LCZERO) {
                 CHANNELS = 112;
@@ -278,19 +278,10 @@ int SEARCHER::probe_neural(bool hard_probe) {
 
     nnecalls++;
 
+    float* iplanes[2] = {0, 0};
+    fill_input_planes(iplanes);
+
     if(nn_type == DEFAULT || nn_type == SIMPLE) {
-
-        int piece[33],square[33],isdraw[1];
-        int count = 0, hist = 1;
-        fill_list(count,piece,square);
-
-        float* iplanes[2];
-        iplanes[0] = inp_planes[processor_id];
-        if(nn_type == DEFAULT)
-            iplanes[1] = iplanes[0] + (8 * 8 * CHANNELS);
-        fill_input_planes(player,castle,fifty,hist,
-            isdraw,piece,square,iplanes[0],iplanes[1]);
-
         float* wdl = &all_wdl[processor_id][0];
         unsigned short* p_index[2] = {0, mindex};
         int p_size[2] = {3, pstack->count};
@@ -299,29 +290,7 @@ int SEARCHER::probe_neural(bool hard_probe) {
         float p = wdl[0] * 1.0 + wdl[1] * 0.5;
         return logit(p);
     } else {
-
-        int piece[8*33],square[8*33],isdraw[8];
-        int count = 0, hist = 0, phply = hply;
-        
-        for(int i = 0; i < 8; i++) {
-            isdraw[hist++] = draw();
-            fill_list(count,piece,square);
-
-            if(hply > 0 && hstack[hply - 1].move) 
-                POP_MOVE();
-            else break;
-        }
-
-        count = phply - hply;
-        for(int i = 0; i < count; i++)
-            PUSH_MOVE(hstack[hply].move);
-
-        float* iplanes[1];
-        iplanes[0] = inp_planes[processor_id];
-        fill_input_planes(player,castle,fifty,hist,
-            isdraw,piece,square,iplanes[0],0);
-        
-        if(isdraw[0])
+        if(draw())
             hkey ^= UINT64(0xc7e9153edee38dcb);
         hkey ^= fifty_hkey[fifty];
 
@@ -707,11 +676,9 @@ void fill_input_planes(
 }
 
 /*
-Write input planes to file
+Fill input planes
 */
-void SEARCHER::write_input_planes(FILE* file) {
-
-    float* iplanes[2] = {0, 0};
+void SEARCHER::fill_input_planes(float** iplanes) {
 
     if(nn_type == DEFAULT || nn_type == SIMPLE) {
 
@@ -719,11 +686,10 @@ void SEARCHER::write_input_planes(FILE* file) {
         int count = 0, hist = 1;
         fill_list(count,piece,square);
 
-        
         iplanes[0] = inp_planes[processor_id];
         if(nn_type == DEFAULT)
             iplanes[1] = iplanes[0] + (8 * 8 * CHANNELS);
-        fill_input_planes(player,castle,fifty,hist,
+        ::fill_input_planes(player,castle,fifty,hist,
             isdraw,piece,square,iplanes[0],iplanes[1]);
 
     } else {
@@ -745,12 +711,52 @@ void SEARCHER::write_input_planes(FILE* file) {
             PUSH_MOVE(hstack[hply].move);
 
         iplanes[0] = inp_planes[processor_id];
-        fill_input_planes(player,castle,fifty,hist,
+        ::fill_input_planes(player,castle,fifty,hist,
             isdraw,piece,square,iplanes[0],0);
     }
+}
+/*
+Write input planes to file
+*/
+void SEARCHER::write_input_planes(FILE* file) {
+
+    float* iplanes[2] = {0, 0};
+    fill_input_planes(iplanes);
 
     const int NPLANE = 8 * 8 * CHANNELS;
     fwrite(iplanes[0], NPLANE * sizeof(float), 1, file);
     if(nn_type == DEFAULT)
         fwrite(iplanes[1], NPARAMS * sizeof(float), 1, file);
+}
+
+/*
+compress input planes with RLE
+*/
+int SEARCHER::compress_input_planes(float** iplanes, char* buffer) {
+    static const int NPLANE = 8 * 8 * 24;
+    static const int NPARAM = 5;
+
+    int bcount = 0;
+
+    /*params*/
+    if(iplanes[1]) {
+        for(int i = 0; i < NPARAM; i++)
+            bcount += sprintf(&buffer[bcount], "%d ", int(iplanes[1][i]));
+    }
+
+    /*run length encoding of planes*/
+    int cnt = 1, val = iplanes[0][0];
+    bcount += sprintf(&buffer[bcount], "%d ", ((val > 0.5) ? 1 : 0) );
+    for(int i = 1; i < NPLANE; i++) {
+        if(val > 0.5 && iplanes[0][i] > 0.5) cnt++;
+        else if(val < 0.5 && iplanes[0][i] < 0.5) cnt++;
+        else {
+            bcount += sprintf(&buffer[bcount], "%d ", cnt);
+            cnt = 1;
+            val = iplanes[0][i];
+        }
+    }
+    bcount += sprintf(&buffer[bcount], "%d\n", cnt);
+
+    return bcount;
 }

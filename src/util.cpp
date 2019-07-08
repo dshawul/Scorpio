@@ -1114,7 +1114,7 @@ int get_number_of_cpus() {
         if(dwProcessAffinity & (DWORD(1) << i))
             active++;
     }
-#elif defined(__ANDROID__)
+#elif defined(__ANDROID__) || defined(__APPLE__)
     cores = sysconf(_SC_NPROCESSORS_ONLN);
     active = cores;
 #else
@@ -1599,9 +1599,9 @@ bool SEARCHER::pgn_to_epd(char* path,char* book) {
                             if(result == R_WWIN) strcat(fen," 1-0");
                             else if(result == R_BWIN) strcat(fen," 0-1");
                             else strcat(fen," 1/2-1/2");
-                            char mv[16];
-                            mov_strx(move,mv);
-                            fprintf(fb,"%s %s\n",fen, mv);
+                            int mind = compute_move_index(move, player);
+                            float score = logistic( eval(true) );
+                            fprintf(fb,"%s %f 1 %d 1.0\n", fen, score, mind);
 
                             do_move(move);
                         }
@@ -1621,13 +1621,13 @@ bool SEARCHER::pgn_to_epd(char* path,char* book) {
                 if(!san_mov(move,command)) {
                     print("Incorrect move %s at game %d line %d\n",command,game,line);
                     print_board();
-                    print_history();
                     illegal = true;
                     break;
                 }
 
                 /*Write fen with score and best move*/
                 if(result != R_UNKNOWN) {
+
                     get_fen(fen);
                     if(result == R_WWIN) strcat(fen," 1-0");
                     else if(result == R_BWIN) strcat(fen," 0-1");
@@ -1635,6 +1635,7 @@ bool SEARCHER::pgn_to_epd(char* path,char* book) {
                     int mind = compute_move_index(move, player);
                     float score = logistic( eval(true) );
                     fprintf(fb,"%s %f 1 %d 1.0\n", fen, score, mind);
+
                 }
 
                 /*make move*/
