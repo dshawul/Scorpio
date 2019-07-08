@@ -316,6 +316,10 @@ Node* Node::Max_AB_select(Node* n, int alpha, int beta, bool try_null,
     Node* current, *bnode = 0;
     int alphac, betac;
 
+    /*lock*/
+    while(!n->edges.try_create())
+        t_pause();
+
     current = n->child;
     while(current) {
         alphac = current->alpha;
@@ -350,6 +354,9 @@ Node* Node::Max_AB_select(Node* n, int alpha, int beta, bool try_null,
 
         current = current->next;
     }
+
+    /*unlock*/
+    n->edges.clear_create();
 
     /*check edges and add child*/
     uct = -n->edges.score;
@@ -495,68 +502,69 @@ float Node::Avg_score_mem(Node* n, double score, int visits) {
     return logit(sc);
 }
 void Node::Backup(Node* n,double& score,int visits, int all_man_c) {
-    /*lock*/
-    if(rollout_type == ALPHABETA) {
+    if(rollout_type == MCTS) {
+        /*Compute parent's score from children*/
+        if(rollout_type == ALPHABETA || all_man_c <= 10)
+            score = -Min_score(n);
+        else if(backup_type == MIX_VISIT) {
+            if(n->visits > visit_threshold)
+                score = -Min_score(n);
+            else
+                score = Avg_score_mem(n,score,visits);
+        } 
+        else if(backup_type == CLASSIC)
+            score = Avg_score_mem(n,score,visits);
+        else if(backup_type == AVERAGE)
+            score = -Avg_score(n);
+        else {
+            if(backup_type == MINMAX || backup_type == MINMAX_MEM)
+                score = -Min_score(n);
+            else if(backup_type == MIX  || backup_type == MIX_MEM)
+                score = -(3 * Min_score(n) + Avg_score(n)) / 4;
+
+            if(backup_type >= MINMAX_MEM)
+                score = Avg_score_mem(n,score,visits);
+        }
+        n->update_score(score);
+    } else {
+
+        /*lock*/
         while(!n->edges.try_create())
             t_pause();
-    }
-    
-    /*Compute parent's score from children*/
-    if(rollout_type == ALPHABETA || all_man_c <= 10)
+
         score = -Min_score(n);
-    else if(backup_type == MIX_VISIT) {
-        if(n->visits > visit_threshold)
-            score = -Min_score(n);
-        else
-            score = Avg_score_mem(n,score,visits);
-    } 
-    else if(backup_type == CLASSIC)
-        score = Avg_score_mem(n,score,visits);
-    else if(backup_type == AVERAGE)
-        score = -Avg_score(n);
-    else {
-        if(backup_type == MINMAX || backup_type == MINMAX_MEM)
-            score = -Min_score(n);
-        else if(backup_type == MIX  || backup_type == MIX_MEM)
-            score = -(3 * Min_score(n) + Avg_score(n)) / 4;
-
-        if(backup_type >= MINMAX_MEM)
-            score = Avg_score_mem(n,score,visits);
-    }
-
-    /*Update alpha-beta bounds. Note: alpha is updated only from 
-      child just searched (next), beta is updated from remaining 
-      unsearched children */
-    if(rollout_type == MCTS) {
         n->update_score(score);
-    } else if(n->alpha < n->beta) {
-        n->update_score(score);
-        /*nodes*/
-        int alpha = -MATE_SCORE;
-        int beta = -MATE_SCORE;
-        Node* current = n->child;
-        while(current) {
-            if(current->move) {
-                if(-current->beta > alpha)
-                    alpha = -current->beta;
-                if(-current->alpha > beta)
-                    beta = -current->alpha;
+
+        /*Update alpha-beta bounds. Note: alpha is updated only from 
+          child just searched (next), beta is updated from remaining 
+          unsearched children */
+        
+        if(n->alpha < n->beta) {
+
+            /*nodes*/
+            int alpha = -MATE_SCORE;
+            int beta = -MATE_SCORE;
+            int count = 0;
+            Node* current = n->child;
+            while(current) {
+                if(current->move) {
+                    if(-current->beta > alpha)
+                        alpha = -current->beta;
+                    if(-current->alpha > beta)
+                        beta = -current->alpha;
+                    count++;
+                }
+                current = current->next;
             }
-            current = current->next;
-        }
-        /*edges*/
-        if(n->edges.get_children() < n->edges.count)
-            beta = n->beta;
-        /*update*/
-        if(n->alpha >= alpha)
-            alpha = n->alpha;
-        if(n->beta <= beta)
-            beta = n->beta;
-        n->set_bounds(alpha,beta);
-    }
 
-    /*unlock*/
-    if(rollout_type == ALPHABETA) {
+            /*edges*/
+            if(count < n->edges.count)
+                beta = MATE_SCORE;
+
+            n->set_bounds(alpha,beta);
+        }
+
+        /*unlock*/
         n->edges.clear_create();
     }
 }
@@ -1325,7 +1333,6 @@ void SEARCHER::manage_tree(bool single) {
                         n->edges.scores()[i],
                         -n->edges.score);
                     n->edges.inc_children();
-                    n->edges.clear_create();
                 }
             }
             else

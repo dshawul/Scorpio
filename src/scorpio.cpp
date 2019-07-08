@@ -1276,7 +1276,7 @@ static bool load_ini() {
 
     FILE* fd = fopen("scorpio.ini","r");
     if(!fd) {
-        print("Scorpio.ini not found!\n");
+        print("scorpio.ini not found!\n");
         return false;
     }
 

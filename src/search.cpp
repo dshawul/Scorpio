@@ -318,13 +318,6 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
     pstack->extension = 0;
     pstack->reduction = 0;
 
-    /*widening*/
-    if(use_nn && !skip_nn && 
-        nmoves >= int(ceil(pow(1.1f,depth)))
-        ) {
-        return true;
-    }
-
     /*root*/
     if(ply == 1) {
         if(nmoves >= lmr_root_count[0]
@@ -454,6 +447,12 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
         } else {
             reduce(2 * UNITDEPTH);
         }
+    }
+    /* slow neural network pruning*/
+    if(use_nn && !skip_nn && nmoves >= 3) {
+        reduce(4 * UNITDEPTH);
+        if(pstack->depth <= 0)
+            return true;
     }
     /*
     end
