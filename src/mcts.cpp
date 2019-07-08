@@ -926,7 +926,7 @@ FINISH:
 }
 
 void SEARCHER::check_mcts_quit() {
-    unsigned int max_visits[2] = {0};
+    unsigned int max_visits[2] = {0, 0};
     Node* current = root_node->child;
     Node* bnval = current, *bnvis = current;
     while(current) {
@@ -1076,7 +1076,6 @@ void SEARCHER::search_mc(bool single) {
                 if(root->visits - ovisits >= visits_poll) {
                     ovisits = root->visits;
                     check_quit();
-                    check_mcts_quit();
 
                     double frac = 1;
                     if(chess_clock.max_visits != MAX_NUMBER)
@@ -1093,6 +1092,9 @@ void SEARCHER::search_mc(bool single) {
                             search_depth++;
                         }
                     }
+                    
+                    if(frac >= 0.2)
+                        check_mcts_quit();
                     /*stop growing tree after some time*/
                     if(rollout_type == ALPHABETA && !freeze_tree && frac_freeze_tree < 1.0 &&
                         frac >= frac_freeze_tree * frac_alphabeta) {
