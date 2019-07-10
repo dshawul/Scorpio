@@ -1034,7 +1034,9 @@ void SEARCHER::search_mc(bool single) {
     while(true) {
         
         /*fixed nodes*/
-        if(root->visits >= (unsigned)chess_clock.max_visits) {
+        if(chess_clock.max_visits != MAX_NUMBER
+            && root->visits >= (unsigned)chess_clock.max_visits
+            ) {
             if(!single) abort_search = 1;
             break;
         }
