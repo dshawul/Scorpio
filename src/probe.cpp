@@ -756,7 +756,7 @@ int SEARCHER::compress_input_planes(float** iplanes, char* buffer) {
             val = iplanes[0][i];
         }
     }
-    bcount += sprintf(&buffer[bcount], "%d\n", cnt);
+    bcount += sprintf(&buffer[bcount], "%d", cnt);
 
     return bcount;
 }

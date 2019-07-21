@@ -268,7 +268,7 @@ void SEARCHER::print_game(int res, FILE* fw, const char* event,
     char mvstr[12];
     char str[16];
     char date[32];
-    char buffer[4096];
+    char buffer[4096*8];
     int bcount;
 
     get_date(date);
