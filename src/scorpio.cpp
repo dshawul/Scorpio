@@ -739,6 +739,8 @@ bool parse_commands(char** commands) {
             zero_params();
             write_eval_params();
 #endif
+        } else if(!strcmp(command,"randomize")) {
+            is_selfplay = true;
         } else if(!strcmp(command,"selfplay")) {
             int wins = 0, losses = 0, draws = 0;
             int N = atoi(commands[command_num++]),res;
