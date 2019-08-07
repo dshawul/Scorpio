@@ -934,21 +934,18 @@ FINISH:
 }
 
 void SEARCHER::check_mcts_quit() {
-    unsigned int max_visits[2] = {0, 0};
     Node* current = root_node->child;
-    Node* bnval = current, *bnvis = current;
+    Node* bnval = current, *bnvis = current, *bnvis2 = current;
     while(current) {
-        if(current->visits > max_visits[0]) {
-            max_visits[1] = max_visits[0];
-            max_visits[0] = current->visits;
-        } else if(current->visits > max_visits[1]) {
-            max_visits[1] = current->visits;
+        if(current->visits > bnvis->visits) {
+            bnvis2 = bnvis;
+            bnvis = current;
+        } else if(current->visits > bnvis2->visits) {
+            bnvis2 = current;
         }
         if(current->visits > 0) {
             if(-current->score > -bnval->score)
                 bnval = current;
-            if(current->visits > bnvis->visits)
-                bnvis = current;
         }
         current = current->next;
     }
@@ -968,7 +965,7 @@ void SEARCHER::check_mcts_quit() {
     }
 
     if(bnval == bnvis) {
-        int visdiff = max_visits[0] - max_visits[1];
+        int visdiff = (bnvis->visits - bnvis2->visits);
         if(visdiff >= remain_visits)
             abort_search = 1;
         root_unstable = 0;
@@ -977,9 +974,17 @@ void SEARCHER::check_mcts_quit() {
         if(!root_unstable && !abort_search) {
             Node* current = root_node->child;
             while(current) {
-                visdiff = bnvis->visits - current->visits;
-                if(!current->is_dead() && visdiff >= remain_visits)
+                visdiff = (bnvis->visits - current->visits);
+                if(!current->is_dead() && visdiff >= remain_visits) {
                     current->set_dead();
+#if 0
+                    char mvs[16];
+                    mov_str(current->move,mvs);
+                    print("Killing node: %s %d %d = %d %d\n",
+                        mvs,current->visits,bnvis->visits, 
+                        visdiff, remain_visits);
+#endif
+                }
                 current = current->next;
             }
         }

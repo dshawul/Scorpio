@@ -1180,19 +1180,27 @@ void CHESS_CLOCK::set_stime(int hply, bool output) {
     /*
     set search time and maximum time allowed
     */
-    int moves_left,move_no = (hply / 2);
+    int moves_left, est_moves_left;
+    int move_no = (hply / 2);
     int pp_time = p_time;
     if(p_time > 1500) p_time -= 1500;
     else p_time = int(0.7 * p_time);
     if(pondering) p_time /= 4;
 
+    if(move_no <= 35)
+        est_moves_left = 45 - move_no;
+    else
+        est_moves_left = 10;
+
     if(!mps) {
-        if(move_no <= 20) moves_left = 45 - move_no;
-        else moves_left = 25;
+        moves_left = est_moves_left;
         search_time = p_time / moves_left + inc;
         maximum_time = p_time / 2;
     } else {
         moves_left = mps - (move_no % mps);
+        if(moves_left > est_moves_left)
+            moves_left = est_moves_left;
+
         search_time = p_time / moves_left;
         if(moves_left != 1)
             search_time = int(0.95 * search_time);
