@@ -501,6 +501,29 @@ float Node::Avg_score_mem(Node* n, double score, int visits) {
     sc += (sc1 - sc) * visits / (n->visits + visits);
     return logit(sc);
 }
+float Node::Stable_score(Node* n, double score, int visits) {
+    if(n->visits >= (visit_threshold >> 4)) {
+        Node* current = n->child, *bnode = 0, *vnode = 0;
+        float bscore = MAX_NUMBER;
+        unsigned bvisits = 0;
+        while(current) {
+            if(current->move && current->visits > 0) {
+                if(current->score < bscore) {
+                    bscore = current->score;
+                    bnode = current;
+                }
+                if(current->visits > bvisits) {
+                    bvisits = current->visits;
+                    vnode = current;
+                }
+            }
+            current = current->next;
+        }
+        if(bnode && bnode == vnode)
+            return -bnode->score;
+    }
+    return Avg_score_mem(n,score,visits);
+}
 void Node::Backup(Node* n,double& score,int visits, int all_man_c) {
     if(rollout_type == MCTS) {
         /*Compute parent's score from children*/
@@ -510,7 +533,7 @@ void Node::Backup(Node* n,double& score,int visits, int all_man_c) {
             if(n->visits > visit_threshold)
                 score = -Min_score(n);
             else
-                score = Avg_score_mem(n,score,visits);
+                score = Stable_score(n,score,visits);
         } 
         else if(backup_type == CLASSIC)
             score = Avg_score_mem(n,score,visits);
