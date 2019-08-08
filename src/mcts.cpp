@@ -988,16 +988,26 @@ void SEARCHER::check_mcts_quit() {
     }
 
     if(bnval == bnvis) {
-        int visdiff = (bnvis->visits - bnvis2->visits);
+        int visdiff;
+        double factor;
+
+        factor = sqrt(bnvis->policy / (bnvis2->policy + 1e-8));
+        if(factor >= 20) factor = 20;
+
+        visdiff = (bnvis->visits - bnvis2->visits) * factor;
         if(visdiff >= remain_visits)
             abort_search = 1;
+        
         root_unstable = 0;
         if(in_trouble)
             root_unstable = 1;
         if(!root_unstable && !abort_search) {
             Node* current = root_node->child;
             while(current) {
-                visdiff = (bnvis->visits - current->visits);
+                factor = sqrt(bnvis->policy / (current->policy + 1e-8));
+                if(factor >= 20) factor = 20;
+
+                visdiff = (bnvis->visits - current->visits) * factor;
                 if(!current->is_dead() && visdiff >= remain_visits) {
                     current->set_dead();
 #if 0
