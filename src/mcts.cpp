@@ -958,12 +958,16 @@ FINISH:
 
 void SEARCHER::check_mcts_quit() {
     Node* current = root_node->child;
+    unsigned int max_visits[2] = {0, 0};
     Node* bnval = current, *bnvis = current, *bnvis2 = current;
     while(current) {
-        if(current->visits > bnvis->visits) {
+        if(current->visits > max_visits[0]) {
+            max_visits[1] = max_visits[0];
+            max_visits[0] = current->visits;
             bnvis2 = bnvis;
             bnvis = current;
-        } else if(current->visits > bnvis2->visits) {
+        } else if(current->visits > max_visits[1]) {
+            max_visits[1] = current->visits;
             bnvis2 = current;
         }
         if(current->visits > 0) {
@@ -994,7 +998,7 @@ void SEARCHER::check_mcts_quit() {
         factor = sqrt(bnvis->policy / (bnvis2->policy + 1e-8));
         if(factor >= 20) factor = 20;
 
-        visdiff = (bnvis->visits - bnvis2->visits) * factor;
+        visdiff = (bnvis->visits - bnvis2->visits) * (factor / 1.2);
         if(visdiff >= remain_visits)
             abort_search = 1;
         
@@ -1007,7 +1011,7 @@ void SEARCHER::check_mcts_quit() {
                 factor = sqrt(bnvis->policy / (current->policy + 1e-8));
                 if(factor >= 20) factor = 20;
 
-                visdiff = (bnvis->visits - current->visits) * factor;
+                visdiff = (bnvis->visits - current->visits) * (factor / 1.2);
                 if(!current->is_dead() && visdiff >= remain_visits) {
                     current->set_dead();
 #if 0
@@ -1141,7 +1145,7 @@ void SEARCHER::search_mc(bool single) {
                         }
                     }
                     
-                    if(frac >= 0.2)
+                    if(frac >= 0.1)
                         check_mcts_quit();
                     /*stop growing tree after some time*/
                     if(rollout_type == ALPHABETA && !freeze_tree && frac_freeze_tree < 1.0 &&
