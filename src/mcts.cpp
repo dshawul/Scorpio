@@ -1611,7 +1611,7 @@ void SEARCHER::self_play_thread() {
     float* adata = (float*) malloc(sizeof(float) * NPARAM);
     float* iplanes[2] = {data, adata};
 #endif
-    char buffer[4096];
+    char* buffer = new char[4096 * MAX_HSTACK];
     int bcount;
 
     while(true) {
@@ -1642,23 +1642,29 @@ void SEARCHER::self_play_thread() {
                 else vres = 2;
 #endif
 
+                bcount = 0;
+
                 int pl = white;
                 for(int h = 0; h < hply; h++) {
                     PTRAIN ptrn = &trn[h];
                     PHIST_STACK phst = &hstack[h];
 
-                    bcount = 0;
 #if 0
                     int isdraw[1], hist = 1;
                     ::fill_input_planes(pl,phst->castle,phst->fifty,hist,
                         isdraw,ptrn->piece,ptrn->square,data,adata);
                     bcount += sprintf(&buffer[bcount], "%d %d", pl, vres);
 #else
-                    strcpy(buffer, ptrn->fen);
-                    if(res == R_WWIN) strcat(buffer," 1-0");
-                    else if(res == R_BWIN) strcat(buffer," 0-1");
-                    else strcat(buffer," 1/2-1/2");
-                    bcount += strlen(buffer);
+                    strcpy(&buffer[bcount], ptrn->fen);
+                    bcount += strlen(ptrn->fen);
+
+                    if(res == R_WWIN) strcpy(&buffer[bcount]," 1-0");
+                    else if(res == R_BWIN) strcpy(&buffer[bcount]," 0-1");
+                    else {
+                        strcpy(&buffer[bcount]," 1/2-1/2");
+                        bcount += 4;
+                    }
+                    bcount += 4;
 #endif
 
                     
@@ -1680,13 +1686,13 @@ void SEARCHER::self_play_thread() {
 #endif
                     bcount += sprintf(&buffer[bcount], "\n");
 
-                    l_lock(lock_io);
-                    fwrite(buffer, bcount, 1, spfile2);
-                    fflush(spfile2);
-                    l_unlock(lock_io);
-
                     pl = invert(pl);
                 }
+
+                l_lock(lock_io);
+                fwrite(buffer, bcount, 1, spfile2);
+                fflush(spfile2);
+                l_unlock(lock_io);
 
                 /*abort*/
                 if(ngames >= spgames)
@@ -1698,6 +1704,7 @@ void SEARCHER::self_play_thread() {
             /*abort*/
             if(abort_search) {
                 delete[] trn;
+                delete[] buffer;
 #if 0
                 delete[] data;
                 delete[] adata;
