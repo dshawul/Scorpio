@@ -1515,7 +1515,7 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta) {
                 if(*p < minp) minp = *p;
             }
             /*Minimize draws for low visits training*/
-            if(is_selfplay && !ply) {
+            if(!ply && chess_clock.max_visits < low_visits_threshold) {
                 int score = pstack->best_score;
                 for(int i = 0;i < pstack->count; i++) {
                     float* p = (float*)&pstack->score_st[i];

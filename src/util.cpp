@@ -1187,10 +1187,10 @@ void CHESS_CLOCK::set_stime(int hply, bool output) {
     else p_time = int(0.7 * p_time);
     if(pondering) p_time /= 4;
 
-    if(move_no <= 35)
+    if(move_no <= 20)
         est_moves_left = 45 - move_no;
     else
-        est_moves_left = 10;
+        est_moves_left = 25;
 
     if(!mps) {
         moves_left = est_moves_left;
