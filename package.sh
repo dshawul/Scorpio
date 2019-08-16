@@ -2,7 +2,7 @@
 
 set -e
 
-VERSION=290
+VERSION=30
 
 mkdir -p tmp/bin 
 ./build.sh gcc; cp -r bin/ tmp/bin; mv tmp/bin/bin tmp/bin/Linux
