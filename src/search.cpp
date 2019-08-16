@@ -15,7 +15,7 @@ const int use_tt = 1;
 const int use_aspiration = 1;
 const int use_iid = 1;
 const int use_pvs = 1;
-const int contempt = 2;
+int contempt = 10;
 
 /* parameter */
 #ifdef TUNE
@@ -1919,6 +1919,8 @@ bool check_search_params(char** commands,char* command,int& command_num) {
     } else if(!strcmp(command, "aspiration_window")) {
         aspiration_window = atoi(commands[command_num++]);
 #endif
+    } else if(!strcmp(command, "contempt")) {
+        contempt = atoi(commands[command_num++]);
     } else if(!strcmp(command, "smp_type")) {
         command = commands[command_num++];
 #ifdef PARALLEL
@@ -1958,4 +1960,5 @@ void print_search_params() {
     print("feature option=\"singular_margin -spin %d 0 1000\"\n",singular_margin);
     print("feature option=\"probcut_margin -spin %d 0 1000\"\n",probcut_margin);
     print("feature option=\"aspiration_window -spin %d 0 100\"\n",aspiration_window);
+    print("feature option=\"contempt -spin %d 0 100\"\n",contempt);
 }

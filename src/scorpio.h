@@ -1081,7 +1081,7 @@ extern const int use_tt;
 extern const int use_aspiration;
 extern const int use_iid;
 extern const int use_pvs;
-extern const int contempt;
+extern int contempt;
 
 /*
 utility functions
