@@ -2069,16 +2069,16 @@ void write_eval_params() {
 }
 void print_eval_params() {
     for(int i = 0;i < nParameters;i++) {
-        print("feature option=\"%s -spin %d %d %d\"\n",
+        print_spin(
             parameters[i].name,*(parameters[i].value),
             parameters[i].minv,parameters[i].maxv);
     }
     for(int i = 0;i < nModelParameters;i++) {
-        print("feature option=\"%s -spin %d %d %d\"\n",
+        print_spin(
             modelParameters[i].name,*(modelParameters[i].value),
             modelParameters[i].minv,modelParameters[i].maxv);
     }
-    print("feature option=\"ELO_MODEL -spin %d 0 2\"\n",ELO_MODEL);
+    print_spin("ELO_MODEL",ELO_MODEL,0,2);
 }
 void bound_params(double* params) {
     for(int i = 0;i < nParameters;i++) {

@@ -59,6 +59,19 @@ void printH(const char* format,...) {
 
     l_unlock(lock_io);
 }
+void print_info(const char* format,...) {
+    char str[1024];
+    sprintf(str,"# %s",format);
+
+    l_lock(lock_io);
+        
+    va_list ap;
+    PRINT(stdout,str);
+    if(log_on && log_file)
+        PRINT(log_file,str);    
+
+    l_unlock(lock_io);
+}
 void print_log(const char* format,...) {
     
     CLUSTER_CODE(if(PROCESSOR::host_id != 0) return;)
@@ -360,10 +373,13 @@ Node* Node::print_tree(Node* root,int output,int max_depth,int depth) {
     Node* current = root->child;
 
     if(depth == 0) {
-        print("\n# Move   Value=(V,P,V+P)   Policy  Visits                  PV");
-        print("\n#----------------------------------------------------------------------------------");
+        print_info("Move   Value=(V,P,V+P)   Policy  Visits                  PV\n");
+        print_info("----------------------------------------------------------------------------------\n");
     }
 
+    if(!current && depth > 0) {
+        print("\n");
+    }
     while(current) {
         if((depth == 0 || bnode == current) ) {
             if(output) {
@@ -374,7 +390,7 @@ Node* Node::print_tree(Node* root,int output,int max_depth,int depth) {
                     double avg = 0.5 * ((1 - frac_abprior) * uct 
                                         + frac_abprior * uctp + 
                                         MIN(uct,uctp));
-                    print("\n# %2d   (%.3f,%0.3f,%0.3f) %6.2f %7d   %s",
+                    print_info("%2d   (%.3f,%0.3f,%0.3f) %6.2f %7d   %s",
                         total+1,
                         uct,
                         uctp,
@@ -392,8 +408,6 @@ Node* Node::print_tree(Node* root,int output,int max_depth,int depth) {
 
         current = current->next;
     }
-    if(depth == 0 && output)
-        print("\n\n");
 
     return bnode;
 }
@@ -440,21 +454,31 @@ void SEARCHER::print_pv(int score) {
         score = -10000 + (ceil(double(MATE_SCORE + score) / WIN_PLY));
 
     /*print what we have*/
-    if(montecarlo && root_node) {
-        sprintf(pv,"%d %d %d " FMT64 " ",
+    unsigned tm = (get_time() - start_time);
+    UBMP64 nds = (montecarlo && root_node) ? root_node->visits : nodes;
+    unsigned nps = 1000 * ((double)nds / tm);
+
+    if(PROTOCOL == UCI) {
+        sprintf(pv,"info depth %d score cp %d time %d nodes " FMT64 " nps %d tbhits %d pv",
             search_depth,score,
-            (get_time() - start_time)/10,
-            (long long)root_node->visits);
+            tm,
+            (long long)nds,
+            nps,
+            egbb_probes);
     } else {
         sprintf(pv,"%d %d %d " FMT64 " ",
             search_depth,score,
-            (get_time() - start_time)/10,
-            (long long)nodes);
+            tm/10,
+            (long long)nds );
     }
+
     for(i = 0;i < stack[0].pv_length;i++) {
         move = stack[0].pv[i];
         strcpy(mv_str,"");
-        mov_str(move,mv_str);
+        if(PROTOCOL == UCI)
+            mov_strx(move,mv_str);
+        else
+            mov_str(move,mv_str);
         strcat(pv," ");
         strcat(pv,mv_str);
         if(move) PUSH_MOVE(move);
@@ -470,7 +494,10 @@ void SEARCHER::print_pv(int score) {
             break;
 
         strcpy(mv_str,"");
-        mov_str(move,mv_str);
+        if(PROTOCOL == UCI)
+            mov_strx(move,mv_str);
+        else
+            mov_str(move,mv_str);
         strcat(pv, " ");
         strcat(pv, mv_str);
         if(move) PUSH_MOVE(move);
@@ -653,9 +680,6 @@ void SEARCHER::init_data() {
     if(epsquare)
         hash_key ^= EP_HKEY(epsquare);
     hash_key ^= CAST_HKEY(castle);
-
-    last_book_move = hply;
-    first_search = true;
 }
 
 void SEARCHER::set_board(const char* fen_str) {
@@ -1089,7 +1113,7 @@ bool read_line(char* buffer) {
         if(buffer[0] == '\r' || buffer[0] == '\n') return false;
     }
 #endif
-    if(fgets(pbuffer,MAX_STR,stdin)) {
+    if(fgets(pbuffer,4*MAX_FILE_STR,stdin)) {
         print_log("<%012d>",get_time() - scorpio_start_time);
         print_log(buffer);
         return true;
@@ -1138,7 +1162,8 @@ int tokenize(char *str, char** tokens, const char *str2) {
 
 CHESS_CLOCK::CHESS_CLOCK() {
     mps = 10;
-    inc = 0;
+    p_inc = 0;
+    o_inc = 0;
     p_time = 60000;
     o_time = 60000;
     max_st = MAX_NUMBER;
@@ -1159,21 +1184,21 @@ void CHESS_CLOCK::set_stime(int hply, bool output) {
         search_time = max_st;
         maximum_time = max_st;
         if(output)
-            print("# [st = %dms, mt = %dms , hply = %d]\n",search_time,maximum_time,hply);
+            print_info("[st = %dms, mt = %dms , hply = %d]\n",search_time,maximum_time,hply);
         return;
     }
     if(max_sd != MAX_PLY) {
         search_time = MAX_NUMBER;
         maximum_time = MAX_NUMBER;
         if(output)
-            print("# [sd = %d , hply = %d]\n",max_sd,hply);
+            print_info("[sd = %d , hply = %d]\n",max_sd,hply);
         return;
     }
     if(max_visits != MAX_NUMBER) {
         search_time = MAX_NUMBER;
         maximum_time = MAX_NUMBER;
         if(output)
-            print("# [sv = %d , hply = %d]\n",max_visits,hply);
+            print_info("[sv = %d , hply = %d]\n",max_visits,hply);
         return;
     }
 
@@ -1187,17 +1212,20 @@ void CHESS_CLOCK::set_stime(int hply, bool output) {
     else p_time = int(0.7 * p_time);
     if(pondering) p_time /= 4;
 
-    if(move_no <= 20)
-        est_moves_left = 45 - move_no;
+    if(move_no <= 35)
+        est_moves_left = 50 - move_no;
     else
-        est_moves_left = 25;
+        est_moves_left = 15;
 
     if(!mps) {
         moves_left = est_moves_left;
-        search_time = p_time / moves_left + inc;
+        search_time = p_time / moves_left + p_inc;
         maximum_time = p_time / 2;
     } else {
-        moves_left = mps - (move_no % mps);
+        if(PROTOCOL == UCI)
+            moves_left = mps;
+        else
+            moves_left = mps - (move_no % mps);
         if(moves_left > est_moves_left)
             moves_left = est_moves_left;
 
@@ -1219,7 +1247,10 @@ void CHESS_CLOCK::set_stime(int hply, bool output) {
     }
 
     if(SEARCHER::first_search)
-        search_time = 2 * search_time;
+        search_time = 3 * search_time / 2;
+
+    if(montecarlo)
+        search_time = 1.3 * search_time;
 
     p_time = pp_time;
 
@@ -1227,7 +1258,7 @@ void CHESS_CLOCK::set_stime(int hply, bool output) {
     print time
     */
     if(output)
-        print("# [st = %dms, mt = %dms , hply = %d , moves_left %d]\n",
+        print_info("[st = %dms, mt = %dms , hply = %d , moves_left %d]\n",
         search_time,maximum_time,hply,moves_left);
 }
 void SEARCHER::check_quit() {
@@ -1253,7 +1284,7 @@ void SEARCHER::check_quit() {
         /*process commands*/
         char*  commands[MAX_STR];
         do {
-            static char buffer[MAX_STR];
+            static char buffer[4*MAX_FILE_STR];
             if(!read_line(buffer))
                 break;
             commands[tokenize(buffer,commands)] = NULL;

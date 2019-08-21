@@ -1,6 +1,6 @@
 #include "scorpio.h"
 
-#define VERSION "3.0"
+#define VERSION "3.0.1"
 
 /*
 all external variables declared here
@@ -27,6 +27,7 @@ bool book_loaded = false;
 bool log_on = false;
 int scorpio_start_time;
 bool is_selfplay = false;
+int  PROTOCOL = CONSOLE;
 
 /*
 parallel search
@@ -74,7 +75,7 @@ int SEARCHER::pv_print_style;
 int SEARCHER::root_score;
 int SEARCHER::root_failed_low;
 int SEARCHER::root_unstable;
-int SEARCHER::last_book_move;
+int SEARCHER::last_book_move = 0;
 int SEARCHER::first_search;
 int SEARCHER::analysis_mode = false;
 int SEARCHER::show_full_pv;
@@ -127,7 +128,6 @@ static void unload_epdfile() {
     mem_epdfile = 0;
     print("Unloaded epd!\n");
 }
-
 /*
 load egbbs with a separate thread
 */
@@ -148,15 +148,13 @@ static void CDECL egbb_thread_proc(void*) {
 }
 static void load_egbbs() {
     /*Wait if we are still loading EGBBs*/
-    if(egbb_setting_changed) {
-        wait_for_egbb();
+    if(egbb_setting_changed && !SEARCHER::egbb_is_loaded) {
         egbb_setting_changed = false;
         egbb_is_loading = true;
         pthread_t dummy;
         t_create(dummy,egbb_thread_proc,0);
         (void)dummy;
     }
-    wait_for_egbb();
 }
 /*
 hash tables
@@ -183,11 +181,11 @@ static void reset_pht() {
     print("pht %d X %d = %.1f MB\n",size,sizeof(PAWNHASH),(size * sizeof(PAWNHASH)) / double(1024 * 1024));
 }
 /*
-only winboard protocol support
+main
 */
 int CDECL main(int argc, char* argv[]) {
-    char   buffer[MAX_FILE_STR];
-    char*  commands[MAX_STR];
+    char   buffer[4*MAX_FILE_STR];
+    char*  commands[4*MAX_STR];
 
     /*init io*/
     init_io();
@@ -237,10 +235,8 @@ int CDECL main(int argc, char* argv[]) {
         if(!log_on)
             remove_log_file();
 
-        /* load egbbs */
-#ifndef CUTECHESS_FIX
+        /* start loading egbbs */
         load_egbbs();
-#endif
 
         /*
          * Parse commands from stdin.
@@ -249,6 +245,12 @@ int CDECL main(int argc, char* argv[]) {
         while(true) {
             if(!read_line(buffer))
                 goto END;
+            if(PROTOCOL == UCI) {
+                std::string s(buffer);
+                while (s.find("value") != std::string::npos)
+                    s.replace(s.find("value"), 5, " ");
+                strcpy(buffer,s.c_str());
+            }
             commands[tokenize(buffer,commands)] = NULL;
             if(!parse_commands(commands))
                 goto END;
@@ -268,7 +270,6 @@ END:
     PROCESSOR::exit_scorpio(EXIT_SUCCESS);
     return 0;
 }
-
 /*
 initialize game
 */
@@ -286,6 +287,7 @@ void init_game() {
     initmagicmoves();
     SEARCHER::pre_calculate();
     searcher.new_board();
+    SEARCHER::first_search = true;
     SEARCHER::scorpio = black;
     SEARCHER::pv_print_style = 0;
     SEARCHER::resign_value = 600;
@@ -363,145 +365,829 @@ static const char *const commands_recognized[] = {
     "zero_params -- zeros all evaluation parameters",
     "tune -- Tune the evaluation function. Takes same arguments as mse.",
     "undo -- The user asks to back up one half move.",
-    "xboard -- Request xboard mode (the default).",
+    "uci -- Request uci mode.",
+    "xboard -- Request xboard mode.",
     NULL
 };
 /*
-parse_commands
+Engine options
 */
-bool parse_commands(char** commands) {
-
-    char*  command;
-    int    command_num;
-    MOVE   move;
-    char   mv_str[10];
-    int    do_search;
-    HASHKEY hash_in = searcher.hash_key;
-
-    command_num = 0;
-
-    while((command = commands[command_num++]) != 0) {
-        /*
-        xboard
-        */
-        do_search = false;
-
-        if (!strcmp(command, "protover")) {
-            print("feature name=1 myname=\"Scorpio_%s\"\n",VERSION);
-            print("feature sigint=0 sigterm=0\n");
-            print("feature setboard=1 draw=0 colors=0\n");
-            print("feature smp=0 memory=0\n");
-            print("feature option=\"log -check %d\"\n",log_on);
-            print("feature option=\"clear_hash -button\"\n");
-            print("feature option=\"resign -spin %d 100 30000\"\n",SEARCHER::resign_value);
-            print("feature option=\"cores -spin 1 1 %d\"\n", MAX_CPUS);
-            print("feature option=\"ht -spin %d 1 131072\"\n",ht);
-            print("feature option=\"eht -spin %d 1 16384\"\n",eht);
-            print("feature option=\"pht -spin %d 1 256\"\n",pht);
-            print("feature option=\"egbb_path -path %s\"\n", SEARCHER::egbb_path);
-            print("feature option=\"nn_path -path %s\"\n", SEARCHER::nn_path);
-            print("feature option=\"egbb_cache_size -spin %d 1 16384\"\n", SEARCHER::egbb_cache_size);
-            print("feature option=\"egbb_load_type -spin %d 0 3\"\n", SEARCHER::egbb_load_type);
-            print("feature option=\"egbb_depth_limit -spin %d 0 %d\"\n", SEARCHER::egbb_depth_limit, MAX_PLY);
-            print("feature option=\"egbb_ply_limit_percent -spin %d 0 100\"\n", SEARCHER::egbb_ply_limit_percent);
-            print("feature option=\"nn_cache_size -spin %d 1 16384\"\n", SEARCHER::nn_cache_size);
-            print("feature option=\"n_devices -spin %d 1 128\"\n",SEARCHER::n_devices);
-            print("feature option=\"device_type -combo *CPU /// GPU \"\n");
-            print("feature option=\"delay -spin %d 0 1000\"\n",SEARCHER::delay);
-            print("feature option=\"float_type -combo FLOAT /// *HALF  /// INT8 \"\n");
-            print("feature option=\"nn_type -spin %d 0 10\"\n",SEARCHER::nn_type);
-            print_search_params();
-            print_mcts_params();
+void print_spin(const char* name, int def, int min, int max) {
+    if(PROTOCOL == UCI)
+        print("option name %s type spin default %d min %d max %d\n", name, def, min, max);
+    else
+        print("feature option=\"%s -spin %d %d %d\"\n", name, def, min, max);
+}
+void print_check(const char* name, int def) {
+    if(PROTOCOL == UCI)
+        print("option name %s type check default %s\n", name, def ? "true" : "false");
+    else
+        print("feature option=\"%s -check %d \"\n", name, def);
+}
+void print_button(const char* name) {
+    if(PROTOCOL == UCI)
+        print("option name %s type button\n", name);
+    else
+        print("feature option=\"%s -button\"\n", name);
+}
+void print_path(const char* name, const char* path) {
+    if(PROTOCOL == UCI)
+        print("option name %s type string default %s\n", name, path);
+    else
+        print("feature option=\"%s -path %s \"\n", name, path);
+}
+void print_combo(const char* name, const char* combo[], int def, int N) {
+    if(PROTOCOL == UCI) {
+        print("option name %s type combo default %s ", name, combo[def]);
+        for(int i = 0; i < N; i++)
+            print("var %s ",combo[i]);
+        print("\n");
+    } else {
+        print("feature option=\"%s -combo ", name, combo);
+        for(int i = 0; i < N; i++) {
+            if(i == def) print("*%s ",combo[i]);
+            else print("%s ",combo[i]);
+            if(i < N - 1) print("/// ");
+        }
+        print("\"\n");
+    }
+}
+static void print_options() {
+    static const char* dtype[] = {"CPU", "GPU"};
+    static const char* ftype[] = {"FLOAT", "HALF", "INT8"};
+    print_check("log",log_on);
+    print_button("clear_hash");
+    print_spin("resign",SEARCHER::resign_value,100,30000);
+    print_spin("cores",1,1,MAX_CPUS);
+    print_spin("ht",ht,1,131072);
+    print_spin("eht",eht,1,16384);
+    print_spin("pht",pht,1,256);
+    print_path("egbb_path",SEARCHER::egbb_path);
+    print_path("nn_path",SEARCHER::nn_path);
+    print_spin("egbb_cache_size",SEARCHER::egbb_cache_size,1,16384);
+    print_spin("egbb_load_type",SEARCHER::egbb_load_type,0,3);
+    print_spin("egbb_depth_limit",SEARCHER::egbb_depth_limit,0,MAX_PLY);
+    print_spin("egbb_ply_limit_percent",SEARCHER::egbb_ply_limit_percent,0,100);
+    print_spin("nn_cache_size",SEARCHER::nn_cache_size,1,16384);
+    print_spin("n_devices",SEARCHER::n_devices,1,128);
+    print_combo("device_type",dtype,SEARCHER::device_type,2);
+    print_spin("delay",SEARCHER::delay,0,1000);
+    print_combo("float_type",ftype,SEARCHER::float_type,3);
+    print_spin("nn_type",SEARCHER::nn_type,0,10);
+}
+/**
+* Internal scorpio commands
+*/
+bool internal_commands(char** commands,char* command,int& command_num) {
+    if (!strcmp(command, "xboard")) {
+        PROTOCOL = XBOARD;
+    } else if(!strcmp(command,"uci")) {
+        PROTOCOL = UCI;
+        print("id name Scorpio %s\n",VERSION);
+        print("id author Daniel Shawul\n");
+        print_options();
+        print_search_params();
+        print_mcts_params();
 #ifdef TUNE
-            print_eval_params();
+        print_eval_params();
 #endif
-            print("feature done=1\n");
+        print("uciok\n");
+        /*
+        hash tables
+        */
+    } else if(!strcmp(command,"ht")) {
+        ht = atoi(commands[command_num++]);
+        reset_ht();
+    } else if(!strcmp(command,"pht")) {
+        pht = atoi(commands[command_num++]);
+        reset_pht();
+    } else if(!strcmp(command,"eht")) {
+        eht = atoi(commands[command_num++]);
+        reset_eht();
+        /*
+        parallel search
+        */
+    } else if(!strcmp(command,"mt") || !strcmp(command,"cores") || !strcmp(command,"Threads") ) {
+#ifdef PARALLEL
+        int mt;
+        if(!strcmp(commands[command_num],"auto"))
+            mt = get_number_of_cpus();
+        else if(!strncmp(commands[command_num],"auto-",5)) {
+            int r = atoi(&commands[command_num][5]);
+            mt = get_number_of_cpus() - r;
+        } else
+            mt = atoi(commands[command_num]);
+        mt = MIN(mt, MAX_CPUS);
+        init_smp(mt);
+        print("processors [%d]\n",PROCESSOR::n_processors);
+        PROCESSOR::n_cores = MIN(PROCESSOR::n_cores,PROCESSOR::n_processors);
+#endif
+        command_num++;
+        /*
+        egbb
+        */
+#ifdef EGBB
+    } else if(!strcmp(command, "egbb_path")) {
+        egbb_setting_changed = true;
+        strcpy(SEARCHER::egbb_path,commands[command_num]);
+        command_num++;
+    } else if(!strcmp(command, "egbb_cache_size")) {
+        egbb_setting_changed = true;
+        SEARCHER::egbb_cache_size = atoi(commands[command_num]);
+        command_num++;
+    } else if(!strcmp(command, "egbb_load_type")) {
+        egbb_setting_changed = true;
+        SEARCHER::egbb_load_type = atoi(commands[command_num]);
+        command_num++;
+    } else if(!strcmp(command, "egbb_depth_limit")) {
+        SEARCHER::egbb_depth_limit = atoi(commands[command_num]);
+        command_num++;
+    } else if(!strcmp(command, "egbb_ply_limit_percent")) {
+        SEARCHER::egbb_ply_limit_percent = atoi(commands[command_num]);
+        command_num++;
+    } else if(!strcmp(command, "nn_cache_size")) {
+        egbb_setting_changed = true;
+        SEARCHER::nn_cache_size = atoi(commands[command_num]);
+        command_num++;
+    } else if (!strcmp(command, "use_nn")) {
+        if(!strcmp(commands[command_num],"on") ||
+            !strcmp(commands[command_num],"1"))
+            SEARCHER::use_nn = true;
+        else
+            SEARCHER::use_nn = false;
+        SEARCHER::save_use_nn = SEARCHER::use_nn;
+        command_num++;
+    } else if(!strcmp(command, "nn_path")) {
+        strcpy(SEARCHER::nn_path,commands[command_num]);
+        command_num++;
+    } else if(!strcmp(command, "n_devices")) {
+        SEARCHER::n_devices = atoi(commands[command_num]);
+        command_num++;
+    } else if(!strcmp(command, "delay")) {
+        SEARCHER::delay = atoi(commands[command_num]);
+        command_num++;
+    } else if(!strcmp(command, "float_type")) {
+        command = commands[command_num++];
+        if(!strcmp(command,"FLOAT")) SEARCHER::float_type = 0;
+        else if(!strcmp(command,"HALF")) SEARCHER::float_type = 1;
+        else SEARCHER::float_type = 2;
+    } else if(!strcmp(command, "device_type")) {
+        command = commands[command_num++];
+        if(!strcmp(command,"CPU")) SEARCHER::device_type = 0;
+        else  SEARCHER::device_type = 1;
+    } else if(!strcmp(command, "nn_type")) {
+        SEARCHER::nn_type = atoi(commands[command_num]);
+        command_num++;
+#endif
+
+#ifdef BOOK_PROBE
+    } else if (!strcmp(command, "book")) {
+        if(commands[command_num]) {
+            if(!strcmp(commands[command_num],"on"))
+                book_loaded = true;
+            else if(!strcmp(commands[command_num],"off"))
+                book_loaded = false;
             command_num++;
-        } else if (!strcmp(command, "xboard")) {
-        } else if (!strcmp(command, "computer")
-            || !strcmp(command, "post")
-            || !strcmp(command, "nopost")
-            || !strcmp(command, "random")
-            || !strcmp(command, "option")
-            ) {
-        } else if (!strcmp(command, "?")) {
-            SEARCHER::abort_search = 1;
-        } else if (!strcmp(command, ".")) {
-            main_searcher->print_status();
-        } else if (!strcmp(command, "accepted")
-            || !strcmp(command, "rejected")
-            ) {
-                command_num++;
-        } else if (!strcmp(command, "name")) {
-            print("Hello ");
-            while(true) {
-                command = commands[command_num++];
-                if(!command) break;
-                print(command);
+        } else if(book_loaded) {
+            searcher.show_book_moves();
+        }
+#endif
+#ifdef BOOK_CREATE
+    } else if (!strcmp(command,"build")) {
+        int col = neutral,hsize = 1024 * 1024,plies = 30;
+        char source[1024] = "book.pgn",dest[1024] = "book.dat";
+
+        int k = 0;
+        while(true) {
+            command = commands[command_num++];
+            if(!command) break;
+            if(!strcmp(command,"white")) col = black;
+            else if(!strcmp(command,"black")) col = white;
+            else  {
+                if(k == 0) strcpy(source,command);
+                else if(k == 1) strcpy(dest,command);
+                else if(k == 2) hsize = atoi(command);
+                else if(k == 3) plies = atoi(command);
+                k++;
             }
-            print("!\n");
-        } else if(!strcmp(command,"st")) {
-            SEARCHER::chess_clock.max_sd = MAX_PLY;
-            SEARCHER::chess_clock.max_st = 1000 * (atoi(commands[command_num++]));
-        } else if(!strcmp(command,"sd")) {
-            SEARCHER::chess_clock.max_st = MAX_NUMBER;
-            SEARCHER::chess_clock.max_sd = atoi(commands[command_num++]);
-        } else if(!strcmp(command,"sv")) {
-            SEARCHER::chess_clock.max_st = MAX_NUMBER;
-            SEARCHER::chess_clock.max_visits = atoi(commands[command_num++]);
-        } else if(!strcmp(command,"level")) {
-            SEARCHER::chess_clock.mps = atoi(commands[command_num++]);
-            if(strstr(commands[command_num],":")) {
-                int mn,sec;
-                sscanf(commands[command_num],"%d:%d",&mn,&sec);
-                SEARCHER::chess_clock.p_time = 60000 * mn + 1000 * sec;
-                command_num++;
-            } else {
-                SEARCHER::chess_clock.p_time = 60000 * atoi(commands[command_num++]);
+        }
+        searcher.build_book(source,dest,hsize,plies,col);
+    } else if (!strcmp(command,"pgn_to_epd")) {
+        char source[1024],dest[1024];
+        strcpy(source,commands[command_num++]);
+        strcpy(dest,commands[command_num++]);
+        searcher.pgn_to_epd(source,dest);
+    } else if (!strcmp(command,"merge")) {
+        char source1[1024] = "book1.dat",source2[1024] = "book2.dat",dest[1024] = "book.dat";
+        double w1 = 0,w2 = 0;
+        int k = 0;
+        while(true) {
+            command = commands[command_num++];
+            if(!command) break;
+            if(k == 0) strcpy(source1,command);
+            else if(k == 1) strcpy(source2,command);
+            else if(k == 2) strcpy(dest,command);
+            else if(k == 3) w1 = atof(command);
+            else if(k == 4) w2 = atof(command);
+            k++;
+        }
+        merge_books(source1,source2,dest,w1,w2);
+#endif
+#ifdef LOG_FILE
+    } else if (!strcmp(command, "log")) {
+        if(!strcmp(commands[command_num],"on") ||
+            !strcmp(commands[command_num],"1"))
+            log_on = true;
+        else
+            log_on = false;
+        command_num++;
+#endif
+    } else if(check_search_params(commands,command,command_num)) {
+    } else if(check_mcts_params(commands,command,command_num)) {
+#ifdef TUNE
+    } else if(check_eval_params(commands,command,command_num)) {
+#endif
+    } else if(!strcmp(command, "resign")) {
+        SEARCHER::resign_value = atoi(commands[command_num]);
+        command_num++;
+    } else if(!strcmp(command, "help")) {
+        size_t index = 0;
+        while (commands_recognized[index]) {
+            puts(commands_recognized[index]);
+            index++;
+        }
+        /*
+        debugging
+        */
+    } else if(!strcmp(command,"d")) {
+        searcher.print_board();
+    } else if(!strcmp(command,"mirror")) {
+        searcher.mirror();
+    } else if(!strcmp(command,"history")) {
+        searcher.print_history();
+    } else if(!strcmp(command,"moves")) {
+        searcher.print_allmoves();
+    } else if(!strcmp(command,"pvstyle")) {
+        SEARCHER::pv_print_style = atoi(commands[command_num++]);
+    } else if(!strcmp(command,"perft")) {
+        clock_t start,end;
+        int depth = atoi(commands[command_num++]);
+        start = clock();
+        UBMP64 nodes = searcher.perft(depth);
+        end = clock();
+        print("\nnodes " FMT64 "\n",nodes);
+        print("time %.2f sec\n",(end - start) / 1000.0f);
+    } else if(!strcmp(command,"score")) {
+        int score;
+        if(SEARCHER::egbb_is_loaded && searcher.all_man_c <= MAX_EGBB) {
+            searcher.probe_bitbases(score);
+            print("%d\n",score);
+        } else {
+            score = searcher.eval();
+            print("%d\n",score);
+        }
+    } else if(!strcmp(command,"loadepd")) {
+        load_epdfile(commands[command_num++]);
+    } else if(!strcmp(command,"unloadepd")) {
+        unload_epdfile();
+#ifdef TUNE
+    } else if(!strcmp(command,"param_group")) {
+        int parameter_group = atoi(commands[command_num++]);
+        init_parameters(parameter_group);
+    } else if(!strcmp(command,"zero_params")) {
+        zero_params();
+        write_eval_params();
+#endif
+    } else if(!strcmp(command,"randomize")) {
+        is_selfplay = true;
+    } else if(!strcmp(command,"quit")) {
+        print("Bye Bye\n");
+        PROCESSOR::exit_scorpio(EXIT_SUCCESS);
+    } else if(!strcmp(command,"selfplay")) {
+        int wins = 0, losses = 0, draws = 0;
+        int N = atoi(commands[command_num++]),res;
+        char FEN[MAX_STR];
+        FILE* fw = fopen(commands[command_num++],"w");
+
+        is_selfplay = true;
+        searcher.get_fen(FEN);
+        print("Starting %d selfplay games\n",N);
+        for(int i = 0;i < N;i++) {
+            res = self_play();
+            if(res == R_DRAW) draws++;
+            else if(res == R_WWIN) wins++;
+            else if(res == R_BWIN) losses++;
+            searcher.print_game(res,fw,"Training games",
+                "ScorpioZero","ScorpioZero",wins+losses+draws);
+            print("[%d] Games %d: + %d - %d = %d\n",GETPID(),
+                wins+losses+draws,wins,losses,draws);
+            searcher.set_board(FEN);
+        }
+        print("Finished\n");
+        fclose(fw);
+    } else if(!strcmp(command,"selfplayp")) {
+        int N = atoi(commands[command_num++]);
+        FILE* fw = fopen(commands[command_num++],"w");
+        FILE* fw2 = fopen(commands[command_num++],"w");
+        
+        print("Starting %d selfplay games\n",N);
+        is_selfplay = true;
+        main_searcher->COPY(&searcher);
+        main_searcher->self_play_thread_all(fw,fw2,N);
+
+        print("Finished\n");
+        fclose(fw);
+        fclose(fw2);
+        /*********************************************
+        *     Processing epd files                  *
+        *********************************************/
+    } else if (!strcmp(command, "runeval") || 
+               !strcmp(command, "runevalepd") || 
+               !strcmp(command, "runsearch") ||
+               !strcmp(command, "runsearchepd") ||
+               !strcmp(command, "runquietepd") ||
+               !strcmp(command, "runinpnn") ||
+               !strcmp(command, "jacobian") ||
+               !strcmp(command, "mse") ||
+               !strcmp(command, "gmse") ||
+               !strcmp(command, "tune")
+               ) {
+        load_egbbs();
+        wait_for_egbb();
+
+        MOVE move;
+        char input[MAX_STR],fen[MAX_STR];
+        char* words[100];
+        double frac = 1;
+        int sc,sce,test,visited,result,nwords = 0;
+        static const int DRAW_MARGIN = 35;
+        enum {RUNEVAL = 0, RUNEVALEPD, RUNSEARCH, RUNSEARCHEPD, RUNQUIETEPD, RUNINPNN, JACOBIAN, MSE, GMSE, TUNE};
+
+        if(!strcmp(command,"runeval")) test = RUNEVAL;
+        else if(!strcmp(command,"runevalepd")) test = RUNEVALEPD;
+        else if(!strcmp(command,"runsearch")) test = RUNSEARCH;
+        else if(!strcmp(command,"runsearchepd")) test = RUNSEARCHEPD;
+        else if(!strcmp(command,"runquietepd")) test = RUNQUIETEPD;
+        else if(!strcmp(command,"runinpnn")) test = RUNINPNN;
+        else if(!strcmp(command,"jacobian")) test = JACOBIAN;
+        else if(!strcmp(command,"mse")) test = MSE;
+        else if(!strcmp(command,"gmse")) test = GMSE;
+        else test = TUNE;
+
+        /*open file*/
+        bool getfen = ((test <= JACOBIAN) 
+#ifdef TUNE
+            || (test >= MSE && !has_jacobian())
+#endif
+            );
+
+        FILE *fd = 0, *fw = 0;
+        if(getfen) {
+#if !defined(_WIN32) && !defined(__ANDROID__)
+            if(mem_epdfile)
+                fd = fmemopen(mem_epdfile, strlen(mem_epdfile), "r");
+            else 
+#endif
+            {
+                fd = fopen(commands[command_num++],"r");
+                if(!fd) {
+                    print("epd file not found!\n");
+                    return false;
+                }
             }
-            SEARCHER::chess_clock.inc = 1000 * atoi(commands[command_num++]);
-            SEARCHER::chess_clock.o_time = searcher.chess_clock.p_time;
-            SEARCHER::chess_clock.max_st = MAX_NUMBER;
-            SEARCHER::chess_clock.max_sd = MAX_PLY;
-        } else if(!strcmp(command,"time")) {
-            SEARCHER::chess_clock.p_time = (10 * atoi(commands[command_num++]));
-        } else if(!strcmp(command,"otim")) {
-            SEARCHER::chess_clock.o_time = (10 * atoi(commands[command_num++]));
-        } else if(!strcmp(command,"hard")) {
-            ponder = true;
-        } else if(!strcmp(command,"easy")) {
-            ponder = false;
-        } else if(!strcmp(command,"force")) {
-            SEARCHER::scorpio = neutral;
-        } else if(!strcmp(command,"exit")) {
-            SEARCHER::analysis_mode = false;
-            if(SEARCHER::chess_clock.infinite_mode) 
-                return false;
-        } else if(!strcmp(command,"result")) {
-            SEARCHER::abort_search = 1;
-            if(!strcmp(commands[command_num],"1-0"))
-                result = R_WWIN;
-            else if(!strcmp(commands[command_num],"0-1"))
-                result = R_BWIN;
-            else if(!strcmp(commands[command_num],"1/2-1/2"))
-                result = R_DRAW;
+        }
+        if(test == RUNEVALEPD || test == RUNSEARCHEPD || test == RUNQUIETEPD || test == RUNINPNN) {
+            if(test == RUNINPNN)
+                fw = fopen(commands[command_num++],"wb");
             else
-                result = R_UNKNOWN;
-            while(commands[++command_num]);
-            searcher.print_game(result);
-        } else if(!strcmp(command,"quit")) {
-            print("Bye Bye\n");
-            PROCESSOR::exit_scorpio(EXIT_SUCCESS);
-        } else if (!strcmp(command, "clear_hash")) {
-            PROCESSOR::clear_hash_tables();
-        } else if (!strcmp(command, "new")) {
-            load_egbbs();
-            PROCESSOR::clear_hash_tables();
-            searcher.new_board();
+                fw = fopen(commands[command_num++],"w");
+        }
+        if(!epdfile_count) {
+            while(fgets(input,MAX_STR,fd))
+                epdfile_count++;
+            rewind(fd);
+        }
+#ifdef TUNE
+        /*set additional parameters of tune,mse & gmse*/
+        if(test >= MSE) {
+            frac = atof(commands[command_num++]);
+            int randseed = atoi(commands[command_num++]);
+            srand(randseed);
+        }
+
+        /*allocate jacobian*/
+        if(test == JACOBIAN) {
+            allocate_jacobian(epdfile_count);
+            print("Computing jacobian matrix of evaluation function ...\n");
+        }
+
+        /*allocate arrays for SGD*/
+        double *gse, *gmse, *dmse, *params, mse;
+        const double gamma = 0.1, alpha = 1e4;
+        int nSize = nParameters + nModelParameters;
+        
+        if(test >= GMSE) {
+            gse = (double*) malloc(nSize * sizeof(double));
+            gmse = (double*) malloc(nSize * sizeof(double));
+            dmse = (double*) malloc(nSize * sizeof(double));
+            params = (double*) malloc(nSize * sizeof(double));
+            memset(dmse,0,nSize * sizeof(double));
+            readParams(params);
+        }
+#endif
+        /*Print headers*/
+        if(test <= RUNSEARCH) {
+            if(SEARCHER::pv_print_style == 0) 
+                print("******************************************\n");
+            else if(SEARCHER::pv_print_style == 1)
+                print("\n\t\tNodes     Time      NPS      splits     bad"
+                "\n\t\t=====     ====      ===      ======     ===\n");
+        }
+        SEARCHER::pre_calculate();
+        PROCESSOR::clear_hash_tables();
+
+        /*Mini-batch loop*/
+        for(int iter = 0;;iter++) {
+
+            /*loop through all positions*/
+            visited = 0;
+#ifdef TUNE
+            mse = 0.0;
+            if(test >= GMSE)
+                memset(gmse,0,nSize * sizeof(double));
+#endif
+            for(int cnt = 0;cnt < epdfile_count;cnt++) {
+                /*read line*/
+                if(getfen) {
+                    if(!fgets(input,MAX_STR,fd))
+                        continue;
+                }
+                /*Sample a fraction of total postions: This is called a mini-batch gradient
+                 descent with bootstrap sampling. In the standard mini-batch GD the sampling
+                 of training positions is done without replacement.*/
+                if(test >= MSE && frac > 1e-6) {
+                    double r = double(rand()) / RAND_MAX;
+                    if(r >= frac) continue;
+                }
+                visited++;
+                /*decode fen*/
+                if(getfen) {
+                    input[strlen(input) - 1] = 0;
+                    nwords = tokenize(input,words) - 1;
+                    strcpy(fen,words[0]);
+                    strcat(fen," ");
+                    strcat(fen,words[1]);
+                    strcat(fen," ");
+                    strcat(fen,words[2]);
+                    strcat(fen," ");
+                    strcat(fen,words[3]);
+                    strcat(fen," ");
+                    searcher.set_board(fen);
+                    SEARCHER::scorpio = searcher.player;
+                }
+
+                switch(test) {
+                case RUNEVAL:
+                case RUNEVALEPD:
+                    sc = searcher.eval();
+
+                    if(test == RUNEVAL) {
+                        searcher.mirror();
+                        sce = searcher.eval();
+                        if(sc == sce)
+                            print("*%d* %d\n",visited,sc);
+                        else {
+                            print("*****WRONG RESULT*****\n");
+                            print("[ %s ] \nsc = %6d sc1 = %6d\n",fen,sc,sce);
+                            print("**********************\n");
+                        }
+                    }
+                    if(test == RUNEVALEPD) {
+                        int res;
+                        if(sc > DRAW_MARGIN) res = 1;
+                        else if( sc < -DRAW_MARGIN) res = -1;
+                        else res = 0;
+                        if(searcher.player == black) res = -res;
+                        if(res == 1)
+                            fprintf(fw, "%s 1-0\n", fen);
+                        else if(res == -1)
+                            fprintf(fw, "%s 0-1\n", fen);
+                        else
+                            fprintf(fw, "%s 1/2-1/2\n", fen);
+                    }
+                    break;
+                case RUNSEARCH:
+                case RUNSEARCHEPD:
+                case RUNQUIETEPD:
+                    PROCESSOR::clear_hash_tables();
+                    main_searcher->COPY(&searcher);
+                    move = main_searcher->find_best();
+                    searcher.copy_root(main_searcher);
+
+                    if(test == RUNSEARCH) {
+                        if(SEARCHER::pv_print_style == 0) 
+                            print("********** %d ************\n",visited);
+                    } else if(test == RUNSEARCHEPD) {
+                        sc = main_searcher->pstack->best_score;
+                        int res;
+                        if(sc > DRAW_MARGIN) res = 1;
+                        else if( sc < -DRAW_MARGIN) res = -1;
+                        else res = 0;
+                        if(searcher.player == black) res = -res;
+                        if(res == 1)
+                            fprintf(fw, "%s 1-0\n", fen);
+                        else if(res == -1)
+                            fprintf(fw, "%s 0-1\n", fen);
+                        else
+                            fprintf(fw, "%s 1/2-1/2\n", fen);
+                    } else {
+                        if(!is_cap_prom(move)) {
+                            if(!strncmp(words[nwords - 1],"1-0",3))  
+                                fprintf(fw, "%s 1-0\n", fen);
+                            else if(!strncmp(words[nwords - 1],"0-1",3)) 
+                                fprintf(fw, "%s 0-1\n", fen);
+                            else if(!strncmp(words[nwords - 1],"1/2-1/2",7)) 
+                                fprintf(fw, "%s 1/2-1/2\n", fen);
+                        }
+                    }
+                    break;
+                case RUNINPNN:
+                    searcher.write_input_planes(fw);
+                    break;
+                case JACOBIAN:
+                case MSE:
+                case GMSE:
+                case TUNE:
+                    if(getfen) {
+                        if(!strncmp(words[nwords - 1],"1-0",3)) result = 1;
+                        else if(!strncmp(words[nwords - 1],"0-1",3)) result = -1;
+                        else if(!strncmp(words[nwords - 1],"1/2-1/2",7)) result = 0;
+                        else {
+                            print("Position %d not labeled: fen %s\n",visited,fen);
+                            continue;
+                        }
+                        if(searcher.player == black) 
+                            result = -result;
+                    }
+#ifdef TUNE
+                    if(test == JACOBIAN) {
+                        compute_jacobian(&searcher,cnt,result);
+                    } else {
+                        /*compute evaluation from the stored jacobian*/
+                        double se;
+                        if(getfen) {
+                            se = searcher.get_root_search_score();
+                        } else {
+                            se = eval_jacobian(cnt,result,params);
+                        }
+                        /*compute loss function (log-likelihood) or its gradient*/
+                        if(test == MSE) {
+                            se = get_log_likelihood(result,se);
+                            mse += (se - mse) / visited;
+                        } else  {
+                            get_log_likelihood_grad(&searcher,result,se,gse,cnt);
+                            for(int i = 0;i < nSize;i++)
+                                gmse[i] += (gse[i] - gmse[i]) / visited;
+                        }
+                    }
+#endif
+                    break;
+                }
+            }
+
+#ifdef TUNE
+            /*Update parameters based on gradient of loss function computed 
+              over the current mini-batch*/
+            if(test == JACOBIAN) {
+                print("Computed jacobian for %d positions.\n",visited);
+            } else if(test == MSE) {
+                print("%.9e\n",mse);
+            } else if(test == GMSE) {
+                for(int i = 0;i < nSize;i++)
+                    print("%.9e ",gmse[i]);
+                print("\n");
+            } else if(test == TUNE) {
+                double normg = 0;
+                for(int i = 0;i < nSize;i++) {
+                    dmse[i] = -gmse[i] + gamma * dmse[i];
+                    params[i] += alpha * dmse[i];
+                    normg += pow(gmse[i],2.0);
+                }
+                bound_params(params);
+                writeParams(params);
+                print("%d. %.6e\n",iter,normg);
+                if(iter % 40 == 0)
+                    write_eval_params();
+                if(getfen) {
+                    SEARCHER::pre_calculate();
+                    rewind(fd);
+                }
+            }
+#endif
+            if(test != TUNE) break;
+        }
+#ifdef TUNE
+        if(test >= GMSE) {
+            free(gse);
+            free(gmse);
+            free(dmse);
+            free(params);
+        }
+#endif
+        searcher.new_board();
+        if(fd) fclose(fd);
+        if(fw) fclose(fw);
+    } else {
+        return false;
+    }
+    return true;
+}
+/**
+ * xboard protocol
+ */
+int xboard_commands(char** commands,char* command,int& command_num,int& do_search) {
+    if (!strcmp(command, "protover")) {
+        print("feature name=1 myname=\"Scorpio %s\"\n",VERSION);
+        print("feature sigint=0 sigterm=0\n");
+        print("feature setboard=1 usermove=1 draw=0 colors=0\n");
+        print("feature smp=0 memory=0 debug=1\n");
+        print_options();
+        print_search_params();
+        print_mcts_params();
+#ifdef TUNE
+        print_eval_params();
+#endif
+        print("feature done=1\n");
+        command_num++;
+    } else if (!strcmp(command, "computer")
+        || !strcmp(command, "post")
+        || !strcmp(command, "nopost")
+        || !strcmp(command, "random")
+        || !strcmp(command, "option")
+        ) {
+    } else if (!strcmp(command, "?")) {
+        SEARCHER::abort_search = 1;
+    } else if (!strcmp(command, ".")) {
+        main_searcher->print_status();
+    } else if (!strcmp(command, "accepted")
+        || !strcmp(command, "rejected")
+        ) {
+            command_num++;
+    } else if (!strcmp(command, "name")) {
+        print("Hello ");
+        while(true) {
+            command = commands[command_num++];
+            if(!command) break;
+            print(command);
+        }
+        print("!\n");
+    } else if(!strcmp(command,"st")) {
+        SEARCHER::chess_clock.max_sd = MAX_PLY;
+        SEARCHER::chess_clock.max_st = 1000 * (atoi(commands[command_num++]));
+    } else if(!strcmp(command,"sd")) {
+        SEARCHER::chess_clock.max_st = MAX_NUMBER;
+        SEARCHER::chess_clock.max_sd = atoi(commands[command_num++]);
+    } else if(!strcmp(command,"sv")) {
+        SEARCHER::chess_clock.max_st = MAX_NUMBER;
+        SEARCHER::chess_clock.max_visits = atoi(commands[command_num++]);
+    } else if(!strcmp(command,"level")) {
+        SEARCHER::chess_clock.mps = atoi(commands[command_num++]);
+        if(strstr(commands[command_num],":")) {
+            int mn,sec;
+            sscanf(commands[command_num],"%d:%d",&mn,&sec);
+            SEARCHER::chess_clock.p_time = 60000 * mn + 1000 * sec;
+            command_num++;
+        } else {
+            SEARCHER::chess_clock.p_time = 60000 * atoi(commands[command_num++]);
+        }
+        SEARCHER::chess_clock.p_inc = 1000 * atoi(commands[command_num++]);
+        SEARCHER::chess_clock.o_time = searcher.chess_clock.p_time;
+        SEARCHER::chess_clock.o_inc = searcher.chess_clock.p_inc;
+        SEARCHER::chess_clock.max_st = MAX_NUMBER;
+        SEARCHER::chess_clock.max_sd = MAX_PLY;
+    } else if(!strcmp(command,"time")) {
+        SEARCHER::chess_clock.p_time = (10 * atoi(commands[command_num++]));
+    } else if(!strcmp(command,"otim")) {
+        SEARCHER::chess_clock.o_time = (10 * atoi(commands[command_num++]));
+    } else if(!strcmp(command,"hard")) {
+        ponder = true;
+    } else if(!strcmp(command,"easy")) {
+        ponder = false;
+    } else if(!strcmp(command,"force")) {
+        SEARCHER::scorpio = neutral;
+    } else if(!strcmp(command,"exit")) {
+        SEARCHER::analysis_mode = false;
+        if(SEARCHER::chess_clock.infinite_mode) 
+            return 0;
+    } else if(!strcmp(command,"result")) {
+        SEARCHER::abort_search = 1;
+        if(!strcmp(commands[command_num],"1-0"))
+            result = R_WWIN;
+        else if(!strcmp(commands[command_num],"0-1"))
+            result = R_BWIN;
+        else if(!strcmp(commands[command_num],"1/2-1/2"))
+            result = R_DRAW;
+        else
             result = R_UNKNOWN;
-            SEARCHER::scorpio = black;
-        } else if(!strcmp(command,"setboard")) {
-            PROCESSOR::clear_hash_tables();
+        while(commands[++command_num]);
+        searcher.print_game(result);
+    } else if (!strcmp(command, "clear_hash")) {
+        PROCESSOR::clear_hash_tables();
+    } else if (!strcmp(command, "new")) {
+        PROCESSOR::clear_hash_tables();
+        searcher.new_board();
+        result = R_UNKNOWN;
+        SEARCHER::scorpio = black;
+        SEARCHER::first_search = true;
+    } else if(!strcmp(command,"setboard")) {
+        PROCESSOR::clear_hash_tables();
+        char fen[MAX_STR];
+        strcpy(fen,commands[command_num++]);
+        strcat(fen," ");
+        strcat(fen,commands[command_num++]);
+        strcat(fen," ");
+        strcat(fen,commands[command_num++]);
+        strcat(fen," ");
+        strcat(fen,commands[command_num++]);
+        strcat(fen," ");
+        if(commands[command_num] && isdigit(commands[command_num][0])) {
+            strcat(fen,commands[command_num++]);
+            strcat(fen," ");
+
+            if(commands[command_num] && isdigit(commands[command_num][0])) {
+                strcat(fen,commands[command_num++]);
+                strcat(fen," ");
+            }
+        }
+        searcher.set_board(fen);
+        result = R_UNKNOWN;
+    } else if(!strcmp(command,"undo")) {
+        if(searcher.hply >= 1) searcher.undo_move();
+    } else if(!strcmp(command,"remove")) {
+        if(searcher.hply >= 1) searcher.undo_move();
+        if(searcher.hply >= 1) searcher.undo_move();
+    } else if(!strcmp(command,"go")) {
+        SEARCHER::scorpio = searcher.player;
+        do_search = true;
+    } else if(!strcmp(command,"analyze")) {
+        SEARCHER::analysis_mode = true;
+        do_search = true;
+    } else {
+        if(PROTOCOL == XBOARD) {
+            if(!strcmp(command,"usermove")) {
+                command = commands[command_num++];
+            } else {
+                print("Error (unknown command): %s\n", command);
+                return 2;
+            }
+        }
+        /*parse opponent's move and make it*/
+        MOVE move;
+        str_mov(move,command);
+        if(searcher.is_legal(move)) {
+            searcher.do_move(move);
+            do_search = true;
+        } else {
+            print("Error (unknown command): %s\n", command);
+        }
+
+        /*move recieved while pondering*/
+        if(SEARCHER::chess_clock.pondering) {
+            SEARCHER::chess_clock.pondering = false;
+            if(SEARCHER::chess_clock.infinite_mode) {
+                if(move == SEARCHER::expected_move) {
+                    print("ponder hit\n");
+                    SEARCHER::chess_clock.infinite_mode = false;
+                    SEARCHER::chess_clock.set_stime(searcher.hply,true);
+                    SEARCHER::chess_clock.search_time += 
+                        int(0.5 * (get_time() - SEARCHER::start_time));
+                    return 1;
+                } else {
+                    print("ponder miss\n");
+                }
+            }
+            return 0;
+        }
+        /*end*/
+    }
+    return 2;
+}
+/*
+uci protocol
+*/
+int uci_commands(char** commands,char* command,int& command_num,int& do_search) {
+    if (!strcmp(command, "ucinewgame")) {
+        PROCESSOR::clear_hash_tables();
+        searcher.new_board();
+        result = R_UNKNOWN;
+        SEARCHER::scorpio = black;
+        SEARCHER::first_search = true;
+    } else if(!strcmp(command, "isready")) {
+        wait_for_egbb();
+        print("readyok\n");
+    } else if(!strcmp(command,"position")) {
+        command = commands[command_num++];
+        if(command && !strcmp(command,"fen")) {    
             char fen[MAX_STR];
             strcpy(fen,commands[command_num++]);
             strcat(fen," ");
@@ -521,590 +1207,143 @@ bool parse_commands(char** commands) {
                 }
             }
             searcher.set_board(fen);
-            result = R_UNKNOWN;
-        } else if(!strcmp(command,"undo")) {
-            if(searcher.hply >= 1) searcher.undo_move();
-        } else if(!strcmp(command,"remove")) {
-            if(searcher.hply >= 1) searcher.undo_move();
-            if(searcher.hply >= 1) searcher.undo_move();
-        } else if(!strcmp(command,"go")) {
-            SEARCHER::scorpio = searcher.player;
-            do_search = true;
-        } else if(!strcmp(command,"analyze")) {
-            SEARCHER::analysis_mode = true;
-            do_search = true;
-            /*
-            hash tables
-            */
-        } else if(!strcmp(command,"ht")) {
-            ht = atoi(commands[command_num++]);
-            reset_ht();
-        } else if(!strcmp(command,"pht")) {
-            pht = atoi(commands[command_num++]);
-            reset_pht();
-        } else if(!strcmp(command,"eht")) {
-            eht = atoi(commands[command_num++]);
-            reset_eht();
-            /*
-            parallel search
-            */
-        } else if(!strcmp(command,"mt") || !strcmp(command,"cores") ) {
-#ifdef PARALLEL
-            int mt;
-            if(!strcmp(commands[command_num],"auto"))
-                mt = get_number_of_cpus();
-            else if(!strncmp(commands[command_num],"auto-",5)) {
-                int r = atoi(&commands[command_num][5]);
-                mt = get_number_of_cpus() - r;
-            } else
-                mt = atoi(commands[command_num]);
-            mt = MIN(mt, MAX_CPUS);
-            init_smp(mt);
-            print("processors [%d]\n",PROCESSOR::n_processors);
-            PROCESSOR::n_cores = MIN(PROCESSOR::n_cores,PROCESSOR::n_processors);
-#endif
-            command_num++;
-            /*
-            egbb
-            */
-#ifdef EGBB
-        } else if(!strcmp(command, "egbb_path")) {
-            egbb_setting_changed = true;
-            strcpy(SEARCHER::egbb_path,commands[command_num]);
-            command_num++;
-        } else if(!strcmp(command, "egbb_cache_size")) {
-            egbb_setting_changed = true;
-            SEARCHER::egbb_cache_size = atoi(commands[command_num]);
-            command_num++;
-        } else if(!strcmp(command, "egbb_load_type")) {
-            egbb_setting_changed = true;
-            SEARCHER::egbb_load_type = atoi(commands[command_num]);
-            command_num++;
-        } else if(!strcmp(command, "egbb_depth_limit")) {
-            SEARCHER::egbb_depth_limit = atoi(commands[command_num]);
-            command_num++;
-        } else if(!strcmp(command, "egbb_ply_limit_percent")) {
-            SEARCHER::egbb_ply_limit_percent = atoi(commands[command_num]);
-            command_num++;
-        } else if(!strcmp(command, "nn_cache_size")) {
-            egbb_setting_changed = true;
-            SEARCHER::nn_cache_size = atoi(commands[command_num]);
-            command_num++;
-        } else if (!strcmp(command, "use_nn")) {
-            if(!strcmp(commands[command_num],"on") ||
-                !strcmp(commands[command_num],"1"))
-                SEARCHER::use_nn = true;
-            else
-                SEARCHER::use_nn = false;
-            SEARCHER::save_use_nn = SEARCHER::use_nn;
-            command_num++;
-        } else if(!strcmp(command, "nn_path")) {
-            strcpy(SEARCHER::nn_path,commands[command_num]);
-            command_num++;
-        } else if(!strcmp(command, "n_devices")) {
-            SEARCHER::n_devices = atoi(commands[command_num]);
-            command_num++;
-        } else if(!strcmp(command, "delay")) {
-            SEARCHER::delay = atoi(commands[command_num]);
-            command_num++;
-        } else if(!strcmp(command, "float_type")) {
-            command = commands[command_num++];
-            if(!strcmp(command,"FLOAT")) SEARCHER::float_type = 0;
-            else if(!strcmp(command,"HALF")) SEARCHER::float_type = 1;
-            else SEARCHER::float_type = 2;
-        } else if(!strcmp(command, "device_type")) {
-            command = commands[command_num++];
-            if(!strcmp(command,"CPU")) SEARCHER::device_type = 0;
-            else  SEARCHER::device_type = 1;
-        } else if(!strcmp(command, "nn_type")) {
-            SEARCHER::nn_type = atoi(commands[command_num]);
-            command_num++;
-#endif
-
-#ifdef BOOK_PROBE
-        } else if (!strcmp(command, "book")) {
-            if(commands[command_num]) {
-                if(!strcmp(commands[command_num],"on"))
-                    book_loaded = true;
-                else if(!strcmp(commands[command_num],"off"))
-                    book_loaded = false;
-                command_num++;
-            } else if(book_loaded) {
-                searcher.show_book_moves();
-            }
-#endif
-#ifdef BOOK_CREATE
-        } else if (!strcmp(command,"build")) {
-            int col = neutral,hsize = 1024 * 1024,plies = 30;
-            char source[1024] = "book.pgn",dest[1024] = "book.dat";
-
-            int k = 0;
+        } else {
+            searcher.new_board();
+        }
+        command = commands[command_num++];
+        if(command && !strcmp(command,"moves")) {
             while(true) {
                 command = commands[command_num++];
                 if(!command) break;
-                if(!strcmp(command,"white")) col = black;
-                else if(!strcmp(command,"black")) col = white;
-                else  {
-                    if(k == 0) strcpy(source,command);
-                    else if(k == 1) strcpy(dest,command);
-                    else if(k == 2) hsize = atoi(command);
-                    else if(k == 3) plies = atoi(command);
-                    k++;
+
+                MOVE move;
+                str_mov(move,command);
+                if(searcher.is_legal(move)) {
+                    searcher.do_move(move);
+                } else {
+                    print("Illegal move: %s\n", command);
                 }
             }
-            searcher.build_book(source,dest,hsize,plies,col);
-        } else if (!strcmp(command,"pgn_to_epd")) {
-            char source[1024],dest[1024];
-            strcpy(source,commands[command_num++]);
-            strcpy(dest,commands[command_num++]);
-            searcher.pgn_to_epd(source,dest);
-        } else if (!strcmp(command,"merge")) {
-            char source1[1024] = "book1.dat",source2[1024] = "book2.dat",dest[1024] = "book.dat";
-            double w1 = 0,w2 = 0;
-            int k = 0;
-            while(true) {
-                command = commands[command_num++];
-                if(!command) break;
-                if(k == 0) strcpy(source1,command);
-                else if(k == 1) strcpy(source2,command);
-                else if(k == 2) strcpy(dest,command);
-                else if(k == 3) w1 = atof(command);
-                else if(k == 4) w2 = atof(command);
-                k++;
+        }
+        result = R_UNKNOWN;
+        SEARCHER::scorpio = neutral;
+    } else if(!strcmp(command,"go")) {
+        SEARCHER::scorpio = searcher.player;
+        do_search = true;
+        while(true) {
+            command = commands[command_num++];
+            if(!command) break;
+
+            if(!strcmp(command,"infinite")) {
+                SEARCHER::analysis_mode = true;
+            } else if(!strcmp(command,"movetime")) {
+                SEARCHER::chess_clock.max_sd = MAX_PLY;
+                SEARCHER::chess_clock.max_st = atoi(commands[command_num++]);
+            } else if(!strcmp(command,"depth")) {
+                SEARCHER::chess_clock.max_st = MAX_NUMBER;
+                SEARCHER::chess_clock.max_sd = atoi(commands[command_num++]);
+            } else if(!strcmp(command,"nodes")) {
+                SEARCHER::chess_clock.max_st = MAX_NUMBER;
+                SEARCHER::chess_clock.max_visits = atoi(commands[command_num++]);
+            } else if(!strcmp(command,"movestogo")) {
+                SEARCHER::chess_clock.mps = atoi(commands[command_num++]);
+                SEARCHER::chess_clock.max_st = MAX_NUMBER;
+                SEARCHER::chess_clock.max_sd = MAX_PLY;
+            } else if(!strcmp(command,"wtime")) {
+                if(searcher.player == white)
+                    SEARCHER::chess_clock.p_time = atoi(commands[command_num++]);
+                else
+                    SEARCHER::chess_clock.o_time = atoi(commands[command_num++]);
+                SEARCHER::chess_clock.max_st = MAX_NUMBER;
+                SEARCHER::chess_clock.max_sd = MAX_PLY;
+                SEARCHER::chess_clock.mps = 0;
+            } else if(!strcmp(command,"btime")) {
+                if(searcher.player == white)
+                    SEARCHER::chess_clock.o_time = atoi(commands[command_num++]);
+                else
+                    SEARCHER::chess_clock.p_time = atoi(commands[command_num++]);
+                SEARCHER::chess_clock.max_st = MAX_NUMBER;
+                SEARCHER::chess_clock.max_sd = MAX_PLY;
+                SEARCHER::chess_clock.mps = 0;
+            } else if(!strcmp(command,"winc")) {
+                if(searcher.player == white)
+                    SEARCHER::chess_clock.p_inc = atoi(commands[command_num++]);
+                else
+                    SEARCHER::chess_clock.o_inc = atoi(commands[command_num++]);
+            } else if(!strcmp(command,"binc")) {
+                if(searcher.player == white)
+                    SEARCHER::chess_clock.o_inc = atoi(commands[command_num++]);
+                else
+                    SEARCHER::chess_clock.p_inc = atoi(commands[command_num++]);
+            } else if(!strcmp(command,"ponder")) {
+                ponder = true;
+            } else if(!strcmp(command,"searchmoves")) {
+            } else if(!strcmp(command,"mate")) {
             }
-            merge_books(source1,source2,dest,w1,w2);
-#endif
-#ifdef LOG_FILE
-        } else if (!strcmp(command, "log")) {
-            if(!strcmp(commands[command_num],"on") ||
-                !strcmp(commands[command_num],"1"))
-                log_on = true;
-            else
-                log_on = false;
-            command_num++;
-#endif
+        }
+    } else if (!strcmp(command, "stop")) {
+        SEARCHER::abort_search = 1;
+    } else if (!strcmp(command, "ponderhit")) {
+        /*ponder hit*/
+        if(SEARCHER::chess_clock.pondering) {
+            SEARCHER::chess_clock.pondering = false;
+            if(SEARCHER::chess_clock.infinite_mode) {
+                SEARCHER::chess_clock.infinite_mode = false;
+                SEARCHER::chess_clock.set_stime(searcher.hply,true);
+                SEARCHER::chess_clock.search_time += 
+                    int(0.5 * (get_time() - SEARCHER::start_time));
+                return 1;
+            }
+            return 0;
+        }
+        /*end*/
+    }
+
+    return 2;
+}
+/*
+parse_commands
+*/
+bool parse_commands(char** commands) {
+
+    char*  command;
+    int    command_num;
+    MOVE   move;
+    char   mv_str[10];
+    int    do_search;
+    HASHKEY hash_in = searcher.hash_key;
+
+    command_num = 0;
+
+    while((command = commands[command_num++]) != 0) {
+        /**
+        * process commands
+        */
+        do_search = false;
+        if(internal_commands(commands,command,command_num)) {
         } else if(check_search_params(commands,command,command_num)) {
         } else if(check_mcts_params(commands,command,command_num)) {
 #ifdef TUNE
         } else if(check_eval_params(commands,command,command_num)) {
 #endif
-        } else if(!strcmp(command, "resign")) {
-            SEARCHER::resign_value = atoi(commands[command_num]);
-            command_num++;
-        } else if(!strcmp(command, "help")) {
-            size_t index = 0;
-            while (commands_recognized[index]) {
-                puts(commands_recognized[index]);
-                index++;
-            }
-            /*
-            debugging
-            */
-        } else if(!strcmp(command,"d")) {
-            searcher.print_board();
-        } else if(!strcmp(command,"mirror")) {
-            searcher.mirror();
-        } else if(!strcmp(command,"history")) {
-            searcher.print_history();
-        } else if(!strcmp(command,"moves")) {
-            searcher.print_allmoves();
-        } else if(!strcmp(command,"pvstyle")) {
-            SEARCHER::pv_print_style = atoi(commands[command_num++]);
-        } else if(!strcmp(command,"perft")) {
-            clock_t start,end;
-            int depth = atoi(commands[command_num++]);
-            start = clock();
-            UBMP64 nodes = searcher.perft(depth);
-            end = clock();
-            print("\nnodes " FMT64 "\n",nodes);
-            print("time %.2f sec\n",(end - start) / 1000.0f);
-        } else if(!strcmp(command,"score")) {
-            int score;
-            if(SEARCHER::egbb_is_loaded && searcher.all_man_c <= MAX_EGBB) {
-                searcher.probe_bitbases(score);
-                print("%d\n",score);
-            } else {
-                score = searcher.eval();
-                print("%d\n",score);
-            }
-        } else if(!strcmp(command,"loadepd")) {
-            load_epdfile(commands[command_num++]);
-        } else if(!strcmp(command,"unloadepd")) {
-            unload_epdfile();
-#ifdef TUNE
-        } else if(!strcmp(command,"param_group")) {
-            int parameter_group = atoi(commands[command_num++]);
-            init_parameters(parameter_group);
-        } else if(!strcmp(command,"zero_params")) {
-            zero_params();
-            write_eval_params();
-#endif
-        } else if(!strcmp(command,"randomize")) {
-            is_selfplay = true;
-        } else if(!strcmp(command,"selfplay")) {
-            int wins = 0, losses = 0, draws = 0;
-            int N = atoi(commands[command_num++]),res;
-            char FEN[MAX_STR];
-            FILE* fw = fopen(commands[command_num++],"w");
-
-            is_selfplay = true;
-            searcher.get_fen(FEN);
-            print("Starting %d selfplay games\n",N);
-            for(int i = 0;i < N;i++) {
-                res = self_play();
-                if(res == R_DRAW) draws++;
-                else if(res == R_WWIN) wins++;
-                else if(res == R_BWIN) losses++;
-                searcher.print_game(res,fw,"Training games",
-                    "ScorpioZero","ScorpioZero",wins+losses+draws);
-                print("[%d] Games %d: + %d - %d = %d\n",GETPID(),
-                    wins+losses+draws,wins,losses,draws);
-                searcher.set_board(FEN);
-            }
-            print("Finished\n");
-            fclose(fw);
-        } else if(!strcmp(command,"selfplayp")) {
-            int N = atoi(commands[command_num++]);
-            FILE* fw = fopen(commands[command_num++],"w");
-            FILE* fw2 = fopen(commands[command_num++],"w");
-            
-            print("Starting %d selfplay games\n",N);
-            is_selfplay = true;
-            main_searcher->COPY(&searcher);
-            main_searcher->self_play_thread_all(fw,fw2,N);
-
-            print("Finished\n");
-            fclose(fw);
-            fclose(fw2);
-            /*********************************************
-            *     Processing epd files                  *
-            *********************************************/
-        } else if (!strcmp(command, "runeval") || 
-                   !strcmp(command, "runevalepd") || 
-                   !strcmp(command, "runsearch") ||
-                   !strcmp(command, "runsearchepd") ||
-                   !strcmp(command, "runquietepd") ||
-                   !strcmp(command, "runinpnn") ||
-                   !strcmp(command, "jacobian") ||
-                   !strcmp(command, "mse") ||
-                   !strcmp(command, "gmse") ||
-                   !strcmp(command, "tune")
-                   ) {
-            load_egbbs();
-
-            char input[MAX_STR],fen[MAX_STR];
-            char* words[100];
-            double frac = 1;
-            int sc,sce,test,visited,result,nwords = 0;
-            static const int DRAW_MARGIN = 35;
-            enum {RUNEVAL = 0, RUNEVALEPD, RUNSEARCH, RUNSEARCHEPD, RUNQUIETEPD, RUNINPNN, JACOBIAN, MSE, GMSE, TUNE};
-
-            if(!strcmp(command,"runeval")) test = RUNEVAL;
-            else if(!strcmp(command,"runevalepd")) test = RUNEVALEPD;
-            else if(!strcmp(command,"runsearch")) test = RUNSEARCH;
-            else if(!strcmp(command,"runsearchepd")) test = RUNSEARCHEPD;
-            else if(!strcmp(command,"runquietepd")) test = RUNQUIETEPD;
-            else if(!strcmp(command,"runinpnn")) test = RUNINPNN;
-            else if(!strcmp(command,"jacobian")) test = JACOBIAN;
-            else if(!strcmp(command,"mse")) test = MSE;
-            else if(!strcmp(command,"gmse")) test = GMSE;
-            else test = TUNE;
-
-            /*open file*/
-            bool getfen = ((test <= JACOBIAN) 
-#ifdef TUNE
-                || (test >= MSE && !has_jacobian())
-#endif
-                );
-
-            FILE *fd = 0, *fw = 0;
-            if(getfen) {
-#if !defined(_WIN32) && !defined(__ANDROID__)
-                if(mem_epdfile)
-                    fd = fmemopen(mem_epdfile, strlen(mem_epdfile), "r");
-                else 
-#endif
-                {
-                    fd = fopen(commands[command_num++],"r");
-                    if(!fd) {
-                        print("epd file not found!\n");
-                        continue;
-                    }
-                }
-            }
-            if(test == RUNEVALEPD || test == RUNSEARCHEPD || test == RUNQUIETEPD || test == RUNINPNN) {
-                if(test == RUNINPNN)
-                    fw = fopen(commands[command_num++],"wb");
-                else
-                    fw = fopen(commands[command_num++],"w");
-            }
-            if(!epdfile_count) {
-                while(fgets(input,MAX_STR,fd))
-                    epdfile_count++;
-                rewind(fd);
-            }
-#ifdef TUNE
-            /*set additional parameters of tune,mse & gmse*/
-            if(test >= MSE) {
-                frac = atof(commands[command_num++]);
-                int randseed = atoi(commands[command_num++]);
-                srand(randseed);
-            }
-
-            /*allocate jacobian*/
-            if(test == JACOBIAN) {
-                allocate_jacobian(epdfile_count);
-                print("Computing jacobian matrix of evaluation function ...\n");
-            }
-
-            /*allocate arrays for SGD*/
-            double *gse, *gmse, *dmse, *params, mse;
-            const double gamma = 0.1, alpha = 1e4;
-            int nSize = nParameters + nModelParameters;
-            
-            if(test >= GMSE) {
-                gse = (double*) malloc(nSize * sizeof(double));
-                gmse = (double*) malloc(nSize * sizeof(double));
-                dmse = (double*) malloc(nSize * sizeof(double));
-                params = (double*) malloc(nSize * sizeof(double));
-                memset(dmse,0,nSize * sizeof(double));
-                readParams(params);
-            }
-#endif
-            /*Print headers*/
-            if(test <= RUNSEARCH) {
-                if(SEARCHER::pv_print_style == 0) 
-                    print("******************************************\n");
-                else if(SEARCHER::pv_print_style == 1)
-                    print("\n\t\tNodes     Time      NPS      splits     bad"
-                    "\n\t\t=====     ====      ===      ======     ===\n");
-            }
-            SEARCHER::pre_calculate();
-            PROCESSOR::clear_hash_tables();
-
-            /*Mini-batch loop*/
-            for(int iter = 0;;iter++) {
-
-                /*loop through all positions*/
-                visited = 0;
-#ifdef TUNE
-                mse = 0.0;
-                if(test >= GMSE)
-                    memset(gmse,0,nSize * sizeof(double));
-#endif
-                for(int cnt = 0;cnt < epdfile_count;cnt++) {
-                    /*read line*/
-                    if(getfen) {
-                        if(!fgets(input,MAX_STR,fd))
-                            continue;
-                    }
-                    /*Sample a fraction of total postions: This is called a mini-batch gradient
-                     descent with bootstrap sampling. In the standard mini-batch GD the sampling
-                     of training positions is done without replacement.*/
-                    if(test >= MSE && frac > 1e-6) {
-                        double r = double(rand()) / RAND_MAX;
-                        if(r >= frac) continue;
-                    }
-                    visited++;
-                    /*decode fen*/
-                    if(getfen) {
-                        input[strlen(input) - 1] = 0;
-                        nwords = tokenize(input,words) - 1;
-                        strcpy(fen,words[0]);
-                        strcat(fen," ");
-                        strcat(fen,words[1]);
-                        strcat(fen," ");
-                        strcat(fen,words[2]);
-                        strcat(fen," ");
-                        strcat(fen,words[3]);
-                        strcat(fen," ");
-                        searcher.set_board(fen);
-                        SEARCHER::scorpio = searcher.player;
-                    }
-
-                    switch(test) {
-                    case RUNEVAL:
-                    case RUNEVALEPD:
-                        sc = searcher.eval();
-
-                        if(test == RUNEVAL) {
-                            searcher.mirror();
-                            sce = searcher.eval();
-                            if(sc == sce)
-                                print("*%d* %d\n",visited,sc);
-                            else {
-                                print("*****WRONG RESULT*****\n");
-                                print("[ %s ] \nsc = %6d sc1 = %6d\n",fen,sc,sce);
-                                print("**********************\n");
-                            }
-                        }
-                        if(test == RUNEVALEPD) {
-                            int res;
-                            if(sc > DRAW_MARGIN) res = 1;
-                            else if( sc < -DRAW_MARGIN) res = -1;
-                            else res = 0;
-                            if(searcher.player == black) res = -res;
-                            if(res == 1)
-                                fprintf(fw, "%s 1-0\n", fen);
-                            else if(res == -1)
-                                fprintf(fw, "%s 0-1\n", fen);
-                            else
-                                fprintf(fw, "%s 1/2-1/2\n", fen);
-                        }
-                        break;
-                    case RUNSEARCH:
-                    case RUNSEARCHEPD:
-                    case RUNQUIETEPD:
-                        PROCESSOR::clear_hash_tables();
-                        main_searcher->COPY(&searcher);
-                        move = main_searcher->find_best();
-                        searcher.copy_root(main_searcher);
-
-                        if(test == RUNSEARCH) {
-                            if(SEARCHER::pv_print_style == 0) 
-                                print("********** %d ************\n",visited);
-                        } else if(test == RUNSEARCHEPD) {
-                            sc = main_searcher->pstack->best_score;
-                            int res;
-                            if(sc > DRAW_MARGIN) res = 1;
-                            else if( sc < -DRAW_MARGIN) res = -1;
-                            else res = 0;
-                            if(searcher.player == black) res = -res;
-                            if(res == 1)
-                                fprintf(fw, "%s 1-0\n", fen);
-                            else if(res == -1)
-                                fprintf(fw, "%s 0-1\n", fen);
-                            else
-                                fprintf(fw, "%s 1/2-1/2\n", fen);
-                        } else {
-                            if(!is_cap_prom(move)) {
-                                if(!strncmp(words[nwords - 1],"1-0",3))  
-                                    fprintf(fw, "%s 1-0\n", fen);
-                                else if(!strncmp(words[nwords - 1],"0-1",3)) 
-                                    fprintf(fw, "%s 0-1\n", fen);
-                                else if(!strncmp(words[nwords - 1],"1/2-1/2",7)) 
-                                    fprintf(fw, "%s 1/2-1/2\n", fen);
-                            }
-                        }
-                        break;
-                    case RUNINPNN:
-                        searcher.write_input_planes(fw);
-                        break;
-                    case JACOBIAN:
-                    case MSE:
-                    case GMSE:
-                    case TUNE:
-                        if(getfen) {
-                            if(!strncmp(words[nwords - 1],"1-0",3)) result = 1;
-                            else if(!strncmp(words[nwords - 1],"0-1",3)) result = -1;
-                            else if(!strncmp(words[nwords - 1],"1/2-1/2",7)) result = 0;
-                            else {
-                                print("Position %d not labeled: fen %s\n",visited,fen);
-                                continue;
-                            }
-                            if(searcher.player == black) 
-                                result = -result;
-                        }
-#ifdef TUNE
-                        if(test == JACOBIAN) {
-                            compute_jacobian(&searcher,cnt,result);
-                        } else {
-                            /*compute evaluation from the stored jacobian*/
-                            double se;
-                            if(getfen) {
-                                se = searcher.get_root_search_score();
-                            } else {
-                                se = eval_jacobian(cnt,result,params);
-                            }
-                            /*compute loss function (log-likelihood) or its gradient*/
-                            if(test == MSE) {
-                                se = get_log_likelihood(result,se);
-                                mse += (se - mse) / visited;
-                            } else  {
-                                get_log_likelihood_grad(&searcher,result,se,gse,cnt);
-                                for(int i = 0;i < nSize;i++)
-                                    gmse[i] += (gse[i] - gmse[i]) / visited;
-                            }
-                        }
-#endif
-                        break;
-                    }
-                }
-
-#ifdef TUNE
-                /*Update parameters based on gradient of loss function computed 
-                  over the current mini-batch*/
-                if(test == JACOBIAN) {
-                    print("Computed jacobian for %d positions.\n",visited);
-                } else if(test == MSE) {
-                    print("%.9e\n",mse);
-                } else if(test == GMSE) {
-                    for(int i = 0;i < nSize;i++)
-                        print("%.9e ",gmse[i]);
-                    print("\n");
-                } else if(test == TUNE) {
-                    double normg = 0;
-                    for(int i = 0;i < nSize;i++) {
-                        dmse[i] = -gmse[i] + gamma * dmse[i];
-                        params[i] += alpha * dmse[i];
-                        normg += pow(gmse[i],2.0);
-                    }
-                    bound_params(params);
-                    writeParams(params);
-                    print("%d. %.6e\n",iter,normg);
-                    if(iter % 40 == 0)
-                        write_eval_params();
-                    if(getfen) {
-                        SEARCHER::pre_calculate();
-                        rewind(fd);
-                    }
-                }
-#endif
-                if(test != TUNE) break;
-            }
-#ifdef TUNE
-            if(test >= GMSE) {
-                free(gse);
-                free(gmse);
-                free(dmse);
-                free(params);
-            }
-#endif
-            searcher.new_board();
-            if(fd) fclose(fd);
-            if(fw) fclose(fw);
-
-            /*********************************************
-            *  We process all other commands as moves   *
-            *********************************************/
         } else {
-            /*parse opponent's move and make it*/
-            str_mov(move,command);
-            if(searcher.is_legal(move)) {
-                searcher.do_move(move);
-                do_search = true;
-            } else {
-                print("Error (unknown command): %s\n", command);
-            }
-
-            /*move recieved while pondering*/
-            if(SEARCHER::chess_clock.pondering) {
-                SEARCHER::chess_clock.pondering = false;
-                if(SEARCHER::chess_clock.infinite_mode) {
-                    if(move == SEARCHER::expected_move) {
-                        print("ponder hit\n");
-                        SEARCHER::chess_clock.infinite_mode = false;
-                        SEARCHER::chess_clock.set_stime(searcher.hply,true);
-                        SEARCHER::chess_clock.search_time += int(0.5 * (get_time() - SEARCHER::start_time));
-                        return true;
-                    } else {
-                        print("ponder miss\n");
-                    }
-                }
-                return false;
-            }
-            /*end*/
+            int ret = 0;
+            if(PROTOCOL == XBOARD || PROTOCOL == CONSOLE) 
+                ret = xboard_commands(commands,command,command_num,do_search);
+            else if(PROTOCOL == UCI)
+                ret = uci_commands(commands,command,command_num,do_search);
+            if(ret == 1) return true;
+            else if(ret == 0) return false;
         }
+        
+        /********************************
+         * Commands have been processed.
+         * Now do one of the following: 
+         *      - best move search
+         *      - analyze mode
+         *      - pondering
+         ********************************/
+
         /*In analysis mode search only if board is changed*/
         if(SEARCHER::analysis_mode) {
             if(hash_in != searcher.hash_key)
@@ -1119,6 +1358,7 @@ bool parse_commands(char** commands) {
 
         /*Wait if we are still loading EGBBs*/
         load_egbbs();
+        wait_for_egbb();
 
         /*
         Analyze mode
@@ -1145,7 +1385,10 @@ bool parse_commands(char** commands) {
 REDO1:
             /*check result before searching for our move*/
             if(SEARCHER::scorpio != searcher.player) continue;
-            result = searcher.print_result(true);
+            if(PROTOCOL == UCI)
+                result = searcher.print_result(false);
+            else
+                result = searcher.print_result(true);
             if(result != R_UNKNOWN) continue;
 
             /*search*/
@@ -1157,30 +1400,42 @@ REDO2:
             if(SEARCHER::scorpio != searcher.player) continue;
             if(move) {
                 searcher.do_move(move);
+                result = searcher.print_result(false);
                 /*
                 resign
                 */
-                if((SEARCHER::root_score < -SEARCHER::resign_value)) {
-                    SEARCHER::resign_count++;
-                } else {
-                    SEARCHER::resign_count = 0;
-                }
-                if(SEARCHER::resign_count == 3) {
-                    print("resign\n");
-                    continue;
+                if(PROTOCOL == XBOARD || PROTOCOL == CONSOLE) {
+                    if((SEARCHER::root_score < -SEARCHER::resign_value)) {
+                        SEARCHER::resign_count++;
+                    } else {
+                        SEARCHER::resign_count = 0;
+                    }
+                    if(SEARCHER::resign_count == 3) {
+                        print("resign\n");
+                        continue;
+                    }
+                    if(result == R_DRAW) 
+                        print("offer draw\n");
                 }
                 /*
                 send move and result
                 */
-                result = searcher.print_result(false);
-                if(result == R_DRAW) 
-                    print("offer draw\n");
                 mov_strx(move,mv_str);
                 print_log("<%012d>",get_time() - scorpio_start_time);
-                print("move %s\n",mv_str);
-                if(result != R_UNKNOWN) {
-                    searcher.print_result(true);
-                    continue;
+                if(PROTOCOL == UCI) {
+                    if(main_searcher->stack[0].pv_length > 1) {
+                        char mv_ponder[10];
+                        move = main_searcher->stack[0].pv[1];
+                        mov_strx(move,mv_ponder);
+                        print("bestmove %s ponder %s\n",mv_str, mv_ponder);
+                    } else
+                        print("bestmove %s\n",mv_str);
+                } else {
+                    print("move %s\n",mv_str);
+                    if(result != R_UNKNOWN) {
+                        searcher.print_result(true);
+                        continue;
+                    }
                 }
                 /*
                 Pondering
@@ -1192,9 +1447,9 @@ REDO2:
                     /*get move from recent pv*/
                     if(main_searcher->stack[0].pv_length > 1) {
                         move = main_searcher->stack[0].pv[1];
-                        /*try short search if above fails*/
+                    /*try short search if above fails*/
                     } else  {
-                        print("Pondering for opponent's move ...\n");
+                        print_info("Pondering for opponent's move ...\n");
                         main_searcher->COPY(&searcher);
                         move = main_searcher->find_best();
                         searcher.copy_root(main_searcher);
@@ -1205,7 +1460,7 @@ REDO2:
                     /*ponder with the move*/
                     if(move) {
                         mov_str(move,mv_str);
-                        print("pondering after move [%s]\n",mv_str);
+                        print_info("pondering after move [%s]\n",mv_str);
                         SEARCHER::expected_move = move;
                         SEARCHER::chess_clock.infinite_mode = true;
                         main_searcher->COPY(&searcher);
@@ -1231,6 +1486,7 @@ REDO2:
                 */
             }
         }
+
     }
     return true;
 }

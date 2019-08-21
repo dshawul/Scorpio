@@ -2,11 +2,11 @@
 #include "scorpio.h"
 
 /*mcts parameters*/
-static double  cpuct_init = 1.5;
+static double  cpuct_init = 1.0;
 static unsigned int  cpuct_base = 19652;
-static double  policy_temp = 2.0;
-static double  fpu_red = 0.6;
-static int fpu_is_loss = 1;
+static double  policy_temp = 2.35;
+static double  fpu_red = 0.33;
+static int fpu_is_loss = 0;
 static int  reuse_tree = 1;
 static int  backup_type = MIX_VISIT;
 static double frac_alphabeta = 0.0; 
@@ -719,7 +719,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
             && Node::total_nodes  + MAX_MOVES >= Node::max_tree_nodes
             ) {
             if(l_set(abort_search,1) == 0)
-                print("# Maximum number of nodes reached.\n");
+                print_info("Maximum number of nodes reached.\n");
             visits = 0;
             goto FINISH;
         } else if(rollout_type == ALPHABETA && 
@@ -732,7 +732,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
             if(Node::total_nodes  + MAX_MOVES >= Node::max_tree_nodes &&
                 !freeze_tree && processor_id == 0) {
                 freeze_tree = true;
-                print("# Maximum number of nodes reached.\n");
+                print_info("Maximum number of nodes reached.\n");
             }
             score = get_search_score();
             if(stop_searcher || abort_search)
@@ -1145,18 +1145,18 @@ void SEARCHER::search_mc(bool single) {
                         }
                     }
                     
-                    if(frac >= 0.1)
+                    if(frac >= 0.1 && !chess_clock.infinite_mode)
                         check_mcts_quit();
                     /*stop growing tree after some time*/
                     if(rollout_type == ALPHABETA && !freeze_tree && frac_freeze_tree < 1.0 &&
                         frac >= frac_freeze_tree * frac_alphabeta) {
                         freeze_tree = true;
-                        print("# Freezing tree.\n");
+                        print_info("Freezing tree.\n");
                     }
                     /*Switching rollouts type*/
                     if(rollout_type == ALPHABETA && frac_alphabeta != 1.0 
                         && frac > frac_alphabeta) {
-                        print("# Switching rollout type to MCTS.\n");
+                        print_info("Switching rollout type to MCTS.\n");
                         rollout_type = MCTS;
                         use_nn = save_use_nn;
                         search_depth = search_depth + mcts_strategy_depth;
@@ -1393,14 +1393,14 @@ void SEARCHER::manage_tree(bool single) {
         unsigned int tot = 0;
         for(int i = 0;i < PROCESSOR::n_processors;i++) {
 #if 0
-            print("# Proc %d: %d\n",i,Node::mem_[i].size());
+            print_info("Proc %d: %d\n",i,Node::mem_[i].size());
 #endif
             tot += Node::mem_[i].size();
         }
 
         if(pv_print_style == 0) {
-            print("# Reclaimed %d nodes in %dms\n",(s_total_nodes - Node::total_nodes), en-st);
-            print("# Memory for mcts nodes: %.1fMB unused + %.1fMB intree = %.1fMB of %.1fMB total\n", 
+            print_info("Reclaimed %d nodes in %dms\n",(s_total_nodes - Node::total_nodes), en-st);
+            print_info("Memory for mcts nodes: %.1fMB unused + %.1fMB intree = %.1fMB of %.1fMB total\n", 
                 (double(tot) / (1024 * 1024)) * node_size, 
                 (double(Node::total_nodes) / (1024 * 1024)) * node_size,
                 (double(Node::total_nodes+tot) / (1024 * 1024)) * node_size,
@@ -1816,38 +1816,38 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         montecarlo = atoi(commands[command_num++]);
     } else if(!strcmp(command, "treeht")) {
         UBMP32 ht = atoi(commands[command_num++]);
-        UBMP32 size = ht * ((1024 * 1024) / node_size);
-        print("treeht %d X %d = %.1f MB\n",size, node_size,
-            (size / double(1024 * 1024)) * node_size);
-        Node::max_tree_nodes = size;
+        UBMP32 size = ht * (double(1024 * 1024) / node_size);
+        double size_mb = (size / double(1024 * 1024)) * node_size;
+        print("treeht %d X %d = %.1f MB\n",size, node_size,size_mb);
+        Node::max_tree_nodes = unsigned((size_mb / node_size) * 1024 * 1024);
     } else {
         return false;
     }
     return true;
 }
 void print_mcts_params() {
-    print("feature option=\"cpuct_init -spin %d 0 1000\"\n",int(cpuct_init*100));
-    print("feature option=\"cpuct_base -spin %d 0 100000000\"\n",cpuct_base);
-    print("feature option=\"policy_temp -spin %d 0 1000\"\n",int(policy_temp*100));
-    print("feature option=\"noise_alpha -spin %d 0 100\"\n",int(noise_alpha*100));
-    print("feature option=\"noise_beta -spin %d 0 100\"\n",int(noise_beta*100));
-    print("feature option=\"noise_frac -spin %d 0 100\"\n",int(noise_frac*100));
-    print("feature option=\"noise_ply -spin %d 0 100\"\n",noise_ply);
-    print("feature option=\"fpu_red -spin %d -1000 1000\"\n",int(fpu_red*100));
-    print("feature option=\"fpu_is_loss -check %d\"\n",fpu_is_loss);
-    print("feature option=\"reuse_tree -check %d\"\n",reuse_tree);
-    print("feature option=\"backup_type -combo MINMAX /// AVERAGE /// MIX /// "
-        "MINMAX_MEM /// AVERAGE_MEM /// MIX_MEM /// CLASSIC /// *MIX_VISIT\"\n");
-    print("feature option=\"frac_alphabeta -spin %d 0 100\"\n",int(frac_alphabeta*100));
-    print("feature option=\"frac_freeze_tree -spin %d 0 100\"\n",int(frac_freeze_tree*100));
-    print("feature option=\"frac_abrollouts -spin %d 0 100\"\n",int(frac_abrollouts*100));
-    print("feature option=\"frac_abprior -spin %d 0 100\"\n",int(frac_abprior*100));
-    print("feature option=\"mcts_strategy_depth -spin %d 0 100\"\n",mcts_strategy_depth);
-    print("feature option=\"alphabeta_depth -spin %d 1 100\"\n",alphabeta_depth);
-    print("feature option=\"evaluate_depth -spin %d -4 100\"\n",evaluate_depth);
-    print("feature option=\"virtual_loss -spin %d 0 1000\"\n",virtual_loss);
-    print("feature option=\"visit_threshold -spin %d 0 1000000\"\n",visit_threshold);
-    print("feature option=\"montecarlo -check %d\"\n",montecarlo);
-    print("feature option=\"treeht -spin %d 0 131072\"\n",
-        int((Node::max_tree_nodes / double(1024*1024)) * node_size));
+    static const char* backupt[] = {"MINMAX","AVERAGE","MIX","MINMAX_MEM",
+        "AVERAGE_MEM","MIX_MEM","CLASSIC","MIX_VISIT"};
+    print_spin("cpuct_init",int(cpuct_init*100),0,1000);
+    print_spin("cpuct_base",cpuct_base,0,100000000);
+    print_spin("policy_temp",int(policy_temp*100),0,1000);
+    print_spin("noise_alpha",int(noise_alpha*100),0,100);
+    print_spin("noise_beta",int(noise_beta*100),0,100);
+    print_spin("noise_frac",int(noise_frac*100),0,100);
+    print_spin("noise_ply",noise_ply,0,100);
+    print_spin("fpu_red",int(fpu_red*100),-1000,1000);
+    print_check("fpu_is_loss",fpu_is_loss);
+    print_check("reuse_tree",reuse_tree);
+    print_combo("backup_type", backupt, backup_type,8);
+    print_spin("frac_alphabeta",int(frac_alphabeta*100),0,100);
+    print_spin("frac_freeze_tree",int(frac_freeze_tree*100),0,100);
+    print_spin("frac_abrollouts",int(frac_abrollouts*100),0,100);
+    print_spin("frac_abprior",int(frac_abprior*100),0,100);
+    print_spin("mcts_strategy_depth",mcts_strategy_depth,0,100);
+    print_spin("alphabeta_depth",alphabeta_depth,1,100);
+    print_spin("evaluate_depth",evaluate_depth,-4,100);
+    print_spin("virtual_loss",virtual_loss,0,1000);
+    print_spin("visit_threshold",visit_threshold,0,1000000);
+    print_check("montecarlo",montecarlo);
+    print_spin("treeht",int((Node::max_tree_nodes / double(1024*1024)) * node_size),0,131072);
 }

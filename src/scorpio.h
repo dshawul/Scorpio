@@ -122,6 +122,9 @@ enum BACKUP_TYPE {
 enum ROLLOUT_TYPE {
     MCTS, ALPHABETA
 };
+enum protocol {
+    CONSOLE, XBOARD, UCI
+};
 enum square_names {
     A1 = 0,B1,C1,D1,E1,F1,G1,H1,
     A2 = 16,B2,C2,D2,E2,F2,G2,H2,
@@ -169,7 +172,7 @@ enum square_names {
 #define AGE_MASK 0xf
 
 #define MAX_STR            256
-#define MAX_FILE_STR      2048
+#define MAX_FILE_STR      3072
 #define MAX_FEN_STR        128
 #define MAX_MOVES          256
 #define MAX_CAPS            64
@@ -270,7 +273,8 @@ chess clock
 */
 typedef struct CHESS_CLOCK {
     int mps;
-    int inc;
+    int p_inc;
+    int o_inc;
     int p_time;
     int o_time;
     int max_st;
@@ -1072,7 +1076,7 @@ extern bool freeze_tree;
 extern bool is_selfplay;
 extern double frac_abprior;
 extern int qsearch_level;
-
+extern int PROTOCOL;
 
 /** search options */
 extern const int use_nullmove;
@@ -1093,6 +1097,7 @@ void  print(const char* format,...);
 void  printH(const char* format,...);
 void  print_log(const char* format,...);
 void  print_std(const char* format,...);
+void  print_info(const char* format,...);
 void  print_move(const MOVE&);
 void  print_move_full(const MOVE&);
 void  print_sq(const int&);
@@ -1136,6 +1141,13 @@ void print_eval_params();
 void zero_params();
 void bound_params(double*);
 #endif
+
+/*options*/
+void print_spin(const char* name, int def, int min, int max);
+void print_check(const char* name, int def);
+void print_button(const char* name);
+void print_path(const char* name, const char* path);
+void print_combo(const char* name, const char** combo, int def, int N);
 /*
 Bitbases
 */

@@ -1372,12 +1372,12 @@ MOVE SEARCHER::iterative_deepening() {
             use_nn = 0;
 
             chess_clock.p_time *= frac_abprior;
-            chess_clock.inc *= frac_abprior;
+            chess_clock.p_inc *= frac_abprior;
 
             iterative_deepening();
 
             chess_clock.p_time /= frac_abprior;
-            chess_clock.inc /= frac_abprior;
+            chess_clock.p_inc /= frac_abprior;
 
             stop_searcher = 0;
             abort_search = 0;
@@ -1421,10 +1421,10 @@ MOVE SEARCHER::iterative_deepening() {
             use_nn = 0;
 
             chess_clock.p_time *= frac_abprior;
-            chess_clock.inc *= frac_abprior;
+            chess_clock.p_inc *= frac_abprior;
             chess_clock.set_stime(hply,false);
             chess_clock.p_time /= frac_abprior;
-            chess_clock.inc /= frac_abprior;
+            chess_clock.p_inc /= frac_abprior;
 
             start_time = get_time();
 
@@ -1493,10 +1493,10 @@ MOVE SEARCHER::iterative_deepening() {
     if(!chess_clock.infinite_mode) {
         if(montecarlo && frac_abprior > 0) {
             chess_clock.p_time *= (1 - frac_abprior);
-            chess_clock.inc *= (1 - frac_abprior);
+            chess_clock.p_inc *= (1 - frac_abprior);
             chess_clock.set_stime(hply,false);
             chess_clock.p_time /= (1 - frac_abprior);
-            chess_clock.inc /= (1 - frac_abprior);
+            chess_clock.p_inc /= (1 - frac_abprior);
         } else {
             chess_clock.set_stime(hply,false);
         }
@@ -1699,14 +1699,14 @@ MOVE SEARCHER::iterative_deepening() {
             int time_used = MAX(1,get_time() - start_time);
             int time_used_o = MAX(1,get_time() - start_time_o);
             int pps = int(root_node->visits / (time_used / 1000.0f));
-            print("# nodes = " FMT64 " <%d%% qnodes> time = %dms nps = %d eps = %d nneps = %d\n",nodes,
+            print_info("nodes = " FMT64 " <%d%% qnodes> time = %dms nps = %d eps = %d nneps = %d\n",nodes,
                 int(BMP64(qnodes) / (BMP64(nodes) / 100.0f)),
                 time_used_o,int(BMP64(nodes) / (time_used_o / 1000.0f)),
                 int(BMP64(ecalls) / (time_used_o / 1000.0f)),
                 int(BMP64(nnecalls) / (time_used / 1000.0f)));
-            print("# Tree: nodes = %d depth = %d pps = %d visits = %d \n"
-                  "#       qsearch_calls = %d search_calls = %d\n",
-                  Node::total_nodes,Node::max_tree_depth,pps,root_node->visits,
+            print_info("Tree: nodes = %d depth = %d pps = %d visits = %d \n",
+                  Node::total_nodes,Node::max_tree_depth,pps,root_node->visits);
+            print_info("      qsearch_calls = %d search_calls = %d\n",
                   qsearch_calls,search_calls);
         }
     } else {
@@ -1727,9 +1727,9 @@ MOVE SEARCHER::iterative_deepening() {
             print(" " FMT64W " %8.2f %10d %8d %8d\n",nodes,float(time_used) / 1000,
                 int(BMP64(nodes) / (time_used / 1000.0f)),splits,bad_splits);
         } else if(pv_print_style == 0) {
-            print("# splits = %d badsplits = %d egbb_probes = %d\n",
+            print_info("splits = %d badsplits = %d egbb_probes = %d\n",
                 splits,bad_splits,egbb_probes);
-            print("# nodes = " FMT64 " <%d qnodes> time = %dms nps = %d eps = %d  nneps = %d\n",nodes,
+            print_info("nodes = " FMT64 " <%d qnodes> time = %dms nps = %d eps = %d  nneps = %d\n",nodes,
                 int(BMP64(qnodes) / (BMP64(nodes) / 100.0f)),
                 time_used,int(BMP64(nodes) / (time_used / 1000.0f)),
                 int(BMP64(ecalls) / (time_used / 1000.0f)),
@@ -1792,7 +1792,7 @@ MOVE SEARCHER::find_best() {
     if(pv_print_style == 0) {
         char fen[MAX_FEN_STR];
         get_fen(fen);
-        print("# %s\n",fen);
+        print_info("%s\n",fen);
     }
 
     /*generate and score moves*/
@@ -1950,15 +1950,16 @@ bool check_search_params(char** commands,char* command,int& command_num) {
     return true;
 }
 void print_search_params() {
-    SMP_CODE(print("feature option=\"smp_type -combo *YBW /// ABDADA /// SHT \"\n"));
-    SMP_CODE(print("feature option=\"smp_depth -spin %d 1 10\"\n",PROCESSOR::SMP_SPLIT_DEPTH));
-    CLUSTER_CODE(print("feature option=\"cluster_type -combo *YBW /// ABDADA /// SHT \"\n"));
-    CLUSTER_CODE(print("feature option=\"cluster_depth -spin %d 1 16\"\n",PROCESSOR::CLUSTER_SPLIT_DEPTH));
-    CLUSTER_CODE(print("feature option=\"message_poll_nodes -spin %d 10 20000\"\n",PROCESSOR::MESSAGE_POLL_NODES));
-    print("feature option=\"use_singular -check %d\"\n",use_singular);
-    print("feature option=\"use_probcut -check %d\"\n",use_probcut);
-    print("feature option=\"singular_margin -spin %d 0 1000\"\n",singular_margin);
-    print("feature option=\"probcut_margin -spin %d 0 1000\"\n",probcut_margin);
-    print("feature option=\"aspiration_window -spin %d 0 100\"\n",aspiration_window);
-    print("feature option=\"contempt -spin %d 0 100\"\n",contempt);
+    static const char* parallelt[] = {"YBW", "ABDADA", "SHT"};
+    SMP_CODE(print_combo("smp_type",parallelt,use_abdada_smp,3));
+    SMP_CODE(print_spin("smp_depth",PROCESSOR::SMP_SPLIT_DEPTH,1,10));
+    CLUSTER_CODE(print_combo("cluster_type",parallelt,use_abdada_cluster,3));
+    CLUSTER_CODE(print_spin("cluster_depth",PROCESSOR::CLUSTER_SPLIT_DEPTH,1,16));
+    CLUSTER_CODE(print_spin("message_poll_nodes",PROCESSOR::MESSAGE_POLL_NODES,10));
+    print_check("use_singular",use_singular);
+    print_check("use_probcut",use_probcut);
+    print_spin("singular_margin",singular_margin,0,1000);
+    print_spin("probcut_margin",probcut_margin,0,1000);
+    print_spin("aspiration_window",aspiration_window,0,100);
+    print_spin("contempt",contempt,0,100);
 }
