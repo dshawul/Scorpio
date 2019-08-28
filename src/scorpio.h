@@ -34,6 +34,7 @@ Some definitions to include/remove code
 #include <cctype>
 #include <ctime>
 #include <cmath>
+#include <string>
 #ifdef _WIN32
 #   include <sys/timeb.h>
 #else
