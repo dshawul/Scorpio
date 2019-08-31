@@ -12,10 +12,9 @@ Here are the steps I followed to install and run it on a GPU machine on linux.
      default is delay 0 but delay 1 could be sometimes better when you have few cores. 
      Change the value in bin/Windows/scorpio.ini if delay=1 happens to be better.
 
-   * Install scorpio.bat in your GPU instead of scorpio.exe. If your GUI only supports UCI you can use scorpio-uci.bat instead.
-     There is no Wb2Uci on linux so you are out of luck there.
+   * Install scorpio.bat in your GPU instead of scorpio.exe.
 
-For RTX GPUs and other GPUS that support INT8, I recommend you using it instead of HALF precision since it will give a 2.5x speedup bump. 
+For RTX GPUs and other GPUS that support INT8, I recommend you using INT8 instead of HALF precision since it will give a 2.5x speedup bump. 
 Once you make sure the installation is working do the following steps to get INT8 working
 
   * Go to bin/Windows directory from the command line and run the following
@@ -30,6 +29,9 @@ This will do INT8 calibration and generate a calibration file about 1.4G in size
 The first time you run it, it might take upto 2 minutes to load the NN so be patient. 
 The next runs will only take a couple of seconds to load the neural network. If everything works out, 
 you should see an increase of 2.5x speedup or more. The values that matter is the pps/nneps not the nps value.
+
+Scorpio now supports UCI protocol as well as xboard. Use xboard whenevr you can since that has full features
+analysis, pondering etc and is also slightly stronger at fast time controls.
 
 The egbbdll is used for probing endgame bitbases as well as neural networks. So if you want to use bitbases as well
 you have to put your egbb files in the nnprobe-windows-gpu directory. Be careful not to overwrite egbbdll64.dll with an
