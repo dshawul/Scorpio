@@ -1286,8 +1286,10 @@ int uci_commands(char** commands,char* command,int& command_num,int& do_search) 
     } else if (!strcmp(command, "ponderhit")) {
         /*ponder hit*/
         if(SEARCHER::chess_clock.pondering) {
+            ponder = false;
             SEARCHER::chess_clock.pondering = false;
             if(SEARCHER::chess_clock.infinite_mode) {
+                searcher.do_move(SEARCHER::expected_move);
                 SEARCHER::chess_clock.infinite_mode = false;
                 SEARCHER::chess_clock.set_stime(searcher.hply,true);
                 SEARCHER::chess_clock.search_time += 
@@ -1300,6 +1302,47 @@ int uci_commands(char** commands,char* command,int& command_num,int& do_search) 
     }
 
     return 2;
+}
+static bool send_bestmove(MOVE move) {
+    char mv_str[10];
+    /*
+    resign
+    */
+    if(PROTOCOL == XBOARD || PROTOCOL == CONSOLE) {
+        if((SEARCHER::root_score < -SEARCHER::resign_value)) {
+            SEARCHER::resign_count++;
+        } else {
+            SEARCHER::resign_count = 0;
+        }
+        if(SEARCHER::resign_count == 3) {
+            print("resign\n");
+            return false;
+        }
+        if(result == R_DRAW) 
+            print("offer draw\n");
+    }
+    /*
+    send move and result
+    */
+    mov_strx(move,mv_str);
+    print_log("<%012d>",get_time() - scorpio_start_time);
+    if(PROTOCOL == UCI) {
+        if(main_searcher->stack[0].pv_length > 1) {
+            char mv_ponder_str[10];
+            MOVE move_ponder = main_searcher->stack[0].pv[1];
+            mov_strx(move_ponder,mv_ponder_str);
+            print("bestmove %s ponder %s\n",mv_str, mv_ponder_str);
+            SEARCHER::expected_move = move;
+        } else
+            print("bestmove %s\n",mv_str);
+    } else {
+        print("move %s\n",mv_str);
+        if(result != R_UNKNOWN) {
+            searcher.print_result(true);
+            return false;
+        }
+    }
+    return true;
 }
 /*
 parse_commands
@@ -1367,9 +1410,14 @@ bool parse_commands(char** commands) {
             do {
                 SEARCHER::chess_clock.infinite_mode = true;
                 main_searcher->COPY(&searcher);
-                main_searcher->find_best();
+                move = main_searcher->find_best();
                 searcher.copy_root(main_searcher);
                 SEARCHER::chess_clock.infinite_mode = false;
+                /* send move in uci mode */
+                if(PROTOCOL == UCI) {
+                    SEARCHER::analysis_mode = false;
+                    send_bestmove(move);
+                }
                 /*search is finished without abort flag -> book moves etc*/
                 if(!SEARCHER::abort_search) {
                     SEARCHER::abort_search = 1;
@@ -1391,7 +1439,39 @@ REDO1:
                 result = searcher.print_result(true);
             if(result != R_UNKNOWN) continue;
 
-            /*search*/
+            /*
+            UCI protocol - search or ponder
+            */
+            if(PROTOCOL == UCI) {
+                int pn = ponder;
+
+                if(pn) {
+                    SEARCHER::chess_clock.pondering = true;
+                    SEARCHER::chess_clock.infinite_mode = true;
+                }
+
+                main_searcher->COPY(&searcher);
+                move = main_searcher->find_best();
+                searcher.copy_root(main_searcher);
+
+                if(pn) {
+                    SEARCHER::chess_clock.pondering = false;
+                    SEARCHER::chess_clock.infinite_mode = false;
+                    ponder = false;
+                }
+
+                if(move) {
+                    if(!pn)
+                        searcher.do_move(move);
+                    send_bestmove(move);
+                }
+
+                continue;
+            }
+
+            /*
+            Winboard protocol - search or ponder
+            */
             main_searcher->COPY(&searcher);
             move = main_searcher->find_best();
             searcher.copy_root(main_searcher);
@@ -1401,42 +1481,7 @@ REDO2:
             if(move) {
                 searcher.do_move(move);
                 result = searcher.print_result(false);
-                /*
-                resign
-                */
-                if(PROTOCOL == XBOARD || PROTOCOL == CONSOLE) {
-                    if((SEARCHER::root_score < -SEARCHER::resign_value)) {
-                        SEARCHER::resign_count++;
-                    } else {
-                        SEARCHER::resign_count = 0;
-                    }
-                    if(SEARCHER::resign_count == 3) {
-                        print("resign\n");
-                        continue;
-                    }
-                    if(result == R_DRAW) 
-                        print("offer draw\n");
-                }
-                /*
-                send move and result
-                */
-                mov_strx(move,mv_str);
-                print_log("<%012d>",get_time() - scorpio_start_time);
-                if(PROTOCOL == UCI) {
-                    if(main_searcher->stack[0].pv_length > 1) {
-                        char mv_ponder[10];
-                        move = main_searcher->stack[0].pv[1];
-                        mov_strx(move,mv_ponder);
-                        print("bestmove %s ponder %s\n",mv_str, mv_ponder);
-                    } else
-                        print("bestmove %s\n",mv_str);
-                } else {
-                    print("move %s\n",mv_str);
-                    if(result != R_UNKNOWN) {
-                        searcher.print_result(true);
-                        continue;
-                    }
-                }
+                if(!send_bestmove(move)) continue;
                 /*
                 Pondering
                 */

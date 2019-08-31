@@ -743,8 +743,10 @@ void SEARCHER::set_board(const char* fen_str) {
 
     /*fifty & hply*/
     p++;
-    if(*p) sscanf(p,"%d %d",&fifty,&move_number);
-    else {
+    if(*p) {
+        sscanf(p,"%d %d",&fifty,&move_number);
+        if(move_number <= 0) move_number = 1;
+    } else {
         fifty = 0;
         move_number = 1;
     }
