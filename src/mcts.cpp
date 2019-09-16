@@ -527,7 +527,7 @@ float Node::Stable_score(Node* n, double score, int visits) {
 void Node::Backup(Node* n,double& score,int visits, int all_man_c) {
     if(rollout_type == MCTS) {
         /*Compute parent's score from children*/
-        if(rollout_type == ALPHABETA || all_man_c <= 10)
+        if(rollout_type == ALPHABETA)
             score = -Min_score(n);
         else if(backup_type == MIX_VISIT) {
             if(n->visits > visit_threshold)

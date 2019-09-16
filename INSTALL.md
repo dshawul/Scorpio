@@ -2,20 +2,20 @@
 
 The recommended way to install ScorpioNN is using scripts, a batch file for Windows and a shell script for Linux.
 
-Here are the steps I followed to install and run it on a GPU machine on linux.
+Here are the steps I followed to install and run it on a GPU machine on Windows.
 
    * Download install.bat, and move it to a directory you want scorpio installed.
 
-   * Run it from the command line (preferable) or double-click it and it will download, install and configure scorpio.ini. 
-     This will generate a scorpio folder with the current date (Scorpio-mm-yyyy). During installation, 
-     it will make two test runs with "delay 0" and "delay 1" in the end. See which one gets the higher pps value for you, 
-     default is delay 0 but delay 1 could be sometimes better when you have few cores. 
-     Change the value in bin/Windows/scorpio.ini if delay=1 happens to be better.
+   * Run it from the command line (preferable) or double-click it and it will download, install and configure scorpio.ini for you. 
+     This will generate a scorpio folder with the current date (Scorpio-mm-yyyy). During the end of installation, 
+     it will make two test runs with "delay 0" and "delay 1". See which one gives the higher pps value on your machine, and modify
+     delay parameter in scorpio.ini accordingly. The default value of 0 often works best but delay 1 could be better if you have few 
+     cpu cores. 
 
-   * Install scorpio.bat in your GPU instead of scorpio.exe.
+   * Install scorpio.bat in your GUI instead of scorpio.exe.
 
-For RTX GPUs and other GPUS that support INT8, I recommend you using INT8 instead of HALF precision since it will give a 2.5x speedup bump. 
-Once you make sure the installation is working do the following steps to get INT8 working
+For RTX GPUs and other GPUS that support INT8, I recommend you to use INT8 instead of HALF precision since it will give a 2.5x speedup bump. 
+Once you make sure the installation is working, do the following steps to get INT8 working
 
   * Go to bin/Windows directory from the command line and run the following
 
@@ -28,7 +28,7 @@ This will do INT8 calibration and generate a calibration file about 1.4G in size
 
 The first time you run it, it might take upto 2 minutes to load the NN so be patient. 
 The next runs will only take a couple of seconds to load the neural network. If everything works out, 
-you should see an increase of 2.5x speedup or more. The values that matter is the pps/nneps not the nps value.
+you should see an increase in speed of of 2.5x or more. Compare the `pps/nneps` values not the `nps` value.
 
 Scorpio now supports UCI protocol as well as xboard. Use xboard whenevr you can since that has full features
 analysis, pondering etc and is also slightly stronger at fast time controls.
