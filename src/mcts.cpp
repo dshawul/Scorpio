@@ -417,7 +417,7 @@ Node* Node::Random_select(Node* n) {
 
 Node* Node::Best_select(Node* n, bool has_ab) {
     double bvalue = -MAX_NUMBER;
-    Node* current = n->child, *bnode = n->child;
+    Node* current = n->child, *bnode = current;
 
     while(current) {
         if(current->move) {
@@ -429,9 +429,9 @@ Node* Node::Best_select(Node* n, bool has_ab) {
             ) {
                 double val;
                 if(rollout_type == MCTS &&
-                    ( backup_type == AVERAGE || 
-                      backup_type == CLASSIC || 
-                     (backup_type == MIX_VISIT && n->visits <= visit_threshold) )
+                    !( backup_type == MINMAX ||
+                      backup_type == MINMAX_MEM ||
+                     (backup_type == MIX_VISIT && n->visits > visit_threshold) )
                 ) {
                     val = current->visits + 1;
                     if(n->visits < low_visits_threshold) 
@@ -464,18 +464,14 @@ Node* Node::Best_select(Node* n, bool has_ab) {
     return bnode;
 }
 float Node::Min_score(Node* n) {
-    Node* current = n->child, *bnode = 0;
-    float bscore = MAX_NUMBER;
+    Node* current = n->child, *bnode = current;
     while(current) {
         if(current->move && current->visits > 0) {
-            if(current->score < bscore) {
-                bscore = current->score;
+            if(current->score < bnode->score)
                 bnode = current;
-            }
         }
         current = current->next;
     }
-    if(!bnode) bnode = n->child;
     return bnode->score;
 }
 float Node::Avg_score(Node* n) {
@@ -524,12 +520,10 @@ float Node::Stable_score(Node* n, double score, int visits) {
     }
     return Avg_score_mem(n,score,visits);
 }
-void Node::Backup(Node* n,double& score,int visits, int all_man_c) {
+void Node::Backup(Node* n,double& score,int visits) {
     if(rollout_type == MCTS) {
         /*Compute parent's score from children*/
-        if(rollout_type == ALPHABETA)
-            score = -Min_score(n);
-        else if(backup_type == MIX_VISIT) {
+        if(backup_type == MIX_VISIT) {
             if(n->visits > visit_threshold)
                 score = -Min_score(n);
             else
@@ -543,7 +537,7 @@ void Node::Backup(Node* n,double& score,int visits, int all_man_c) {
             if(backup_type == MINMAX || backup_type == MINMAX_MEM)
                 score = -Min_score(n);
             else if(backup_type == MIX  || backup_type == MIX_MEM)
-                score = -(3 * Min_score(n) + Avg_score(n)) / 4;
+                score = -(Min_score(n) + 3 * Avg_score(n)) / 4;
 
             if(backup_type >= MINMAX_MEM)
                 score = Avg_score_mem(n,score,visits);
@@ -928,7 +922,7 @@ RESEARCH:
         }
 BACKUP:
         /*Backup score and bounds*/
-        Node::Backup(n,score,visits,all_man_c);
+        Node::Backup(n,score,visits);
 
         if(rollout_type == ALPHABETA) {
 
