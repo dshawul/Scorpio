@@ -669,6 +669,9 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         char FEN[MAX_STR];
         FILE* fw = fopen(commands[command_num++],"w");
 
+        load_egbbs();
+        wait_for_egbb();
+
         is_selfplay = true;
         searcher.get_fen(FEN);
         print("Starting %d selfplay games\n",N);
@@ -689,6 +692,9 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         int N = atoi(commands[command_num++]);
         FILE* fw = fopen(commands[command_num++],"w");
         FILE* fw2 = fopen(commands[command_num++],"w");
+        
+        load_egbbs();
+        wait_for_egbb();
         
         print("Starting %d selfplay games\n",N);
         is_selfplay = true;
