@@ -8,7 +8,8 @@ static double  policy_temp = 2.35;
 static double  fpu_red = 0.33;
 static int fpu_is_loss = 0;
 static int  reuse_tree = 1;
-static int  backup_type = MIX_VISIT;
+static int  backup_type_setting = MIX_VISIT;
+static int  backup_type = backup_type_setting;
 static double frac_alphabeta = 0.0; 
 static double frac_freeze_tree = 1.0;
 static double frac_abrollouts = 0.2;
@@ -1439,6 +1440,11 @@ void SEARCHER::manage_tree(bool single) {
         rollout_type = ALPHABETA;
     }
 
+    /*backup type*/
+    backup_type = backup_type_setting;
+    if(root_node->score > 400)
+        backup_type = MIX_VISIT;
+
     /*Dirchilet noise*/
     if(is_selfplay) {
         const float alpha = noise_alpha, beta = noise_beta, frac = noise_frac;
@@ -1787,7 +1793,7 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
     } else if(!strcmp(command, "reuse_tree")) {
         reuse_tree = atoi(commands[command_num++]);
     } else if(!strcmp(command, "backup_type")) {
-        backup_type = atoi(commands[command_num++]);
+        backup_type_setting = atoi(commands[command_num++]);
     } else if(!strcmp(command, "frac_alphabeta")) {
         frac_alphabeta = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "frac_freeze_tree")) {
@@ -1832,7 +1838,7 @@ void print_mcts_params() {
     print_spin("fpu_red",int(fpu_red*100),-1000,1000);
     print_check("fpu_is_loss",fpu_is_loss);
     print_check("reuse_tree",reuse_tree);
-    print_combo("backup_type", backupt, backup_type,8);
+    print_combo("backup_type", backupt, backup_type_setting,8);
     print_spin("frac_alphabeta",int(frac_alphabeta*100),0,100);
     print_spin("frac_freeze_tree",int(frac_freeze_tree*100),0,100);
     print_spin("frac_abrollouts",int(frac_abrollouts*100),0,100);
