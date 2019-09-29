@@ -523,6 +523,7 @@ float Node::Stable_score(Node* n, double score, int visits) {
 }
 void Node::Backup(Node* n,double& score,int visits) {
     if(rollout_type == MCTS) {
+        double pscore = score;
         /*Compute parent's score from children*/
         if(backup_type == MIX_VISIT) {
             if(n->visits > visit_threshold)
@@ -544,6 +545,8 @@ void Node::Backup(Node* n,double& score,int visits) {
                 score = Avg_score_mem(n,score,visits);
         }
         n->update_score(score);
+        if(backup_type == CLASSIC)
+            score = pscore;
     } else {
 
         /*lock*/
