@@ -1077,7 +1077,11 @@ extern bool is_selfplay;
 extern double frac_abprior;
 extern int qsearch_level;
 extern int PROTOCOL;
+
 extern int wdl_head;
+extern int win_weight;
+extern int draw_weight;
+extern int loss_weight;
 
 /** search options */
 extern const int use_nullmove;

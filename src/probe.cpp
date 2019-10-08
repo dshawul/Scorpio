@@ -136,13 +136,13 @@ void LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
                 CHANNELS = 24;
                 strcpy(input_names, "main_input aux_input");
                 strcpy(input_shapes, "24 8 8  5 1 1");
-                strcpy(output_names, "value/Softmax policy/Reshape");
+                strcpy(output_names, "value/BiasAdd policy/Reshape");
                 strcpy(output_sizes, "3 256");
             } else if(SEARCHER::nn_type == SIMPLE) {
                 CHANNELS = 12;
                 strcpy(input_names, "main_input");
                 strcpy(input_shapes, "12 8 8");
-                strcpy(output_names, "value/Softmax policy/BiasAdd");
+                strcpy(output_names, "value/BiasAdd policy/BiasAdd");
                 strcpy(output_sizes, "3 256");
             } else if(SEARCHER::nn_type == LCZERO) {
                 CHANNELS = 112;
@@ -290,7 +290,13 @@ int SEARCHER::probe_neural(bool hard_probe) {
         int p_size[2] = {3, pstack->count};
         float* p_outputs[2] = {wdl,(float*)pstack->score_st};
         probe_nn(iplanes,p_outputs,p_size,p_index,hkey,hard_probe);
-        float p = wdl[0] * 1.0 + wdl[1] * 0.5;
+
+        float minv = MIN(wdl[0],wdl[1]);
+        minv = MIN(minv,wdl[2]);
+        float w_ = exp((wdl[0] - minv) *  win_weight / 100.0f);
+        float d_ = exp((wdl[1] - minv) * draw_weight / 100.0f);
+        float l_ = exp((wdl[2] - minv) * loss_weight / 100.0f);
+        float p = (w_ * 1.0 + d_ * 0.5 ) / (w_ + d_ + l_);
         return logit(p);
     } else {
         if(draw())
@@ -302,14 +308,18 @@ int SEARCHER::probe_neural(bool hard_probe) {
         int p_size[2] = {wdl_head ? 3 : 1, pstack->count};
         float* p_outputs[2] = {wdl,(float*)pstack->score_st};
         probe_nn(iplanes,p_outputs,p_size,p_index,hkey,hard_probe);
+
         float p;
         if(wdl_head) {
-            float w_ = exp(wdl[0]);
-            float d_ = exp(wdl[1]);
-            float l_ = exp(wdl[2]);
-            p = (w_ * 1.0 + d_ * 0.5) / (w_ + d_ + l_);
-        } else
+            float minv = MIN(wdl[0],wdl[1]);
+            minv = MIN(minv,wdl[2]);
+            float w_ = exp((wdl[0] - minv) *  win_weight / 100.0f);
+            float d_ = exp((wdl[1] - minv) * draw_weight / 100.0f);
+            float l_ = exp((wdl[2] - minv) * loss_weight / 100.0f);
+            p = (w_ * 1.0 + d_ * 0.5 ) / (w_ + d_ + l_);
+        } else {
             p = (wdl[0] + 1.0) * 0.5;
+        }
         return logit(p);
     }
 #endif

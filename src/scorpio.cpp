@@ -1,6 +1,6 @@
 #include "scorpio.h"
 
-#define VERSION "3.0.2"
+#define VERSION "3.0.3"
 
 /*
 all external variables declared here
@@ -29,6 +29,9 @@ int scorpio_start_time;
 bool is_selfplay = false;
 int  PROTOCOL = CONSOLE;
 int wdl_head = 0;
+int win_weight = 100;
+int draw_weight = 100;
+int loss_weight = 100;
 
 /*
 parallel search
@@ -436,6 +439,9 @@ static void print_options() {
     print_combo("float_type",ftype,SEARCHER::float_type,3);
     print_spin("nn_type",SEARCHER::nn_type,0,10);
     print_check("wdl_head",wdl_head);
+    print_spin("win_weight",win_weight,0,1000);
+    print_spin("draw_weight",draw_weight,0,1000);
+    print_spin("loss_weight",loss_weight,0,1000);
 }
 /**
 * Internal scorpio commands
@@ -542,6 +548,15 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         command_num++;
     } else if(!strcmp(command, "wdl_head")) {
         wdl_head = atoi(commands[command_num]);
+        command_num++;
+    } else if(!strcmp(command, "win_weight")) {
+        win_weight = atoi(commands[command_num]);
+        command_num++;
+    } else if(!strcmp(command, "draw_weight")) {
+        draw_weight = atoi(commands[command_num]);
+        command_num++;
+    } else if(!strcmp(command, "loss_weight")) {
+        loss_weight = atoi(commands[command_num]);
         command_num++;
 #endif
 
