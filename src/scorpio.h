@@ -1077,6 +1077,7 @@ extern bool is_selfplay;
 extern double frac_abprior;
 extern int qsearch_level;
 extern int PROTOCOL;
+extern int wdl_head;
 
 /** search options */
 extern const int use_nullmove;

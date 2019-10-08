@@ -28,6 +28,7 @@ bool log_on = false;
 int scorpio_start_time;
 bool is_selfplay = false;
 int  PROTOCOL = CONSOLE;
+int wdl_head = 0;
 
 /*
 parallel search
@@ -434,6 +435,7 @@ static void print_options() {
     print_spin("delay",SEARCHER::delay,0,1000);
     print_combo("float_type",ftype,SEARCHER::float_type,3);
     print_spin("nn_type",SEARCHER::nn_type,0,10);
+    print_check("wdl_head",wdl_head);
 }
 /**
 * Internal scorpio commands
@@ -537,6 +539,9 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         else  SEARCHER::device_type = 1;
     } else if(!strcmp(command, "nn_type")) {
         SEARCHER::nn_type = atoi(commands[command_num]);
+        command_num++;
+    } else if(!strcmp(command, "wdl_head")) {
+        wdl_head = atoi(commands[command_num]);
         command_num++;
 #endif
 

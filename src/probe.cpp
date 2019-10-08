@@ -149,7 +149,10 @@ void LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
                 strcpy(input_names, "main_input");
                 strcpy(input_shapes, "112 8 8");
                 strcpy(output_names, "value_head policy_head");
-                strcpy(output_sizes, "1 256");
+                if(wdl_head)
+                    strcpy(output_sizes, "3 256");
+                else
+                    strcpy(output_sizes, "1 256");
             }
 
             if(strstr(SEARCHER::nn_path, ".uff") != NULL)
@@ -296,10 +299,17 @@ int SEARCHER::probe_neural(bool hard_probe) {
 
         float* wdl = &all_wdl[processor_id][0];
         unsigned short* p_index[2] = {0, mindex};
-        int p_size[2] = {1, pstack->count};
+        int p_size[2] = {wdl_head ? 3 : 1, pstack->count};
         float* p_outputs[2] = {wdl,(float*)pstack->score_st};
         probe_nn(iplanes,p_outputs,p_size,p_index,hkey,hard_probe);
-        float p = (wdl[0] + 1.0) * 0.5;
+        float p;
+        if(wdl_head) {
+            float w_ = exp(wdl[0]);
+            float d_ = exp(wdl[1]);
+            float l_ = exp(wdl[2]);
+            p = (w_ * 1.0 + d_ * 0.5) / (w_ + d_ + l_);
+        } else
+            p = (wdl[0] + 1.0) * 0.5;
         return logit(p);
     }
 #endif
