@@ -688,10 +688,13 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         print("Bye Bye\n");
         PROCESSOR::exit_scorpio(EXIT_SUCCESS);
     } else if(!strcmp(command,"selfplay")) {
-        int wins = 0, losses = 0, draws = 0;
-        int N = atoi(commands[command_num++]),res;
+        int wins = 0, losses = 0, draws = 0,res;
         char FEN[MAX_STR];
-        FILE* fw = fopen(commands[command_num++],"w");
+        int N = atoi(commands[command_num++]);
+        char name[512];
+        int unique_id = GETPID() + rand();
+        sprintf(name,"%s.%d",commands[command_num++],unique_id);
+        FILE* fw = fopen(name,"w");
 
         load_egbbs();
         wait_for_egbb();
@@ -714,8 +717,12 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         fclose(fw);
     } else if(!strcmp(command,"selfplayp")) {
         int N = atoi(commands[command_num++]);
-        FILE* fw = fopen(commands[command_num++],"w");
-        FILE* fw2 = fopen(commands[command_num++],"w");
+        char name[512];
+        int unique_id = GETPID() + rand();
+        sprintf(name,"%s.%d",commands[command_num++],unique_id);
+        FILE* fw = fopen(name,"w");
+        sprintf(name,"%s.%d",commands[command_num++],unique_id);
+        FILE* fw2 = fopen(name,"w");
         
         load_egbbs();
         wait_for_egbb();
