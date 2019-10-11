@@ -212,7 +212,7 @@ int CDECL main(int argc, char* argv[]) {
     load_ini();
 
     /*
-     * Initialize MPI
+     * Host 0 processes command line
      */
 #ifdef CLUSTER
     if(PROCESSOR::host_id == 0) {
@@ -264,6 +264,10 @@ int CDECL main(int argc, char* argv[]) {
         /* Delete the log file.*/
         if(!log_on)
             remove_log_file();
+
+        /* start loading egbbs */
+        load_egbbs();
+
         /* goto wait mode */
         processors[0]->state = PARK;
         search(processors[0]);

@@ -581,7 +581,7 @@ void PROCESSOR::exit_scorpio(int status) {
         remove_log_file();
 #ifdef CLUSTER
     print("Process [%d/%d] terminated.\n",host_id,n_hosts);
-    scorpio_ending=true;
+    scorpio_ending = true;
     MPI_Abort(MPI_COMM_WORLD,status);
 #else
     exit(status);
@@ -607,7 +607,7 @@ TOP:
 
     /*set next ply's depth and be selective*/           
     pstack->depth = (pstack - 1)->depth - UNITDEPTH;
-    if(be_selective()) {
+    if(be_selective((pstack - 1)->legal_moves, false)) {
         POP_MOVE();
         goto TOP;
     }

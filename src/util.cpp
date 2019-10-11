@@ -60,6 +60,9 @@ void printH(const char* format,...) {
     l_unlock(lock_io);
 }
 void print_info(const char* format,...) {
+    
+    CLUSTER_CODE(if(PROCESSOR::host_id != 0) return;)
+
     char str[1024];
     sprintf(str,"# %s",format);
 

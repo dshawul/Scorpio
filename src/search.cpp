@@ -1969,7 +1969,7 @@ void print_search_params() {
     SMP_CODE(print_spin("smp_depth",PROCESSOR::SMP_SPLIT_DEPTH,1,10));
     CLUSTER_CODE(print_combo("cluster_type",parallelt,use_abdada_cluster,3));
     CLUSTER_CODE(print_spin("cluster_depth",PROCESSOR::CLUSTER_SPLIT_DEPTH,1,16));
-    CLUSTER_CODE(print_spin("message_poll_nodes",PROCESSOR::MESSAGE_POLL_NODES,10));
+    CLUSTER_CODE(print_spin("message_poll_nodes",PROCESSOR::MESSAGE_POLL_NODES,10,20000));
     print_check("use_singular",use_singular);
     print_check("use_probcut",use_probcut);
     print_spin("singular_margin",singular_margin,0,1000);
