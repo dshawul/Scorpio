@@ -484,6 +484,7 @@ struct Node {
     static float Min_score(Node*);
     static float Avg_score(Node*);
     static float Avg_score_mem(Node*,double,int);
+    static float Max_visits_score(Node*);
     static void Backup(Node*,double&,int);
     static void BackupLeaf(Node*,double&);
     static void print_xml(Node*,int);
