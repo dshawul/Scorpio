@@ -30,14 +30,14 @@ typedef void (CDECL *PLOAD_EGBB) (
 typedef void (CDECL *PPROBE_NN) (
     float** iplanes, float** p_outputs,
     int* p_size, unsigned short** p_index, 
-    UBMP64 hash_key, bool hard_probe
+    UBMP64 hash_key, bool hard_probe, int nn_id
 );
 typedef void (CDECL *PLOAD_NN)(
     char* path,
     char* input_names, char* output_names,
     char* input_shapes, char* output_sizes,
     int nn_cache_size, int dev_type, int n_devices,
-    int max_threads, int float_type, int delay
+    int max_threads, int float_type, int delay, int nn_id
 );
 typedef void (CDECL *PSET_NUM_ACTIVE_SEARCHERS) (
     int n_searchers);
@@ -165,7 +165,7 @@ void LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
 
             load_nn(SEARCHER::nn_path,input_names, output_names, input_shapes, output_sizes,
                 nn_cache_size,SEARCHER::device_type,SEARCHER::n_devices,PROCESSOR::n_processors,
-                SEARCHER::float_type, SEARCHER::delay);
+                SEARCHER::float_type, SEARCHER::delay,0);
         } else
             SEARCHER::use_nn = 0;
     } else {
@@ -289,7 +289,7 @@ int SEARCHER::probe_neural(bool hard_probe) {
         unsigned short* p_index[2] = {0, mindex};
         int p_size[2] = {3, pstack->count};
         float* p_outputs[2] = {wdl,(float*)pstack->score_st};
-        probe_nn(iplanes,p_outputs,p_size,p_index,hkey,hard_probe);
+        probe_nn(iplanes,p_outputs,p_size,p_index,hkey,hard_probe,0);
 
         float minv = MIN(wdl[0],wdl[1]);
         minv = MIN(minv,wdl[2]);
@@ -307,7 +307,7 @@ int SEARCHER::probe_neural(bool hard_probe) {
         unsigned short* p_index[2] = {0, mindex};
         int p_size[2] = {wdl_head ? 3 : 1, pstack->count};
         float* p_outputs[2] = {wdl,(float*)pstack->score_st};
-        probe_nn(iplanes,p_outputs,p_size,p_index,hkey,hard_probe);
+        probe_nn(iplanes,p_outputs,p_size,p_index,hkey,hard_probe,0);
 
         float p;
         if(wdl_head) {
