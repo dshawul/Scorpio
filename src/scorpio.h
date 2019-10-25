@@ -842,6 +842,7 @@ typedef struct SEARCHER{
     static char egbb_path[MAX_STR];
     static char nn_path[MAX_STR];
     static char nn_path_e[MAX_STR];
+    static char nn_path_o[MAX_STR];
     static int nn_cache_size;
     static int use_nn;
     static int save_use_nn;
@@ -849,10 +850,12 @@ typedef struct SEARCHER{
     static int device_type;
     static int delay;
     static int float_type;
+    static int nn_id;
     static int nn_type;
     static int nn_type_e;
-    static int nn_id;
+    static int nn_type_o;
     static int nn_man_e;
+    static int nn_man_o;
     /*
     End
     */

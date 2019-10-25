@@ -1811,9 +1811,14 @@ MOVE SEARCHER::find_best() {
 
     /*select neural net*/
     int save_nn_type = SEARCHER::nn_type;
-    if(SEARCHER::nn_type_e > 0 && all_man_c <= SEARCHER::nn_man_e) {
+    if(SEARCHER::nn_type_o > 0 && all_man_c >= SEARCHER::nn_man_o) {
+        SEARCHER::nn_type = SEARCHER::nn_type_o;
+        SEARCHER::nn_id = 2;
+        print_info("Switching to: %s",SEARCHER::nn_path_o);
+    } else if(SEARCHER::nn_type_e > 0 && all_man_c <= SEARCHER::nn_man_e) {
         SEARCHER::nn_type = SEARCHER::nn_type_e;
         SEARCHER::nn_id = 1;
+        print_info("Switching to: %s",SEARCHER::nn_path_e);
     }
 
     /*generate and score moves*/

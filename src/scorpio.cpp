@@ -433,6 +433,7 @@ static void print_options() {
     print_path("egbb_path",SEARCHER::egbb_path);
     print_path("nn_path",SEARCHER::nn_path);
     print_path("nn_path_e",SEARCHER::nn_path_e);
+    print_path("nn_path_o",SEARCHER::nn_path_o);
     print_spin("egbb_cache_size",SEARCHER::egbb_cache_size,1,16384);
     print_spin("egbb_load_type",SEARCHER::egbb_load_type,0,3);
     print_spin("egbb_depth_limit",SEARCHER::egbb_depth_limit,0,MAX_PLY);
@@ -444,7 +445,9 @@ static void print_options() {
     print_combo("float_type",ftype,SEARCHER::float_type,3);
     print_spin("nn_type",SEARCHER::nn_type,0,10);
     print_spin("nn_type_e",SEARCHER::nn_type_e,-1,10);
+    print_spin("nn_type_o",SEARCHER::nn_type_o,-1,10);
     print_spin("nn_man_e",SEARCHER::nn_man_e,0,32);
+    print_spin("nn_man_o",SEARCHER::nn_man_o,0,32);
     print_check("wdl_head",wdl_head);
     print_spin("win_weight",win_weight,0,1000);
     print_spin("draw_weight",draw_weight,0,1000);
@@ -538,6 +541,9 @@ bool internal_commands(char** commands,char* command,int& command_num) {
     } else if(!strcmp(command, "nn_path_e")) {
         strcpy(SEARCHER::nn_path_e,commands[command_num]);
         command_num++;
+    } else if(!strcmp(command, "nn_path_o")) {
+        strcpy(SEARCHER::nn_path_o,commands[command_num]);
+        command_num++;
     } else if(!strcmp(command, "n_devices")) {
         SEARCHER::n_devices = atoi(commands[command_num]);
         command_num++;
@@ -559,8 +565,14 @@ bool internal_commands(char** commands,char* command,int& command_num) {
     } else if(!strcmp(command, "nn_type_e")) {
         SEARCHER::nn_type_e = atoi(commands[command_num]);
         command_num++;
+    } else if(!strcmp(command, "nn_type_o")) {
+        SEARCHER::nn_type_o = atoi(commands[command_num]);
+        command_num++;
     } else if(!strcmp(command, "nn_man_e")) {
         SEARCHER::nn_man_e = atoi(commands[command_num]);
+        command_num++;
+    } else if(!strcmp(command, "nn_man_o")) {
+        SEARCHER::nn_man_o = atoi(commands[command_num]);
         command_num++;
     } else if(!strcmp(command, "wdl_head")) {
         wdl_head = atoi(commands[command_num]);

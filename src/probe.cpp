@@ -53,8 +53,9 @@ int SEARCHER::egbb_ply_limit_percent = 75;
 int SEARCHER::egbb_ply_limit;
 int SEARCHER::egbb_cache_size = 16;
 char SEARCHER::egbb_path[MAX_STR] = "egbb/";
-char SEARCHER::nn_path[MAX_STR] = "../nets-scorpio/net-6x64.pb";
+char SEARCHER::nn_path[MAX_STR]   = "../nets-scorpio/net-6x64.pb";
 char SEARCHER::nn_path_e[MAX_STR] = "../nets-scorpio/net-6x64.pb";
+char SEARCHER::nn_path_o[MAX_STR] = "../nets-scorpio/net-6x64.pb";
 int SEARCHER::nn_cache_size = 16;
 int SEARCHER::use_nn = 0;
 int SEARCHER::save_use_nn = 0;
@@ -62,10 +63,12 @@ int SEARCHER::n_devices = 1;
 int SEARCHER::device_type = CPU;
 int SEARCHER::delay = 0;
 int SEARCHER::float_type = 1;
+int SEARCHER::nn_id = 0;
 int SEARCHER::nn_type = DEFAULT;
 int SEARCHER::nn_type_e = NONET;
-int SEARCHER::nn_id = 0;
+int SEARCHER::nn_type_o = NONET;
 int SEARCHER::nn_man_e = 12;
+int SEARCHER::nn_man_o = 24;
 static bool is_trt = false;
 static int CHANNELS = 24;
 static int NPARAMS = 5;
@@ -109,6 +112,9 @@ static void load_net(int id, int nn_cache_size, PLOAD_NN load_nn) {
     if(id == 0) {
         nn_type = SEARCHER::nn_type;
         strcpy(path, SEARCHER::nn_path);
+    } else if (id == 2) {
+        nn_type = SEARCHER::nn_type_o;
+        strcpy(path, SEARCHER::nn_path_o);
     } else {
         nn_type = SEARCHER::nn_type_e;
         strcpy(path, SEARCHER::nn_path_e);
@@ -175,6 +181,8 @@ void LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
         }
         if(load_nn && SEARCHER::use_nn) {
 
+            if(SEARCHER::nn_type_o >= DEFAULT)
+                load_net(2,nn_cache_size,load_nn);
             load_net(0,nn_cache_size,load_nn);
             if(SEARCHER::nn_type_e >= DEFAULT)
                 load_net(1,nn_cache_size,load_nn);
