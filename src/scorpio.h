@@ -833,6 +833,7 @@ typedef struct SEARCHER{
     void fill_input_planes(float**);
     void write_input_planes(FILE*);
     int compress_input_planes(float**, char*);
+    void select_net();
     static int egbb_is_loaded;
     static int egbb_load_type;
     static int egbb_depth_limit;
@@ -842,7 +843,7 @@ typedef struct SEARCHER{
     static char egbb_path[MAX_STR];
     static char nn_path[MAX_STR];
     static char nn_path_e[MAX_STR];
-    static char nn_path_o[MAX_STR];
+    static char nn_path_m[MAX_STR];
     static int nn_cache_size;
     static int use_nn;
     static int save_use_nn;
@@ -853,9 +854,9 @@ typedef struct SEARCHER{
     static int nn_id;
     static int nn_type;
     static int nn_type_e;
-    static int nn_type_o;
+    static int nn_type_m;
     static int nn_man_e;
-    static int nn_man_o;
+    static int nn_man_m;
     /*
     End
     */

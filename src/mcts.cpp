@@ -2,9 +2,13 @@
 #include "scorpio.h"
 
 /*mcts parameters*/
-static double  cpuct_init = 1.0;
 static unsigned int  cpuct_base = 19652;
+static double  cpuct_init = 1.0;
 static double  policy_temp = 2.35;
+static double  cpuct_init_m = 1.0;
+static double  policy_temp_m = 2.35;
+static double  cpuct_init_e = 1.0;
+static double  policy_temp_e = 2.35;
 static double  fpu_red = 0.33;
 static int fpu_is_loss = 0;
 static int  reuse_tree = 1;
@@ -1758,20 +1762,48 @@ void SEARCHER::self_play_thread() {
             undo_move();
     }
 }
+/*select neural net*/
+void SEARCHER::select_net() {
+    if(nn_type_e >= 0 && all_man_c <= nn_man_e) {
+        nn_id = 2;
+        nn_type = nn_type_e;
+        cpuct_init = cpuct_init_e;
+        policy_temp = policy_temp_e;
+    } else if(nn_type_m >= 0 && all_man_c <= nn_man_m) {
+        nn_id = 1;
+        nn_type = nn_type_m;
+        cpuct_init = cpuct_init_m;
+        policy_temp = policy_temp_m;
+    } else {
+        nn_id = 0;
+    }
+}
 /*
 * Search parameters
 */
 bool check_mcts_params(char** commands,char* command,int& command_num) {
-    if(!strcmp(command, "cpuct_init")) {
-        cpuct_init = atoi(commands[command_num++]) / 100.0;
-    } else if(!strcmp(command, "cpuct_base")) {
+    if(!strcmp(command, "cpuct_base")) {
         cpuct_base = atoi(commands[command_num++]);
+
+    } else if(!strcmp(command, "cpuct_init")) {
+        cpuct_init = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "policy_temp")) {
+        policy_temp = atoi(commands[command_num++]) / 100.0;
+
+    } else if(!strcmp(command, "cpuct_init_m")) {
+        cpuct_init_m = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "policy_temp_m")) {
+        policy_temp_m = atoi(commands[command_num++]) / 100.0;
+
+    } else if(!strcmp(command, "cpuct_init_e")) {
+        cpuct_init_e = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "policy_temp_e")) {
+        policy_temp_e = atoi(commands[command_num++]) / 100.0;
+
     } else if(!strcmp(command, "fpu_red")) {
         fpu_red = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "fpu_is_loss")) {
         fpu_is_loss = atoi(commands[command_num++]);
-    } else if(!strcmp(command, "policy_temp")) {
-        policy_temp = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "noise_alpha")) {
         noise_alpha = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "noise_beta")) {
@@ -1818,9 +1850,13 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
 void print_mcts_params() {
     static const char* backupt[] = {"MINMAX","AVERAGE","MIX","MINMAX_MEM",
         "AVERAGE_MEM","MIX_MEM","CLASSIC","MIX_VISIT"};
-    print_spin("cpuct_init",int(cpuct_init*100),0,1000);
     print_spin("cpuct_base",cpuct_base,0,100000000);
+    print_spin("cpuct_init",int(cpuct_init*100),0,1000);
     print_spin("policy_temp",int(policy_temp*100),0,1000);
+    print_spin("cpuct_init_m",int(cpuct_init_m*100),0,1000);
+    print_spin("policy_temp_m",int(policy_temp_m*100),0,1000);
+    print_spin("cpuct_init_e",int(cpuct_init_e*100),0,1000);
+    print_spin("policy_temp_e",int(policy_temp_e*100),0,1000);
     print_spin("noise_alpha",int(noise_alpha*100),0,100);
     print_spin("noise_beta",int(noise_beta*100),0,100);
     print_spin("noise_frac",int(noise_frac*100),0,100);
