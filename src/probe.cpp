@@ -18,7 +18,7 @@ enum egbb_load_types {
     LOAD_NONE,LOAD_4MEN,SMART_LOAD,LOAD_5MEN
 };
 enum {CPU, GPU};
-enum {DEFAULT, LCZERO, SIMPLE};
+enum {DEFAULT, LCZERO, SIMPLE, NONET = -1};
 
 #define _NOTFOUND 99999
 #define MAX_PIECES 9
@@ -53,7 +53,8 @@ int SEARCHER::egbb_ply_limit_percent = 75;
 int SEARCHER::egbb_ply_limit;
 int SEARCHER::egbb_cache_size = 16;
 char SEARCHER::egbb_path[MAX_STR] = "egbb/";
-char SEARCHER::nn_path[MAX_STR] = "nets/";
+char SEARCHER::nn_path[MAX_STR] = "../nets-scorpio/net-6x64.pb";
+char SEARCHER::nn_path_e[MAX_STR] = "../nets-scorpio/net-6x64.pb";
 int SEARCHER::nn_cache_size = 16;
 int SEARCHER::use_nn = 0;
 int SEARCHER::save_use_nn = 0;
@@ -61,7 +62,10 @@ int SEARCHER::n_devices = 1;
 int SEARCHER::device_type = CPU;
 int SEARCHER::delay = 0;
 int SEARCHER::float_type = 1;
-int SEARCHER::nn_type = 0;
+int SEARCHER::nn_type = DEFAULT;
+int SEARCHER::nn_type_e = NONET;
+int SEARCHER::nn_id = 0;
+int SEARCHER::nn_man_e = 12;
 static bool is_trt = false;
 static int CHANNELS = 24;
 static int NPARAMS = 5;
@@ -93,6 +97,50 @@ Load the dll and get the address of the load and probe functions.
 
 void init_index_table();
 void init_input_planes();
+
+static void load_net(int id, int nn_cache_size, PLOAD_NN load_nn) {
+    char input_names[256];
+    char output_names[256];
+    char input_shapes[256];
+    char output_sizes[256];
+    char path[256];
+    int nn_type;
+
+    if(id == 0) {
+        nn_type = SEARCHER::nn_type;
+        strcpy(path, SEARCHER::nn_path);
+    } else {
+        nn_type = SEARCHER::nn_type_e;
+        strcpy(path, SEARCHER::nn_path_e);
+    }
+
+    if(nn_type == DEFAULT) {
+        CHANNELS = 24;
+        strcpy(input_names, "main_input aux_input");
+        strcpy(input_shapes, "24 8 8  5 1 1");
+        strcpy(output_names, "value/BiasAdd policy/Reshape");
+        strcpy(output_sizes, "3 256");
+    } else if(nn_type == SIMPLE) {
+        CHANNELS = 12;
+        strcpy(input_names, "main_input");
+        strcpy(input_shapes, "12 8 8");
+        strcpy(output_names, "value/BiasAdd policy/BiasAdd");
+        strcpy(output_sizes, "3 256");
+    } else if(nn_type == LCZERO) {
+        CHANNELS = 112;
+        strcpy(input_names, "main_input");
+        strcpy(input_shapes, "112 8 8");
+        strcpy(output_names, "value_head policy_head");
+        if(wdl_head)
+            strcpy(output_sizes, "3 256");
+        else
+            strcpy(output_sizes, "1 256");
+    }
+
+    load_nn(path, input_names, output_names, input_shapes, output_sizes,
+        nn_cache_size,SEARCHER::device_type,SEARCHER::n_devices,PROCESSOR::n_processors,
+        SEARCHER::float_type, SEARCHER::delay,id);
+};
 
 void LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
 #ifdef EGBB
@@ -127,33 +175,9 @@ void LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
         }
         if(load_nn && SEARCHER::use_nn) {
 
-            char input_names[256];
-            char output_names[256];
-            char input_shapes[256];
-            char output_sizes[256];
-
-            if(SEARCHER::nn_type == DEFAULT) {
-                CHANNELS = 24;
-                strcpy(input_names, "main_input aux_input");
-                strcpy(input_shapes, "24 8 8  5 1 1");
-                strcpy(output_names, "value/BiasAdd policy/Reshape");
-                strcpy(output_sizes, "3 256");
-            } else if(SEARCHER::nn_type == SIMPLE) {
-                CHANNELS = 12;
-                strcpy(input_names, "main_input");
-                strcpy(input_shapes, "12 8 8");
-                strcpy(output_names, "value/BiasAdd policy/BiasAdd");
-                strcpy(output_sizes, "3 256");
-            } else if(SEARCHER::nn_type == LCZERO) {
-                CHANNELS = 112;
-                strcpy(input_names, "main_input");
-                strcpy(input_shapes, "112 8 8");
-                strcpy(output_names, "value_head policy_head");
-                if(wdl_head)
-                    strcpy(output_sizes, "3 256");
-                else
-                    strcpy(output_sizes, "1 256");
-            }
+            load_net(0,nn_cache_size,load_nn);
+            if(SEARCHER::nn_type_e >= DEFAULT)
+                load_net(1,nn_cache_size,load_nn);
 
             if(strstr(SEARCHER::nn_path, ".uff") != NULL)
                 is_trt = true;
@@ -162,10 +186,6 @@ void LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
 
             init_index_table();
             init_input_planes();
-
-            load_nn(SEARCHER::nn_path,input_names, output_names, input_shapes, output_sizes,
-                nn_cache_size,SEARCHER::device_type,SEARCHER::n_devices,PROCESSOR::n_processors,
-                SEARCHER::float_type, SEARCHER::delay,0);
         } else
             SEARCHER::use_nn = 0;
     } else {
@@ -289,7 +309,7 @@ int SEARCHER::probe_neural(bool hard_probe) {
         unsigned short* p_index[2] = {0, mindex};
         int p_size[2] = {3, pstack->count};
         float* p_outputs[2] = {wdl,(float*)pstack->score_st};
-        probe_nn(iplanes,p_outputs,p_size,p_index,hkey,hard_probe,0);
+        probe_nn(iplanes,p_outputs,p_size,p_index,hkey,hard_probe,nn_id);
 
         float minv = MIN(wdl[0],wdl[1]);
         minv = MIN(minv,wdl[2]);
@@ -307,7 +327,7 @@ int SEARCHER::probe_neural(bool hard_probe) {
         unsigned short* p_index[2] = {0, mindex};
         int p_size[2] = {wdl_head ? 3 : 1, pstack->count};
         float* p_outputs[2] = {wdl,(float*)pstack->score_st};
-        probe_nn(iplanes,p_outputs,p_size,p_index,hkey,hard_probe,0);
+        probe_nn(iplanes,p_outputs,p_size,p_index,hkey,hard_probe,nn_id);
 
         float p;
         if(wdl_head) {

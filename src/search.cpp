@@ -1809,6 +1809,13 @@ MOVE SEARCHER::find_best() {
         print_info("%s\n",fen);
     }
 
+    /*select neural net*/
+    int save_nn_type = SEARCHER::nn_type;
+    if(SEARCHER::nn_type_e > 0 && all_man_c <= SEARCHER::nn_man_e) {
+        SEARCHER::nn_type = SEARCHER::nn_type_e;
+        SEARCHER::nn_id = 1;
+    }
+
     /*generate and score moves*/
     chess_clock.set_stime(hply,true);
     generate_and_score_moves(0,-MATE_SCORE,MATE_SCORE);
@@ -1872,6 +1879,10 @@ MOVE SEARCHER::find_best() {
             PROCESSOR::ISend(i,PROCESSOR::QUIT);
     }
 #endif
+
+    /*undo nn_type change*/
+    SEARCHER::nn_type = save_nn_type;
+    SEARCHER::nn_id = 0;
 
     /*was this first search?*/
     if(first_search) {
