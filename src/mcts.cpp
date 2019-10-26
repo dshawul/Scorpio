@@ -3,11 +3,11 @@
 
 /*mcts parameters*/
 static unsigned int  cpuct_base = 19652;
-static double  cpuct_init = 1.0;
+static double  cpuct_init = 1.25;
 static double  policy_temp = 2.35;
-static double  cpuct_init_m = 1.0;
+static double  cpuct_init_m = 1.25;
 static double  policy_temp_m = 2.35;
-static double  cpuct_init_e = 1.0;
+static double  cpuct_init_e = 1.25;
 static double  policy_temp_e = 2.35;
 static double  fpu_red = 0.33;
 static int fpu_is_loss = 0;
