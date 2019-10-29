@@ -1456,13 +1456,29 @@ void SEARCHER::manage_tree(bool single) {
         }
 
         int index = 0;
+        double minp = MAX_NUMBER;
         current = root_node->child;
         while(current) {
             double n = ((noise[index] - alpha * beta) / total);
             current->policy = current->policy * (1 - frac) + n * frac;
-            if(current->policy < 0) current->policy = 0;
+            if(current->policy < minp) minp = current->policy;
             current = current->next;
             index++;
+        }
+
+        total = 0;
+        current = root_node->child;
+        while(current) {
+            current->policy -= minp;
+            total += current->policy;
+            current = current->next;
+        }
+        if(total <= 1e-6) total = 1e-6;
+        
+        current = root_node->child;
+        while(current) {
+            current->policy /= total;
+            current = current->next;
         }
     }
 }
