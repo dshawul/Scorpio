@@ -435,7 +435,7 @@ void init_index_table() {
     }
 }
 
-int compute_move_index(MOVE& m, int player) {
+int compute_move_index(MOVE& m, int player, int mnn_type) {
 
     int from = m_from(m), to = m_to(m), prom, index;
     if(is_castle(m)) {
@@ -451,7 +451,9 @@ int compute_move_index(MOVE& m, int player) {
         to = MIRRORR64(to);
     }
 
-    if(SEARCHER::nn_type == DEFAULT || SEARCHER::nn_type == SIMPLE) {
+    int nn_type = (mnn_type >= DEFAULT) ? mnn_type : SEARCHER::nn_type;
+
+    if(nn_type == DEFAULT || nn_type == SIMPLE) {
         index = from * 73;
         if(prom) {
             prom = PIECE(prom);

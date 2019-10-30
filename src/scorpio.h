@@ -1135,7 +1135,7 @@ bool  check_mcts_params(char**,char*,int&);
 void  print_mcts_params();
 double logistic(double p);
 double logit(double p);
-int compute_move_index(MOVE&, int);
+int compute_move_index(MOVE&, int, int = -1);
 void fill_input_planes(int, int, int, int, int*, int*, int*, float*, float*);
 
 #ifdef TUNE

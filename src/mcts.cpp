@@ -1440,7 +1440,7 @@ void SEARCHER::manage_tree(bool single) {
         backup_type = MIX_VISIT;
 
     /*Dirchilet noise*/
-    if(is_selfplay) {
+    if(is_selfplay && (chess_clock.max_visits > low_visits_threshold) ) {
         const float alpha = noise_alpha, beta = noise_beta, frac = noise_frac;
         std::vector<double> noise;
         std::gamma_distribution<double> dist(alpha,beta);
@@ -1612,6 +1612,7 @@ void SEARCHER::self_play_thread() {
     static VOLATILE int wins = 0, losses = 0, draws = 0;
     static const int NPLANE = 8 * 8 * 24;
     static const int NPARAM = 5;
+    static const bool average_pi_and_m = false;
 
     MOVE move;
     int phply = hply;
@@ -1746,19 +1747,24 @@ void SEARCHER::self_play_thread() {
                 if(diff > 0) 
                     val += diff * current->policy;
                 total_visits += val;
-                ptrn->moves[cnt] = compute_move_index(current->move, player);
+                ptrn->moves[cnt] = compute_move_index(current->move, player, 0);
                 ptrn->probs[cnt] = val;
                 cnt++;
                 current = current->next;
             }
-            for(int i = 0; i < cnt; i++)
-                ptrn->probs[i] /= (2 * total_visits);
-            int midx = compute_move_index(move, player);
-            for(int i = 0; i < cnt; i++) {
-                if(midx == ptrn->moves[i]) {
-                    ptrn->probs[i] += 0.5;
-                    break;
+            if(average_pi_and_m && diff > 0) {
+                for(int i = 0; i < cnt; i++)
+                    ptrn->probs[i] /= (2 * total_visits);
+                int midx = compute_move_index(move, player, 0);
+                for(int i = 0; i < cnt; i++) {
+                    if(midx == ptrn->moves[i]) {
+                        ptrn->probs[i] += 0.5;
+                        break;
+                    }
                 }
+            } else {
+                for(int i = 0; i < cnt; i++)
+                    ptrn->probs[i] /= total_visits;
             }
 #endif
 
