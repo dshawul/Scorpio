@@ -1786,16 +1786,28 @@ void SEARCHER::self_play_thread() {
 }
 /*select neural net*/
 void SEARCHER::select_net() {
-    if(nn_type_e >= 0 && all_man_c <= nn_man_e) {
-        nn_id = 2;
-        nn_type = nn_type_e;
+    if(all_man_c <= nn_man_e) {
         cpuct_init = cpuct_init_e;
         policy_temp = policy_temp_e;
-    } else if(nn_type_m >= 0 && all_man_c <= nn_man_m) {
-        nn_id = 1;
-        nn_type = nn_type_m;
+        if(nn_type_e >= 0 ) {
+            nn_id = 2;
+            nn_type = nn_type_e;
+        } else {
+            nn_id = -nn_type_e - 1;
+            if(nn_id == 1)
+                nn_type = nn_type_m;
+        }
+    } else if(all_man_c <= nn_man_m) {
         cpuct_init = cpuct_init_m;
         policy_temp = policy_temp_m;
+        if(nn_type_m >= 0) {
+            nn_id = 1;
+            nn_type = nn_type_m;
+        } else {
+            nn_id = -nn_type_m - 1;
+            if(nn_id == 2)
+                nn_type = nn_type_e;
+        }
     } else {
         nn_id = 0;
     }
