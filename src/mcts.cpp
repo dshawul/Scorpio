@@ -398,7 +398,7 @@ Node* Node::Random_select(Node* n) {
     while(current) {
         if(current->move) {
             node_pt.push_back(current);
-            val = current->visits + 1;
+            val = current->visits;
             if(n->visits < low_visits_threshold) 
                 val += (low_visits_threshold - n->visits) * current->policy;
             freq.push_back(val);
@@ -437,7 +437,7 @@ Node* Node::Best_select(Node* n, bool has_ab) {
                     !( backup_type == MINMAX ||
                       backup_type == MINMAX_MEM )
                 ) {
-                    val = current->visits + 1;
+                    val = current->visits;
                     if(n->visits < low_visits_threshold) 
                         val += (low_visits_threshold - n->visits) * current->policy;
                 } else {
@@ -1743,7 +1743,7 @@ void SEARCHER::self_play_thread() {
             int cnt = 0, diff = low_visits_threshold - root_node->visits;
             Node* current = root_node->child;
             while(current) {
-                val = current->visits + 1;
+                val = current->visits;
                 if(diff > 0) 
                     val += diff * current->policy;
                 total_visits += val;

@@ -1694,7 +1694,9 @@ bool SEARCHER::pgn_to_epd(char* path,char* book) {
                     else if(result == R_BWIN) strcat(fen," 0-1");
                     else strcat(fen," 1/2-1/2");
                     int mind = compute_move_index(move, player);
-                    float score = logistic( eval(true) );
+                    float score = eval(true);
+                    if(player == black) score = -score;
+                    score = logistic(score);
                     fprintf(fb,"%s %f 1 %d 1.0\n", fen, score, mind);
 
                 }
