@@ -1501,6 +1501,8 @@ bool SEARCHER::san_mov(MOVE& move,char* s) {
     int piece = pawn,promote = blank,f_file = -1,f_rank = -1,from = 0, to,len;
     if((c = strchr(s,'+')) != 0) *c = 0;
     else if((c = strchr(s,'#')) != 0) *c = 0;
+    else if((c = strchr(s,'?')) != 0) *c = 0;
+    else if((c = strchr(s,'!')) != 0) *c = 0;
 
     if(!strcmp(s,"o-o") || !strcmp(s,"O-O") || !strcmp(s,"0-0")) {
         if(player == white) {piece = king; from = E1;to = G1;}
@@ -1573,14 +1575,15 @@ bool SEARCHER::pgn_to_epd(char* path,char* book) {
     FILE* fb = fopen(book,"w");
     if(!f || !fb) return false;
 
-    char   buffer[4 * MAX_FILE_STR];
-    char   *commands[4 * MAX_STR],*command;
+    char   buffer[16 * MAX_FILE_STR];
+    char   *commands[16 * MAX_STR],*command;
     int    result = R_UNKNOWN,command_num;
     int    comment = 0,line = 0,game = 0;
     MOVE   move;
     char   fen[256];
     char* pc;
-    bool illegal = false;
+    bool illegal = false, has_score = false;
+    double score;
 
     while(fgets(buffer,4 * MAX_FILE_STR,f)) {
         line++;
@@ -1610,9 +1613,22 @@ bool SEARCHER::pgn_to_epd(char* path,char* book) {
         commands[tokenize(buffer,commands," \n\r\t")] = NULL;
         command_num = 0;
         while((command = commands[command_num++]) != 0) {
+            has_score = false;
             if(strchr(command,'{')) comment++;
-            if(strchr(command,'}')) comment--;
-            else if(comment == 0) {
+            else if(strchr(command,'}')) comment--;
+            else if(comment == 1) {
+                if(!strcmp(command,"[\%eval")) {
+                    command = commands[command_num++];
+                    double score;
+                    if(command[0] == '#') {
+                        if(command[1] == '-') score = -MATE_SCORE;
+                        else score = MATE_SCORE;
+                    } else {
+                        score = 100 * atof(command);
+                    }
+                    has_score = true;
+                }
+            } else if(comment == 0) {
                 if((pc = strchr(command,'.')) != 0) {
                     if(*(pc+1) == ' ' || *(pc+1) == 0 || *(pc+1) == '.') continue;
                     else command = pc + 1;
@@ -1644,7 +1660,8 @@ bool SEARCHER::pgn_to_epd(char* path,char* book) {
                             else if(result == R_BWIN) strcat(fen," 0-1");
                             else strcat(fen," 1/2-1/2");
                             int mind = compute_move_index(move, player);
-                            float score = logistic( eval(true) );
+                            if(!has_score) score = eval(true);
+                            score = logistic(score);
                             fprintf(fb,"%s %f 1 %d 1.0\n", fen, score, mind);
 
                             do_move(move);
