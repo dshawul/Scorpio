@@ -70,8 +70,6 @@ int SEARCHER::nn_type_m = NONET;
 int SEARCHER::nn_man_e = 16;
 int SEARCHER::nn_man_m = 24;
 static bool is_trt = false;
-static int CHANNELS = 24;
-static int NPARAMS = 5;
 
 /*
 Load the dll and get the address of the load and probe functions.
@@ -121,19 +119,16 @@ static void load_net(int id, int nn_cache_size, PLOAD_NN load_nn) {
     }
 
     if(nn_type == DEFAULT) {
-        CHANNELS = 24;
         strcpy(input_names, "main_input aux_input");
         strcpy(input_shapes, "24 8 8  5 1 1");
         strcpy(output_names, "value/BiasAdd policy/Reshape");
         strcpy(output_sizes, "3 256");
     } else if(nn_type == SIMPLE) {
-        CHANNELS = 12;
         strcpy(input_names, "main_input");
         strcpy(input_shapes, "12 8 8");
         strcpy(output_names, "value/BiasAdd policy/BiasAdd");
         strcpy(output_sizes, "3 256");
     } else if(nn_type == LCZERO) {
-        CHANNELS = 112;
         strcpy(input_names, "main_input");
         strcpy(input_shapes, "112 8 8");
         strcpy(output_names, "value_head policy_head");
@@ -285,8 +280,7 @@ static float all_wdl[MAX_CPUS][3];
 void init_input_planes() {
     float* planes = 0;
     unsigned short* index = 0;
-    const unsigned int N_PLANE = (8 * 8 * CHANNELS) + 
-                ( (SEARCHER::nn_type == DEFAULT) ? NPARAMS : 0);
+    const unsigned int N_PLANE = (8 * 8 * 112);
 
     aligned_reserve<float>(planes, PROCESSOR::n_processors * N_PLANE);
     aligned_reserve<unsigned short>(index, PROCESSOR::n_processors * MAX_MOVES);
@@ -491,6 +485,9 @@ void fill_input_planes(
     ) {
     
     int pc, col, sq, to;
+    const int CHANNELS = (SEARCHER::nn_type == LCZERO) ? 112 : 
+                         ((SEARCHER::nn_type == DEFAULT) ? 24 : 12);
+    const int NPARAMS = 5;
 
     /* 
        Add the attack map planes 
@@ -645,6 +642,7 @@ void fill_input_planes(
             }
         }
     } else if (SEARCHER::nn_type == SIMPLE) {
+
         for(int i = 0; (pc = piece[i]) != _EMPTY; i++) {
             sq = SQ6488(square[i]);
             if(player == _BLACK) {
@@ -738,7 +736,7 @@ void SEARCHER::fill_input_planes(float** iplanes) {
 
         iplanes[0] = inp_planes[processor_id];
         if(nn_type == DEFAULT)
-            iplanes[1] = iplanes[0] + (8 * 8 * CHANNELS);
+            iplanes[1] = iplanes[0] + (8 * 8 * 24);
         ::fill_input_planes(player,castle,fifty,hist,
             isdraw,piece,square,iplanes[0],iplanes[1]);
 
@@ -773,6 +771,9 @@ void SEARCHER::write_input_planes(FILE* file) {
     float* iplanes[2] = {0, 0};
     fill_input_planes(iplanes);
 
+    const int CHANNELS = (SEARCHER::nn_type == LCZERO) ? 112 : 
+                         ((SEARCHER::nn_type == DEFAULT) ? 24 : 12);
+    const int NPARAMS = 5;
     const int NPLANE = 8 * 8 * CHANNELS;
     fwrite(iplanes[0], NPLANE * sizeof(float), 1, file);
     if(nn_type == DEFAULT)
