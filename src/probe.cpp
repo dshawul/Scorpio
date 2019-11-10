@@ -376,6 +376,7 @@ int SEARCHER::probe_neural(bool hard_probe) {
         }
         nn_type = s_nn_type;
         nn_id = 0;
+        if(turn_off_ensemble) ensemble = 0;
     } else {
         score = probe_neural_(hard_probe,policy);
     }

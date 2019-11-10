@@ -1094,6 +1094,7 @@ extern int win_weight;
 extern int draw_weight;
 extern int loss_weight;
 extern int ensemble;
+extern VOLATILE int turn_off_ensemble;
 
 /** search options */
 extern const int use_nullmove;

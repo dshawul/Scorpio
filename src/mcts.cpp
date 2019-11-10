@@ -36,8 +36,10 @@ int montecarlo = 0;
 int rollout_type = ALPHABETA;
 bool freeze_tree = false;
 double frac_abprior = 0.3;
-int ensemble = 0;
 
+int ensemble = 0;
+static float ensemble_setting = 0;
+VOLATILE int turn_off_ensemble = 0;
 static VOLATILE int n_terminal = 0;
 
 /*elo*/
@@ -1137,6 +1139,10 @@ void SEARCHER::search_mc(bool single) {
                     
                     if(frac >= 0.1 && !chess_clock.infinite_mode)
                         check_mcts_quit();
+
+                    if(frac > ensemble_setting)
+                        turn_off_ensemble = 1;
+
                     /*stop growing tree after some time*/
                     if(rollout_type == ALPHABETA && !freeze_tree && frac_freeze_tree < 1.0 &&
                         frac >= frac_freeze_tree * frac_alphabeta) {
@@ -1787,6 +1793,7 @@ void SEARCHER::self_play_thread() {
 }
 /*select neural net*/
 void SEARCHER::select_net() {
+    ensemble = (ensemble_setting > 0) ? 1 : 0;
 
     if(all_man_c <= nn_man_e) {
         cpuct_init = cpuct_init_e;
@@ -1855,7 +1862,7 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
     } else if(!strcmp(command, "reuse_tree")) {
         reuse_tree = atoi(commands[command_num++]);
     } else if(!strcmp(command, "ensemble")) {
-        ensemble = atoi(commands[command_num++]);
+        ensemble_setting = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "backup_type")) {
         backup_type_setting = atoi(commands[command_num++]);
     } else if(!strcmp(command, "frac_alphabeta")) {
@@ -1906,8 +1913,8 @@ void print_mcts_params() {
     print_spin("fpu_red",int(fpu_red*100),-1000,1000);
     print_check("fpu_is_loss",fpu_is_loss);
     print_check("reuse_tree",reuse_tree);
-    print_check("ensemble",ensemble);
     print_combo("backup_type", backupt, backup_type_setting,8);
+    print_spin("ensemble",int(ensemble_setting*100),0,100);
     print_spin("frac_alphabeta",int(frac_alphabeta*100),0,100);
     print_spin("frac_freeze_tree",int(frac_freeze_tree*100),0,100);
     print_spin("frac_abrollouts",int(frac_abrollouts*100),0,100);
