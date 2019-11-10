@@ -11,7 +11,7 @@ static double  cpuct_init_e = 1.25;
 static double  policy_temp_e = 2.35;
 static double  fpu_red = 0.33;
 static int fpu_is_loss = 0;
-static int  reuse_tree = 1;
+static int reuse_tree = 1;
 static int  backup_type_setting = MIX_VISIT;
 static int  backup_type = backup_type_setting;
 static double frac_alphabeta = 0.0; 
@@ -36,6 +36,7 @@ int montecarlo = 0;
 int rollout_type = ALPHABETA;
 bool freeze_tree = false;
 double frac_abprior = 0.3;
+int ensemble = 0;
 
 static VOLATILE int n_terminal = 0;
 
@@ -1786,9 +1787,12 @@ void SEARCHER::self_play_thread() {
 }
 /*select neural net*/
 void SEARCHER::select_net() {
+
     if(all_man_c <= nn_man_e) {
         cpuct_init = cpuct_init_e;
         policy_temp = policy_temp_e;
+        if(ensemble) return;
+
         if(nn_type_e >= 0 ) {
             nn_id = 2;
             nn_type = nn_type_e;
@@ -1800,6 +1804,8 @@ void SEARCHER::select_net() {
     } else if(all_man_c <= nn_man_m) {
         cpuct_init = cpuct_init_m;
         policy_temp = policy_temp_m;
+        if(ensemble) return;
+
         if(nn_type_m >= 0) {
             nn_id = 1;
             nn_type = nn_type_m;
@@ -1848,6 +1854,8 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         noise_ply = atoi(commands[command_num++]);
     } else if(!strcmp(command, "reuse_tree")) {
         reuse_tree = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "ensemble")) {
+        ensemble = atoi(commands[command_num++]);
     } else if(!strcmp(command, "backup_type")) {
         backup_type_setting = atoi(commands[command_num++]);
     } else if(!strcmp(command, "frac_alphabeta")) {
@@ -1898,6 +1906,7 @@ void print_mcts_params() {
     print_spin("fpu_red",int(fpu_red*100),-1000,1000);
     print_check("fpu_is_loss",fpu_is_loss);
     print_check("reuse_tree",reuse_tree);
+    print_check("ensemble",ensemble);
     print_combo("backup_type", backupt, backup_type_setting,8);
     print_spin("frac_alphabeta",int(frac_alphabeta*100),0,100);
     print_spin("frac_freeze_tree",int(frac_freeze_tree*100),0,100);

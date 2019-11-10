@@ -275,22 +275,26 @@ Neural network
 
 static float* inp_planes[MAX_CPUS];
 static unsigned short* all_pindex[MAX_CPUS];
+static float* all_policy[MAX_CPUS];
 static float all_wdl[MAX_CPUS][3];
 
 void init_input_planes() {
     float* planes = 0;
     unsigned short* index = 0;
+    float* policy = 0;
     const unsigned int N_PLANE = (8 * 8 * 112);
 
     aligned_reserve<float>(planes, PROCESSOR::n_processors * N_PLANE);
     aligned_reserve<unsigned short>(index, PROCESSOR::n_processors * MAX_MOVES);
+    aligned_reserve<float>(policy, PROCESSOR::n_processors * MAX_MOVES);
     for(int i = 0; i < PROCESSOR::n_processors;i++) {
         inp_planes[i] = planes + i * N_PLANE;
         all_pindex[i] = index + i * MAX_MOVES;
+        all_policy[i] = policy + i * MAX_MOVES;
     }
 }
 
-int SEARCHER::probe_neural(bool hard_probe) {
+int SEARCHER::probe_neural_(bool hard_probe, float* policy) {
 #ifdef EGBB
     UBMP64 hkey = ((player == white) ? hash_key : 
              (hash_key ^ UINT64(0x2bc3964f82352234)));
@@ -310,7 +314,7 @@ int SEARCHER::probe_neural(bool hard_probe) {
         float* wdl = &all_wdl[processor_id][0];
         unsigned short* p_index[2] = {0, mindex};
         int p_size[2] = {3, pstack->count};
-        float* p_outputs[2] = {wdl,(float*)pstack->score_st};
+        float* p_outputs[2] = {wdl,policy};
         probe_nn(iplanes,p_outputs,p_size,p_index,hkey,hard_probe,nn_id);
 
         float minv = MIN(wdl[0],wdl[1]);
@@ -328,7 +332,7 @@ int SEARCHER::probe_neural(bool hard_probe) {
         float* wdl = &all_wdl[processor_id][0];
         unsigned short* p_index[2] = {0, mindex};
         int p_size[2] = {wdl_head ? 3 : 1, pstack->count};
-        float* p_outputs[2] = {wdl,(float*)pstack->score_st};
+        float* p_outputs[2] = {wdl,policy};
         probe_nn(iplanes,p_outputs,p_size,p_index,hkey,hard_probe,nn_id);
 
         float p;
@@ -346,6 +350,37 @@ int SEARCHER::probe_neural(bool hard_probe) {
     }
 #endif
     return 0;
+}
+
+/*ensemble NNs*/
+int SEARCHER::probe_neural(bool hard_probe) {
+    float* policy = (float*)pstack->score_st;
+    float* tpolicy = all_policy[processor_id];
+    int score, s_nn_type = nn_type;
+
+    if(ensemble) {
+        score = probe_neural_(true,policy);
+        if(nn_type_m >= DEFAULT) {
+            nn_id = 1;
+            nn_type = nn_type_m;
+            score += (probe_neural_(true,tpolicy) - score) / 2;
+            for(int i = 0; i < pstack->count; i++)
+                policy[i] += (tpolicy[i] - policy[i]) / 2;
+        }
+        if(nn_type_e >= DEFAULT) {
+            nn_id = 2;
+            nn_type = nn_type_e;
+            score += (probe_neural_(true,tpolicy) - score) / 3;
+            for(int i = 0; i < pstack->count; i++)
+                policy[i] += (tpolicy[i] - policy[i]) / 3;
+        }
+        nn_type = s_nn_type;
+        nn_id = 0;
+    } else {
+        score = probe_neural_(hard_probe,policy);
+    }
+
+    return score;
 }
 
 #ifdef PARALLEL
