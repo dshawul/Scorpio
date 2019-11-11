@@ -856,6 +856,9 @@ typedef struct SEARCHER{
     static int nn_type;
     static int nn_type_e;
     static int nn_type_m;
+    static int wdl_head;
+    static int wdl_head_m;
+    static int wdl_head_e;
     static int nn_man_e;
     static int nn_man_m;
     /*
@@ -1089,7 +1092,6 @@ extern double frac_abprior;
 extern int qsearch_level;
 extern int PROTOCOL;
 
-extern int wdl_head;
 extern int win_weight;
 extern int draw_weight;
 extern int loss_weight;

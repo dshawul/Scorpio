@@ -69,6 +69,9 @@ int SEARCHER::nn_type_e = NONET;
 int SEARCHER::nn_type_m = NONET;
 int SEARCHER::nn_man_e = 16;
 int SEARCHER::nn_man_m = 24;
+int SEARCHER::wdl_head = 0;
+int SEARCHER::wdl_head_m = 0;
+int SEARCHER::wdl_head_e = 0;
 static bool is_trt = false;
 
 /*
@@ -105,16 +108,19 @@ static void load_net(int id, int nn_cache_size, PLOAD_NN load_nn) {
     char input_shapes[256];
     char output_sizes[256];
     char path[256];
-    int nn_type;
+    int nn_type, wdl_head;
 
     if(id == 0) {
         nn_type = SEARCHER::nn_type;
+        wdl_head = SEARCHER::wdl_head;
         strcpy(path, SEARCHER::nn_path);
     } else if (id == 1) {
         nn_type = SEARCHER::nn_type_m;
+        wdl_head = SEARCHER::wdl_head_m;
         strcpy(path, SEARCHER::nn_path_m);
     } else {
         nn_type = SEARCHER::nn_type_e;
+        wdl_head = SEARCHER::wdl_head_e;
         strcpy(path, SEARCHER::nn_path_e);
     }
 

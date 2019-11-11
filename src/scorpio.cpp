@@ -28,7 +28,6 @@ bool log_on = false;
 int scorpio_start_time;
 bool is_selfplay = false;
 int  PROTOCOL = CONSOLE;
-int wdl_head = 0;
 int win_weight = 100;
 int draw_weight = 100;
 int loss_weight = 100;
@@ -448,7 +447,9 @@ static void print_options() {
     print_spin("nn_type_m",SEARCHER::nn_type_m,-1,10);
     print_spin("nn_man_e",SEARCHER::nn_man_e,0,32);
     print_spin("nn_man_m",SEARCHER::nn_man_m,0,32);
-    print_check("wdl_head",wdl_head);
+    print_check("wdl_head",SEARCHER::wdl_head);
+    print_check("wdl_head_m",SEARCHER::wdl_head_m);
+    print_check("wdl_head_e",SEARCHER::wdl_head_e);
     print_spin("win_weight",win_weight,0,1000);
     print_spin("draw_weight",draw_weight,0,1000);
     print_spin("loss_weight",loss_weight,0,1000);
@@ -575,7 +576,13 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         SEARCHER::nn_man_m = atoi(commands[command_num]);
         command_num++;
     } else if(!strcmp(command, "wdl_head")) {
-        wdl_head = atoi(commands[command_num]);
+        SEARCHER::wdl_head = atoi(commands[command_num]);
+        command_num++;
+    } else if(!strcmp(command, "wdl_head_m")) {
+        SEARCHER::wdl_head_m = atoi(commands[command_num]);
+        command_num++;
+    } else if(!strcmp(command, "wdl_head_e")) {
+        SEARCHER::wdl_head_e = atoi(commands[command_num]);
         command_num++;
     } else if(!strcmp(command, "win_weight")) {
         win_weight = atoi(commands[command_num]);

@@ -1803,10 +1803,13 @@ void SEARCHER::select_net() {
         if(nn_type_e >= 0 ) {
             nn_id = 2;
             nn_type = nn_type_e;
+            wdl_head = wdl_head_e;
         } else {
             nn_id = -nn_type_e - 1;
-            if(nn_id == 1)
+            if(nn_id == 1) {
                 nn_type = nn_type_m;
+                wdl_head = wdl_head_m;
+            }
         }
     } else if(all_man_c <= nn_man_m) {
         cpuct_init = cpuct_init_m;
@@ -1816,10 +1819,13 @@ void SEARCHER::select_net() {
         if(nn_type_m >= 0) {
             nn_id = 1;
             nn_type = nn_type_m;
+            wdl_head = wdl_head_m;
         } else {
             nn_id = -nn_type_m - 1;
-            if(nn_id == 2)
+            if(nn_id == 2) {
                 nn_type = nn_type_e;
+                wdl_head = wdl_head_e;
+            }
         }
     } else {
         nn_id = 0;
