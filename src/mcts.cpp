@@ -392,7 +392,8 @@ Node* Node::Max_AB_select(Node* n, int alpha, int beta, bool try_null,
 
 Node* Node::Random_select(Node* n) {
     Node* current, *bnode = n->child;
-    int count, val;
+    int count;
+    double val;
     std::vector<Node*> node_pt;
     std::vector<int> freq;
 
@@ -404,7 +405,7 @@ Node* Node::Random_select(Node* n) {
             val = current->visits;
             if(n->visits < low_visits_threshold) 
                 val += (low_visits_threshold - n->visits) * current->policy;
-            freq.push_back(val);
+            freq.push_back(1000 * val);
             count++;
         }
         current = current->next;
