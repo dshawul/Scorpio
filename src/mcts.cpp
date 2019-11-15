@@ -1794,6 +1794,11 @@ void SEARCHER::self_play_thread() {
 }
 /*select neural net*/
 void SEARCHER::select_net() {
+    static int nn_type_o = nn_type;
+    static int wdl_head_o = wdl_head;
+    static int cpuct_init_o = cpuct_init;
+    static int cpuct_base_o = cpuct_base;
+
     ensemble = (ensemble_setting > 0) ? 1 : 0;
 
     if(all_man_c <= nn_man_e) {
@@ -1807,7 +1812,10 @@ void SEARCHER::select_net() {
             wdl_head = wdl_head_e;
         } else {
             nn_id = -nn_type_e - 1;
-            if(nn_id == 1) {
+            if(nn_id == 0) { 
+                nn_type = nn_type_o;
+                wdl_head = wdl_head_o;
+            } else if(nn_id == 1) {
                 nn_type = nn_type_m;
                 wdl_head = wdl_head_m;
             }
@@ -1823,13 +1831,21 @@ void SEARCHER::select_net() {
             wdl_head = wdl_head_m;
         } else {
             nn_id = -nn_type_m - 1;
-            if(nn_id == 2) {
+            if(nn_id == 0) { 
+                nn_type = nn_type_o;
+                wdl_head = wdl_head_o;
+            } else if(nn_id == 2) {
                 nn_type = nn_type_e;
                 wdl_head = wdl_head_e;
             }
         }
     } else {
+        cpuct_init = cpuct_init_o;
+        cpuct_base = cpuct_base_o;
+        
         nn_id = 0;
+        nn_type = nn_type_o;
+        wdl_head = wdl_head_o;
     }
 }
 /*
