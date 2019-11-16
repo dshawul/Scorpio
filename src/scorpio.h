@@ -835,6 +835,7 @@ typedef struct SEARCHER{
     void write_input_planes(FILE*);
     int compress_input_planes(float**, char*);
     void select_net();
+    void get_train_data(float&, int&, int*, float*);
     static int egbb_is_loaded;
     static int egbb_load_type;
     static int egbb_depth_limit;

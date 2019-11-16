@@ -1,6 +1,6 @@
 #include "scorpio.h"
 
-#define VERSION "3.0.4"
+#define VERSION "3.0.5"
 
 /*
 all external variables declared here
@@ -963,11 +963,28 @@ bool internal_commands(char** commands,char* command,int& command_num) {
                         else res = 0;
                         if(searcher.player == black) res = -res;
                         if(res == 1)
-                            fprintf(fw, "%s 1-0\n", fen);
+                            fprintf(fw, "%s 1-0 ", fen);
                         else if(res == -1)
-                            fprintf(fw, "%s 0-1\n", fen);
+                            fprintf(fw, "%s 0-1 ", fen);
                         else
-                            fprintf(fw, "%s 1/2-1/2\n", fen);
+                            fprintf(fw, "%s 1/2-1/2 ", fen);
+
+                        if(montecarlo) {
+                            float value;
+                            int nmoves;
+                            int moves[MAX_MOVES];
+                            float probs[MAX_MOVES];
+
+                            main_searcher->get_train_data(value,nmoves,moves,probs);
+
+                            fprintf(fw, "%f %d ", value, nmoves);
+                            for(int i = 0; i < nmoves; i++) {
+                                fprintf(fw, "%d %f ", moves[i], probs[i]);
+                            }
+                        }
+
+                        fprintf(fw,"\n");
+
                     } else {
                         if(!is_cap_prom(move)) {
                             if(!strncmp(words[nwords - 1],"1-0",3))  

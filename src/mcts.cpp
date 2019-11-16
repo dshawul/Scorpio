@@ -1579,6 +1579,23 @@ static FILE* spfile = 0;
 static FILE* spfile2 = 0;
 static int spgames = 0;
 
+#define RAW  0
+
+/*training data structure*/
+typedef struct TRAIN {
+   int   nmoves;
+   float value;
+   int   moves[MAX_MOVES];
+   float probs[MAX_MOVES];
+#if RAW
+   int   piece[33];
+   int   square[33];
+#else
+   char  fen[128];
+#endif
+} *PTRAIN;
+
+/*selfplay with multiple threads*/
 void SEARCHER::self_play_thread_all(FILE* fw, FILE* fw2, int ngames) {
     spfile = fw;
     spfile2 = fw2;
@@ -1603,29 +1620,56 @@ void SEARCHER::self_play_thread_all(FILE* fw, FILE* fw2, int ngames) {
 #endif
 }
 
-typedef struct TRAIN {
-   int   nmoves;
-   float value;
-   int   moves[MAX_MOVES];
-   float probs[MAX_MOVES];
-#if 0
-   int   piece[33];
-   int   square[33];
-#else
-   char  fen[128];
-#endif
-} *PTRAIN;
+/*get training data from search*/
+void SEARCHER::get_train_data(float& value, int& nmoves, int* moves, float* probs) {
+    static const bool average_pi_and_m = false;
+    MOVE move;
 
+    value = logistic(root_node->score);
+    if(player == black) 
+        value = 1 - value;
+    nmoves = stack[0].count;
+    move = stack[0].pv[0];
+
+    double val, total_visits = 0;
+    int cnt = 0, diff = low_visits_threshold - root_node->visits;
+    Node* current = root_node->child;
+    while(current) {
+        val = current->visits;
+        if(diff > 0) 
+            val += diff * current->policy;
+        total_visits += val;
+        moves[cnt] = compute_move_index(current->move, player, 0);
+        probs[cnt] = val;
+        cnt++;
+        current = current->next;
+    }
+    if(average_pi_and_m && diff > 0) {
+        for(int i = 0; i < cnt; i++)
+            probs[i] /= (2 * total_visits);
+        int midx = compute_move_index(move, player, 0);
+        for(int i = 0; i < cnt; i++) {
+            if(midx == moves[i]) {
+                probs[i] += 0.5;
+                break;
+            }
+        }
+    } else {
+        for(int i = 0; i < cnt; i++)
+            probs[i] /= total_visits;
+    }
+}
+
+/*job for selfplay thread*/
 void SEARCHER::self_play_thread() {
     static VOLATILE int wins = 0, losses = 0, draws = 0;
     static const int NPLANE = 8 * 8 * 24;
     static const int NPARAM = 5;
-    static const bool average_pi_and_m = false;
 
     MOVE move;
     int phply = hply;
     PTRAIN trn = new TRAIN[MAX_HSTACK];
-#if 0
+#if RAW
     float* data  = (float*) malloc(sizeof(float) * NPLANE);
     float* adata = (float*) malloc(sizeof(float) * NPARAM);
     float* iplanes[2] = {data, adata};
@@ -1654,7 +1698,7 @@ void SEARCHER::self_play_thread() {
                     ngames);
 
                 /*save training data*/
-#if 0
+#if RAW
                 int vres;
                 if(res == R_WWIN) vres = 0;
                 else if(res == R_BWIN) vres = 1;
@@ -1668,7 +1712,7 @@ void SEARCHER::self_play_thread() {
                     PTRAIN ptrn = &trn[h];
                     PHIST_STACK phst = &hstack[h];
 
-#if 0
+#if RAW
                     int isdraw[1], hist = 1;
                     ::fill_input_planes(pl,phst->castle,phst->fifty,hist,
                         isdraw,ptrn->piece,ptrn->square,data,adata);
@@ -1686,21 +1730,20 @@ void SEARCHER::self_play_thread() {
                     bcount += 4;
 #endif
 
-                    
-#if 1
+#if RAW
+                    int midx = compute_move_index(phst->move, pl);
+                    bcount += sprintf(&buffer[bcount], "%d %d %f 1 ", 
+                        pl, vres, ptrn->value);
+                    bcount += sprintf(&buffer[bcount], "%d 1.0", midx);
+#else
                     bcount += sprintf(&buffer[bcount], " %f %d ", 
                         ptrn->value, ptrn->nmoves);
                     for(int i = 0; i < ptrn->nmoves; i++)
                         bcount += sprintf(&buffer[bcount], "%d %f ", 
                             ptrn->moves[i], ptrn->probs[i]);
-#else
-                    int midx = compute_move_index(phst->move, pl);
-                    bcount += sprintf(&buffer[bcount], "%d %d %f 1 ", 
-                        pl, vres, ptrn->value);
-                    bcount += sprintf(&buffer[bcount], "%d 1.0", midx);
 #endif
 
-#if 0
+#if RAW
                     bcount = compress_input_planes(iplanes, buffer);
 #endif
                     bcount += sprintf(&buffer[bcount], "\n");
@@ -1724,7 +1767,7 @@ void SEARCHER::self_play_thread() {
             if(abort_search) {
                 delete[] trn;
                 delete[] buffer;
-#if 0
+#if RAW
                 delete[] data;
                 delete[] adata;
 #endif
@@ -1739,44 +1782,11 @@ void SEARCHER::self_play_thread() {
             search_mc(true);
             move = stack[0].pv[0];
 
-            /*save training data*/
+            /*get training data*/
             PTRAIN ptrn = &trn[hply];
-            ptrn->value = logistic(root_node->score);
-            if(player == black) 
-                ptrn->value = 1 - ptrn->value;
-            ptrn->nmoves = stack[0].count;
+            get_train_data(ptrn->value, ptrn->nmoves, ptrn->moves, ptrn->probs);
 
-#if 1
-            double val, total_visits = 0;
-            int cnt = 0, diff = low_visits_threshold - root_node->visits;
-            Node* current = root_node->child;
-            while(current) {
-                val = current->visits;
-                if(diff > 0) 
-                    val += diff * current->policy;
-                total_visits += val;
-                ptrn->moves[cnt] = compute_move_index(current->move, player, 0);
-                ptrn->probs[cnt] = val;
-                cnt++;
-                current = current->next;
-            }
-            if(average_pi_and_m && diff > 0) {
-                for(int i = 0; i < cnt; i++)
-                    ptrn->probs[i] /= (2 * total_visits);
-                int midx = compute_move_index(move, player, 0);
-                for(int i = 0; i < cnt; i++) {
-                    if(midx == ptrn->moves[i]) {
-                        ptrn->probs[i] += 0.5;
-                        break;
-                    }
-                }
-            } else {
-                for(int i = 0; i < cnt; i++)
-                    ptrn->probs[i] /= total_visits;
-            }
-#endif
-
-#if 0
+#if RAW
             /*fill piece list*/
             int pcnt = 0;
             fill_list(pcnt,ptrn->piece,ptrn->square);
@@ -1792,7 +1802,8 @@ void SEARCHER::self_play_thread() {
             undo_move();
     }
 }
-/*select neural net*/
+
+/*select neural net and set parameters*/
 void SEARCHER::select_net() {
     static int nn_type_o = nn_type;
     static int wdl_head_o = wdl_head;

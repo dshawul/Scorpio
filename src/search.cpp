@@ -1809,6 +1809,9 @@ MOVE SEARCHER::find_best() {
         print_info("%s\n",fen);
     }
 
+    /*selcet net*/
+    select_net();
+    
     /*generate and score moves*/
     chess_clock.set_stime(hply,true);
     generate_and_score_moves(0,-MATE_SCORE,MATE_SCORE);
@@ -1842,9 +1845,6 @@ MOVE SEARCHER::find_best() {
 #endif
 
     stack[0].pv[0] = pstack->move_st[0];
-
-    /*selcet net*/
-    select_net();
     
     /*
     Iterative deepening
