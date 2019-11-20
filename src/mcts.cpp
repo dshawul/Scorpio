@@ -39,6 +39,7 @@ double frac_abprior = 0.3;
 
 int ensemble = 0;
 static float ensemble_setting = 0;
+int ensemble_type = 0;
 VOLATILE int turn_off_ensemble = 0;
 static VOLATILE int n_terminal = 0;
 
@@ -1698,7 +1699,7 @@ void SEARCHER::self_play_thread() {
                     ngames);
 
                 /*save training data*/
-#if RAW
+#if 0
                 int vres;
                 if(res == R_WWIN) vres = 0;
                 else if(res == R_BWIN) vres = 1;
@@ -1730,7 +1731,7 @@ void SEARCHER::self_play_thread() {
                     bcount += 4;
 #endif
 
-#if RAW
+#if 0
                     int midx = compute_move_index(phst->move, pl);
                     bcount += sprintf(&buffer[bcount], "%d %d %f 1 ", 
                         pl, vres, ptrn->value);
@@ -1897,6 +1898,8 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         reuse_tree = atoi(commands[command_num++]);
     } else if(!strcmp(command, "ensemble")) {
         ensemble_setting = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "ensemble_type")) {
+        ensemble_type = atoi(commands[command_num++]);
     } else if(!strcmp(command, "backup_type")) {
         backup_type_setting = atoi(commands[command_num++]);
     } else if(!strcmp(command, "frac_alphabeta")) {
@@ -1933,6 +1936,7 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
 void print_mcts_params() {
     static const char* backupt[] = {"MINMAX","AVERAGE","MIX","MINMAX_MEM",
         "AVERAGE_MEM","MIX_MEM","CLASSIC","MIX_VISIT"};
+    static const char* ensemblet[] = {"AVERAGE","RMC"};
     print_spin("cpuct_base",cpuct_base,0,100000000);
     print_spin("cpuct_init",int(cpuct_init*100),0,1000);
     print_spin("policy_temp",int(policy_temp*100),0,1000);
@@ -1949,6 +1953,7 @@ void print_mcts_params() {
     print_check("reuse_tree",reuse_tree);
     print_combo("backup_type", backupt, backup_type_setting,8);
     print_spin("ensemble",int(ensemble_setting*100),0,100);
+    print_combo("ensemble_type", ensemblet, ensemble_type,2);
     print_spin("frac_alphabeta",int(frac_alphabeta*100),0,100);
     print_spin("frac_freeze_tree",int(frac_freeze_tree*100),0,100);
     print_spin("frac_abrollouts",int(frac_abrollouts*100),0,100);

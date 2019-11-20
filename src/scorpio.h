@@ -826,7 +826,8 @@ typedef struct SEARCHER{
     void fill_list(int&,int*,int*);
     int probe_bitbases(int&);
     bool bitbase_cutoff();
-    int probe_neural_(bool,float*);
+    void ensemble_net(int,int,float&);
+    float probe_neural_(bool,float*);
     int probe_neural(bool=false);
     void handle_terminal(Node*,bool);
     void self_play_thread();
@@ -1097,6 +1098,7 @@ extern int win_weight;
 extern int draw_weight;
 extern int loss_weight;
 extern int ensemble;
+extern int ensemble_type;
 extern VOLATILE int turn_off_ensemble;
 
 /** search options */

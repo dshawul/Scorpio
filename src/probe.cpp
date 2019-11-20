@@ -300,7 +300,7 @@ void init_input_planes() {
     }
 }
 
-int SEARCHER::probe_neural_(bool hard_probe, float* policy) {
+float SEARCHER::probe_neural_(bool hard_probe, float* policy) {
 #ifdef EGBB
     UBMP64 hkey = ((player == white) ? hash_key : 
              (hash_key ^ UINT64(0x2bc3964f82352234)));
@@ -329,7 +329,7 @@ int SEARCHER::probe_neural_(bool hard_probe, float* policy) {
         float d_ = exp((wdl[1] - minv) * draw_weight / 100.0f);
         float l_ = exp((wdl[2] - minv) * loss_weight / 100.0f);
         float p = (w_ * 1.0 + d_ * 0.5 ) / (w_ + d_ + l_);
-        return logit(p);
+        return p;
     } else {
         if(draw())
             hkey ^= UINT64(0xc7e9153edee38dcb);
@@ -352,34 +352,69 @@ int SEARCHER::probe_neural_(bool hard_probe, float* policy) {
         } else {
             p = (wdl[0] + 1.0) * 0.5;
         }
-        return logit(p);
+        return p;
     }
 #endif
     return 0;
 }
 
 /*ensemble NNs*/
+void SEARCHER::ensemble_net(int id, int type, float& score) {
+    float* tpolicy = all_policy[processor_id];
+    float* policy = (float*)pstack->score_st;
+    float sc;
+
+    nn_id = id;
+    nn_type = type;
+    sc = probe_neural_(true,tpolicy);
+
+    if(ensemble_type == 0) {
+        score += sc; 
+        for(int i = 0; i < pstack->count; i++)
+            policy[i] += tpolicy[i];
+    } else {
+        score += pow(sc - 0.5, 3.0);
+        for(int i = 0; i < pstack->count; i++)
+            policy[i] += pow(tpolicy[i], 3.0);
+    }
+}
 int SEARCHER::probe_neural(bool hard_probe) {
     float* policy = (float*)pstack->score_st;
-    float* tpolicy = all_policy[processor_id];
-    int score, s_nn_type = nn_type;
+    float score;
 
     if(ensemble) {
-        score = probe_neural_(true,policy);
+        int s_nn_type = nn_type, nensemble;
+        
+        //zero
+        nensemble = 0;
+        score = 0;
+        memset(policy,0,sizeof(int) * pstack->count);
+
+        //ensemble nets
+        ensemble_net(0,nn_type,score);
+        nensemble++;
+
         if(nn_type_m >= DEFAULT) {
-            nn_id = 1;
-            nn_type = nn_type_m;
-            score += (probe_neural_(true,tpolicy) - score) / 2;
-            for(int i = 0; i < pstack->count; i++)
-                policy[i] += (tpolicy[i] - policy[i]) / 2;
+            ensemble_net(1,nn_type_m,score);
+            nensemble++;
         }
         if(nn_type_e >= DEFAULT) {
-            nn_id = 2;
-            nn_type = nn_type_e;
-            score += (probe_neural_(true,tpolicy) - score) / 3;
-            for(int i = 0; i < pstack->count; i++)
-                policy[i] += (tpolicy[i] - policy[i]) / 3;
+            ensemble_net(2,nn_type_e,score);
+            nensemble++;
         }
+
+        //average
+        float iensemble = 1.0 / nensemble;
+        if(ensemble_type == 0) {
+            score *= iensemble;
+            for(int i = 0; i < pstack->count; i++)
+                policy[i] *= iensemble;
+        } else {
+            score = 0.5 + pow(score * iensemble, 1.0 / 3);
+            for(int i = 0; i < pstack->count; i++)
+                policy[i] = pow(policy[i] * iensemble, 1.0 / 3);
+        }
+
         nn_type = s_nn_type;
         nn_id = 0;
         if(turn_off_ensemble) ensemble = 0;
@@ -387,7 +422,7 @@ int SEARCHER::probe_neural(bool hard_probe) {
         score = probe_neural_(hard_probe,policy);
     }
 
-    return score;
+    return logit(score);
 }
 
 #ifdef PARALLEL
