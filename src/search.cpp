@@ -1977,6 +1977,5 @@ void print_search_params() {
     print_check("use_probcut",use_probcut);
     print_spin("singular_margin",singular_margin,0,1000);
     print_spin("probcut_margin",probcut_margin,0,1000);
-    print_spin("aspiration_window",aspiration_window,0,100);
     print_spin("contempt",contempt,0,100);
 }

@@ -425,7 +425,7 @@ static void print_options() {
     print_check("log",log_on);
     print_button("clear_hash");
     print_spin("resign",SEARCHER::resign_value,100,30000);
-    print_spin("cores",1,1,MAX_CPUS);
+    print_spin("mt",PROCESSOR::n_processors,1,MAX_CPUS);
     print_spin("ht",ht,1,131072);
     print_spin("eht",eht,1,16384);
     print_spin("pht",pht,1,256);
@@ -488,18 +488,21 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         */
     } else if(!strcmp(command,"mt") || !strcmp(command,"cores") || !strcmp(command,"Threads") ) {
 #ifdef PARALLEL
-        int mt;
-        if(!strcmp(commands[command_num],"auto"))
-            mt = get_number_of_cpus();
-        else if(!strncmp(commands[command_num],"auto-",5)) {
-            int r = atoi(&commands[command_num][5]);
-            mt = get_number_of_cpus() - r;
-        } else
-            mt = atoi(commands[command_num]);
-        mt = MIN(mt, MAX_CPUS);
-        init_smp(mt);
-        print("processors [%d]\n",PROCESSOR::n_processors);
-        PROCESSOR::n_cores = MIN(PROCESSOR::n_cores,PROCESSOR::n_processors);
+        if(strcmp(command,"mt") && montecarlo && SEARCHER::use_nn);
+        else {
+            int mt;
+            if(!strcmp(commands[command_num],"auto"))
+                mt = get_number_of_cpus();
+            else if(!strncmp(commands[command_num],"auto-",5)) {
+                int r = atoi(&commands[command_num][5]);
+                mt = get_number_of_cpus() - r;
+            } else
+                mt = atoi(commands[command_num]);
+            mt = MIN(mt, MAX_CPUS);
+            init_smp(mt);
+            print("processors [%d]\n",PROCESSOR::n_processors);
+            PROCESSOR::n_cores = MIN(PROCESSOR::n_cores,PROCESSOR::n_processors);
+        }
 #endif
         command_num++;
         /*
