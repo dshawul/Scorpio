@@ -379,6 +379,12 @@ static const char *const commands_recognized[] = {
 /*
 Engine options
 */
+int is_checked(const char* str) {
+    if(!strcmp(str,"on") || !strcmp(str,"true") || !strcmp(str,"1"))
+       return 1;
+    else
+       return 0;
+}
 void print_spin(const char* name, int def, int min, int max) {
     if(PROTOCOL == UCI)
         print("option name %s type spin default %d min %d max %d\n", name, def, min, max);
@@ -389,7 +395,7 @@ void print_check(const char* name, int def) {
     if(PROTOCOL == UCI)
         print("option name %s type check default %s\n", name, def ? "true" : "false");
     else
-        print("feature option=\"%s -check %d \"\n", name, def);
+        print("feature option=\"%s -check %d\"\n", name, def);
 }
 void print_button(const char* name) {
     if(PROTOCOL == UCI)
@@ -579,13 +585,13 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         SEARCHER::nn_man_m = atoi(commands[command_num]);
         command_num++;
     } else if(!strcmp(command, "wdl_head")) {
-        SEARCHER::wdl_head = atoi(commands[command_num]);
+        SEARCHER::wdl_head = is_checked(commands[command_num]);
         command_num++;
     } else if(!strcmp(command, "wdl_head_m")) {
-        SEARCHER::wdl_head_m = atoi(commands[command_num]);
+        SEARCHER::wdl_head_m = is_checked(commands[command_num]);
         command_num++;
     } else if(!strcmp(command, "wdl_head_e")) {
-        SEARCHER::wdl_head_e = atoi(commands[command_num]);
+        SEARCHER::wdl_head_e = is_checked(commands[command_num]);
         command_num++;
     } else if(!strcmp(command, "win_weight")) {
         win_weight = atoi(commands[command_num]);
@@ -653,8 +659,7 @@ bool internal_commands(char** commands,char* command,int& command_num) {
 #endif
 #ifdef LOG_FILE
     } else if (!strcmp(command, "log")) {
-        if(!strcmp(commands[command_num],"on") ||
-            !strcmp(commands[command_num],"1"))
+        if(is_checked(commands[command_num]))
             log_on = true;
         else
             log_on = false;

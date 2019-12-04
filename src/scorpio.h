@@ -1171,6 +1171,7 @@ void print_check(const char* name, int def);
 void print_button(const char* name);
 void print_path(const char* name, const char* path);
 void print_combo(const char* name, const char** combo, int def, int N);
+int is_checked(const char*);
 /*
 Bitbases
 */

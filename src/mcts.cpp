@@ -1885,7 +1885,7 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
     } else if(!strcmp(command, "fpu_red")) {
         fpu_red = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "fpu_is_loss")) {
-        fpu_is_loss = atoi(commands[command_num++]);
+        fpu_is_loss = is_checked(commands[command_num++]);
     } else if(!strcmp(command, "noise_alpha")) {
         noise_alpha = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "noise_beta")) {
@@ -1895,7 +1895,7 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
     } else if(!strcmp(command, "noise_ply")) {
         noise_ply = atoi(commands[command_num++]);
     } else if(!strcmp(command, "reuse_tree")) {
-        reuse_tree = atoi(commands[command_num++]);
+        reuse_tree = is_checked(commands[command_num++]);
     } else if(!strcmp(command, "ensemble")) {
         ensemble_setting = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "ensemble_type")) {
@@ -1921,7 +1921,7 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
     } else if(!strcmp(command, "visit_threshold")) {
         visit_threshold = atoi(commands[command_num++]);
     } else if(!strcmp(command, "montecarlo")) {
-        montecarlo = atoi(commands[command_num++]);
+        montecarlo = is_checked(commands[command_num++]);
     } else if(!strcmp(command, "treeht")) {
         UBMP32 ht = atoi(commands[command_num++]);
         UBMP32 size = ht * (double(1024 * 1024) / node_size);

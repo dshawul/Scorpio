@@ -1909,9 +1909,9 @@ void SEARCHER::print_status() {
 */
 bool check_search_params(char** commands,char* command,int& command_num) {
     if(!strcmp(command, "use_singular")) {
-        use_singular = atoi(commands[command_num++]);
+        use_singular = is_checked(commands[command_num++]);
     } else if(!strcmp(command, "use_probcut")) {
-        use_probcut = atoi(commands[command_num++]);
+        use_probcut = is_checked(commands[command_num++]);
     } else if(!strcmp(command, "singular_margin")) {
         singular_margin = atoi(commands[command_num++]);
     } else if(!strcmp(command, "probcut_margin")) {
