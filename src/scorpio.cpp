@@ -324,7 +324,8 @@ static const char *const commands_recognized[] = {
     "egbb_cache_size -- Set the egbb (endgame bitbase) cache size in megabytes.",
     "egbb_load_type -- Set the egbb load type:\n\t 0 = none\n\t 1 = all 3/4 men\n"
     "\t 2 = selective loading of 5 men (not implemented yet)\n\t 3 = all 5 men",
-    "egbb_path -- Set the egbb path.",
+    "egbb_path -- The path to egbbdll.so/dll file.",
+    "egbb_files_path -- The path to the actual endgame tablebase files.",
     "eht -- Set evaluation hash table size in megabytes.",
     "exit -- Leave analysis mode.",
     "force -- Set the engine to play neither color ('force mode'). Stop clocks.",
@@ -436,6 +437,7 @@ static void print_options() {
     print_spin("eht",eht,1,16384);
     print_spin("pht",pht,1,256);
     print_path("egbb_path",SEARCHER::egbb_path);
+    print_path("egbb_files_path",SEARCHER::egbb_files_path);
     print_path("nn_path",SEARCHER::nn_path);
     print_path("nn_path_e",SEARCHER::nn_path_e);
     print_path("nn_path_m",SEARCHER::nn_path_m);
@@ -518,6 +520,11 @@ bool internal_commands(char** commands,char* command,int& command_num) {
     } else if(!strcmp(command, "egbb_path")) {
         egbb_setting_changed = true;
         strcpy(SEARCHER::egbb_path,commands[command_num]);
+        strcpy(SEARCHER::egbb_files_path,SEARCHER::egbb_path);
+        command_num++;
+    } else if(!strcmp(command, "egbb_files_path")) {
+        egbb_setting_changed = true;
+        strcpy(SEARCHER::egbb_files_path,commands[command_num]);
         command_num++;
     } else if(!strcmp(command, "egbb_cache_size")) {
         egbb_setting_changed = true;

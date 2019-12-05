@@ -53,6 +53,7 @@ int SEARCHER::egbb_ply_limit_percent = 75;
 int SEARCHER::egbb_ply_limit;
 int SEARCHER::egbb_cache_size = 16;
 char SEARCHER::egbb_path[MAX_STR] = "egbb/";
+char SEARCHER::egbb_files_path[MAX_STR] = "egbb/";
 char SEARCHER::nn_path[MAX_STR]   = "../nets-scorpio/net-6x64.pb";
 char SEARCHER::nn_path_e[MAX_STR] = "../nets-scorpio/net-6x64.pb";
 char SEARCHER::nn_path_m[MAX_STR] = "../nets-scorpio/net-6x64.pb";
@@ -149,12 +150,7 @@ static void load_net(int id, int nn_cache_size, PLOAD_NN load_nn) {
         SEARCHER::float_type, SEARCHER::delay,id);
 };
 
-void LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
-#ifdef EGBB
-    static HMODULE hmod = 0;
-    PLOAD_EGBB load_egbb;
-    PLOAD_NN load_nn;
-    char path[256];
+static void clean_path(char* main_path) {
     size_t plen = strlen(main_path);
     if (plen) {
         char terminator = main_path[plen - 1];
@@ -165,6 +161,14 @@ void LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
                 strcat(main_path, "/");
         }
     }
+}
+void LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
+#ifdef EGBB
+    static HMODULE hmod = 0;
+    PLOAD_EGBB load_egbb;
+    PLOAD_NN load_nn;
+    char path[256];
+    clean_path(main_path);
     strcpy(path,main_path);
     strcat(path,EGBB_NAME);
     if(hmod) FreeLibrary(hmod);
@@ -177,7 +181,8 @@ void LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
             (PSET_NUM_ACTIVE_SEARCHERS) GetProcAddress(hmod,"set_num_active_searchers");
 
         if(load_egbb) {
-            load_egbb(main_path,egbb_cache_size,SEARCHER::egbb_load_type);
+            clean_path(SEARCHER::egbb_files_path);
+            load_egbb(SEARCHER::egbb_files_path,egbb_cache_size,SEARCHER::egbb_load_type);
             SEARCHER::egbb_is_loaded = 1;
         }
         if(load_nn && SEARCHER::use_nn) {

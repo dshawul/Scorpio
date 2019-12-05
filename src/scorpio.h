@@ -844,6 +844,7 @@ typedef struct SEARCHER{
     static int egbb_ply_limit;
     static int egbb_cache_size;
     static char egbb_path[MAX_STR];
+    static char egbb_files_path[MAX_STR];
     static char nn_path[MAX_STR];
     static char nn_path_e[MAX_STR];
     static char nn_path_m[MAX_STR];
