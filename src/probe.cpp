@@ -187,7 +187,8 @@ void LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
         }
         if(load_nn && SEARCHER::use_nn) {
 
-            load_net(0,nn_cache_size,load_nn);
+            if(SEARCHER::nn_type >= DEFAULT)
+                load_net(0,nn_cache_size,load_nn);
             if(SEARCHER::nn_type_m >= DEFAULT)
                 load_net(1,nn_cache_size,load_nn);
             if(SEARCHER::nn_type_e >= DEFAULT)
@@ -290,6 +291,8 @@ static float* all_policy[MAX_CPUS];
 static float all_wdl[MAX_CPUS][3];
 
 void init_input_planes() {
+    static bool init_done = false;
+    if(init_done) return;
     float* planes = 0;
     unsigned short* index = 0;
     float* policy = 0;
@@ -303,6 +306,7 @@ void init_input_planes() {
         all_pindex[i] = index + i * MAX_MOVES;
         all_policy[i] = policy + i * MAX_MOVES;
     }
+    init_done = true;
 }
 
 float SEARCHER::probe_neural_(bool hard_probe, float* policy) {
@@ -849,6 +853,7 @@ void SEARCHER::fill_input_planes(float** iplanes) {
 Write input planes to file
 */
 void SEARCHER::write_input_planes(FILE* file) {
+    init_input_planes();
 
     float* iplanes[2] = {0, 0};
     fill_input_planes(iplanes);
