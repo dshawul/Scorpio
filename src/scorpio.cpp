@@ -408,20 +408,20 @@ void print_path(const char* name, const char* path) {
     if(PROTOCOL == UCI)
         print("option name %s type string default %s\n", name, path);
     else
-        print("feature option=\"%s -path %s \"\n", name, path);
+        print("feature option=\"%s -path %s\"\n", name, path);
 }
 void print_combo(const char* name, const char* combo[], int def, int N) {
     if(PROTOCOL == UCI) {
-        print("option name %s type combo default %s ", name, combo[def]);
+        print("option name %s type combo default %s", name, combo[def]);
         for(int i = 0; i < N; i++)
-            print("var %s ",combo[i]);
+            print(" var %s",combo[i]);
         print("\n");
     } else {
-        print("feature option=\"%s -combo ", name, combo);
+        print("feature option=\"%s -combo", name);
         for(int i = 0; i < N; i++) {
-            if(i == def) print("*%s ",combo[i]);
-            else print("%s ",combo[i]);
-            if(i < N - 1) print("/// ");
+            if(i == def) print(" *%s",combo[i]);
+            else print(" %s",combo[i]);
+            if(i < N - 1) print(" ///");
         }
         print("\"\n");
     }
