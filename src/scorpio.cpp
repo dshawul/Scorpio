@@ -28,9 +28,6 @@ bool log_on = false;
 int scorpio_start_time;
 bool is_selfplay = false;
 int  PROTOCOL = CONSOLE;
-int win_weight = 100;
-int draw_weight = 100;
-int loss_weight = 100;
 
 /*
 parallel search
@@ -500,16 +497,15 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         else {
             int mt;
             if(!strcmp(commands[command_num],"auto"))
-                mt = get_number_of_cpus();
+                mt = PROCESSOR::n_cores;
             else if(!strncmp(commands[command_num],"auto-",5)) {
                 int r = atoi(&commands[command_num][5]);
-                mt = get_number_of_cpus() - r;
+                mt = PROCESSOR::n_cores - r;
             } else
                 mt = atoi(commands[command_num]);
             mt = MIN(mt, MAX_CPUS);
             init_smp(mt);
             print("processors [%d]\n",PROCESSOR::n_processors);
-            PROCESSOR::n_cores = MIN(PROCESSOR::n_cores,PROCESSOR::n_processors);
         }
 #endif
         command_num++;
@@ -1113,10 +1109,10 @@ int xboard_commands(char** commands,char* command,int& command_num,int& do_searc
         print("feature smp=0 memory=0 debug=1\n");
         print_options();
         print_search_params();
-        print_mcts_params();
 #ifdef TUNE
         print_eval_params();
 #endif
+        print_mcts_params();
         print("feature done=1\n");
         command_num++;
     } else if (!strcmp(command, "computer")
@@ -1464,11 +1460,6 @@ bool parse_commands(char** commands) {
         */
         do_search = false;
         if(internal_commands(commands,command,command_num)) {
-        } else if(check_search_params(commands,command,command_num)) {
-        } else if(check_mcts_params(commands,command,command_num)) {
-#ifdef TUNE
-        } else if(check_eval_params(commands,command,command_num)) {
-#endif
         } else {
             int ret = 0;
             if(PROTOCOL == XBOARD || PROTOCOL == CONSOLE) 

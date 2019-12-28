@@ -406,6 +406,8 @@ Node* Node::Random_select(Node* n) {
             val = current->visits;
             if(n->visits < low_visits_threshold) 
                 val += (low_visits_threshold - n->visits) * current->policy;
+            else
+                val++;
             freq.push_back(1000 * val);
             count++;
         }
@@ -445,6 +447,8 @@ Node* Node::Best_select(Node* n, bool has_ab) {
                     val = current->visits;
                     if(n->visits < low_visits_threshold) 
                         val += (low_visits_threshold - n->visits) * current->policy;
+                    else
+                        val++;
                 } else {
                     if(current->visits)
                         val = logistic(-current->score);
@@ -1639,6 +1643,8 @@ void SEARCHER::get_train_data(float& value, int& nmoves, int* moves, float* prob
         val = current->visits;
         if(diff > 0) 
             val += diff * current->policy;
+        else
+            val++;
         total_visits += val;
         moves[cnt] = compute_move_index(current->move, player, 0);
         probs[cnt] = val;
@@ -1934,9 +1940,6 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
     return true;
 }
 void print_mcts_params() {
-    static const char* backupt[] = {"MINMAX","AVERAGE","MIX","MINMAX_MEM",
-        "AVERAGE_MEM","MIX_MEM","CLASSIC","MIX_VISIT"};
-    static const char* ensemblet[] = {"AVERAGE","RMC"};
     print_spin("cpuct_base",cpuct_base,0,100000000);
     print_spin("cpuct_init",int(cpuct_init*100),0,1000);
     print_spin("policy_temp",int(policy_temp*100),0,1000);
@@ -1951,9 +1954,9 @@ void print_mcts_params() {
     print_spin("fpu_red",int(fpu_red*100),-1000,1000);
     print_check("fpu_is_loss",fpu_is_loss);
     print_check("reuse_tree",reuse_tree);
-    print_combo("backup_type", backupt, backup_type_setting,8);
+    print_spin("backup_type",backup_type_setting,0,7);
     print_spin("ensemble",int(ensemble_setting*100),0,100);
-    print_combo("ensemble_type", ensemblet, ensemble_type,2);
+    print_spin("ensemble_type",ensemble_type,0,1);
     print_spin("frac_alphabeta",int(frac_alphabeta*100),0,100);
     print_spin("frac_freeze_tree",int(frac_freeze_tree*100),0,100);
     print_spin("frac_abrollouts",int(frac_abrollouts*100),0,100);
