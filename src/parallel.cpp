@@ -547,10 +547,7 @@ void PROCESSOR::idle_loop() {
     bool skip_message = ((this != processors[0]) || (n_hosts == 1));
     do {
         if(state == PARK) {
-            if(SEARCHER::use_nn) 
-                t_sleep(30);
-            else
-                t_sleep(1);
+            t_sleep(30);
         } else if(state == WAIT) {
             t_yield();
             if(SEARCHER::use_nn) 

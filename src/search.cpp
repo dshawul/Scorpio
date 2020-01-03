@@ -6,6 +6,7 @@ static int use_singular = 1;
 static int singular_margin = 32;
 static int probcut_margin = 195;
 static int prev_pv_length;
+static int alphabeta_man_c = 6;
 int qsearch_level = 0;
 
 /* search options */
@@ -1166,8 +1167,10 @@ void SEARCHER::search() {
             /*attach helper processor here once*/
             l_lock(lock_smp);
             for(int i = 1;i < PROCESSOR::n_processors;i++) {
-                attach_processor(i);
-                processors[i]->state = GO;
+                if(processors[i]->state == WAIT) {
+                    attach_processor(i);
+                    processors[i]->state = GO;
+                }
             }
             l_unlock(lock_smp);
 
@@ -1189,11 +1192,13 @@ void SEARCHER::search() {
         if(use_abdada_smp) {
             l_lock(lock_smp);
             for(int i = 1;i < PROCESSOR::n_processors;i++) {
-                attach_processor(i);
-                PSEARCHER sb = processors[i]->searcher;
-                memcpy(&sb->pstack->move_st[0],&pstack->move_st[0], 
-                    pstack->count * sizeof(MOVE));
-                processors[i]->state = GO;
+                if(processors[i]->state == WAIT) {
+                    attach_processor(i);
+                    PSEARCHER sb = processors[i]->searcher;
+                    memcpy(&sb->pstack->move_st[0],&pstack->move_st[0], 
+                        pstack->count * sizeof(MOVE));
+                    processors[i]->state = GO;
+                }
             }
             l_unlock(lock_smp);
         }
@@ -1863,7 +1868,23 @@ MOVE SEARCHER::find_best() {
         processors[i]->state = WAIT;
 #endif
 
+    /*switch to alphabeta for <= 6 pieces*/
+    int save_montecarlo = montecarlo;
+    int save_use_nn = use_nn;
+    if(all_man_c <= alphabeta_man_c) {
+        montecarlo = 0;
+        use_nn = 0;
+#ifdef PARALLEL
+        for(int i = PROCESSOR::n_cores;i < PROCESSOR::n_processors;i++)
+            processors[i]->state = PARK;
+#endif
+    }
+
     bmove = iterative_deepening();
+
+    /*undo switch*/
+    montecarlo = save_montecarlo;
+    use_nn = save_use_nn;
 
 #ifdef PARALLEL
     /*park threads*/
@@ -1921,6 +1942,8 @@ bool check_search_params(char** commands,char* command,int& command_num) {
         singular_margin = atoi(commands[command_num++]);
     } else if(!strcmp(command, "probcut_margin")) {
         probcut_margin = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "alphabeta_man_c")) {
+        alphabeta_man_c = atoi(commands[command_num++]);
 #ifdef TUNE
     } else if(!strncmp(command, "futility_margin",15)) {
         futility_margin[atoi(&command[15])] = atoi(commands[command_num++]);
@@ -1983,4 +2006,5 @@ void print_search_params() {
     print_spin("singular_margin",singular_margin,0,1000);
     print_spin("probcut_margin",probcut_margin,0,1000);
     print_spin("contempt",contempt,0,100);
+    print_spin("alphabeta_man_c",alphabeta_man_c,0,32);
 }
