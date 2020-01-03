@@ -1540,6 +1540,7 @@ END:
         move = pstack->move_st[pstack->current_index];
 
         if(in_check(move)) {
+            pstack->score_st[pstack->current_index] = -MAX_NUMBER;
             pstack->current_index++;
             goto DO_AGAIN;
         }

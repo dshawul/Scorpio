@@ -50,8 +50,8 @@ bool SEARCHER::hash_cutoff() {
     /*abdada*/
     bool exclusiveP = false;
 #ifdef PARALLEL
-    if(!montecarlo && (use_abdada_smp == 1)
-        && DEPTH((pstack - 1)->depth) > PROCESSOR::SMP_SPLIT_DEPTH  
+    if(!montecarlo && (use_abdada_smp == 1) && ply > 1
+        && DEPTH((pstack - 1)->depth) > PROCESSOR::SMP_SPLIT_DEPTH
         && !(pstack - 1)->second_pass
         && (pstack - 1)->legal_moves > 1
         ) {
@@ -72,7 +72,7 @@ bool SEARCHER::hash_cutoff() {
             return true;
         } else if(pstack->hash_flags == HASH_HIT) {
             /*we had a hit and replaced the flag with load of CRAP (depth=255)*/
-        } else {
+        } else if(pstack->hash_flags == UNKNOWN) {
             /*store new crap*/
             RECORD_HASH(player,hash_key,255,0,CRAP,0,0,0,0);
         }
@@ -651,7 +651,7 @@ START:
                                 ) {
                                     sb->pstack->legal_moves++;
                                     continue;
-                            }
+			    }
 #endif
                         }
 
@@ -862,6 +862,17 @@ IDLE_START:
             sb->POP_NULL();
             break;
         case NORMAL_MOVE:
+#ifdef PARALLEL
+            /*remeber skipped moves*/
+            if((use_abdada_smp == 1)
+                && score == -SKIP_SCORE
+                ) {
+                sb->POP_MOVE();
+                sb->pstack->all_done = false;
+                sb->pstack->score_st[sb->pstack->current_index - 1] = score;
+                continue;
+            }
+#endif
             /*research with full depth*/
             if(sb->pstack->reduction > 0
                 && score > (sb->pstack - 1)->alpha
@@ -908,16 +919,6 @@ IDLE_START:
             break;
         case NORMAL_MOVE:
             move = sb->pstack->current_move;
-#ifdef PARALLEL
-            /*remeber skipped moves*/
-            if((use_abdada_smp == 1)
-                && score == -SKIP_SCORE
-                ) {
-                sb->pstack->all_done = false;
-                sb->pstack->score_st[sb->pstack->current_index - 1] = score;
-                break;
-            }
-#endif
             /*update best move at root and non-root nodes differently*/
             if(!sb->ply && !montecarlo) {
 
@@ -1033,6 +1034,8 @@ SPECIAL:
         sb->pstack->best_score = -MATE_SCORE;
         sb->pstack->best_move = 0;
         sb->pstack->pv_length = sb->ply;
+        sb->pstack->all_done = true;
+        sb->pstack->second_pass = false;
     }
 }
 /*
@@ -1338,6 +1341,8 @@ MOVE SEARCHER::iterative_deepening() {
     pstack->search_state = NORMAL_MOVE;
     pstack->extension = 0;
     pstack->reduction = 0;
+    pstack->all_done = true;
+    pstack->second_pass = false;
 
     /*easy move*/
     if(!montecarlo && !use_nn
