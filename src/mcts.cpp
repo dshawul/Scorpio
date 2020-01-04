@@ -1616,6 +1616,7 @@ void SEARCHER::self_play_thread_all(FILE* fw, FILE* fw2, int ngames) {
     l_unlock(lock_smp);
 
     /*montecarlo search*/
+    t_sleep(30);
     self_play_thread();
 
     /*wait till all helpers become idle*/

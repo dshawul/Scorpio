@@ -1489,6 +1489,7 @@ MOVE SEARCHER::iterative_deepening() {
 #ifdef PARALLEL
             for(int i = PROCESSOR::n_cores;i < PROCESSOR::n_processors;i++)
                 processors[i]->state = WAIT;
+            t_sleep(30);
 #endif
         }
 
@@ -1866,6 +1867,7 @@ MOVE SEARCHER::find_best() {
     /*wakeup threads*/
     for(int i = 1;i < PROCESSOR::n_processors;i++)
         processors[i]->state = WAIT;
+    t_sleep(30);
 #endif
 
     /*switch to alphabeta for <= 6 pieces*/
