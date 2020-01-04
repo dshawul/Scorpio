@@ -171,14 +171,16 @@ static void reset_eht() {
     while(2 * size <= size_max) size *= 2;
     for(int i = 0;i < PROCESSOR::n_processors;i++) 
         processors[i]->reset_eval_hash_tab(size);
-    print("eht %d X %d = %.1f MB\n",size,sizeof(EVALHASH),(2 * size * sizeof(EVALHASH)) / double(1024 * 1024));
+    print("eht %d X %d X %d = %.1f MB\n",size,sizeof(EVALHASH),PROCESSOR::n_processors,
+        PROCESSOR::n_processors * (2 * size * sizeof(EVALHASH)) / double(1024 * 1024));
 }
 static void reset_pht() {
     UBMP32 size = 1,size_max = pht * ((1024 * 1024) / (sizeof(PAWNHASH)));
     while(2 * size <= size_max) size *= 2;
     for(int i = 0;i < PROCESSOR::n_processors;i++) 
         processors[i]->reset_pawn_hash_tab(size);
-    print("pht %d X %d = %.1f MB\n",size,sizeof(PAWNHASH),(size * sizeof(PAWNHASH)) / double(1024 * 1024));
+    print("pht %d X %d X %d = %.1f MB\n",size,sizeof(PAWNHASH),PROCESSOR::n_processors,
+        PROCESSOR::n_processors * (size * sizeof(PAWNHASH)) / double(1024 * 1024));
 }
 /*
 main
