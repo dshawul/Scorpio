@@ -190,7 +190,7 @@ echo "Generating calibrate.dat"
 CALL %EXE% use_nn 0 nn_type %nn_type_m% runinpnn calibrate.epd calibrate.dat quit
 )
 echo "Running with midgame net"
-CALL %EXE% nn_type -1 nn_type_e -1 setboard 1r1q2k1/5pp1/2p4p/4p3/1PPpP2P/Q1n3P1/1R3PB1/6K1 w - - 5 24 go quit
+CALL %EXE% nn_type_e -1 setboard 1r1q2k1/5pp1/2p4p/4p3/1PPpP2P/Q1n3P1/1R3PB1/6K1 w - - 5 24 go quit
 )
 
 REM ----------
@@ -200,5 +200,5 @@ echo "Generating calibrate.dat"
 CALL %EXE% use_nn 0 nn_type %nn_type_e% runinpnn calibrate.epd calibrate.dat quit
 )
 echo "Running with endgame net"
-CALL %EXE% nn_type -1 nn_type_m -1 setboard 6k1/2b2p1p/ppP3p1/4p3/PP1B4/5PP1/7P/7K w - - go quit
+CALL %EXE% nn_type_m -1 setboard 6k1/2b2p1p/ppP3p1/4p3/PP1B4/5PP1/7P/7K w - - go quit
 )
