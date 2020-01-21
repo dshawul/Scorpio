@@ -751,7 +751,7 @@ void SEARCHER::set_board(const char* fen_str) {
         if(move_number <= 0) move_number = 1;
     } else {
         fifty = 0;
-        move_number = 1;
+        move_number = 5;
     }
     hply = 2 * (move_number - 1) + (player == black);
 

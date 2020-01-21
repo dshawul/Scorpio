@@ -840,7 +840,8 @@ void SEARCHER::fill_input_planes(float** iplanes) {
 
             if(hply > 0 && hstack[hply - 1].move) 
                 POP_MOVE();
-            else break;
+            else if(hply == 0)
+                break;
         }
 
         count = phply - hply;
