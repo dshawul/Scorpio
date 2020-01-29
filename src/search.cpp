@@ -80,6 +80,15 @@ bool SEARCHER::hash_cutoff() {
     }
 #endif
 
+#if 1
+    /*legality checking*/
+    if(pstack->hash_move
+        && !is_legal_fast(pstack->hash_move)
+        ) {
+        pstack->hash_move = 0;
+    }
+#endif
+
     /*cutoff*/
     if(pstack->singular && pstack->hash_flags != HASH_GOOD)
         pstack->singular = 0;
