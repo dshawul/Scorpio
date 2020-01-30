@@ -108,10 +108,9 @@ bool SEARCHER::hash_cutoff() {
     return false;
 }
 FORCEINLINE int SEARCHER::on_node_entry() {
+    
     /*qsearch?*/
-    prefetch_tt();
     if(pstack->depth <= 0) {
-        prefetch_qtt();
         if(qsearch_level < 0)
             pstack->qcheck_depth = 0;
         else if(pstack->node_type == PV_NODE) 
@@ -121,6 +120,9 @@ FORCEINLINE int SEARCHER::on_node_entry() {
         qsearch_nn();
         return true;
     }
+
+    /*prefetch*/
+    prefetch_tt();
 
     /*razoring & static pruning*/
     if(use_selective
@@ -158,8 +160,6 @@ FORCEINLINE int SEARCHER::on_node_entry() {
     }
 
     /*initialize node*/
-    nodes++;
-
     pstack->gen_status = GEN_START;
     pstack->flag = UPPER;
     pstack->pv_length = ply;
@@ -243,10 +243,11 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 FORCEINLINE int SEARCHER::on_qnode_entry() {
     int score;
 
-    /*initialize node*/
-    nodes++;
-    qnodes++;
+    /*prefetch*/
+    prefetch_tt();
+    prefetch_qtt();
 
+    /*initialize node*/
     pstack->gen_status = GEN_START;
     pstack->pv_length = ply;
     pstack->best_score = -MATE_SCORE;
@@ -680,6 +681,7 @@ START:
                     * play the move
                     */
                     sb->PUSH_MOVE(sb->pstack->current_move);
+                    sb->nodes++;
 
                     /*set next ply's depth and be selective*/           
                     sb->pstack->depth = (sb->pstack - 1)->depth - UNITDEPTH;
@@ -1084,6 +1086,8 @@ void SEARCHER::qsearch() {
             pstack->legal_moves++;
 
             PUSH_MOVE(pstack->current_move);
+            nodes++;
+            qnodes++;
 
             /*next ply's window and depth*/ 
             pstack->alpha = -(pstack - 1)->beta;
@@ -1249,6 +1253,8 @@ void SEARCHER::evaluate_moves(int depth, int alpha, int beta) {
     for(int i = 0;i < pstack->count; i++) {
         pstack->current_move = pstack->move_st[i];
         PUSH_MOVE(pstack->current_move);
+        nodes++;
+        if(depth <= 0) qnodes++;
         alpha = -MATE_SCORE;
         beta = MATE_SCORE;
         
