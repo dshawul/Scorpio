@@ -704,7 +704,7 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         UBMP64 nodes = searcher.perft(depth);
         end = clock();
         print("\nnodes " FMT64 "\n",nodes);
-        print("time %.2f sec\n",(end - start) / 1000.0f);
+        print("time %.2f sec\n",(double)(end - start) / CLOCKS_PER_SEC);
     } else if(!strcmp(command,"score")) {
         int score;
         if(SEARCHER::egbb_is_loaded && searcher.all_man_c <= MAX_EGBB) {
