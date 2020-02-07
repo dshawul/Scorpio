@@ -206,6 +206,6 @@ echo "Generating calibrate.dat"
 $exep/$EXE use_nn 0 nn_type ${nn_type_e} runinpnn calibrate.epd calibrate.dat quit
 fi
 echo "Running with endgame net"
-$exep/$EXE nn_type_m -1 setboard 6k1/2b2p1p/ppP3p1/4p3/PP1B4/5PP1/7P/7K w - - go quit
+$exep/$EXE nn_type_m -1 setboard 6k1/5R2/1p5p/p1b3p1/6P1/8/r6P/5R1K w - - 2 38 go quit
 fi
 
