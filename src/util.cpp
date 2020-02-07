@@ -1570,9 +1570,13 @@ static int compare(const void * a, const void * b) {
 /*
 PGN to epd
 */
-bool SEARCHER::pgn_to_epd(char* path,char* book) {
+bool SEARCHER::pgn_to_epd(char* path,char* book, int task) {
     FILE*  f = fopen(path,"r");
-    FILE* fb = fopen(book,"w");
+    FILE* fb;
+    if(task == 1)
+        fb = fopen(book,"wb");
+    else
+        fb = fopen(book,"w");
     if(!f || !fb) return false;
 
     char   buffer[16 * MAX_FILE_STR];
@@ -1584,6 +1588,24 @@ bool SEARCHER::pgn_to_epd(char* path,char* book) {
     char* pc;
     bool illegal = false, has_score = false;
     double score;
+
+#define TASK() {                                            \
+    if(task == 0) {                                         \
+        get_fen(fen);                                       \
+        if(result == R_WWIN) strcat(fen," 1-0");            \
+        else if(result == R_BWIN) strcat(fen," 0-1");       \
+        else strcat(fen," 1/2-1/2");                        \
+        int mind = compute_move_index(move, player);        \
+        if(!has_score) score = eval(true);                  \
+        if(player == black) score = -score;                 \
+        score = logistic(score);                            \
+        fprintf(fb,"%s %f 1 %d 1.0\n", fen, score, mind);   \
+    } else if(task == 1) {                                  \
+        unsigned r = rand();                                \
+        if(r <= RAND_MAX / 10)                              \
+            write_input_planes(fb);                         \
+    }                                                       \
+}
 
     while(fgets(buffer,4 * MAX_FILE_STR,f)) {
         line++;
@@ -1654,16 +1676,7 @@ bool SEARCHER::pgn_to_epd(char* path,char* book) {
                         while(hply > 0) undo_move();
                         for(int i = 0; i < shply; i++) {
                             MOVE& move = hstack[hply].move;
-
-                            get_fen(fen);
-                            if(result == R_WWIN) strcat(fen," 1-0");
-                            else if(result == R_BWIN) strcat(fen," 0-1");
-                            else strcat(fen," 1/2-1/2");
-                            int mind = compute_move_index(move, player);
-                            if(!has_score) score = eval(true);
-                            score = logistic(score);
-                            fprintf(fb,"%s %f 1 %d 1.0\n", fen, score, mind);
-
+                            TASK();
                             do_move(move);
                         }
 
@@ -1688,17 +1701,7 @@ bool SEARCHER::pgn_to_epd(char* path,char* book) {
 
                 /*Write fen with score and best move*/
                 if(result != R_UNKNOWN) {
-
-                    get_fen(fen);
-                    if(result == R_WWIN) strcat(fen," 1-0");
-                    else if(result == R_BWIN) strcat(fen," 0-1");
-                    else strcat(fen," 1/2-1/2");
-                    int mind = compute_move_index(move, player);
-                    float score = eval(true);
-                    if(player == black) score = -score;
-                    score = logistic(score);
-                    fprintf(fb,"%s %f 1 %d 1.0\n", fen, score, mind);
-
+                    TASK();
                 }
 
                 /*make move*/
@@ -1707,6 +1710,8 @@ bool SEARCHER::pgn_to_epd(char* path,char* book) {
         }
 
     }
+
+#undef TASK
 
     fclose(f);
     fclose(fb);

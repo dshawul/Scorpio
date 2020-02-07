@@ -733,7 +733,7 @@ typedef struct SEARCHER{
     void  prefetch_qtt();
     bool  san_mov(MOVE& move,char* s);
     bool  build_book(char*,char*,int,int,int);
-    bool  pgn_to_epd(char*,char*);
+    bool  pgn_to_epd(char*,char*,int=0);
     void  update_history(MOVE);
     void  clear_history();
     int   get_root_search_score();

@@ -641,11 +641,19 @@ bool internal_commands(char** commands,char* command,int& command_num) {
             }
         }
         searcher.build_book(source,dest,hsize,plies,col);
-    } else if (!strcmp(command,"pgn_to_epd")) {
+    } else if (!strcmp(command,"pgn_to_epd") ||
+               !strcmp(command,"pgn_to_dat")
+        ) {
         char source[1024],dest[1024];
         strcpy(source,commands[command_num++]);
         strcpy(dest,commands[command_num++]);
-        searcher.pgn_to_epd(source,dest);
+
+        int task;
+        if(!strcmp(command,"pgn_to_epd"))
+            task = 0;
+        else
+            task = 1;
+        searcher.pgn_to_epd(source,dest,task);
     } else if (!strcmp(command,"merge")) {
         char source1[1024] = "book1.dat",source2[1024] = "book2.dat",dest[1024] = "book.dat";
         double w1 = 0,w2 = 0;
