@@ -1888,7 +1888,9 @@ MOVE SEARCHER::find_best() {
     /*switch to alphabeta for <= 6 pieces*/
     int save_montecarlo = montecarlo;
     int save_use_nn = use_nn;
-    if(all_man_c <= alphabeta_man_c) {
+    if(all_man_c <= alphabeta_man_c &&
+        (SEARCHER::root_score > 200 || all_man_c <= 7)
+        ) {
         montecarlo = 0;
         use_nn = 0;
 #ifdef PARALLEL
