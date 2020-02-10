@@ -368,7 +368,7 @@ void SEARCHER::extract_pv(Node* n, bool rand) {
         ply--;
     }
 }
-Node* Node::print_tree(Node* root,int output,int max_depth,int depth) {
+Node* Node::print_tree(Node* root,int max_depth,int depth) {
     char str[16];
     int total = 0;
     bool has_ab = (depth == 0 && frac_abprior > 0);
@@ -385,27 +385,25 @@ Node* Node::print_tree(Node* root,int output,int max_depth,int depth) {
     }
     while(current) {
         if((depth == 0 || bnode == current) ) {
-            if(output) {
-                mov_str(current->move,str);
-                if(depth == 0) {
-                    double uct = logistic(-current->score);
-                    double uctp = logistic(-current->prior);
-                    double avg = 0.5 * ((1 - frac_abprior) * uct 
-                                        + frac_abprior * uctp + 
-                                        MIN(uct,uctp));
-                    print_info("%2d   (%.3f,%0.3f,%0.3f) %6.2f %7d   %s",
-                        total+1,
-                        uct,
-                        uctp,
-                        avg,
-                        100*current->policy,
-                        current->visits,
-                        str
-                        );
-                } else
-                    print(" %s",str);
-            }
-            print_tree(current,output,max_depth,depth+1);
+            mov_str(current->move,str);
+            if(depth == 0) {
+                double uct = logistic(-current->score);
+                double uctp = logistic(-current->prior);
+                double avg = 0.5 * ((1 - frac_abprior) * uct 
+                                    + frac_abprior * uctp + 
+                                    MIN(uct,uctp));
+                print_info("%2d   (%.3f,%0.3f,%0.3f) %6.2f %7d   %s",
+                    total+1,
+                    uct,
+                    uctp,
+                    avg,
+                    100*current->policy,
+                    current->visits,
+                    str
+                    );
+            } else
+                print(" %s",str);
+            print_tree(current,max_depth,depth+1);
             total++;
         }
 

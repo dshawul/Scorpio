@@ -7,6 +7,7 @@ static int singular_margin = 32;
 static int probcut_margin = 195;
 static int prev_pv_length;
 static int alphabeta_man_c = 6;
+static int multipv = 0;
 int qsearch_level = 0;
 
 /* search options */
@@ -1731,7 +1732,8 @@ MOVE SEARCHER::iterative_deepening() {
     if(montecarlo) {
         if(pv_print_style == 0) {
             /*print tree*/
-            Node::print_tree(root_node,1,MAX_PLY);
+            if(multipv)
+                Node::print_tree(root_node,MAX_PLY);
 
             /* print result*/
             int time_used = MAX(1,get_time() - start_time);
@@ -1973,6 +1975,8 @@ bool check_search_params(char** commands,char* command,int& command_num) {
         probcut_margin = atoi(commands[command_num++]);
     } else if(!strcmp(command, "alphabeta_man_c")) {
         alphabeta_man_c = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "multipv")) {
+        multipv = is_checked(commands[command_num++]);
 #ifdef TUNE
     } else if(!strncmp(command, "futility_margin",15)) {
         futility_margin[atoi(&command[15])] = atoi(commands[command_num++]);
@@ -2036,4 +2040,5 @@ void print_search_params() {
     print_spin("probcut_margin",probcut_margin,0,1000);
     print_spin("contempt",contempt,0,100);
     print_spin("alphabeta_man_c",alphabeta_man_c,0,32);
+    print_check("multipv",multipv);
 }
