@@ -1760,6 +1760,16 @@ MOVE SEARCHER::iterative_deepening() {
         }
 #endif
 
+	/*print final pv*/
+	for (int j = ply; j > 0 ; j--) {
+            MOVE move = hstack[hply - 1].move;
+            if(move) POP_MOVE();
+            else POP_NULL();
+        }
+	if(!pstack->pv_length)
+	    pstack->pv_length = 1;
+	print_pv(root_score);
+
         /*search has ended. display some info*/
         int time_used = get_time() - start_time;
         if(!time_used) time_used = 1;
