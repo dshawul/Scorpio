@@ -467,10 +467,13 @@ void SEARCHER::print_pv(int score) {
             nps,
             egbb_probes);
     } else {
-        sprintf(pv,"%d %d %d " FMT64 " ",
+        sprintf(pv,"%d %d %d " FMT64 " %d %d %d",
             search_depth,score,
             tm/10,
-            (long long)nds );
+            (long long)nds,
+            search_depth,
+            nps,
+            egbb_probes);
     }
 
     for(i = 0;i < stack[0].pv_length;i++) {

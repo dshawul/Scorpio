@@ -1730,27 +1730,32 @@ MOVE SEARCHER::iterative_deepening() {
 
     /*search info*/
     if(montecarlo) {
-        if(pv_print_style == 0) {
+
+        /*search has ended. display some info*/
+        int time_used = MAX(1,get_time() - start_time);
+        int time_used_o = MAX(1,get_time() - start_time_o);
+        if(pv_print_style == 1) {
+            print(" " FMT64W " %8.2f %10d\n",nodes,float(time_used) / 1000,
+                int(BMP64(nodes) / (time_used / 1000.0f)));
+        } else if(pv_print_style == 0) {
             /*print tree*/
             if(multipv)
                 Node::print_tree(root_node,MAX_PLY);
 
             /* print result*/
-            int time_used = MAX(1,get_time() - start_time);
-            int time_used_o = MAX(1,get_time() - start_time_o);
             unsigned int pps = int(root_node->visits / (time_used / 1000.0f));
             if(average_pps > 0 && pps >= 5 * average_pps);
             else average_pps = pps;
-            print_info("nodes = " FMT64 " <%d%% qnodes> time = %dms nps = %d eps = %d nneps = %d\n",nodes,
+            print_info("nodes " FMT64 " <%d%% qnodes> time %dms nps %d eps %d nneps %d tbhits %d\n",nodes,
                 int(BMP64(qnodes) / (BMP64(nodes) / 100.0f)),
                 time_used_o,int(BMP64(nodes) / (time_used_o / 1000.0f)),
                 int(BMP64(ecalls) / (time_used_o / 1000.0f)),
-                int(BMP64(nnecalls) / (time_used / 1000.0f)));
-            print_info("Tree: nodes = %d depth = %d pps = %d visits = %d \n",
-                  Node::total_nodes,Node::max_tree_depth,pps,root_node->visits);
-            print_info("      qsearch_calls = %d search_calls = %d\n",
-                  qsearch_calls,search_calls);
+                int(BMP64(nnecalls) / (time_used / 1000.0f)),
+                egbb_probes);
+            print_info("Tree: nodes %d depth %d pps %d visits %d qcalls %d scalls %d\n",
+                  Node::total_nodes,Node::max_tree_depth,pps,root_node->visits,qsearch_calls,search_calls);
         }
+        
     } else {
 
 #ifdef CLUSTER
@@ -1762,15 +1767,15 @@ MOVE SEARCHER::iterative_deepening() {
         }
 #endif
 
-	/*print final pv*/
-	for (int j = ply; j > 0 ; j--) {
-            MOVE move = hstack[hply - 1].move;
-            if(move) POP_MOVE();
-            else POP_NULL();
-        }
-	if(!pstack->pv_length)
-	    pstack->pv_length = 1;
-	print_pv(root_score);
+    	/*print final pv*/
+    	for (int j = ply; j > 0 ; j--) {
+                MOVE move = hstack[hply - 1].move;
+                if(move) POP_MOVE();
+                else POP_NULL();
+            }
+    	if(!pstack->pv_length)
+    	    pstack->pv_length = 1;
+    	print_pv(root_score);
 
         /*search has ended. display some info*/
         int time_used = get_time() - start_time;
@@ -1779,13 +1784,12 @@ MOVE SEARCHER::iterative_deepening() {
             print(" " FMT64W " %8.2f %10d %8d %8d\n",nodes,float(time_used) / 1000,
                 int(BMP64(nodes) / (time_used / 1000.0f)),splits,bad_splits);
         } else if(pv_print_style == 0) {
-            print_info("splits = %d badsplits = %d egbb_probes = %d\n",
-                splits,bad_splits,egbb_probes);
-            print_info("nodes = " FMT64 " <%d qnodes> time = %dms nps = %d eps = %d  nneps = %d\n",nodes,
+            print_info("nodes " FMT64 " <%d%% qnodes> time %dms nps %d eps %d nneps %d tbhits %d splits %d badsplits %d\n",nodes,
                 int(BMP64(qnodes) / (BMP64(nodes) / 100.0f)),
                 time_used,int(BMP64(nodes) / (time_used / 1000.0f)),
                 int(BMP64(ecalls) / (time_used / 1000.0f)),
-                int(BMP64(nnecalls) / (time_used / 1000.0f)));
+                int(BMP64(nnecalls) / (time_used / 1000.0f)),
+                egbb_probes,splits,bad_splits);
         }
 
     }
