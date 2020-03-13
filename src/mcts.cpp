@@ -270,7 +270,8 @@ Node* Node::Max_UCB_select(Node* n, bool has_ab, int processor_id) {
             vst = current->visits;
 #ifdef PARALLEL
             vvst = virtual_loss * current->get_busy();
-            vst += vvst;  
+            if(current->is_create()) vvst <<= 2;
+            vst += vvst;
 #endif
             if(!current->visits) {
                 uct = fpu;
