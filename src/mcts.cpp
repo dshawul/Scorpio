@@ -31,6 +31,7 @@ static int noise_ply = 30;
 static const int low_visits_threshold = 100;
 static const int node_size = 
     (sizeof(Node) + 32 * (sizeof(MOVE) + sizeof(float)));
+static const float min_policy_value = 1.0 / 800;
 
 int montecarlo = 0;
 int rollout_type = ALPHABETA;
@@ -252,15 +253,22 @@ Node* Node::Max_UCB_select(Node* n, bool has_ab, int processor_id) {
     Node* current, *bnode = 0;
     unsigned vst, vvst = 0;
 
-    double fpu = 0.;
-    if(!fpu_is_loss) {
-        current = n->child;
-        while(current) {
-            if(current->visits && current->move)
-                fpu += current->policy;
-            current = current->next;
+    double fpu = 0.0;         //fpu = loss
+    if(n->visits > 10000)
+        fpu = 1.0;            //fpu = win
+    else if(!fpu_is_loss) {
+        float fpur = fpu_red; //fpu = reduction
+        if(n->visits > 3200)
+            fpur = 0;         //fpu reduction = 0 
+        else {
+            current = n->child;
+            while(current) {
+                if(current->visits && current->move)
+                    fpu += current->policy;
+                current = current->next;
+            }
         }
-        fpu = logistic(n->score) - fpu_red * sqrt(fpu);
+        fpu = logistic(n->score) - fpur * sqrt(fpu);
     }
 
     current = n->child;
@@ -1011,7 +1019,7 @@ void SEARCHER::check_mcts_quit() {
                 if(factor >= 20) factor = 20;
 
                 visdiff = (bnvis->visits - current->visits) * (factor / 1.2);
-                if(!current->is_dead() && visdiff >= remain_visits) {
+                if(current->visits && !current->is_dead() && visdiff >= remain_visits) {
                     current->set_dead();
 #if 0
                     char mvs[16];
@@ -1532,12 +1540,14 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta) {
             pstack->best_score = probe_neural();
             n_terminal = 0;
 
+            /*find minimum and maximum policy values*/
             double total = 0.f, maxp = -100, minp = 100;
             for(int i = 0;i < pstack->count; i++) {
                 float* p = (float*)&pstack->score_st[i];
                 if(*p > maxp) maxp = *p;
                 if(*p < minp) minp = *p;
             }
+
             /*Minimize draws for low visits training*/
             if(!ply && chess_clock.max_visits < low_visits_threshold) {
                 int score = pstack->best_score;
@@ -1569,8 +1579,9 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta) {
             }
             for(int i = 0;i < pstack->count; i++) {
                 float* p = (float*)&pstack->score_st[i];
-                *p = exp( (*p - maxp) / policy_temp );
-                *p /= total;
+                float pp = exp( (*p - maxp) / policy_temp ) / total;  
+                if(pp < min_policy_value) pp = min_policy_value;
+                *p = pp;
             }
 
             for(int i = 0;i < pstack->count; i++)
