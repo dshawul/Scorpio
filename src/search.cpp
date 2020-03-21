@@ -1866,7 +1866,7 @@ MOVE SEARCHER::find_best() {
     if(pstack->count == 1) {
         pstack->pv_length = 1;
         pstack->pv[0] = pstack->move_st[0];
-        print_pv(0);
+        print_pv(root_score);
         return pstack->move_st[0];
     }
 

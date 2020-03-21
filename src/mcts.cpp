@@ -31,7 +31,7 @@ static int noise_ply = 30;
 static const int low_visits_threshold = 100;
 static const int node_size = 
     (sizeof(Node) + 32 * (sizeof(MOVE) + sizeof(float)));
-static const float min_policy_value = 1.0 / 800;
+static float min_policy_value = 1.0 / 100;
 
 int montecarlo = 0;
 int rollout_type = ALPHABETA;
@@ -1580,7 +1580,8 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta) {
             for(int i = 0;i < pstack->count; i++) {
                 float* p = (float*)&pstack->score_st[i];
                 float pp = exp( (*p - maxp) / policy_temp ) / total;  
-                if(pp < min_policy_value) pp = min_policy_value;
+                if(pp < 2 * min_policy_value)
+                    pp = MAX(pp, min_policy_value + pp / 8);
                 *p = pp;
             }
 
@@ -1919,6 +1920,8 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         ensemble_setting = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "ensemble_type")) {
         ensemble_type = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "min_policy_value")) {
+        min_policy_value = atoi(commands[command_num++]) / 1000.0;
     } else if(!strcmp(command, "backup_type")) {
         backup_type_setting = atoi(commands[command_num++]);
     } else if(!strcmp(command, "frac_alphabeta")) {
@@ -1970,6 +1973,7 @@ void print_mcts_params() {
     print_spin("backup_type",backup_type_setting,0,7);
     print_spin("ensemble",int(ensemble_setting*100),0,100);
     print_spin("ensemble_type",ensemble_type,0,1);
+    print_spin("min_policy_value",int(min_policy_value*1000),0,1000);
     print_spin("frac_alphabeta",int(frac_alphabeta*100),0,100);
     print_spin("frac_freeze_tree",int(frac_freeze_tree*100),0,100);
     print_spin("frac_abrollouts",int(frac_abrollouts*100),0,100);
