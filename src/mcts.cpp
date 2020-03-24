@@ -1523,6 +1523,17 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta) {
             pstack->best_score = pstack->score_st[0];
 
             if(montecarlo) {
+
+                /*flat policy*/
+                if(policy_temp >= 10.0) {
+                    for(int i = 0;i < pstack->count; i++) {
+                        float* p = (float*)&pstack->score_st[i];
+                        *p = 1.0 / pstack->count;
+                    }
+                    return;
+                }
+
+                /*normalize policy*/
                 double total = 0.f;
                 for(int i = 0;i < pstack->count; i++) {
                     float p = logistic(pstack->score_st[i]);
@@ -1539,6 +1550,15 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta) {
         } else {
             pstack->best_score = probe_neural();
             n_terminal = 0;
+
+            /*flat policy*/
+            if(policy_temp >= 10.0) {
+                for(int i = 0;i < pstack->count; i++) {
+                    float* p = (float*)&pstack->score_st[i];
+                    *p = 1.0 / pstack->count;
+                }
+                return;
+            }
 
             /*find minimum and maximum policy values*/
             double total = 0.f, maxp = -100, minp = 100;

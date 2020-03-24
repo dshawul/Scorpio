@@ -777,16 +777,16 @@ void fill_input_planes(
         for(int i = 0; i < 64; i++) {
             sq = SQ6488(i);
             if(player == _BLACK) {
-                if(cast & 8) D(sq,(CHANNELS - 8)) = 1.0;
-                if(cast & 4) D(sq,(CHANNELS - 7)) = 1.0;
-                if(cast & 2) D(sq,(CHANNELS - 6)) = 1.0;
-                if(cast & 1) D(sq,(CHANNELS - 5)) = 1.0;
+                if(cast & BLC_FLAG) D(sq,(CHANNELS - 8)) = 1.0;
+                if(cast & BSC_FLAG) D(sq,(CHANNELS - 7)) = 1.0;
+                if(cast & WLC_FLAG) D(sq,(CHANNELS - 6)) = 1.0;
+                if(cast & WSC_FLAG) D(sq,(CHANNELS - 5)) = 1.0;
                 D(sq,(CHANNELS - 4)) = 1.0;
             } else {
-                if(cast & 2) D(sq,(CHANNELS - 8)) = 1.0;
-                if(cast & 1) D(sq,(CHANNELS - 7)) = 1.0;
-                if(cast & 8) D(sq,(CHANNELS - 6)) = 1.0;
-                if(cast & 4) D(sq,(CHANNELS - 5)) = 1.0;
+                if(cast & WLC_FLAG) D(sq,(CHANNELS - 8)) = 1.0;
+                if(cast & WSC_FLAG) D(sq,(CHANNELS - 7)) = 1.0;
+                if(cast & BLC_FLAG) D(sq,(CHANNELS - 6)) = 1.0;
+                if(cast & BSC_FLAG) D(sq,(CHANNELS - 5)) = 1.0;
                 D(sq,(CHANNELS - 4)) = 0.0;
             }
             D(sq,(CHANNELS - 3)) = fifty / 100.0;
