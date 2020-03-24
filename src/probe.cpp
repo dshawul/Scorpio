@@ -130,7 +130,7 @@ static void load_net(int id, int nn_cache_size, PLOAD_NN load_nn) {
 
     if(nn_type == DEFAULT) {
         strcpy(input_names, "main_input aux_input");
-        strcpy(input_shapes, "24 8 8  5 1 1");
+        strcpy(input_shapes, "32 8 8  5 1 1");
         strcpy(output_names, "value/BiasAdd policy/Reshape");
         strcpy(output_sizes, "3 256");
     } else if(nn_type == SIMPLE) {
@@ -571,13 +571,13 @@ int compute_move_index(MOVE& m, int player, int mnn_type) {
 #define invert_color(x)  (((x) > 6) ? ((x) - 6) : ((x) + 6))
 
 void fill_input_planes(
-    int player, int cast, int fifty, int hist, int* draw, 
+    int player, int cast, int fifty, int hply, int epsquare, int hist, int* draw,
     int* piece, int* square, float* data, float* adata
     ) {
     
     int pc, col, sq, to;
     const int CHANNELS = (SEARCHER::nn_type == LCZERO) ? 112 : 
-                         ((SEARCHER::nn_type == DEFAULT) ? 24 : 12);
+                         ((SEARCHER::nn_type == DEFAULT) ? 32 : 12);
     const int NPARAMS = 5;
 
     /* 
@@ -732,6 +732,30 @@ void fill_input_planes(
                     adata[pc - queen]--;
             }
         }
+
+        /*castling, fifty and on-board mask channels*/
+        if(epsquare > 0) {
+            sq = (player == _BLACK) ? MIRRORR(epsquare) : epsquare;
+            D(sq, (CHANNELS - 8)) = 1.0;
+        }
+        for(int i = 0; i < 64; i++) {
+            sq = SQ6488(i);
+            if(player == _BLACK) {
+                if(cast & BLC_FLAG) D(sq,(CHANNELS - 7)) = 1.0;
+                if(cast & BSC_FLAG) D(sq,(CHANNELS - 6)) = 1.0;
+                if(cast & WLC_FLAG) D(sq,(CHANNELS - 5)) = 1.0;
+                if(cast & WSC_FLAG) D(sq,(CHANNELS - 4)) = 1.0;
+            } else {
+                if(cast & WLC_FLAG) D(sq,(CHANNELS - 7)) = 1.0;
+                if(cast & WSC_FLAG) D(sq,(CHANNELS - 6)) = 1.0;
+                if(cast & BLC_FLAG) D(sq,(CHANNELS - 5)) = 1.0;
+                if(cast & BSC_FLAG) D(sq,(CHANNELS - 4)) = 1.0;
+            }
+            D(sq,(CHANNELS - 3)) = hply / 400.0;
+            D(sq,(CHANNELS - 2)) = fifty / 100.0;
+            D(sq,(CHANNELS - 1)) = 1.0;
+        }
+
     } else if (SEARCHER::nn_type == SIMPLE) {
 
         for(int i = 0; (pc = piece[i]) != _EMPTY; i++) {
@@ -800,7 +824,7 @@ void fill_input_planes(
             for(int i = 0; i < 8; i++) {
                 for(int j = 0; j < 8; j++) {
                     int sq = SQ(i,j);
-                    printf("%d, ",int(D(sq,c)));
+                    printf("%4.2f, ",D(sq,c));
                 }
                 printf("\n");
             }
@@ -828,7 +852,7 @@ void SEARCHER::fill_input_planes(float** iplanes) {
         iplanes[0] = inp_planes[processor_id];
         if(nn_type == DEFAULT)
             iplanes[1] = iplanes[0] + (8 * 8 * 24);
-        ::fill_input_planes(player,castle,fifty,hist,
+        ::fill_input_planes(player,castle,fifty,hply,epsquare,hist,
             isdraw,piece,square,iplanes[0],iplanes[1]);
 
     } else {
@@ -851,7 +875,7 @@ void SEARCHER::fill_input_planes(float** iplanes) {
             PUSH_MOVE(hstack[hply].move);
 
         iplanes[0] = inp_planes[processor_id];
-        ::fill_input_planes(player,castle,fifty,hist,
+        ::fill_input_planes(player,castle,fifty,hply,epsquare,hist,
             isdraw,piece,square,iplanes[0],0);
     }
 }
@@ -865,7 +889,7 @@ void SEARCHER::write_input_planes(FILE* file) {
     fill_input_planes(iplanes);
 
     const int CHANNELS = (SEARCHER::nn_type == LCZERO) ? 112 : 
-                         ((SEARCHER::nn_type == DEFAULT) ? 24 : 12);
+                         ((SEARCHER::nn_type == DEFAULT) ? 32 : 12);
     const int NPARAMS = 5;
     const int NPLANE = 8 * 8 * CHANNELS;
     fwrite(iplanes[0], NPLANE * sizeof(float), 1, file);
