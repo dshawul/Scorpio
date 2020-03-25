@@ -320,7 +320,7 @@ float SEARCHER::probe_neural_(bool hard_probe, float* policy) {
     unsigned short* const mindex = all_pindex[processor_id];
     for(int i = 0; i < pstack->count; i++) {
         MOVE& m = pstack->move_st[i];
-        mindex[i] = compute_move_index(m, player);
+        mindex[i] = compute_move_index(m);
     }
 
     nnecalls++;
@@ -520,7 +520,7 @@ void init_index_table() {
     }
 }
 
-int compute_move_index(MOVE& m, int player, int mnn_type) {
+int SEARCHER::compute_move_index(MOVE& m, int mnn_type) {
 
     int from = m_from(m), to = m_to(m), prom, index;
     if(is_castle(m)) {
@@ -539,6 +539,13 @@ int compute_move_index(MOVE& m, int player, int mnn_type) {
     int nn_type = (mnn_type >= DEFAULT) ? mnn_type : SEARCHER::nn_type;
 
     if(nn_type == DEFAULT || nn_type == SIMPLE) {
+
+        bool flip_h = (file(plist[COMBINE(player,king)]->sq) <= FILED);
+        if(flip_h) {
+            from = MIRRORF64(from);
+            to = MIRRORF64(to);
+        }
+
         index = from * 73;
         if(prom) {
             prom = PIECE(prom);
@@ -571,8 +578,8 @@ int compute_move_index(MOVE& m, int player, int mnn_type) {
 #define invert_color(x)  (((x) > 6) ? ((x) - 6) : ((x) + 6))
 
 void fill_input_planes(
-    int player, int cast, int fifty, int hply, int epsquare, int hist, int* draw,
-    int* piece, int* square, float* data, float* adata
+    int player, int cast, int fifty, int hply, int epsquare, bool flip_h,
+    int hist, int* draw, int* piece, int* square, float* data, float* adata
     ) {
     
     int pc, col, sq, to;
@@ -616,6 +623,9 @@ void fill_input_planes(
                 sq = MIRRORR(sq);
                 pc = invert_color(pc);
             }
+            if(flip_h) {
+                sq = MIRRORF(sq);
+            }
 
             board[sq] = pc;
         }
@@ -625,6 +635,9 @@ void fill_input_planes(
             if(player == _BLACK) {
                 sq = MIRRORR(sq);
                 pc = invert_color(pc);
+            }
+            if(flip_h) {
+                sq = MIRRORF(sq);
             }
             D(sq,(pc+11)) = 1.0f;
             switch(pc) {
@@ -735,21 +748,24 @@ void fill_input_planes(
 
         /*castling, fifty and on-board mask channels*/
         if(epsquare > 0) {
-            sq = (player == _BLACK) ? MIRRORR(epsquare) : epsquare;
+            sq = epsquare;
+            if(player == _BLACK) sq = MIRRORR(sq);
+            if(flip_h) sq = MIRRORF(sq);
+
             D(sq, (CHANNELS - 8)) = 1.0;
         }
         for(int i = 0; i < 64; i++) {
             sq = SQ6488(i);
             if(player == _BLACK) {
-                if(cast & BLC_FLAG) D(sq,(CHANNELS - 7)) = 1.0;
-                if(cast & BSC_FLAG) D(sq,(CHANNELS - 6)) = 1.0;
-                if(cast & WLC_FLAG) D(sq,(CHANNELS - 5)) = 1.0;
-                if(cast & WSC_FLAG) D(sq,(CHANNELS - 4)) = 1.0;
+                if(cast & BLC_FLAG) D(sq,(CHANNELS - (flip_h ? 6 : 7) )) = 1.0;
+                if(cast & BSC_FLAG) D(sq,(CHANNELS - (flip_h ? 7 : 6) )) = 1.0;
+                if(cast & WLC_FLAG) D(sq,(CHANNELS - (flip_h ? 4 : 5) )) = 1.0;
+                if(cast & WSC_FLAG) D(sq,(CHANNELS - (flip_h ? 5 : 4) )) = 1.0;
             } else {
-                if(cast & WLC_FLAG) D(sq,(CHANNELS - 7)) = 1.0;
-                if(cast & WSC_FLAG) D(sq,(CHANNELS - 6)) = 1.0;
-                if(cast & BLC_FLAG) D(sq,(CHANNELS - 5)) = 1.0;
-                if(cast & BSC_FLAG) D(sq,(CHANNELS - 4)) = 1.0;
+                if(cast & WLC_FLAG) D(sq,(CHANNELS - (flip_h ? 6 : 7) )) = 1.0;
+                if(cast & WSC_FLAG) D(sq,(CHANNELS - (flip_h ? 7 : 6) )) = 1.0;
+                if(cast & BLC_FLAG) D(sq,(CHANNELS - (flip_h ? 4 : 5) )) = 1.0;
+                if(cast & BSC_FLAG) D(sq,(CHANNELS - (flip_h ? 5 : 4) )) = 1.0;
             }
             D(sq,(CHANNELS - 3)) = hply / 400.0;
             D(sq,(CHANNELS - 2)) = fifty / 100.0;
@@ -847,18 +863,20 @@ void SEARCHER::fill_input_planes(float** iplanes) {
 
         int piece[33],square[33],isdraw[1];
         int count = 0, hist = 1;
+        bool flip_h = (file(plist[COMBINE(player,king)]->sq) <= FILED);
         fill_list(count,piece,square);
 
         iplanes[0] = inp_planes[processor_id];
         if(nn_type == DEFAULT)
             iplanes[1] = iplanes[0] + (8 * 8 * 24);
-        ::fill_input_planes(player,castle,fifty,hply,epsquare,hist,
+        ::fill_input_planes(player,castle,fifty,hply,epsquare,flip_h,hist,
             isdraw,piece,square,iplanes[0],iplanes[1]);
 
     } else {
 
         int piece[8*33],square[8*33],isdraw[8];
         int count = 0, hist = 0, phply = hply;
+        bool flip_h = false;
         
         for(int i = 0; i < 8; i++) {
             isdraw[hist++] = draw();
@@ -875,7 +893,7 @@ void SEARCHER::fill_input_planes(float** iplanes) {
             PUSH_MOVE(hstack[hply].move);
 
         iplanes[0] = inp_planes[processor_id];
-        ::fill_input_planes(player,castle,fifty,hply,epsquare,hist,
+        ::fill_input_planes(player,castle,fifty,hply,epsquare,flip_h,hist,
             isdraw,piece,square,iplanes[0],0);
     }
 }

@@ -1678,7 +1678,7 @@ void SEARCHER::get_train_data(float& value, int& nmoves, int* moves, float* prob
         else
             val++;
         total_visits += val;
-        moves[cnt] = compute_move_index(current->move, player, 0);
+        moves[cnt] = compute_move_index(current->move, 0);
         probs[cnt] = val;
         cnt++;
         current = current->next;
@@ -1686,7 +1686,7 @@ void SEARCHER::get_train_data(float& value, int& nmoves, int* moves, float* prob
     if(average_pi_and_m && diff > 0) {
         for(int i = 0; i < cnt; i++)
             probs[i] /= (2 * total_visits);
-        int midx = compute_move_index(move, player, 0);
+        int midx = compute_move_index(move, 0);
         for(int i = 0; i < cnt; i++) {
             if(midx == moves[i]) {
                 probs[i] += 0.5;
@@ -1769,18 +1769,11 @@ void SEARCHER::self_play_thread() {
                     bcount += 4;
 #endif
 
-#if 0
-                    int midx = compute_move_index(phst->move, pl);
-                    bcount += sprintf(&buffer[bcount], "%d %d %f 1 ", 
-                        pl, vres, ptrn->value);
-                    bcount += sprintf(&buffer[bcount], "%d 1.0", midx);
-#else
                     bcount += sprintf(&buffer[bcount], " %f %d ", 
                         ptrn->value, ptrn->nmoves);
                     for(int i = 0; i < ptrn->nmoves; i++)
                         bcount += sprintf(&buffer[bcount], "%d %f ", 
                             ptrn->moves[i], ptrn->probs[i]);
-#endif
 
 #if RAW
                     bcount = compress_input_planes(iplanes, buffer);

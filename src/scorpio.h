@@ -837,6 +837,7 @@ typedef struct SEARCHER{
     int compress_input_planes(float**, char*);
     void select_net();
     void get_train_data(float&, int&, int*, float*);
+    int compute_move_index(MOVE&, int = -1);
     static int egbb_is_loaded;
     static int egbb_load_type;
     static int egbb_depth_limit;
@@ -1144,7 +1145,6 @@ bool  check_mcts_params(char**,char*,int&);
 void  print_mcts_params();
 double logistic(double p);
 double logit(double p);
-int compute_move_index(MOVE&, int, int = -1);
 void fill_input_planes(int, int, int, int, int*, int*, int*, float*, float*);
 
 #ifdef TUNE

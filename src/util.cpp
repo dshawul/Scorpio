@@ -1596,7 +1596,7 @@ bool SEARCHER::pgn_to_epd(char* path,char* book, int task) {
         if(result == R_WWIN) strcat(fen," 1-0");            \
         else if(result == R_BWIN) strcat(fen," 0-1");       \
         else strcat(fen," 1/2-1/2");                        \
-        int mind = compute_move_index(move, player);        \
+        int mind = compute_move_index(move);                \
         if(!has_score) score = eval(true);                  \
         if(player == black) score = -score;                 \
         score = logistic(score);                            \
