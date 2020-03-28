@@ -1458,8 +1458,6 @@ void SEARCHER::manage_tree(bool single) {
 
     /*backup type*/
     backup_type = backup_type_setting;
-    if(root_node->score > 400)
-        backup_type = MIX_VISIT;
 
     /*Dirchilet noise*/
     if(is_selfplay && (chess_clock.max_visits > low_visits_threshold) ) {

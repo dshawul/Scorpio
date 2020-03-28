@@ -47,7 +47,7 @@ DEFINES += -DEGBB
 #DEFINES += -DNUMA_TT_TYPE=0
 #DEFINES += -DCLUSTER_TT_TYPE=1
 #DEFINES += -DCUTECHESS_FIX
-#DEFINES += -DNODES_PRIOR
+DEFINES += -DNODES_PRIOR
 ############################
 # Compiler choice 
 ############################

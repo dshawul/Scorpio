@@ -1386,7 +1386,9 @@ MOVE SEARCHER::iterative_deepening() {
             chess_clock.p_time -= (get_time() - start_time);
 
         /*Alpha-beta prior search */
-        if(frac_abprior > 0) {
+        if(frac_abprior > 0 && 
+            (all_man_c <= alphabeta_man_c || root_score >= 200)
+            ) {
 
 #ifdef PARALLEL
         for(int i = PROCESSOR::n_cores;i < PROCESSOR::n_processors;i++)
@@ -1402,7 +1404,9 @@ MOVE SEARCHER::iterative_deepening() {
             chess_clock.p_inc *= frac_abprior;
 
             iterative_deepening();
-
+#ifdef PARALLEL
+            t_sleep(30);
+#endif
             chess_clock.p_time /= frac_abprior;
             chess_clock.p_inc /= frac_abprior;
 
@@ -1502,10 +1506,14 @@ MOVE SEARCHER::iterative_deepening() {
             }
 #endif
 
+            /* If our score is winning, no need for further search */
+            if(root_score >= 700)
+                return stack[0].pv[0];
+
+            /* wake mcts threads*/
 #ifdef PARALLEL
             for(int i = PROCESSOR::n_cores;i < PROCESSOR::n_processors;i++)
                 processors[i]->state = WAIT;
-            t_sleep(30);
 #endif
         }
 
@@ -1901,25 +1909,7 @@ MOVE SEARCHER::find_best() {
     t_sleep(30);
 #endif
 
-    /*switch to alphabeta for <= 6 pieces*/
-    int save_montecarlo = montecarlo;
-    int save_use_nn = use_nn;
-    if(all_man_c <= alphabeta_man_c &&
-        (SEARCHER::root_score > 200 || all_man_c <= 7)
-        ) {
-        montecarlo = 0;
-        use_nn = 0;
-#ifdef PARALLEL
-        for(int i = PROCESSOR::n_cores;i < PROCESSOR::n_processors;i++)
-            processors[i]->state = PARK;
-#endif
-    }
-
     bmove = iterative_deepening();
-
-    /*undo switch*/
-    montecarlo = save_montecarlo;
-    use_nn = save_use_nn;
 
 #ifdef PARALLEL
     /*park threads*/
