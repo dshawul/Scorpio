@@ -1152,7 +1152,7 @@ void SEARCHER::search_mc(bool single) {
                         }
                     }
                     
-                    if(frac >= 0.1 && !chess_clock.infinite_mode)
+                    if(frac >= 0.1 && !is_selfplay && !chess_clock.infinite_mode)
                         check_mcts_quit();
 
                     if(frac > ensemble_setting)
