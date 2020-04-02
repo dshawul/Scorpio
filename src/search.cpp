@@ -1410,11 +1410,8 @@ MOVE SEARCHER::iterative_deepening() {
             chess_clock.p_time /= frac_abprior;
             chess_clock.p_inc /= frac_abprior;
 
-            stop_searcher = 0;
-            abort_search = 0;
             montecarlo = 1;
             use_nn = save_use_nn;
-            search_depth = MAX_PLY - 2;
 
             while(ply > 0) {
                 if(hstack[hply - 1].move) POP_MOVE();
@@ -1480,11 +1477,8 @@ MOVE SEARCHER::iterative_deepening() {
                 }
             }
 
-            stop_searcher = 0;
-            abort_search = 0;
             use_nn = save_use_nn;
             montecarlo = 1;
-            search_depth = MAX_PLY - 2;
 
             while(ply > 0) {
                 if(hstack[hply - 1].move) POP_MOVE();
@@ -1506,10 +1500,18 @@ MOVE SEARCHER::iterative_deepening() {
             }
 #endif
 
-            /* If our score is winning, no need for further search */
-            if(root_score >= 700)
+            /* No further search in these cases */
+            if(root_score >= 700 ||
+                search_depth >= MAX_PLY - 4 ||
+                frac_abprior >= 0.95
+                )
                 return stack[0].pv[0];
 
+            /*reset flags for mcts*/
+            stop_searcher = 0;
+            abort_search = 0;
+            search_depth = MAX_PLY - 2;
+            
             /* wake mcts threads*/
 #ifdef PARALLEL
             for(int i = PROCESSOR::n_cores;i < PROCESSOR::n_processors;i++)
