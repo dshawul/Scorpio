@@ -188,6 +188,12 @@ void LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
             load_egbb(SEARCHER::egbb_files_path,egbb_cache_size,SEARCHER::egbb_load_type);
             SEARCHER::egbb_is_loaded = 1;
         }
+            
+        if(strstr(SEARCHER::nn_path, ".uff") != NULL)
+            is_trt = true;
+        else
+            is_trt = false;
+
         if(load_nn && SEARCHER::use_nn) {
 
             if(SEARCHER::nn_type >= DEFAULT)
@@ -197,10 +203,7 @@ void LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
             if(SEARCHER::nn_type_e >= DEFAULT)
                 load_net(2,nn_cache_size,load_nn);
 
-            if(strstr(SEARCHER::nn_path, ".uff") != NULL)
-                is_trt = true;
-            else
-                is_trt = false;
+
 
             init_index_table();
             init_input_planes();
@@ -868,7 +871,7 @@ void SEARCHER::fill_input_planes(float** iplanes) {
 
         iplanes[0] = inp_planes[processor_id];
         if(nn_type == DEFAULT)
-            iplanes[1] = iplanes[0] + (8 * 8 * 24);
+            iplanes[1] = iplanes[0] + (8 * 8 * 32);
         ::fill_input_planes(player,castle,fifty,hply,epsquare,flip_h,hist,
             isdraw,piece,square,iplanes[0],iplanes[1]);
 
@@ -919,7 +922,7 @@ void SEARCHER::write_input_planes(FILE* file) {
 compress input planes with RLE
 */
 int SEARCHER::compress_input_planes(float** iplanes, char* buffer) {
-    static const int NPLANE = 8 * 8 * 24;
+    static const int NPLANE = 8 * 8 * 32;
     static const int NPARAM = 5;
 
     int bcount = 0;
