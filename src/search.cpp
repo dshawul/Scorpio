@@ -817,7 +817,7 @@ IDLE_START:
                             sb = proc->searcher;
                             if(montecarlo) {
                                 if(proc->state == GOSP)
-                                    sb->self_play_thread();
+                                    sb->worker_thread();
                                 else
                                     sb->search_mc();
 

@@ -271,6 +271,26 @@ hash keys
 #define EP_HKEY(ep)      (ep_hkey[file(ep)])
 #define CAST_HKEY(c)     (cast_hkey[c])
 /*
+PGN/EPD parallel processor class
+*/
+class ParallelFile {
+public:
+    FILE* f;
+    LOCK lock;
+    unsigned count;
+    bool open(char*);
+    void close();
+    virtual bool next(char*) = 0;
+};
+class PGN : public ParallelFile {
+public:
+    bool next(char*) override;
+};
+class EPD : public ParallelFile {
+public:
+    bool next(char*) override;
+};
+/*
 chess clock
 */
 typedef struct CHESS_CLOCK {
@@ -733,7 +753,7 @@ typedef struct SEARCHER{
     void  prefetch_qtt();
     bool  san_mov(MOVE& move,char* s);
     bool  build_book(char*,char*,int,int,int);
-    bool  pgn_to_epd(char*,char*,int=0);
+    void  pgn_to_epd(char*,FILE*,int=0);
     void  update_history(MOVE);
     void  clear_history();
     int   get_root_search_score();
@@ -832,6 +852,9 @@ typedef struct SEARCHER{
     void handle_terminal(Node*,bool);
     void self_play_thread();
     void self_play_thread_all(FILE*,FILE*,int);
+    void worker_thread();
+    void worker_thread_all(PGN*,FILE*,int);
+    void launch_worker_threads();
     void fill_input_planes(float**);
     void write_input_planes(FILE*);
     int compress_input_planes(float**, char*);

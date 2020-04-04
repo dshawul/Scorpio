@@ -1,5 +1,8 @@
 #include <ctime>
+#include <sstream>
+
 #include "scorpio.h"
+
 static const char piece_name[] = "_KQRBNPkqrbnpZ";
 static const char rank_name[] = "12345678";
 static const char file_name[] = "abcdefgh";
@@ -1159,9 +1162,9 @@ int get_number_of_cpus() {
 
 int tokenize(char *str, char** tokens, const char *str2) {
     int nu_tokens = 0;
-    tokens[nu_tokens] = strtok(str, str2);
+    tokens[nu_tokens] = strtok_r(str, str2, &str);
     while (tokens[nu_tokens++] != NULL) {
-        tokens[nu_tokens] = strtok(NULL, str2);
+        tokens[nu_tokens] = strtok_r(NULL, str2, &str);
     }
     return nu_tokens;
 }
@@ -1557,38 +1560,76 @@ END:
     }
     return false;
 }
+
 /*
 PGN
 */
-static int compare(const void * a, const void * b) {
-    HASHKEY k1 = ((BOOK_E*)a)->hash_key;
-    HASHKEY k2 = ((BOOK_E*)b)->hash_key;
-    if(k1 > k2) return 1;
-    else if(k1 < k2) return -1;
-    else return 0;
+bool ParallelFile::open(char* path) {
+    f = fopen(path,"r");
+    l_create(lock);
+    count = 0;
+    if(!f) return false;
+    return true;
 }
+void ParallelFile::close() {
+    fclose(f);
+}
+bool PGN::next(char* moves) {
 
+    l_lock(lock);
+
+    char buffer[4 * MAX_FILE_STR];
+    bool is_header = true;
+    strcpy(moves, "");
+    while(fgets(buffer,4 * MAX_FILE_STR,f)) {
+        strcat(moves, buffer);
+
+        /*peek next char*/
+        int c = fgetc(f);
+        ungetc(c, f);
+        if(c == '[') {
+            if(!is_header) {
+                count++;
+                print("Game %d\t\r",count);
+                l_unlock(lock);
+                return true;
+            }
+        } else
+            is_header = false;
+    }
+
+    l_unlock(lock);
+
+    return false;
+}
+bool EPD::next(char* moves) {
+
+    l_lock(lock);
+    if(fgets(moves,4 * MAX_FILE_STR,f)) {
+        count++;
+        print("Position %d\t\r",count);
+        l_unlock(lock);
+        return true;
+    }
+    l_unlock(lock);
+    return false;
+}
 /*
 PGN to epd
 */
-bool SEARCHER::pgn_to_epd(char* path,char* book, int task) {
-    FILE*  f = fopen(path,"r");
-    FILE* fb;
-    if(task == 1)
-        fb = fopen(book,"wb");
-    else
-        fb = fopen(book,"w");
-    if(!f || !fb) return false;
+void SEARCHER::pgn_to_epd(char* pgn, FILE* fb, int task) {
 
     char   buffer[16 * MAX_FILE_STR];
     char   *commands[16 * MAX_STR],*command;
     int    result = R_UNKNOWN,command_num;
-    int    comment = 0,line = 0,game = 0;
+    int    comment = 0,line = 0;
     MOVE   move;
     char   fen[256];
     char* pc;
     bool illegal = false, has_score = false;
-    double score;
+    float score;
+    int   moves[MAX_MOVES];
+    float probs[MAX_MOVES];
 
 #define TASK() {                                            \
     if(task == 0) {                                         \
@@ -1600,15 +1641,41 @@ bool SEARCHER::pgn_to_epd(char* path,char* book, int task) {
         if(!has_score) score = eval(true);                  \
         if(player == black) score = -score;                 \
         score = logistic(score);                            \
+        l_lock(lock_io);                                    \
         fprintf(fb,"%s %f 1 %d 1.0\n", fen, score, mind);   \
+        l_unlock(lock_io);                                  \
     } else if(task == 1) {                                  \
+        get_fen(fen);                                       \
+        if(result == R_WWIN) strcat(fen," 1-0");            \
+        else if(result == R_BWIN) strcat(fen," 0-1");       \
+        else strcat(fen," 1/2-1/2");                        \
+        int nmoves;                                             \
+        generate_and_score_moves(0, -MATE_SCORE, MATE_SCORE);   \
+        manage_tree(true);                                      \
+        get_train_data(score, nmoves, moves, probs);            \
+        l_lock(lock_io);                                        \
+        fprintf(fb,"%s %f %d ", fen, score, nmoves);            \
+        for(int i = 0; i < nmoves; i++)                         \
+            fprintf(fb, "%d %f ",moves[i],probs[i]);            \
+        fprintf(fb,"\n");                                       \
+        l_unlock(lock_io);                                  \
+    } else if(task == 2) {                                  \
         unsigned r = rand();                                \
-        if(r <= RAND_MAX / 10)                              \
+        if(r <= RAND_MAX / 10) {                            \
+            l_lock(lock_io);                                \
             write_input_planes(fb);                         \
+            l_unlock(lock_io);                              \
+        }                                                   \
     }                                                       \
 }
 
-    while(fgets(buffer,4 * MAX_FILE_STR,f)) {
+    std::stringstream iss;
+    iss << pgn;
+    std::string bufferl;
+    while( std::getline(iss,bufferl) ) {
+
+        strcpy(buffer, bufferl.c_str());
+
         line++;
 
         if(buffer[0] == '[' && !comment) {
@@ -1618,13 +1685,11 @@ bool SEARCHER::pgn_to_epd(char* path,char* book, int task) {
                 else if(!strncmp(buffer + 9,"1/2-1/2",7)) result = R_DRAW;
                 else result = R_UNKNOWN;
 
-                game++;
-                print("Game %d\t\r",game);
                 new_board();
                 illegal = false;
 
             } else if(strncmp(buffer + 1, "FEN ",4) == 0) {
-                buffer[(strlen(buffer)-1-2)]=0;
+                buffer[(strlen(buffer)-2)]=0;
                 strcpy(fen,buffer+6);
                 set_board(fen);
             }
@@ -1635,7 +1700,9 @@ bool SEARCHER::pgn_to_epd(char* path,char* book, int task) {
 
         commands[tokenize(buffer,commands," \n\r\t")] = NULL;
         command_num = 0;
+
         while((command = commands[command_num++]) != 0) {
+
             has_score = false;
             if(strchr(command,'{')) comment++;
             else if(strchr(command,'}')) comment--;
@@ -1658,8 +1725,6 @@ bool SEARCHER::pgn_to_epd(char* path,char* book, int task) {
                 }
                 if(strchr(command,'*')) {
                     if(result == R_UNKNOWN) {
-                        game++;
-                        print("Game %d\t\r",game);
                         new_board();
                         illegal = false;
                         result = R_UNKNOWN;
@@ -1681,8 +1746,6 @@ bool SEARCHER::pgn_to_epd(char* path,char* book, int task) {
                             do_move(move);
                         }
 
-                        game++;
-                        print("Game %d\t\r",game);
                         new_board();
                         illegal = false;
                         result = R_UNKNOWN;
@@ -1694,7 +1757,7 @@ bool SEARCHER::pgn_to_epd(char* path,char* book, int task) {
 
                 /*SAN move*/
                 if(!san_mov(move,command)) {
-                    print("Incorrect move %s at game %d line %d\n",command,game,line);
+                    print("Incorrect move %s at line %d\n",command,line);
                     print_board();
                     illegal = true;
                     break;
@@ -1714,12 +1777,17 @@ bool SEARCHER::pgn_to_epd(char* path,char* book, int task) {
 
 #undef TASK
 
-    fclose(f);
-    fclose(fb);
-
-    return true;
 }
-
+/*
+Book
+*/
+static int compare(const void * a, const void * b) {
+    HASHKEY k1 = ((BOOK_E*)a)->hash_key;
+    HASHKEY k2 = ((BOOK_E*)b)->hash_key;
+    if(k1 > k2) return 1;
+    else if(k1 < k2) return -1;
+    else return 0;
+}
 bool SEARCHER::build_book(char* path,char* book,int BOOK_SIZE,int BOOK_DEPTH,int color) {
     FILE* f = fopen(path,"rt");
     if(!f) return false;

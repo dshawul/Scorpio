@@ -1611,6 +1611,8 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta) {
 /*
 * Self-play with policy
 */
+static int work_type = 0;
+
 static FILE* spfile = 0;
 static FILE* spfile2 = 0;
 static int spgames = 0;
@@ -1631,12 +1633,9 @@ typedef struct TRAIN {
 #endif
 } *PTRAIN;
 
-/*selfplay with multiple threads*/
-void SEARCHER::self_play_thread_all(FILE* fw, FILE* fw2, int ngames) {
-    spfile = fw;
-    spfile2 = fw2;
-    spgames = ngames;
-    
+/*multiple worker threads*/
+void SEARCHER::launch_worker_threads() {
+
 #ifdef PARALLEL
     /*attach helper processor here once*/
     l_lock(lock_smp);
@@ -1648,13 +1647,24 @@ void SEARCHER::self_play_thread_all(FILE* fw, FILE* fw2, int ngames) {
 
     /*montecarlo search*/
     t_sleep(30);
-    self_play_thread();
+    worker_thread();
 
     /*wait till all helpers become idle*/
     idle_loop_main();
 #else
-    self_play_thread();
+    worker_thread();
 #endif
+
+}
+
+/*selfplay with multiple threads*/
+void SEARCHER::self_play_thread_all(FILE* fw, FILE* fw2, int ngames) {
+    spfile = fw;
+    spfile2 = fw2;
+    spgames = ngames;
+    work_type = 0;
+
+    launch_worker_threads();
 }
 
 /*get training data from search*/
@@ -1702,13 +1712,12 @@ void SEARCHER::get_train_data(float& value, int& nmoves, int* moves, float* prob
 /*job for selfplay thread*/
 void SEARCHER::self_play_thread() {
     static VOLATILE int wins = 0, losses = 0, draws = 0;
-    static const int NPLANE = 8 * 8 * 24;
-    static const int NPARAM = 5;
-
     MOVE move;
     int phply = hply;
     PTRAIN trn = new TRAIN[MAX_HSTACK];
 #if RAW
+    static const int NPLANE = 8 * 8 * 24;
+    static const int NPARAM = 5;
     float* data  = (float*) malloc(sizeof(float) * NPLANE);
     float* adata = (float*) malloc(sizeof(float) * NPARAM);
     float* iplanes[2] = {data, adata};
@@ -1832,6 +1841,34 @@ void SEARCHER::self_play_thread() {
         int count = hply - phply;
         for(int i = 0; i < count; i++)
             undo_move();
+    }
+}
+
+/*
+Worker threads for PGN/EPD
+*/
+static PGN* p_pgn = 0;
+static int task = 0;
+        
+/*selfplay with multiple threads*/
+void SEARCHER::worker_thread_all(PGN* pgn, FILE* fw, int task_) {
+    p_pgn = pgn;
+    task = task_;
+    spfile = fw;
+    work_type = 1;
+    
+    launch_worker_threads();
+}
+
+/*job for worker thread*/
+void SEARCHER::worker_thread() {
+    if(work_type == 0) {
+        return self_play_thread();
+    } else {
+        char game[16 * MAX_FILE_STR];
+        while(p_pgn->next(game)) {
+            pgn_to_epd(game,spfile,task);
+        }
     }
 }
 

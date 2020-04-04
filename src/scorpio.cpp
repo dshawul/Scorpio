@@ -642,7 +642,8 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         }
         searcher.build_book(source,dest,hsize,plies,col);
     } else if (!strcmp(command,"pgn_to_epd") ||
-               !strcmp(command,"pgn_to_dat")
+               !strcmp(command,"pgn_to_dat") ||
+               !strcmp(command,"pgn_to_nn")
         ) {
         char source[1024],dest[1024];
         strcpy(source,commands[command_num++]);
@@ -651,9 +652,27 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         int task;
         if(!strcmp(command,"pgn_to_epd"))
             task = 0;
-        else
+        else if(!strcmp(command,"pgn_to_nn"))
             task = 1;
-        searcher.pgn_to_epd(source,dest,task);
+        else
+            task = 2;
+
+        /*process pgn*/
+        PGN pgn;
+        pgn.open(source);
+
+        FILE* fb;
+        if(task == 2)
+            fb = fopen(dest,"wb");
+        else
+            fb = fopen(dest,"w");
+
+        main_searcher->COPY(&searcher);
+        main_searcher->worker_thread_all(&pgn,fb,task);
+
+        fclose(fb);
+        pgn.close();
+
     } else if (!strcmp(command,"merge")) {
         char source1[1024] = "book1.dat",source2[1024] = "book2.dat",dest[1024] = "book.dat";
         double w1 = 0,w2 = 0;
