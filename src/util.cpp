@@ -1619,8 +1619,8 @@ PGN to epd
 */
 void SEARCHER::pgn_to_epd(char* pgn, FILE* fb, int task) {
 
-    char   buffer[16 * MAX_FILE_STR];
-    char   *commands[16 * MAX_STR],*command;
+    char   buffer[32 * MAX_FILE_STR];
+    char   *commands[32 * MAX_STR],*command;
     int    result = R_UNKNOWN,command_num;
     int    comment = 0,line = 0;
     MOVE   move;

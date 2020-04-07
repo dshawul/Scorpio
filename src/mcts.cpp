@@ -1870,7 +1870,7 @@ void SEARCHER::worker_thread() {
     if(work_type == 0) {
         return self_play_thread();
     } else if(work_type == 1) {
-        char game[16 * MAX_FILE_STR];
+        char game[32 * MAX_FILE_STR];
         while(p_pgn->next(game)) {
             pgn_to_epd(game,spfile,task);
         }
