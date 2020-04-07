@@ -754,6 +754,7 @@ typedef struct SEARCHER{
     bool  san_mov(MOVE& move,char* s);
     bool  build_book(char*,char*,int,int,int);
     void  pgn_to_epd(char*,FILE*,int=0);
+    void  epd_to_nn(char*,FILE*,int=0);
     void  update_history(MOVE);
     void  clear_history();
     int   get_root_search_score();
@@ -853,7 +854,7 @@ typedef struct SEARCHER{
     void self_play_thread();
     void self_play_thread_all(FILE*,FILE*,int);
     void worker_thread();
-    void worker_thread_all(PGN*,FILE*,int);
+    void worker_thread_all(ParallelFile*,FILE*,int);
     void launch_worker_threads();
     void fill_input_planes(float**);
     void write_input_planes(FILE*);

@@ -642,8 +642,12 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         }
         searcher.build_book(source,dest,hsize,plies,col);
     } else if (!strcmp(command,"pgn_to_epd") ||
+               !strcmp(command,"pgn_to_epd_score") ||
+               !strcmp(command,"pgn_to_nn") ||
                !strcmp(command,"pgn_to_dat") ||
-               !strcmp(command,"pgn_to_nn")
+               !strcmp(command,"epd_to_score") ||
+               !strcmp(command,"epd_to_nn") ||
+               !strcmp(command,"epd_to_dat")
         ) {
         char source[1024],dest[1024];
         strcpy(source,commands[command_num++]);
@@ -652,15 +656,20 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         int task;
         if(!strcmp(command,"pgn_to_epd"))
             task = 0;
-        else if(!strcmp(command,"pgn_to_nn"))
+        else if(!strcmp(command,"pgn_to_epd_score"))
             task = 1;
-        else
+        else if(!strcmp(command,"pgn_to_nn"))
             task = 2;
+        else if(!strcmp(command,"pgn_to_dat"))
+            task = 3;
+        else if(!strcmp(command,"epd_to_score"))
+            task = 4;
+        else if(!strcmp(command,"epd_to_nn"))
+            task = 5;
+        else
+            task = 6;
 
         /*process pgn*/
-        PGN pgn;
-        pgn.open(source);
-
         FILE* fb;
         if(task == 2)
             fb = fopen(dest,"wb");
@@ -668,10 +677,20 @@ bool internal_commands(char** commands,char* command,int& command_num) {
             fb = fopen(dest,"w");
 
         main_searcher->COPY(&searcher);
-        main_searcher->worker_thread_all(&pgn,fb,task);
+
+        if(task <= 3) {
+            PGN pgn;
+            pgn.open(source);
+            main_searcher->worker_thread_all(&pgn,fb,task);
+            pgn.close();
+        } else {
+            EPD epd;
+            epd.open(source);
+            main_searcher->worker_thread_all(&epd,fb,task);
+            epd.close();
+        }
 
         fclose(fb);
-        pgn.close();
 
     } else if (!strcmp(command,"merge")) {
         char source1[1024] = "book1.dat",source2[1024] = "book2.dat",dest[1024] = "book.dat";

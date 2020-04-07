@@ -1847,15 +1847,20 @@ void SEARCHER::self_play_thread() {
 /*
 Worker threads for PGN/EPD
 */
-static PGN* p_pgn = 0;
+static ParallelFile* p_pgn = 0;
 static int task = 0;
         
 /*selfplay with multiple threads*/
-void SEARCHER::worker_thread_all(PGN* pgn, FILE* fw, int task_) {
+void SEARCHER::worker_thread_all(ParallelFile* pgn, FILE* fw, int task_) {
     p_pgn = pgn;
-    task = task_;
     spfile = fw;
-    work_type = 1;
+    if(task_ <= 3) {
+        work_type = 1;
+        task = task_;
+    } else {
+        work_type = 2;
+        task = task_ - 4;
+    }
     
     launch_worker_threads();
 }
@@ -1864,10 +1869,15 @@ void SEARCHER::worker_thread_all(PGN* pgn, FILE* fw, int task_) {
 void SEARCHER::worker_thread() {
     if(work_type == 0) {
         return self_play_thread();
-    } else {
+    } else if(work_type == 1) {
         char game[16 * MAX_FILE_STR];
         while(p_pgn->next(game)) {
             pgn_to_epd(game,spfile,task);
+        }
+    } else {
+        char epd[4 * MAX_FILE_STR];
+        while(p_pgn->next(epd)) {
+            epd_to_nn(epd,spfile,task);
         }
     }
 }

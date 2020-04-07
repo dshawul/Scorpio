@@ -1631,24 +1631,32 @@ void SEARCHER::pgn_to_epd(char* pgn, FILE* fb, int task) {
     int   moves[MAX_MOVES];
     float probs[MAX_MOVES];
 
-#define TASK() {                                            \
-    if(task == 0) {                                         \
-        get_fen(fen);                                       \
-        if(result == R_WWIN) strcat(fen," 1-0");            \
-        else if(result == R_BWIN) strcat(fen," 0-1");       \
-        else strcat(fen," 1/2-1/2");                        \
-        int mind = compute_move_index(move);                \
-        if(!has_score) score = eval(true);                  \
-        if(player == black) score = -score;                 \
-        score = logistic(score);                            \
-        l_lock(lock_io);                                    \
-        fprintf(fb,"%s %f 1 %d 1.0\n", fen, score, mind);   \
-        l_unlock(lock_io);                                  \
-    } else if(task == 1) {                                  \
-        get_fen(fen);                                       \
-        if(result == R_WWIN) strcat(fen," 1-0");            \
-        else if(result == R_BWIN) strcat(fen," 0-1");       \
-        else strcat(fen," 1/2-1/2");                        \
+#define TASK() {                                                \
+    if(task == 0) {                                             \
+        get_fen(fen);                                           \
+        if(result == R_WWIN) strcat(fen," 1-0");                \
+        else if(result == R_BWIN) strcat(fen," 0-1");           \
+        else strcat(fen," 1/2-1/2");                            \
+        l_lock(lock_io);                                        \
+        fprintf(fb,"%s\n", fen);                                \
+        l_unlock(lock_io);                                      \
+    } else if(task == 1) {                                      \
+        get_fen(fen);                                           \
+        if(result == R_WWIN) strcat(fen," 1-0");                \
+        else if(result == R_BWIN) strcat(fen," 0-1");           \
+        else strcat(fen," 1/2-1/2");                            \
+        int mind = compute_move_index(move);                    \
+        if(!has_score) score = eval(true);                      \
+        if(player == black) score = -score;                     \
+        score = logistic(score);                                \
+        l_lock(lock_io);                                        \
+        fprintf(fb,"%s %f 1 %d 1.0\n", fen, score, mind);       \
+        l_unlock(lock_io);                                      \
+    } else if(task == 2) {                                      \
+        get_fen(fen);                                           \
+        if(result == R_WWIN) strcat(fen," 1-0");                \
+        else if(result == R_BWIN) strcat(fen," 0-1");           \
+        else strcat(fen," 1/2-1/2");                            \
         int nmoves;                                             \
         generate_and_score_moves(0, -MATE_SCORE, MATE_SCORE);   \
         manage_tree(true);                                      \
@@ -1658,15 +1666,15 @@ void SEARCHER::pgn_to_epd(char* pgn, FILE* fb, int task) {
         for(int i = 0; i < nmoves; i++)                         \
             fprintf(fb, "%d %f ",moves[i],probs[i]);            \
         fprintf(fb,"\n");                                       \
-        l_unlock(lock_io);                                  \
-    } else if(task == 2) {                                  \
-        unsigned r = rand();                                \
-        if(r <= RAND_MAX / 10) {                            \
-            l_lock(lock_io);                                \
-            write_input_planes(fb);                         \
-            l_unlock(lock_io);                              \
-        }                                                   \
-    }                                                       \
+        l_unlock(lock_io);                                      \
+    } else if(task == 3) {                                      \
+        unsigned r = rand();                                    \
+        if(r <= RAND_MAX / 10) {                                \
+            l_lock(lock_io);                                    \
+            write_input_planes(fb);                             \
+            l_unlock(lock_io);                                  \
+        }                                                       \
+    }                                                           \
 }
 
     std::stringstream iss;
@@ -1774,6 +1782,52 @@ void SEARCHER::pgn_to_epd(char* pgn, FILE* fb, int task) {
         }
 
     }
+
+#undef TASK
+
+}
+/*
+EPD to nn
+*/
+void SEARCHER::epd_to_nn(char* fen, FILE* fb, int task) {
+
+    float score;
+    int   moves[MAX_MOVES];
+    float probs[MAX_MOVES];
+
+#define TASK() {                                                \
+    if(task == 0) {                                             \
+        score = eval(true);                                     \
+        if(player == black) score = -score;                     \
+        score = logistic(score);                                \
+        l_lock(lock_io);                                        \
+        fprintf(fb,"%s %f\n", fen, score);                      \
+        l_unlock(lock_io);                                      \
+    } else if(task == 1) {                                      \
+        int nmoves;                                             \
+        generate_and_score_moves(0, -MATE_SCORE, MATE_SCORE);   \
+        manage_tree(true);                                      \
+        get_train_data(score, nmoves, moves, probs);            \
+        l_lock(lock_io);                                        \
+        fprintf(fb,"%s %f %d ", fen, score, nmoves);            \
+        for(int i = 0; i < nmoves; i++)                         \
+            fprintf(fb, "%d %f ",moves[i],probs[i]);            \
+        fprintf(fb,"\n");                                       \
+        l_unlock(lock_io);                                      \
+    } else if(task == 2) {                                      \
+        unsigned r = rand();                                    \
+        if(r <= RAND_MAX / 10) {                                \
+            l_lock(lock_io);                                    \
+            write_input_planes(fb);                             \
+            l_unlock(lock_io);                                  \
+        }                                                       \
+    }                                                           \
+}
+
+    fen[strlen(fen) - 1] = 0;
+    set_board(fen);
+
+    TASK();
 
 #undef TASK
 
