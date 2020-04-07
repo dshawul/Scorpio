@@ -653,6 +653,9 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         strcpy(source,commands[command_num++]);
         strcpy(dest,commands[command_num++]);
 
+        load_egbbs();
+        wait_for_egbb();
+
         int task;
         if(!strcmp(command,"pgn_to_epd"))
             task = 0;
