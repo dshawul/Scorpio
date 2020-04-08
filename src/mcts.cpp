@@ -984,56 +984,51 @@ void SEARCHER::check_mcts_quit() {
         current = current->next;
     }
 
-    bool in_trouble;
+    /*determine time factor*/
     int remain_visits;
-
+    if((bnval == bnvis) && ABS(root_score - old_root_score) <= 30)
+        time_factor = 1.0;
+    else
+        time_factor = 1.3;
     if(chess_clock.max_visits == MAX_NUMBER) {
-        in_trouble = (root_node->score <= -30);
+        if(root_node->score <= -30) time_factor *= 1.3;
         int time_used = MAX(1,get_time() - start_time);
-        int remain_time = (in_trouble ? 1.3 * chess_clock.search_time : 
-                        chess_clock.search_time) - time_used;
+        int remain_time = time_factor * chess_clock.search_time - time_used;
         remain_visits = (remain_time / (double)time_used) * root_node->visits;
     } else {
-        in_trouble = false;
         remain_visits = chess_clock.max_visits - root_node->visits;
     }
 
-    if(bnval == bnvis) {
-        int visdiff;
-        double factor;
+    /*prune root nodes*/
+    int visdiff;
+    double factor;
 
-        factor = sqrt(bnvis->policy / (bnvis2->policy + 1e-8));
-        if(factor >= 20) factor = 20;
+    factor = sqrt(bnvis->policy / (bnvis2->policy + 1e-8));
+    if(factor >= 20) factor = 20;
 
-        visdiff = (bnvis->visits - bnvis2->visits) * (factor / 1.2);
-        if(visdiff >= remain_visits)
-            abort_search = 1;
-        
-        root_unstable = 0;
-        if(in_trouble)
-            root_unstable = 1;
-        if(!root_unstable && !abort_search) {
-            Node* current = root_node->child;
-            while(current) {
-                factor = sqrt(bnvis->policy / (current->policy + 1e-8));
-                if(factor >= 20) factor = 20;
+    visdiff = (bnvis->visits - bnvis2->visits) * (factor / 1.2);
+    if(visdiff >= remain_visits)
+        abort_search = 1;
 
-                visdiff = (bnvis->visits - current->visits) * (factor / 1.2);
-                if(current->visits && !current->is_dead() && visdiff >= remain_visits) {
-                    current->set_dead();
+    if(!abort_search) {
+        Node* current = root_node->child;
+        while(current) {
+            factor = sqrt(bnvis->policy / (current->policy + 1e-8));
+            if(factor >= 20) factor = 20;
+
+            visdiff = (bnvis->visits - current->visits) * (factor / 1.2);
+            if(current->visits && !current->is_dead() && visdiff >= remain_visits) {
+                current->set_dead();
 #if 0
-                    char mvs[16];
-                    mov_str(current->move,mvs);
-                    print("Killing node: %s %d %d = %d %d\n",
-                        mvs,current->visits,bnvis->visits, 
-                        visdiff, remain_visits);
+                char mvs[16];
+                mov_str(current->move,mvs);
+                print("Killing node: %s %d %d = %d %d\n",
+                    mvs,current->visits,bnvis->visits, 
+                    visdiff, remain_visits);
 #endif
-                }
-                current = current->next;
             }
+            current = current->next;
         }
-    } else {
-        root_unstable = 1;
     }
 }
 

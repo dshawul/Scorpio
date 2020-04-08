@@ -1357,7 +1357,7 @@ MOVE SEARCHER::iterative_deepening() {
     alpha = -MATE_SCORE; 
     beta = MATE_SCORE;
     root_failed_low = 0;
-    root_unstable = 0;
+    time_factor = 1.0;
     pstack->node_type = PV_NODE;
     pstack->search_state = NORMAL_MOVE;
     pstack->extension = 0;
@@ -1848,6 +1848,7 @@ MOVE SEARCHER::find_best() {
     qsearch_calls = 0;
     egbb_probes = 0;
     prev_pv_length = 0;
+    old_root_score = root_score;
 #ifdef PARALLEL
     PROCESSOR::set_num_searchers();
 #endif

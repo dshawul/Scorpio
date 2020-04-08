@@ -826,8 +826,9 @@ typedef struct SEARCHER{
     static int scorpio;
     static int pv_print_style;
     static int root_score;
+    static int old_root_score;
     static int root_failed_low;
-    static int root_unstable;
+    static float time_factor;
     static int last_book_move;
     static int first_search;
     static int analysis_mode;
