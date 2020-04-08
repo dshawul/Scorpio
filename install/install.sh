@@ -141,7 +141,7 @@ nnp_m_=$(echo $nnp_m | sed 's_/_\\/_g')
 sed -i "s/^egbb_path.*/egbb_path                ${egbbp_}/g" scorpio.ini
 sed -i "s/^egbb_files_path.*/egbb_files_path          ${egbbfp_}/g" scorpio.ini
 sed -i "s/^delay.*/delay                    ${delay}/g" scorpio.ini
-sed -i "s/^float_type.*/float_type               INT8/g" scorpio.ini
+sed -i "s/^float_type.*/float_type               HALF/g" scorpio.ini
 
 if [ $DEV = "gpu" ]; then
     sed -i "s/^device_type.*/device_type              GPU/g" scorpio.ini

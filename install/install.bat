@@ -113,7 +113,7 @@ for /F "delims=" %%A in (scorpio.ini) do (
         echo n_devices                1 >> output.txt
      )
    ) ELSE IF /i "!LMN:~0,10!"=="float_type" (
-     echo float_type               INT8 >> output.txt
+     echo float_type               HALF >> output.txt
    ) ELSE IF /i "!LMN:~0,9!"=="nn_path_e" (
      IF %nn_type_e% GEQ 0 (
         echo nn_path_e                %nnp_e% >> output.txt
