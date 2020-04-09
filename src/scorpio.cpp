@@ -294,8 +294,10 @@ void init_game() {
     initmagicmoves();
     SEARCHER::pre_calculate();
     searcher.new_board();
-    SEARCHER::first_search = true;
     SEARCHER::scorpio = black;
+    SEARCHER::first_search = true;
+    SEARCHER::old_root_score = 0;
+    SEARCHER::root_score = 0;
     SEARCHER::pv_print_style = 0;
     SEARCHER::resign_value = 600;
     SEARCHER::resign_count = 0;
@@ -1247,6 +1249,8 @@ int xboard_commands(char** commands,char* command,int& command_num,int& do_searc
         result = R_UNKNOWN;
         SEARCHER::scorpio = black;
         SEARCHER::first_search = true;
+        SEARCHER::old_root_score = 0;
+        SEARCHER::root_score = 0;
     } else if(!strcmp(command,"setboard")) {
         PROCESSOR::clear_hash_tables();
         char fen[MAX_STR];
@@ -1330,6 +1334,8 @@ int uci_commands(char** commands,char* command,int& command_num,int& do_search) 
         result = R_UNKNOWN;
         SEARCHER::scorpio = black;
         SEARCHER::first_search = true;
+        SEARCHER::old_root_score = 0;
+        SEARCHER::root_score = 0;
     } else if(!strcmp(command, "isready")) {
         wait_for_egbb();
         print("readyok\n");

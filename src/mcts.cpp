@@ -985,13 +985,20 @@ void SEARCHER::check_mcts_quit() {
     }
 
     /*determine time factor*/
+    time_factor = 1.0;
+    if(bnval != bnvis)
+        time_factor *= 1.3;
+    if(root_node->score <= -30 || root_node->score >= 100)
+        time_factor *= 1.3;
+    else if(ABS(root_node->score - old_root_score) > 30)
+        time_factor *= 1.3;
+    else if(root_node->score >= 55)
+        time_factor *= 1.2;
+    else if(ABS(root_node->score) > 10)
+        time_factor *= 1.1;
+
     int remain_visits;
-    if((bnval == bnvis) && ABS(root_score - old_root_score) <= 30)
-        time_factor = 1.0;
-    else
-        time_factor = 1.3;
     if(chess_clock.max_visits == MAX_NUMBER) {
-        if(root_node->score <= -30) time_factor *= 1.3;
         int time_used = MAX(1,get_time() - start_time);
         int remain_time = time_factor * chess_clock.search_time - time_used;
         remain_visits = (remain_time / (double)time_used) * root_node->visits;
