@@ -391,7 +391,7 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
         && !pstack->extension
         && noncap_reduce
         && node_t != PV_NODE
-        && abs((pstack - 1)->best_score) != MATE_SCORE
+        && ABS((pstack - 1)->best_score) != MATE_SCORE
         ) {
             //late move
             if(nmoves >= lmp_count[depth])
@@ -1387,7 +1387,7 @@ MOVE SEARCHER::iterative_deepening() {
 
         /*Alpha-beta prior search */
         if(frac_abprior > 0 && 
-            (all_man_c <= alphabeta_man_c || root_score >= 200)
+            (all_man_c <= alphabeta_man_c || ABS(root_score) >= 200)
             ) {
 
 #ifdef PARALLEL

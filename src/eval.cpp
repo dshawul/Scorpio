@@ -1393,16 +1393,16 @@ void SEARCHER::eval_win_chance(SCORE& w_score,SCORE& b_score,int& w_win_chance,i
         if(temp2 >= -temp)
             b_score.add(MINOR_v_P, MINOR_v_P / 2);
     } else if(temp1 >= 3) {                             //3M vs (2R or Q)
-        if(abs(temp) <= 1)
+        if(ABS(temp) <= 1)
             w_score.add(MINORS3_v_MAJOR);                 
     } else if(temp1 <= -3) {
-        if(abs(temp) <= 1) 
+        if(ABS(temp) <= 1) 
             b_score.add(MINORS3_v_MAJOR);
     } else if(temp1 == 2) {                             //2M vs R
-        if(abs(temp) <= 1) 
+        if(ABS(temp) <= 1) 
             w_score.add(MINORS2_v_MAJOR);               
     } else if(temp1 == -2) {
-        if(abs(temp) <= 1) 
+        if(ABS(temp) <= 1) 
             b_score.add(MINORS2_v_MAJOR);
     } else if(temp == 2) {                              //R vs M
         if(temp2 <= -1)

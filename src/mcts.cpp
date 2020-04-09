@@ -828,7 +828,7 @@ SELECT:
 
         if(next->move) {
             bool try_scout = (alphac + 1 < betac &&
-                              abs(betac) != MATE_SCORE &&
+                              ABS(betac) != MATE_SCORE &&
                               pstack->node_type == PV_NODE && 
                               next_node_t == CUT_NODE);
             /*Make move*/
@@ -848,7 +848,7 @@ RESEARCH:
             if(rollout_type == ALPHABETA) {
                 if(use_selective 
                     && be_selective(next->rank,true)
-                    && abs(betac) != MATE_SCORE 
+                    && ABS(betac) != MATE_SCORE 
                     ) {
                     next->set_bounds(betac,betac);
                     POP_MOVE();
