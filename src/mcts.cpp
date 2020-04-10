@@ -1721,10 +1721,8 @@ void SEARCHER::self_play_thread() {
     PTRAIN trn = new TRAIN[MAX_HSTACK];
 #if RAW
     static const int NPLANE = 8 * 8 * 32;
-    static const int NPARAM = 5;
     float* data  = (float*) malloc(sizeof(float) * NPLANE);
-    float* adata = (float*) malloc(sizeof(float) * NPARAM);
-    float* iplanes[2] = {data, adata};
+    float* iplanes[1] = {data};
 #endif
     char* buffer = new char[4096 * MAX_HSTACK];
     int bcount;
@@ -1767,7 +1765,7 @@ void SEARCHER::self_play_thread() {
 #if RAW
                     int isdraw[1], hist = 1;
                     ::fill_input_planes(pl,phst->castle,phst->fifty,hist,
-                        isdraw,ptrn->piece,ptrn->square,data,adata);
+                        isdraw,ptrn->piece,ptrn->square,data);
                     bcount += sprintf(&buffer[bcount], "%d %d", pl, vres);
 #else
                     strcpy(&buffer[bcount], ptrn->fen);

@@ -131,8 +131,8 @@ static void load_net(int id, int nn_cache_size, PLOAD_NN load_nn) {
     }
 
     if(nn_type == DEFAULT) {
-        strcpy(input_names, "main_input aux_input");
-        sprintf(input_shapes, "%d 8 8  5 1 1", net_channels[nn_type]);
+        strcpy(input_names, "main_input");
+        sprintf(input_shapes, "%d 8 8", net_channels[nn_type]);
         strcpy(output_names, "value/BiasAdd policy/Reshape");
         strcpy(output_sizes, "3 256");
     } else if(nn_type == SIMPLE) {
@@ -330,7 +330,7 @@ float SEARCHER::probe_neural_(bool hard_probe, float* policy) {
 
     nnecalls++;
 
-    float* iplanes[2] = {0, 0};
+    float* iplanes[1] = {0};
     fill_input_planes(iplanes);
 
     if(nn_type == DEFAULT || nn_type == SIMPLE) {
@@ -577,12 +577,11 @@ int SEARCHER::compute_move_index(MOVE& m, int mnn_type) {
 
 void fill_input_planes(
     int player, int cast, int fifty, int hply, int epsquare, bool flip_h,
-    int hist, int* draw, int* piece, int* square, float* data, float* adata
+    int hist, int* draw, int* piece, int* square, float* data
     ) {
     
-    int pc, col, sq, to;
+    int pc, sq, to;
     const int CHANNELS = net_channels[SEARCHER::nn_type];
-    const int NPARAMS = 5;
 
     /* 
        Add the attack map planes 
@@ -612,7 +611,6 @@ void fill_input_planes(
         int board[128];
 
         memset(board, 0, sizeof(int) * 128);
-        memset(adata, 0, sizeof(float) * NPARAMS);
 
         for(int i = 0; (pc = piece[i]) != _EMPTY; i++) {
             sq = SQ6488(square[i]);
@@ -730,16 +728,6 @@ void fill_input_planes(
                     NK_MOVES(RD,11);
                     NK_MOVES(LD,11);
                     break;
-            }
-
-            col = PCOLOR(pc);
-            pc = PIECE(pc);
-
-            if(pc != king) {
-                if(col == white)
-                    adata[pc - queen]++;
-                else
-                    adata[pc - queen]--;
             }
         }
 
@@ -864,10 +852,8 @@ void SEARCHER::fill_input_planes(float** iplanes) {
         fill_list(count,piece,square);
 
         iplanes[0] = inp_planes[processor_id];
-        if(nn_type == DEFAULT)
-            iplanes[1] = iplanes[0] + (8 * 8 * net_channels[nn_type]);
         ::fill_input_planes(player,castle,fifty,hply,epsquare,flip_h,hist,
-            isdraw,piece,square,iplanes[0],iplanes[1]);
+            isdraw,piece,square,iplanes[0]);
 
     } else {
 
@@ -891,7 +877,7 @@ void SEARCHER::fill_input_planes(float** iplanes) {
 
         iplanes[0] = inp_planes[processor_id];
         ::fill_input_planes(player,castle,fifty,hply,epsquare,flip_h,hist,
-            isdraw,piece,square,iplanes[0],0);
+            isdraw,piece,square,iplanes[0]);
     }
 }
 /*
@@ -900,15 +886,12 @@ Write input planes to file
 void SEARCHER::write_input_planes(FILE* file) {
     init_input_planes();
 
-    float* iplanes[2] = {0, 0};
+    float* iplanes[1] = {0};
     fill_input_planes(iplanes);
 
     const int CHANNELS = net_channels[nn_type];;
-    const int NPARAMS = 5;
     const int NPLANE = 8 * 8 * CHANNELS;
     fwrite(iplanes[0], NPLANE * sizeof(float), 1, file);
-    if(nn_type == DEFAULT)
-        fwrite(iplanes[1], NPARAMS * sizeof(float), 1, file);
 }
 
 /*
@@ -916,15 +899,8 @@ compress input planes with RLE
 */
 int SEARCHER::compress_input_planes(float** iplanes, char* buffer) {
     static const int NPLANE = 8 * 8 * net_channels[nn_type];
-    static const int NPARAM = 5;
 
     int bcount = 0;
-
-    /*params*/
-    if(iplanes[1]) {
-        for(int i = 0; i < NPARAM; i++)
-            bcount += sprintf(&buffer[bcount], "%d ", int(iplanes[1][i]));
-    }
 
     /*run length encoding of planes*/
     int cnt = 1, val = iplanes[0][0];
