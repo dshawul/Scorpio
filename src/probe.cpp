@@ -78,6 +78,8 @@ int draw_weight = 100;
 int loss_weight = 100;
 static bool is_trt = false;
 
+static const int net_channels[] = {32, 112, 12, 0};
+
 /*
 Load the dll and get the address of the load and probe functions.
 */
@@ -130,17 +132,17 @@ static void load_net(int id, int nn_cache_size, PLOAD_NN load_nn) {
 
     if(nn_type == DEFAULT) {
         strcpy(input_names, "main_input aux_input");
-        strcpy(input_shapes, "32 8 8  5 1 1");
+        sprintf(input_shapes, "%d 8 8  5 1 1", net_channels[nn_type]);
         strcpy(output_names, "value/BiasAdd policy/Reshape");
         strcpy(output_sizes, "3 256");
     } else if(nn_type == SIMPLE) {
         strcpy(input_names, "main_input");
-        strcpy(input_shapes, "12 8 8");
+        sprintf(input_shapes, "%d 8 8", net_channels[nn_type]);
         strcpy(output_names, "value/BiasAdd policy/BiasAdd");
         strcpy(output_sizes, "3 256");
     } else if(nn_type == LCZERO) {
         strcpy(input_names, "main_input");
-        strcpy(input_shapes, "112 8 8");
+        sprintf(input_shapes, "%d 8 8", net_channels[nn_type]);
         strcpy(output_names, "value_head policy_head");
         if(wdl_head)
             strcpy(output_sizes, "3 256");
@@ -586,8 +588,7 @@ void fill_input_planes(
     ) {
     
     int pc, col, sq, to;
-    const int CHANNELS = (SEARCHER::nn_type == LCZERO) ? 112 : 
-                         ((SEARCHER::nn_type == DEFAULT) ? 32 : 12);
+    const int CHANNELS = net_channels[SEARCHER::nn_type];
     const int NPARAMS = 5;
 
     /* 
@@ -871,7 +872,7 @@ void SEARCHER::fill_input_planes(float** iplanes) {
 
         iplanes[0] = inp_planes[processor_id];
         if(nn_type == DEFAULT)
-            iplanes[1] = iplanes[0] + (8 * 8 * 32);
+            iplanes[1] = iplanes[0] + (8 * 8 * net_channels[nn_type]);
         ::fill_input_planes(player,castle,fifty,hply,epsquare,flip_h,hist,
             isdraw,piece,square,iplanes[0],iplanes[1]);
 
@@ -909,8 +910,7 @@ void SEARCHER::write_input_planes(FILE* file) {
     float* iplanes[2] = {0, 0};
     fill_input_planes(iplanes);
 
-    const int CHANNELS = (SEARCHER::nn_type == LCZERO) ? 112 : 
-                         ((SEARCHER::nn_type == DEFAULT) ? 32 : 12);
+    const int CHANNELS = net_channels[nn_type];;
     const int NPARAMS = 5;
     const int NPLANE = 8 * 8 * CHANNELS;
     fwrite(iplanes[0], NPLANE * sizeof(float), 1, file);
@@ -922,7 +922,7 @@ void SEARCHER::write_input_planes(FILE* file) {
 compress input planes with RLE
 */
 int SEARCHER::compress_input_planes(float** iplanes, char* buffer) {
-    static const int NPLANE = 8 * 8 * 32;
+    static const int NPLANE = 8 * 8 * net_channels[nn_type];
     static const int NPARAM = 5;
 
     int bcount = 0;

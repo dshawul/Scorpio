@@ -1718,7 +1718,7 @@ void SEARCHER::self_play_thread() {
     int phply = hply;
     PTRAIN trn = new TRAIN[MAX_HSTACK];
 #if RAW
-    static const int NPLANE = 8 * 8 * 24;
+    static const int NPLANE = 8 * 8 * 32;
     static const int NPARAM = 5;
     float* data  = (float*) malloc(sizeof(float) * NPLANE);
     float* adata = (float*) malloc(sizeof(float) * NPARAM);
