@@ -1337,7 +1337,6 @@ MOVE SEARCHER::iterative_deepening() {
     int score;
     int easy = false,easy_score = 0;
     MOVE easy_move = 0;
-    static unsigned int average_pps = 0;
 
     search_depth = 1;
 #ifdef CLUSTER

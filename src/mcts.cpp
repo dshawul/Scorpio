@@ -1046,13 +1046,15 @@ void SEARCHER::search_mc(bool single) {
     int oalpha = pstack->alpha;
     int obeta = pstack->beta;
     unsigned int ovisits = root->visits;
-#ifdef EGBB
     unsigned int visits_poll;
-    if(use_nn) visits_poll = PROCESSOR::n_processors;
-    else visits_poll = 200;
-#else
-    const unsigned int visits_poll = 200;
-#endif
+
+    /*poll input after this many playouts*/
+    if(chess_clock.max_visits != MAX_NUMBER)
+        visits_poll = chess_clock.max_visits / 40;
+    else if(use_nn)
+        visits_poll = 4 * PROCESSOR::n_processors;
+    else
+        visits_poll = MAX(200, average_pps / 40);
 
     /*wait until all idle processors are awake*/
     if(!single) {
