@@ -1566,6 +1566,20 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta) {
             double total = 0.f, maxp = -100, minp = 100;
             for(int i = 0;i < pstack->count; i++) {
                 float* p = (float*)&pstack->score_st[i];
+                MOVE& move = pstack->move_st[i];
+                if(is_prom(move)) {
+                    switch(PIECE(m_promote(move))) {
+                        case queen:
+                            break;
+                        case rook:
+                            *p = *p * 0.5;
+                            break;
+                        case knight:
+                        case bishop:
+                            *p = *p * 0.25;
+                            break;
+                    }
+                }
                 if(*p > maxp) maxp = *p;
                 if(*p < minp) minp = *p;
             }
