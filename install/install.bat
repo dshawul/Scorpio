@@ -2,6 +2,25 @@
 SET VERSION=3.0
 SET VR=30
 SET OSD=windows
+SET PREC=HALF
+
+:loop
+IF NOT "%1"=="" (
+    IF "%1"=="-p" (
+        SET PREC=%2
+        SHIFT
+    ) ELSE (
+        :usage
+        echo Usage: %0
+        echo
+        echo    -p   Use precision FLOAT/HALF/INT8
+        echo
+        echo Exampel: install.bat -p INT8
+        exit /b
+    )
+    SHIFT
+    GOTO :loop
+)
 
 REM --------- Nvidia GPU
 WHERE nvcuda.dll >nul 2>nul
@@ -113,7 +132,7 @@ for /F "delims=" %%A in (scorpio.ini) do (
         echo n_devices                1 >> output.txt
      )
    ) ELSE IF /i "!LMN:~0,10!"=="float_type" (
-     echo float_type               HALF >> output.txt
+     echo float_type               %PREC% >> output.txt
    ) ELSE IF /i "!LMN:~0,9!"=="nn_path_e" (
      IF %nn_type_e% GEQ 0 (
         echo nn_path_e                %nnp_e% >> output.txt

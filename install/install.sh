@@ -2,18 +2,27 @@
 
 # display help
 display_help() {
-    echo "Usage: $0 [OS] [MACHINE] "
+    echo "Usage: $0  "
     echo
-    echo "  -h,--help     Display this help message."
+    echo "  -p,--precision     Precision to use FLOAT/HALF/INT8."
     echo
-    echo "Example: ./install.sh"
+    echo "Example: ./install.sh -p INT8"
     echo
 }
 
-if [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
-  display_help
-  exit 0
-fi
+PREC=HALF
+while [ "$1" != "" ]; do
+    case $1 in
+        -p | --precision )
+            shift
+            PREC=$1
+            ;;
+        * )
+            display_help
+            exit 0
+    esac
+    shift
+done
 
 set -eux
 
@@ -141,7 +150,7 @@ nnp_m_=$(echo $nnp_m | sed 's_/_\\/_g')
 sed -i "s/^egbb_path.*/egbb_path                ${egbbp_}/g" scorpio.ini
 sed -i "s/^egbb_files_path.*/egbb_files_path          ${egbbfp_}/g" scorpio.ini
 sed -i "s/^delay.*/delay                    ${delay}/g" scorpio.ini
-sed -i "s/^float_type.*/float_type               HALF/g" scorpio.ini
+sed -i "s/^float_type.*/float_type               ${PREC}/g" scorpio.ini
 
 if [ $DEV = "gpu" ]; then
     sed -i "s/^device_type.*/device_type              GPU/g" scorpio.ini
