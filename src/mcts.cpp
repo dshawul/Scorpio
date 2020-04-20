@@ -1688,18 +1688,22 @@ void SEARCHER::self_play_thread_all(FILE* fw, FILE* fw2, int ngames) {
 /*get training data from search*/
 void SEARCHER::get_train_data(float& value, int& nmoves, int* moves, float* probs) {
     static const bool average_pi_and_m = false;
-    MOVE move;
 
     value = logistic(root_node->score);
     if(player == black) 
         value = 1 - value;
-    nmoves = stack[0].count;
-    move = stack[0].pv[0];
 
     double val, total_visits = 0;
     int cnt = 0, diff = low_visits_threshold - root_node->visits;
     Node* current = root_node->child;
     while(current) {
+        /*skip underpromotions*/
+        if(is_prom(current->move) && 
+            PIECE(m_promote(current->move)) != queen) {
+            current = current->next;
+            continue;
+        }
+
         val = current->visits;
         if(diff > 0) 
             val += diff * current->policy;
@@ -1711,7 +1715,10 @@ void SEARCHER::get_train_data(float& value, int& nmoves, int* moves, float* prob
         cnt++;
         current = current->next;
     }
+    nmoves = cnt;
+
     if(average_pi_and_m && diff > 0) {
+        MOVE move = stack[0].pv[0];
         for(int i = 0; i < cnt; i++)
             probs[i] /= (2 * total_visits);
         int midx = compute_move_index(move, 0);
