@@ -933,9 +933,15 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         if(test <= RUNSEARCH) {
             if(SEARCHER::pv_print_style == 0) 
                 print("******************************************\n");
-            else if(SEARCHER::pv_print_style == 1)
-                print("\n\t\tNodes     Time      NPS      splits     bad"
-                "\n\t\t=====     ====      ===      ======     ===\n");
+            else if(SEARCHER::pv_print_style == 1) {
+                if(montecarlo) {
+                    print("\n\t\tVisits     Time        PPS      NNEPS"
+                          "\n\t\t======     ====        ===      =====\n");
+                } else {
+                    print("\n\t\tNodes     Time        NPS   splits      bad"
+                          "\n\t\t=====     ====        ===   ======      ===\n");
+                }
+            }
         }
         SEARCHER::pre_calculate();
         PROCESSOR::clear_hash_tables();

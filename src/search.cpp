@@ -1545,8 +1545,9 @@ MOVE SEARCHER::iterative_deepening() {
             int time_red = root_node->visits / (average_pps / 1000.0f);
             if(time_red > 0.5 * chess_clock.search_time)
                 time_red = 0.5 * chess_clock.search_time;
-            print_info("Reducing time by %d ms to %dms\n",
-                time_red, chess_clock.search_time - time_red);
+            if(pv_print_style == 0)
+                print_info("Reducing time by %d ms to %dms\n",
+                    time_red, chess_clock.search_time - time_red);
             chess_clock.search_time -= time_red;
         }
     }
@@ -1743,18 +1744,20 @@ MOVE SEARCHER::iterative_deepening() {
         /*search has ended. display some info*/
         int time_used = MAX(1,get_time() - start_time);
         int time_used_o = MAX(1,get_time() - start_time_o);
+        unsigned int pps = int(root_node->visits / (time_used / 1000.0f));
+        if(average_pps > 0 && pps >= 5 * average_pps);
+        else average_pps = pps;
+
         if(pv_print_style == 1) {
-            print(" " FMT64W " %8.2f %10d\n",nodes,float(time_used) / 1000,
-                int(BMP64(nodes) / (time_used / 1000.0f)));
+            print(" %21d %8.2f %10d %10d\n",
+                root_node->visits,float(time_used) / 1000,pps,
+                int(BMP64(nnecalls) / (time_used / 1000.0f)));
         } else if(pv_print_style == 0) {
             /*print tree*/
             if(multipv)
                 Node::print_tree(root_node,MAX_PLY);
 
             /* print result*/
-            unsigned int pps = int(root_node->visits / (time_used / 1000.0f));
-            if(average_pps > 0 && pps >= 5 * average_pps);
-            else average_pps = pps;
             print_info("nodes " FMT64 " <%d%% qnodes> time %dms nps %d eps %d nneps %d tbhits %d\n",nodes,
                 int(BMP64(qnodes) / (BMP64(nodes) / 100.0f)),
                 time_used_o,int(BMP64(nodes) / (time_used_o / 1000.0f)),
