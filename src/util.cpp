@@ -531,9 +531,12 @@ int SEARCHER::draw() const {
     }
 
     if(hply >= 2) {
+        int repeat = 0;
         for(int i = hply - 2;i >= hply - fifty;i -= 2) {
             if(hstack[i].hash_key == hash_key) {
-                return true;
+                repeat++;
+                if(repeat >= 2)
+                    return true;
             }
         }
     }
