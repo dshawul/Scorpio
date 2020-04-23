@@ -1425,8 +1425,8 @@ MOVE SEARCHER::iterative_deepening() {
                 if(v > maxn) { maxn = v; maxni = i; }
             }
 
-            if(root_score_st[0] < 2 * root_score_st[maxni])
-                root_score_st[0] = 2 * root_score_st[maxni];
+            if(root_score_st[0] < 1.5 * root_score_st[maxni])
+                root_score_st[0] = 1.5 * root_score_st[maxni];
 
             /*assign prior*/
             Node* current = root_node->child;
@@ -1437,6 +1437,13 @@ MOVE SEARCHER::iterative_deepening() {
                         double v = sqrt(double(root_score_st[i]) / maxn);
                         current->prior = -(v - 0.5) * 100;
                         current->rank = i + 1;
+#if 0
+                        char mvs[16];
+                        mov_str(move,mvs);
+                        print("%2d. %6s %6d %9.6f %9.6f " FMT64W " " FMT64W "\n", 
+                            current->rank, mvs, current->prior, logistic(-current->prior),
+                            v, root_score_st[i], maxn);
+#endif
                         break;
                     }
                 }
