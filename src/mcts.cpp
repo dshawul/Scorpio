@@ -1635,20 +1635,13 @@ static FILE* spfile = 0;
 static FILE* spfile2 = 0;
 static int spgames = 0;
 
-#define RAW  0
-
 /*training data structure*/
 typedef struct TRAIN {
    int   nmoves;
    float value;
    int   moves[MAX_MOVES];
    float probs[MAX_MOVES];
-#if RAW
-   int   piece[33];
-   int   square[33];
-#else
    char  fen[128];
-#endif
 } *PTRAIN;
 
 /*multiple worker threads*/
@@ -1740,11 +1733,6 @@ void SEARCHER::self_play_thread() {
     MOVE move;
     int phply = hply;
     PTRAIN trn = new TRAIN[MAX_HSTACK];
-#if RAW
-    static const int NPLANE = 8 * 8 * 32;
-    float* data  = (float*) malloc(sizeof(float) * NPLANE);
-    float* iplanes[1] = {data};
-#endif
     char* buffer = new char[4096 * MAX_HSTACK];
     int bcount;
 
@@ -1769,13 +1757,6 @@ void SEARCHER::self_play_thread() {
                     ngames);
 
                 /*save training data*/
-#if 0
-                int vres;
-                if(res == R_WWIN) vres = 0;
-                else if(res == R_BWIN) vres = 1;
-                else vres = 2;
-#endif
-
                 bcount = 0;
 
                 int pl = white;
@@ -1783,12 +1764,6 @@ void SEARCHER::self_play_thread() {
                     PTRAIN ptrn = &trn[h];
                     PHIST_STACK phst = &hstack[h];
 
-#if RAW
-                    int isdraw[1], hist = 1;
-                    ::fill_input_planes(pl,phst->castle,phst->fifty,hist,
-                        isdraw,ptrn->piece,ptrn->square,data);
-                    bcount += sprintf(&buffer[bcount], "%d %d", pl, vres);
-#else
                     strcpy(&buffer[bcount], ptrn->fen);
                     bcount += strlen(ptrn->fen);
 
@@ -1799,7 +1774,6 @@ void SEARCHER::self_play_thread() {
                         bcount += 4;
                     }
                     bcount += 4;
-#endif
 
                     bcount += sprintf(&buffer[bcount], " %f %d ", 
                         ptrn->value, ptrn->nmoves);
@@ -1807,9 +1781,6 @@ void SEARCHER::self_play_thread() {
                         bcount += sprintf(&buffer[bcount], "%d %f ", 
                             ptrn->moves[i], ptrn->probs[i]);
 
-#if RAW
-                    bcount = compress_input_planes(iplanes, buffer);
-#endif
                     bcount += sprintf(&buffer[bcount], "\n");
 
                     pl = invert(pl);
@@ -1831,10 +1802,6 @@ void SEARCHER::self_play_thread() {
             if(abort_search) {
                 delete[] trn;
                 delete[] buffer;
-#if RAW
-                delete[] data;
-                delete[] adata;
-#endif
                 return;
             }
 
@@ -1849,14 +1816,7 @@ void SEARCHER::self_play_thread() {
             /*get training data*/
             PTRAIN ptrn = &trn[hply];
             get_train_data(ptrn->value, ptrn->nmoves, ptrn->moves, ptrn->probs);
-
-#if RAW
-            /*fill piece list*/
-            int pcnt = 0;
-            fill_list(pcnt,ptrn->piece,ptrn->square);
-#else
             get_fen(ptrn->fen);
-#endif       
             /*we have a move, make it*/
             do_move(move);
         }
