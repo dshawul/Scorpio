@@ -1039,7 +1039,7 @@ void SEARCHER::check_mcts_quit() {
     }
 }
 
-void SEARCHER::search_mc(bool single) {
+void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
     Node* root = root_node;
     double pfrac = 0,score;
     int visits;
@@ -1085,10 +1085,10 @@ void SEARCHER::search_mc(bool single) {
 
     /*do rollouts*/
     while(true) {
-        
         /*fixed nodes*/
         if(chess_clock.max_visits != MAX_NUMBER
-            && root->visits >= (unsigned)chess_clock.max_visits
+            && ( ((nodes_limit == 0) && root->visits >= (unsigned)chess_clock.max_visits) ||
+                 ((nodes_limit != 0) && root->visits >= nodes_limit) )
             ) {
             if(!single) abort_search = 1;
             break;
@@ -1464,7 +1464,7 @@ void SEARCHER::manage_tree(bool single) {
     backup_type = backup_type_setting;
 
     /*Dirchilet noise*/
-    if(is_selfplay && (chess_clock.max_visits > low_visits_threshold) ) {
+    if(is_selfplay && (chess_clock.max_visits > 2 * low_visits_threshold) ) {
         const float alpha = noise_alpha, beta = noise_beta, frac = noise_frac;
         std::vector<double> noise;
         std::gamma_distribution<double> dist(alpha,beta);
@@ -1764,24 +1764,26 @@ void SEARCHER::self_play_thread() {
                     PTRAIN ptrn = &trn[h];
                     PHIST_STACK phst = &hstack[h];
 
-                    strcpy(&buffer[bcount], ptrn->fen);
-                    bcount += strlen(ptrn->fen);
+                    if(ptrn->nmoves >= 0) {
+                        strcpy(&buffer[bcount], ptrn->fen);
+                        bcount += strlen(ptrn->fen);
 
-                    if(res == R_WWIN) strcpy(&buffer[bcount]," 1-0");
-                    else if(res == R_BWIN) strcpy(&buffer[bcount]," 0-1");
-                    else {
-                        strcpy(&buffer[bcount]," 1/2-1/2");
+                        if(res == R_WWIN) strcpy(&buffer[bcount]," 1-0");
+                        else if(res == R_BWIN) strcpy(&buffer[bcount]," 0-1");
+                        else {
+                            strcpy(&buffer[bcount]," 1/2-1/2");
+                            bcount += 4;
+                        }
                         bcount += 4;
+
+                        bcount += sprintf(&buffer[bcount], " %f %d ", 
+                            ptrn->value, ptrn->nmoves);
+                        for(int i = 0; i < ptrn->nmoves; i++)
+                            bcount += sprintf(&buffer[bcount], "%d %f ", 
+                                ptrn->moves[i], ptrn->probs[i]);
+
+                        bcount += sprintf(&buffer[bcount], "\n");
                     }
-                    bcount += 4;
-
-                    bcount += sprintf(&buffer[bcount], " %f %d ", 
-                        ptrn->value, ptrn->nmoves);
-                    for(int i = 0; i < ptrn->nmoves; i++)
-                        bcount += sprintf(&buffer[bcount], "%d %f ", 
-                            ptrn->moves[i], ptrn->probs[i]);
-
-                    bcount += sprintf(&buffer[bcount], "\n");
 
                     pl = invert(pl);
                 }
@@ -1810,13 +1812,24 @@ void SEARCHER::self_play_thread() {
             manage_tree(true);
             SEARCHER::egbb_ply_limit = 8;
             pstack->depth = search_depth * UNITDEPTH;
-            search_mc(true);
+
+            /*katago's playout cap randomization*/
+            unsigned int limit = 0;
+            if(chess_clock.max_visits >= 800 && (rand() > RAND_MAX / 4))
+                limit = (chess_clock.max_visits >> 3) + 10;
+            search_mc(true,limit);
             move = stack[0].pv[0];
 
             /*get training data*/
-            PTRAIN ptrn = &trn[hply];
-            get_train_data(ptrn->value, ptrn->nmoves, ptrn->moves, ptrn->probs);
-            get_fen(ptrn->fen);
+            if(limit == 0) { 
+                PTRAIN ptrn = &trn[hply];
+                get_train_data(ptrn->value, ptrn->nmoves, ptrn->moves, ptrn->probs);
+                get_fen(ptrn->fen);
+            } else {
+                PTRAIN ptrn = &trn[hply];
+                ptrn->nmoves = -1;
+            }
+
             /*we have a move, make it*/
             do_move(move);
         }

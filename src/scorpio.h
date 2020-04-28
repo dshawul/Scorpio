@@ -766,7 +766,7 @@ typedef struct SEARCHER{
     void  create_children(Node*);
     void  manage_tree(bool=false);
     void  play_simulation(Node*,double&,int&);
-    void  search_mc(bool=false);
+    void  search_mc(bool=false, unsigned int = 0);
     void  print_status();
     void  idle_loop_main();
     /*counts*/
