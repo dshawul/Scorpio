@@ -1043,16 +1043,17 @@ bool internal_commands(char** commands,char* command,int& command_num) {
 
                         if(montecarlo) {
                             float value;
+                            int bestm;
                             int nmoves;
                             int moves[MAX_MOVES];
                             float probs[MAX_MOVES];
 
-                            main_searcher->get_train_data(value,nmoves,moves,probs);
+                            main_searcher->get_train_data(value,nmoves,moves,probs,bestm);
 
                             fprintf(fw, "%f %d ", value, nmoves);
-                            for(int i = 0; i < nmoves; i++) {
+                            for(int i = 0; i < nmoves; i++)
                                 fprintf(fw, "%d %f ", moves[i], probs[i]);
-                            }
+                            fprintf(fw,"%d",bestm);
                         }
 
                         fprintf(fw,"\n");

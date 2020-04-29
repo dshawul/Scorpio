@@ -1631,6 +1631,7 @@ void SEARCHER::pgn_to_epd(char* pgn, FILE* fb, int task) {
     char* pc;
     bool illegal = false, has_score = false;
     float score;
+    int   bestm;
     int   moves[MAX_MOVES];
     float probs[MAX_MOVES];
 
@@ -1666,11 +1667,12 @@ void SEARCHER::pgn_to_epd(char* pgn, FILE* fb, int task) {
         SEARCHER::egbb_ply_limit = 8;                           \
         pstack->depth = search_depth * UNITDEPTH;               \
         search_mc(true);                                        \
-        get_train_data(score, nmoves, moves, probs);            \
+        get_train_data(score, nmoves, moves, probs, bestm);     \
         l_lock(lock_io);                                        \
         fprintf(fb,"%s %f %d ", fen, score, nmoves);            \
         for(int i = 0; i < nmoves; i++)                         \
             fprintf(fb, "%d %f ",moves[i],probs[i]);            \
+        fprintf(fb, "%d", bestm);                               \
         fprintf(fb,"\n");                                       \
         l_unlock(lock_io);                                      \
     } else if(task == 3) {                                      \
@@ -1798,6 +1800,7 @@ EPD to nn
 void SEARCHER::epd_to_nn(char* fen, FILE* fb, int task) {
 
     float score;
+    int   bestm;
     int   moves[MAX_MOVES];
     float probs[MAX_MOVES];
 
@@ -1816,11 +1819,12 @@ void SEARCHER::epd_to_nn(char* fen, FILE* fb, int task) {
         SEARCHER::egbb_ply_limit = 8;                           \
         pstack->depth = search_depth * UNITDEPTH;               \
         search_mc(true);                                        \
-        get_train_data(score, nmoves, moves, probs);            \
+        get_train_data(score, nmoves, moves, probs, bestm);     \
         l_lock(lock_io);                                        \
         fprintf(fb,"%s %f %d ", fen, score, nmoves);            \
         for(int i = 0; i < nmoves; i++)                         \
             fprintf(fb, "%d %f ",moves[i],probs[i]);            \
+        fprintf(fb, "%d",bestm);                                \
         fprintf(fb,"\n");                                       \
         l_unlock(lock_io);                                      \
     } else if(task == 2) {                                      \

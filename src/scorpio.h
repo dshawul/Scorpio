@@ -862,7 +862,7 @@ typedef struct SEARCHER{
     void write_input_planes(FILE*);
     int compress_input_planes(float**, char*);
     void select_net();
-    void get_train_data(float&, int&, int*, float*);
+    void get_train_data(float&, int&, int*, float*, int&);
     int compute_move_index(MOVE&, int = -1);
     static int egbb_is_loaded;
     static int egbb_load_type;

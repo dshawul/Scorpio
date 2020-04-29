@@ -1639,6 +1639,7 @@ static int spgames = 0;
 typedef struct TRAIN {
    int   nmoves;
    float value;
+   int   bestm;
    int   moves[MAX_MOVES];
    float probs[MAX_MOVES];
    char  fen[128];
@@ -1679,13 +1680,14 @@ void SEARCHER::self_play_thread_all(FILE* fw, FILE* fw2, int ngames) {
 }
 
 /*get training data from search*/
-void SEARCHER::get_train_data(float& value, int& nmoves, int* moves, float* probs) {
-    static const bool average_pi_and_m = false;
+void SEARCHER::get_train_data(float& value, int& nmoves, int* moves, float* probs, int& bestm) {
 
+    /*value*/
     value = logistic(root_node->score);
     if(player == black) 
         value = 1 - value;
 
+    /*policy*/
     double val, total_visits = 0;
     int cnt = 0, diff = low_visits_threshold - root_node->visits;
     Node* current = root_node->child;
@@ -1708,23 +1710,15 @@ void SEARCHER::get_train_data(float& value, int& nmoves, int* moves, float* prob
         cnt++;
         current = current->next;
     }
+
+    for(int i = 0; i < cnt; i++)
+        probs[i] /= total_visits;
+
     nmoves = cnt;
 
-    if(average_pi_and_m && diff > 0) {
-        MOVE move = stack[0].pv[0];
-        for(int i = 0; i < cnt; i++)
-            probs[i] /= (2 * total_visits);
-        int midx = compute_move_index(move, 0);
-        for(int i = 0; i < cnt; i++) {
-            if(midx == moves[i]) {
-                probs[i] += 0.5;
-                break;
-            }
-        }
-    } else {
-        for(int i = 0; i < cnt; i++)
-            probs[i] /= total_visits;
-    }
+    /*best move*/
+    MOVE move = stack[0].pv[0];
+    bestm = compute_move_index(move, 0);
 }
 
 /*job for selfplay thread*/
@@ -1782,6 +1776,8 @@ void SEARCHER::self_play_thread() {
                             bcount += sprintf(&buffer[bcount], "%d %f ", 
                                 ptrn->moves[i], ptrn->probs[i]);
 
+                        bcount += sprintf(&buffer[bcount], "%d", ptrn->bestm);
+
                         bcount += sprintf(&buffer[bcount], "\n");
                     }
 
@@ -1821,12 +1817,11 @@ void SEARCHER::self_play_thread() {
             move = stack[0].pv[0];
 
             /*get training data*/
+            PTRAIN ptrn = &trn[hply];
             if(limit == 0) { 
-                PTRAIN ptrn = &trn[hply];
-                get_train_data(ptrn->value, ptrn->nmoves, ptrn->moves, ptrn->probs);
+                get_train_data(ptrn->value, ptrn->nmoves, ptrn->moves, ptrn->probs, ptrn->bestm);
                 get_fen(ptrn->fen);
             } else {
-                PTRAIN ptrn = &trn[hply];
                 ptrn->nmoves = -1;
             }
 
