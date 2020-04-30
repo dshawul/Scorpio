@@ -752,7 +752,7 @@ void fill_input_planes(
                 if(cast & BLC_FLAG) D(sq,(CHANNELS - (flip_h ? 4 : 5) )) = 1.0;
                 if(cast & BSC_FLAG) D(sq,(CHANNELS - (flip_h ? 5 : 4) )) = 1.0;
             }
-            D(sq,(CHANNELS - 3)) = hply / 400.0;
+            D(sq,(CHANNELS - 3)) = (hply / 2 + 1) / 200.0;
             D(sq,(CHANNELS - 2)) = fifty / 100.0;
             D(sq,(CHANNELS - 1)) = 1.0;
         }
