@@ -5,17 +5,38 @@ display_help() {
     echo "Usage: $0  "
     echo
     echo "  -p,--precision     Precision to use FLOAT/HALF/INT8."
+    echo "  -t,--threads       Threads per GPU/CPU cores."
     echo
     echo "Example: ./install.sh -p INT8"
     echo
 }
 
+# number of cores and gpus
+CPUS=`grep -c ^processor /proc/cpuinfo`
+if [ ! -z `which nvidia-smi` ]; then
+    GPUS=`nvidia-smi --query-gpu=name --format=csv,noheader | wc -l`
+    DEV=gpu
+else
+    GPUS=1
+    DEV=cpu
+fi
+
+# process cmd line arguments
 PREC=HALF
+if [ $DEV = "gpu" ]; then
+   THREADS=160
+else
+   THREADS=4
+fi
 while [ "$1" != "" ]; do
     case $1 in
         -p | --precision )
             shift
             PREC=$1
+            ;;
+        -t | --threads )
+            shift
+            THREADS=$1
             ;;
         * )
             display_help
@@ -34,15 +55,6 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
   OSD=macosx
 fi
 
-# number of cores and gpus
-CPUS=`grep -c ^processor /proc/cpuinfo`
-if [ ! -z `which nvidia-smi` ]; then
-    GPUS=`nvidia-smi --query-gpu=name --format=csv,noheader | wc -l`
-    DEV=gpu
-else
-    GPUS=1
-    DEV=cpu
-fi
 
 # Select
 OS=${1:-$OSD}      # OS is either ubuntu/centos/windows/android
@@ -94,12 +106,12 @@ if [ $DEV = "gpu" ]; then
        delay=1
     fi
     if [ $CPUS -eq 1 ]; then
-        mt=$((GPUS*64))
+        mt=$((GPUS*THREADS/2))
     else
-        mt=$((GPUS*128))
+        mt=$((GPUS*THREADS))
     fi
 else
-    mt=$((CPUS*4))
+    mt=$((CPUS*THREADS))
     delay=1
 fi
 
@@ -121,8 +133,8 @@ if [ $DEV = "gpu" ]; then
     wdl_head_e=1
     wdl_head_m=0
 else
-    nnp=${PD}/nets-scorpio/ens-net-6x64.pb
-    nnp_e=${PD}/nets-scorpio/ens-net-6x64.pb
+    nnp=${PD}/nets-scorpio/ens-net-12x128.pb
+    nnp_e=${PD}/nets-scorpio/ens-net-12x128.pb
     nnp_m=
     nn_type=0
     nn_type_e=-1
