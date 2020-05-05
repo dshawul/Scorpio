@@ -32,6 +32,7 @@ static const int low_visits_threshold = 100;
 static const int node_size = 
     (sizeof(Node) + 32 * (sizeof(MOVE) + sizeof(float)));
 static float min_policy_value = 1.0 / 100;
+static int playout_cap_rand = 0;
 
 int montecarlo = 0;
 int rollout_type = ALPHABETA;
@@ -1811,7 +1812,7 @@ void SEARCHER::self_play_thread() {
 
             /*katago's playout cap randomization*/
             unsigned int limit = 0;
-            if(chess_clock.max_visits >= 800 && (rand() > RAND_MAX / 4))
+            if(playout_cap_rand && chess_clock.max_visits >= 800 && (rand() > RAND_MAX / 4))
                 limit = (chess_clock.max_visits >> 3) + 10;
             search_mc(true,limit);
             move = stack[0].pv[0];
@@ -1963,6 +1964,8 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         noise_frac = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "noise_ply")) {
         noise_ply = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "playout_cap_rand")) {
+        playout_cap_rand = is_checked(commands[command_num++]);
     } else if(!strcmp(command, "reuse_tree")) {
         reuse_tree = is_checked(commands[command_num++]);
     } else if(!strcmp(command, "ensemble")) {
@@ -2016,6 +2019,7 @@ void print_mcts_params() {
     print_spin("noise_beta",int(noise_beta*100),0,100);
     print_spin("noise_frac",int(noise_frac*100),0,100);
     print_spin("noise_ply",noise_ply,0,100);
+    print_check("playout_cap_rand",playout_cap_rand);
     print_spin("fpu_red",int(fpu_red*100),-1000,1000);
     print_check("fpu_is_loss",fpu_is_loss);
     print_check("reuse_tree",reuse_tree);
