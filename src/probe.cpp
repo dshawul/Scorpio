@@ -411,13 +411,17 @@ int SEARCHER::probe_neural(bool hard_probe) {
         ensemble_net(0,nn_type,score);
         nensemble++;
 
-        if(nn_type_m >= DEFAULT) {
-            ensemble_net(1,nn_type_m,score);
-            nensemble++;
-        }
-        if(nn_type_e >= DEFAULT) {
-            ensemble_net(2,nn_type_e,score);
-            nensemble++;
+        if(!turn_off_ensemble) {
+            if(nn_type_m >= DEFAULT) {
+                ensemble_net(1,nn_type_m,score);
+                nensemble++;
+            }
+            if(nn_type_e >= DEFAULT) {
+                ensemble_net(2,nn_type_e,score);
+                nensemble++;
+            }
+        } else {
+            ensemble = 0;
         }
 
         //average
@@ -434,7 +438,6 @@ int SEARCHER::probe_neural(bool hard_probe) {
 
         nn_type = s_nn_type;
         nn_id = 0;
-        if(turn_off_ensemble) ensemble = 0;
     } else {
         score = probe_neural_(hard_probe,policy);
     }
