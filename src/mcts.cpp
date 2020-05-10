@@ -33,6 +33,7 @@ static const int node_size =
     (sizeof(Node) + 32 * (sizeof(MOVE) + sizeof(float)));
 static float min_policy_value = 1.0 / 100;
 static int playout_cap_rand = 0;
+static int early_stop = 1;
 
 int montecarlo = 0;
 int rollout_type = ALPHABETA;
@@ -964,7 +965,7 @@ FINISH:
     n->dec_busy();
 }
 
-void SEARCHER::check_mcts_quit() {
+void SEARCHER::check_mcts_quit(bool single) {
     Node* current = root_node->child;
     unsigned int max_visits[2] = {0, 0};
     Node* bnval = current, *bnvis = current, *bnvis2 = current;
@@ -1015,8 +1016,12 @@ void SEARCHER::check_mcts_quit() {
     if(factor >= 20) factor = 20;
 
     visdiff = (bnvis->visits - bnvis2->visits) * (factor / 1.2);
-    if(visdiff >= remain_visits)
-        abort_search = 1;
+    if(visdiff >= remain_visits) {
+        if(single)
+            stop_searcher = 1;
+        else
+            abort_search = 1;
+    }
 
     if(!abort_search) {
         Node* current = root_node->child;
@@ -1122,8 +1127,15 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
             }
         }
 
-        /*book keeping*/
-        if(processor_id == 0 && !single) {
+        /*threads searching different trees*/
+        if(single) {
+            if(early_stop && (root->visits - ovisits >= visits_poll)) {
+                double frac = double(root->visits) / chess_clock.max_visits;
+                if(frac >= 0.1)
+                    check_mcts_quit(single);
+            }
+        /*all threads searching same tree*/
+        } else if(processor_id == 0) {
 
             /*check for messages from other hosts*/
 #ifdef CLUSTER
@@ -1157,8 +1169,8 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
                         }
                     }
                     
-                    if(frac >= 0.1 && !is_selfplay && !chess_clock.infinite_mode)
-                        check_mcts_quit();
+                    if(frac >= 0.1 && early_stop && !chess_clock.infinite_mode)
+                        check_mcts_quit(single);
 
                     if(frac > ensemble_setting)
                         turn_off_ensemble = 1;
@@ -1725,6 +1737,7 @@ void SEARCHER::get_train_data(float& value, int& nmoves, int* moves, float* prob
 /*job for selfplay thread*/
 void SEARCHER::self_play_thread() {
     static VOLATILE int wins = 0, losses = 0, draws = 0;
+    static const int vlimit = chess_clock.max_visits / 5;
     MOVE move;
     int phply = hply;
     PTRAIN trn = new TRAIN[MAX_HSTACK];
@@ -1809,18 +1822,24 @@ void SEARCHER::self_play_thread() {
             manage_tree(true);
             SEARCHER::egbb_ply_limit = 8;
             pstack->depth = search_depth * UNITDEPTH;
+            stop_searcher = 0;
 
             /*katago's playout cap randomization*/
             unsigned int limit = 0;
-            if(playout_cap_rand && chess_clock.max_visits >= 800 && (rand() > RAND_MAX / 4))
-                limit = (chess_clock.max_visits >> 3) + 10;
+            if(playout_cap_rand
+                && chess_clock.max_visits >= 800 
+                && (rand() > RAND_MAX / 4))
+                limit = vlimit;
+
             search_mc(true,limit);
             move = stack[0].pv[0];
 
             /*get training data*/
             PTRAIN ptrn = &trn[hply];
             if(limit == 0) { 
-                get_train_data(ptrn->value, ptrn->nmoves, ptrn->moves, ptrn->probs, ptrn->bestm);
+                get_train_data(
+                    ptrn->value, ptrn->nmoves, ptrn->moves,
+                    ptrn->probs, ptrn->bestm);
                 get_fen(ptrn->fen);
             } else {
                 ptrn->nmoves = -1;
@@ -1966,6 +1985,8 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         noise_ply = atoi(commands[command_num++]);
     } else if(!strcmp(command, "playout_cap_rand")) {
         playout_cap_rand = is_checked(commands[command_num++]);
+    } else if(!strcmp(command, "early_stop")) {
+        early_stop = is_checked(commands[command_num++]);
     } else if(!strcmp(command, "reuse_tree")) {
         reuse_tree = is_checked(commands[command_num++]);
     } else if(!strcmp(command, "ensemble")) {
@@ -2020,6 +2041,7 @@ void print_mcts_params() {
     print_spin("noise_frac",int(noise_frac*100),0,100);
     print_spin("noise_ply",noise_ply,0,100);
     print_check("playout_cap_rand",playout_cap_rand);
+    print_check("early_stop",early_stop);
     print_spin("fpu_red",int(fpu_red*100),-1000,1000);
     print_check("fpu_is_loss",fpu_is_loss);
     print_check("reuse_tree",reuse_tree);

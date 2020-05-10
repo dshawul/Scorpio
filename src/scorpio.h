@@ -730,7 +730,7 @@ typedef struct SEARCHER{
     void  print_pv(int);
     int   print_result(bool);
     void  check_quit();
-    void  check_mcts_quit();
+    void  check_mcts_quit(bool);
     int   eval(bool = false);
     void  eval_pawn_cover(int,int,UBMP8*,UBMP8*);
     SCORE eval_pawns(int,int,UBMP8*,UBMP8*);
