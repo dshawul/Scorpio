@@ -205,8 +205,6 @@ void LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
             if(SEARCHER::nn_type_e >= DEFAULT)
                 load_net(2,nn_cache_size,load_nn);
 
-
-
             init_index_table();
             init_input_planes();
         } else

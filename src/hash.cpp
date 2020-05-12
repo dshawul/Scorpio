@@ -43,7 +43,7 @@ void PROCESSOR::clear_hash_tables() {
         }
         memset(proc->eval_hash_tab[white],0,(eval_hash_tab_mask + 1) * sizeof(EVALHASH));
         memset(proc->eval_hash_tab[black],0,(eval_hash_tab_mask + 1) * sizeof(EVALHASH));
-        memset(proc->pawn_hash_tab,0,(pawn_hash_tab_mask + 1) * sizeof(PAWNHASH));
+        memset((void*)proc->pawn_hash_tab,0,(pawn_hash_tab_mask + 1) * sizeof(PAWNHASH));
     }
 }
 

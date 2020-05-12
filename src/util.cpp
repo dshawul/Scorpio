@@ -1676,12 +1676,9 @@ void SEARCHER::pgn_to_epd(char* pgn, FILE* fb, int task) {
         fprintf(fb,"\n");                                       \
         l_unlock(lock_io);                                      \
     } else if(task == 3) {                                      \
-        unsigned r = rand();                                    \
-        if(r <= RAND_MAX / 10) {                                \
-            l_lock(lock_io);                                    \
-            write_input_planes(fb);                             \
-            l_unlock(lock_io);                                  \
-        }                                                       \
+        l_lock(lock_io);                                        \
+        write_input_planes(fb);                                 \
+        l_unlock(lock_io);                                      \
     }                                                           \
 }
 
@@ -1828,12 +1825,9 @@ void SEARCHER::epd_to_nn(char* fen, FILE* fb, int task) {
         fprintf(fb,"\n");                                       \
         l_unlock(lock_io);                                      \
     } else if(task == 2) {                                      \
-        unsigned r = rand();                                    \
-        if(r <= RAND_MAX / 10) {                                \
-            l_lock(lock_io);                                    \
-            write_input_planes(fb);                             \
-            l_unlock(lock_io);                                  \
-        }                                                       \
+        l_lock(lock_io);                                        \
+        write_input_planes(fb);                                 \
+        l_unlock(lock_io);                                      \
     }                                                           \
 }
 
