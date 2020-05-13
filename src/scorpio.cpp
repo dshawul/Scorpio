@@ -1040,24 +1040,7 @@ bool internal_commands(char** commands,char* command,int& command_num) {
                             fprintf(fw, "%s 0-1 ", fen);
                         else
                             fprintf(fw, "%s 1/2-1/2 ", fen);
-
-                        if(montecarlo) {
-                            float value;
-                            int bestm;
-                            int nmoves;
-                            int moves[MAX_MOVES];
-                            float probs[MAX_MOVES];
-
-                            main_searcher->get_train_data(value,nmoves,moves,probs,bestm);
-
-                            fprintf(fw, "%f %d ", value, nmoves);
-                            for(int i = 0; i < nmoves; i++)
-                                fprintf(fw, "%d %f ", moves[i], probs[i]);
-                            fprintf(fw,"%d",bestm);
-                        }
-
                         fprintf(fw,"\n");
-
                     } else {
                         if(!is_cap_prom(move)) {
                             if(!strncmp(words[nwords - 1],"1-0",3))  

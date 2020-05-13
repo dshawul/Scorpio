@@ -34,6 +34,7 @@ static const int node_size =
 static float min_policy_value = 1.0 / 100;
 static int playout_cap_rand = 0;
 static int early_stop = 1;
+int train_data_type = 0;
 
 int montecarlo = 0;
 int rollout_type = ALPHABETA;
@@ -45,19 +46,6 @@ static float ensemble_setting = 0;
 int ensemble_type = 0;
 VOLATILE int turn_off_ensemble = 0;
 static VOLATILE int n_terminal = 0;
-
-/*elo*/
-static const double Kfactor = -log(10.0) / 400.0;
-
-double logistic(double score) {
-    return 1 / (1 + exp(Kfactor * score));
-}
-
-double logit(double p) {
-    if(p < 1e-15) p = 1e-15;
-    else if(p > 1 - 1e-15) p = 1 - 1e-15;
-    return log((1 - p) / p) / Kfactor;
-}
 
 /*Nodes and edges of tree*/
 std::vector<Node*> Node::mem_[MAX_CPUS];
@@ -1655,6 +1643,7 @@ typedef struct TRAIN {
    int   bestm;
    int   moves[MAX_MOVES];
    float probs[MAX_MOVES];
+   float scores[MAX_MOVES];
    char  fen[128];
 } *PTRAIN;
 
@@ -1693,7 +1682,7 @@ void SEARCHER::self_play_thread_all(FILE* fw, FILE* fw2, int ngames) {
 }
 
 /*get training data from search*/
-void SEARCHER::get_train_data(float& value, int& nmoves, int* moves, float* probs, int& bestm) {
+void SEARCHER::get_train_data(float& value, int& nmoves, int* moves, float* probs, float* scores, int& bestm) {
 
     /*value*/
     value = logistic(root_node->score);
@@ -1711,21 +1700,33 @@ void SEARCHER::get_train_data(float& value, int& nmoves, int* moves, float* prob
             current = current->next;
             continue;
         }
-
-        val = current->visits;
-        if(diff > 0) 
-            val += diff * current->policy;
-        else
-            val++;
-        total_visits += val;
+        /*probabilities*/
+        if(train_data_type == 0 || train_data_type == 2) {
+            val = current->visits;
+            if(diff > 0) 
+                val += diff * current->policy;
+            else
+                val++;
+            total_visits += val;
+            probs[cnt] = val;
+        }
+        /*action value*/
+        if(train_data_type == 1 || train_data_type == 2) {
+            val = logistic(-current->score, 2 * Kfactor);
+            if(train_data_type == 2)
+                scores[cnt] = val;
+            else
+                probs[cnt] = val;
+        }
         moves[cnt] = compute_move_index(current->move, 0);
-        probs[cnt] = val;
         cnt++;
         current = current->next;
     }
 
-    for(int i = 0; i < cnt; i++)
-        probs[i] /= total_visits;
+    if(train_data_type != 1) {
+        for(int i = 0; i < cnt; i++)
+            probs[i] /= total_visits;
+    }
 
     nmoves = cnt;
 
@@ -1786,9 +1787,14 @@ void SEARCHER::self_play_thread() {
 
                         bcount += sprintf(&buffer[bcount], " %f %d ", 
                             ptrn->value, ptrn->nmoves);
-                        for(int i = 0; i < ptrn->nmoves; i++)
-                            bcount += sprintf(&buffer[bcount], "%d %f ", 
-                                ptrn->moves[i], ptrn->probs[i]);
+                        for(int i = 0; i < ptrn->nmoves; i++) {
+                            if(train_data_type == 2)
+                                bcount += sprintf(&buffer[bcount], "%d %f %f ", 
+                                    ptrn->moves[i], ptrn->probs[i], ptrn->scores[i]);
+                            else
+                                bcount += sprintf(&buffer[bcount], "%d %f ", 
+                                    ptrn->moves[i], ptrn->probs[i]);
+                        }
 
                         bcount += sprintf(&buffer[bcount], "%d", ptrn->bestm);
 
@@ -1839,7 +1845,7 @@ void SEARCHER::self_play_thread() {
             if(limit == 0) { 
                 get_train_data(
                     ptrn->value, ptrn->nmoves, ptrn->moves,
-                    ptrn->probs, ptrn->bestm);
+                    ptrn->probs, ptrn->scores, ptrn->bestm);
                 get_fen(ptrn->fen);
             } else {
                 ptrn->nmoves = -1;
@@ -1987,6 +1993,8 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         playout_cap_rand = is_checked(commands[command_num++]);
     } else if(!strcmp(command, "early_stop")) {
         early_stop = is_checked(commands[command_num++]);
+    } else if(!strcmp(command, "train_data_type")) {
+        train_data_type = atoi(commands[command_num++]);
     } else if(!strcmp(command, "reuse_tree")) {
         reuse_tree = is_checked(commands[command_num++]);
     } else if(!strcmp(command, "ensemble")) {
@@ -2042,6 +2050,7 @@ void print_mcts_params() {
     print_spin("noise_ply",noise_ply,0,100);
     print_check("playout_cap_rand",playout_cap_rand);
     print_check("early_stop",early_stop);
+    print_spin("train_data_type",train_data_type,0,2);
     print_spin("fpu_red",int(fpu_red*100),-1000,1000);
     print_check("fpu_is_loss",fpu_is_loss);
     print_check("reuse_tree",reuse_tree);

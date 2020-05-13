@@ -1634,6 +1634,7 @@ void SEARCHER::pgn_to_epd(char* pgn, FILE* fb, int task) {
     int   bestm;
     int   moves[MAX_MOVES];
     float probs[MAX_MOVES];
+    float scores[MAX_MOVES];
 
 #define TASK() {                                                \
     if(task == 0) {                                             \
@@ -1646,15 +1647,17 @@ void SEARCHER::pgn_to_epd(char* pgn, FILE* fb, int task) {
         l_unlock(lock_io);                                      \
     } else if(task == 1) {                                      \
         get_fen(fen);                                           \
-        if(result == R_WWIN) strcat(fen," 1-0");                \
-        else if(result == R_BWIN) strcat(fen," 0-1");           \
-        else strcat(fen," 1/2-1/2");                            \
+        float Z;                                                \
+        if(result == R_WWIN) { strcat(fen," 1-0"); Z = 1; }     \
+        else if(result == R_BWIN) { strcat(fen," 0-1"); Z = 0; }\
+        else { strcat(fen," 1/2-1/2"); Z = 0.5; }               \
         int mind = compute_move_index(move);                    \
         if(!has_score) score = eval(true);                      \
         if(player == black) score = -score;                     \
         score = logistic(score);                                \
         l_lock(lock_io);                                        \
-        fprintf(fb,"%s %f 1 %d 1.0\n", fen, score, mind);       \
+        fprintf(fb,"%s %f 1 %d %f\n", fen, score, mind,         \
+                   (train_data_type == 0) ? 1.0 : Z);           \
         l_unlock(lock_io);                                      \
     } else if(task == 2) {                                      \
         get_fen(fen);                                           \
@@ -1667,11 +1670,16 @@ void SEARCHER::pgn_to_epd(char* pgn, FILE* fb, int task) {
         SEARCHER::egbb_ply_limit = 8;                           \
         pstack->depth = search_depth * UNITDEPTH;               \
         search_mc(true);                                        \
-        get_train_data(score, nmoves, moves, probs, bestm);     \
+        get_train_data(score,nmoves,moves,probs,scores,bestm);  \
         l_lock(lock_io);                                        \
         fprintf(fb,"%s %f %d ", fen, score, nmoves);            \
-        for(int i = 0; i < nmoves; i++)                         \
-            fprintf(fb, "%d %f ",moves[i],probs[i]);            \
+        for(int i = 0; i < nmoves; i++) {                       \
+            if(train_data_type == 2)                            \
+                fprintf(fb, "%d %f %f ",                        \
+                    moves[i],probs[i],scores[i]);               \
+            else                                                \
+                fprintf(fb, "%d %f ",moves[i],probs[i]);        \
+        }                                                       \
         fprintf(fb, "%d", bestm);                               \
         fprintf(fb,"\n");                                       \
         l_unlock(lock_io);                                      \
@@ -1800,6 +1808,7 @@ void SEARCHER::epd_to_nn(char* fen, FILE* fb, int task) {
     int   bestm;
     int   moves[MAX_MOVES];
     float probs[MAX_MOVES];
+    float scores[MAX_MOVES];
 
 #define TASK() {                                                \
     if(task == 0) {                                             \
@@ -1816,11 +1825,16 @@ void SEARCHER::epd_to_nn(char* fen, FILE* fb, int task) {
         SEARCHER::egbb_ply_limit = 8;                           \
         pstack->depth = search_depth * UNITDEPTH;               \
         search_mc(true);                                        \
-        get_train_data(score, nmoves, moves, probs, bestm);     \
+        get_train_data(score,nmoves,moves,probs,scores,bestm);  \
         l_lock(lock_io);                                        \
         fprintf(fb,"%s %f %d ", fen, score, nmoves);            \
-        for(int i = 0; i < nmoves; i++)                         \
-            fprintf(fb, "%d %f ",moves[i],probs[i]);            \
+        for(int i = 0; i < nmoves; i++) {                       \
+            if(train_data_type == 2)                            \
+                fprintf(fb, "%d %f %f ",                        \
+                    moves[i],probs[i],scores[i]);               \
+            else                                                \
+                fprintf(fb, "%d %f ",moves[i],probs[i]);        \
+        }                                                       \
         fprintf(fb, "%d",bestm);                                \
         fprintf(fb,"\n");                                       \
         l_unlock(lock_io);                                      \

@@ -862,7 +862,7 @@ typedef struct SEARCHER{
     void write_input_planes(FILE*);
     int compress_input_planes(float**, char*);
     void select_net();
-    void get_train_data(float&, int&, int*, float*, int&);
+    void get_train_data(float&, int&, int*, float*, float*, int&);
     int compute_move_index(MOVE&, int = -1);
     static int egbb_is_loaded;
     static int egbb_load_type;
@@ -1121,6 +1121,7 @@ extern bool is_selfplay;
 extern double frac_abprior;
 extern int qsearch_level;
 extern int PROTOCOL;
+extern int train_data_type;
 
 extern int win_weight;
 extern int draw_weight;
@@ -1169,8 +1170,6 @@ bool  check_search_params(char**,char*,int&);
 void  print_search_params();
 bool  check_mcts_params(char**,char*,int&);
 void  print_mcts_params();
-double logistic(double p);
-double logit(double p);
 void fill_input_planes(int, int, int, int, int*, int*, int*, float*, float*);
 
 #ifdef TUNE
@@ -1199,6 +1198,20 @@ void print_button(const char* name);
 void print_path(const char* name, const char* path);
 void print_combo(const char* name, const char** combo, int def, int N);
 int is_checked(const char*);
+/*
+elo
+*/
+#define Kfactor -0.00575646273
+
+FORCEINLINE double logistic(double score, double kf = Kfactor) {
+    return 1 / (1 + exp(kf * score));
+}
+
+FORCEINLINE double logit(double p, double kf = Kfactor) {
+    if(p < 1e-15) p = 1e-15;
+    else if(p > 1 - 1e-15) p = 1 - 1e-15;
+    return log((1 - p) / p) / Kfactor;
+}
 /*
 Bitbases
 */
