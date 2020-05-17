@@ -855,7 +855,7 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         double frac = 1;
         int sc,sce,test,visited,result,nwords = 0;
         static const int DRAW_MARGIN = 35;
-        enum {RUNEVAL = 0, RUNEVALEPD, RUNSEARCH, RUNSEARCHEPD, RUNQUIETEPD, RUNINPNN, JACOBIAN, MSE, GMSE, TUNE};
+        enum {RUNEVAL = 0, RUNEVALEPD, RUNSEARCH, RUNSEARCHEPD, RUNQUIETEPD, RUNINPNN, JACOBIAN, MSE, GMSE, TUNE_EVAL};
 
         if(!strcmp(command,"runeval")) test = RUNEVAL;
         else if(!strcmp(command,"runevalepd")) test = RUNEVALEPD;
@@ -866,7 +866,7 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         else if(!strcmp(command,"jacobian")) test = JACOBIAN;
         else if(!strcmp(command,"mse")) test = MSE;
         else if(!strcmp(command,"gmse")) test = GMSE;
-        else test = TUNE;
+        else test = TUNE_EVAL;
 
         /*open file*/
         bool getfen = ((test <= JACOBIAN) 
@@ -1075,7 +1075,7 @@ bool internal_commands(char** commands,char* command,int& command_num) {
                 case JACOBIAN:
                 case MSE:
                 case GMSE:
-                case TUNE:
+                case TUNE_EVAL:
                     if(getfen) {
                         if(!strncmp(words[nwords - 1],"1-0",3)) result = 1;
                         else if(!strncmp(words[nwords - 1],"0-1",3)) result = -1;
@@ -1124,7 +1124,7 @@ bool internal_commands(char** commands,char* command,int& command_num) {
                 for(int i = 0;i < nSize;i++)
                     print("%.9e ",gmse[i]);
                 print("\n");
-            } else if(test == TUNE) {
+            } else if(test == TUNE_EVAL) {
                 double normg = 0;
                 for(int i = 0;i < nSize;i++) {
                     dmse[i] = -gmse[i] + gamma * dmse[i];
@@ -1142,7 +1142,7 @@ bool internal_commands(char** commands,char* command,int& command_num) {
                 }
             }
 #endif
-            if(test != TUNE) break;
+            if(test != TUNE_EVAL) break;
         }
 #ifdef TUNE
         if(test >= GMSE) {

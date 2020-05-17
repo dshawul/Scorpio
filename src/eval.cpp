@@ -1647,32 +1647,32 @@ static inline double gamma_to_elo(double g) {
 static inline double elo_to_gamma(double eloDelta) {
     return pow(10.0,eloDelta / 400.0);
 }
-static inline double logistic(double eloDelta) {
+static inline double nlogistic(double eloDelta) {
     return 1 / (1 + pow(10.0,eloDelta / 400.0));
 }
-static inline double gaussian(double eloDelta) {
+static inline double ngaussian(double eloDelta) {
     return (1 + erf(-eloDelta / 400.0)) / 2;
 }
 static double win_prob(double eloDelta, int eloH, int eloD) {
     if(ELO_MODEL == 0) {
-        return logistic(-eloDelta - eloH + eloD);
+        return nlogistic(-eloDelta - eloH + eloD);
     } else if(ELO_MODEL == 1) {
         double thetaD = elo_to_gamma(eloD);
-        double f = thetaD * sqrt(logistic(eloDelta + eloH) * logistic(-eloDelta - eloH));
-        return logistic(-eloDelta - eloH) / (1 + f);
+        double f = thetaD * sqrt(nlogistic(eloDelta + eloH) * nlogistic(-eloDelta - eloH));
+        return nlogistic(-eloDelta - eloH) / (1 + f);
     } else {
-        return gaussian(-eloDelta - eloH + eloD);
+        return ngaussian(-eloDelta - eloH + eloD);
     }
 }
 static double loss_prob(double eloDelta, int eloH, int eloD) {
     if(ELO_MODEL == 0) {
-        return logistic(eloDelta + eloH + eloD);
+        return nlogistic(eloDelta + eloH + eloD);
     } else if(ELO_MODEL == 1) {
         double thetaD = elo_to_gamma(eloD);
-        double f = thetaD * sqrt(logistic(eloDelta + eloH) * logistic(-eloDelta - eloH));
-        return logistic(eloDelta + eloH) / (1 + f);
+        double f = thetaD * sqrt(nlogistic(eloDelta + eloH) * nlogistic(-eloDelta - eloH));
+        return nlogistic(eloDelta + eloH) / (1 + f);
     } else {
-        return gaussian(eloDelta + eloH + eloD);
+        return ngaussian(eloDelta + eloH + eloD);
     }
 }
 static double draw_prob(double eloDelta, int eloH, int eloD) {
