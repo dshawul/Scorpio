@@ -205,28 +205,5 @@ fi
 cd ../..
 
 # Test
-if [ $DEV = "gpu" ]; then
-echo "Generating calibrate.dat"
-$exep/$EXE use_nn 0 nn_type ${nn_type} runinpnn calibrate.epd calibrate.dat quit
-fi
-echo "Running with opening net"
-$exep/$EXE nn_type_m -1 nn_type_e -1 go quit
-
-if [ $nn_type_m -ge 0 ]; then
-if [ $DEV = "gpu" ]; then
-echo "Generating calibrate.dat"
-$exep/$EXE use_nn 0 nn_type ${nn_type_m} runinpnn calibrate.epd calibrate.dat quit
-fi
-echo "Running with midgame net"
-$exep/$EXE nn_type_e -1 setboard 1r1q2k1/5pp1/2p4p/4p3/1PPpP2P/Q1n3P1/1R3PB1/6K1 w - - 5 24 go quit
-fi
-
-if [ $nn_type_e -ge 0 ]; then
-if [ $DEV = "gpu" ]; then
-echo "Generating calibrate.dat"
-$exep/$EXE use_nn 0 nn_type ${nn_type_e} runinpnn calibrate.epd calibrate.dat quit
-fi
-echo "Running with endgame net"
-$exep/$EXE nn_type_m -1 setboard 6k1/5R2/1p5p/p1b3p1/6P1/8/r6P/5R1K w - - 2 38 go quit
-fi
-
+echo "Making a test run"
+$exep/$EXE go quit

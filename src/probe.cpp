@@ -150,6 +150,36 @@ static void load_net(int id, int nn_cache_size, PLOAD_NN load_nn) {
             strcpy(output_sizes, "1 256");
     }
 
+    /*generate INT8 calibration data here*/
+    if(SEARCHER::device_type == GPU && SEARCHER::float_type == 2) {
+        char trtPath[256];
+        sprintf(trtPath,"%s.%d_%d.trt", 
+            path, PROCESSOR::n_processors, SEARCHER::float_type);
+
+        FILE *file;
+        if((file = fopen(trtPath,"r")) != 0) {
+            fclose(file);
+        } else {
+            FILE* fb = fopen("calibrate.dat","w");
+            EPD epd;
+            epd.open("calibrate.epd");
+
+            int save = SEARCHER::nn_type;
+            SEARCHER::nn_type = nn_type;
+
+            SEARCHER s;
+            char epdc[4 * MAX_FILE_STR];
+            while(epd.next(epdc)) {
+                s.epd_to_nn(epdc,fb,2);
+            }
+
+            SEARCHER::nn_type = save;
+
+            epd.close();
+            fclose(fb);
+        }
+    }
+
     load_nn(path, input_names, output_names, input_shapes, output_sizes,
         nn_cache_size,SEARCHER::device_type,SEARCHER::n_devices,PROCESSOR::n_processors,
         SEARCHER::float_type, SEARCHER::delay,id);

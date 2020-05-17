@@ -1567,7 +1567,7 @@ END:
 /*
 PGN
 */
-bool ParallelFile::open(char* path) {
+bool ParallelFile::open(const char* path) {
     f = fopen(path,"r");
     l_create(lock);
     count = 0;

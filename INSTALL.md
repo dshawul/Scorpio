@@ -26,14 +26,12 @@ If your GPU does not support HALF precision, you most likely can use INT8 (most 
 
       Example: ./install.sh -p INT8
 
-So to install with INT8 do this `./install.sh -p INT8`. Do not simply change `float_type INT8` in scorpio.ini
-after installing with HALF precision. That will screw up the calibration phase when two different nets are used 
-(e.g. scorpio net for middle game and lc0 net for endgame, which is the default behaviour).
+So to install with INT8 do this `./install.sh -p INT8`.
 
 ## Windows nuances
 For windows machine, you  use [install.bat](https://github.com/dshawul/Scorpio/releases/download/3.0/install.bat).
 Other than that the steps are very similar to that for linux.
-Paths with **spaces** are known to cause problems so please make sure the path you install scorpio doesn't have spaces.
+Paths with **spaces** are known to cause problems so please make sure the path you install scorpio to does not have spaces.
 
 ## EGBB files
 By default, the installer will download and install 5-men egbbs. If you want to use 6-men, you have to download them

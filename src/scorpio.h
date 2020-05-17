@@ -278,7 +278,7 @@ public:
     FILE* f;
     LOCK lock;
     unsigned count;
-    bool open(char*);
+    bool open(const char*);
     void close();
     virtual bool next(char*) = 0;
 };

@@ -840,7 +840,6 @@ bool internal_commands(char** commands,char* command,int& command_num) {
                !strcmp(command, "runsearch") ||
                !strcmp(command, "runsearchepd") ||
                !strcmp(command, "runquietepd") ||
-               !strcmp(command, "runinpnn") ||
                !strcmp(command, "jacobian") ||
                !strcmp(command, "mse") ||
                !strcmp(command, "gmse") ||
@@ -855,14 +854,13 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         double frac = 1;
         int sc,sce,test,visited,result,nwords = 0;
         static const int DRAW_MARGIN = 35;
-        enum {RUNEVAL = 0, RUNEVALEPD, RUNSEARCH, RUNSEARCHEPD, RUNQUIETEPD, RUNINPNN, JACOBIAN, MSE, GMSE, TUNE_EVAL};
+        enum {RUNEVAL = 0, RUNEVALEPD, RUNSEARCH, RUNSEARCHEPD, RUNQUIETEPD, JACOBIAN, MSE, GMSE, TUNE_EVAL};
 
         if(!strcmp(command,"runeval")) test = RUNEVAL;
         else if(!strcmp(command,"runevalepd")) test = RUNEVALEPD;
         else if(!strcmp(command,"runsearch")) test = RUNSEARCH;
         else if(!strcmp(command,"runsearchepd")) test = RUNSEARCHEPD;
         else if(!strcmp(command,"runquietepd")) test = RUNQUIETEPD;
-        else if(!strcmp(command,"runinpnn")) test = RUNINPNN;
         else if(!strcmp(command,"jacobian")) test = JACOBIAN;
         else if(!strcmp(command,"mse")) test = MSE;
         else if(!strcmp(command,"gmse")) test = GMSE;
@@ -890,12 +888,8 @@ bool internal_commands(char** commands,char* command,int& command_num) {
                 }
             }
         }
-        if(test == RUNEVALEPD || test == RUNSEARCHEPD || test == RUNQUIETEPD || test == RUNINPNN) {
-            if(test == RUNINPNN)
-                fw = fopen(commands[command_num++],"wb");
-            else
-                fw = fopen(commands[command_num++],"w");
-        }
+        if(test == RUNEVALEPD || test == RUNSEARCHEPD || test == RUNQUIETEPD)
+            fw = fopen(commands[command_num++],"w");
         if(!epdfile_count) {
             while(fgets(input,MAX_STR,fd))
                 epdfile_count++;
@@ -1051,9 +1045,6 @@ bool internal_commands(char** commands,char* command,int& command_num) {
                                 fprintf(fw, "%s 1/2-1/2\n", fen);
                         }
                     }
-                    break;
-                case RUNINPNN:
-                    searcher.write_input_planes(fw);
                     break;
                 case JACOBIAN:
                 case MSE:
