@@ -18,7 +18,7 @@ enum egbb_load_types {
     LOAD_NONE,LOAD_4MEN,SMART_LOAD,LOAD_5MEN
 };
 enum {CPU, GPU};
-enum {DEFAULT, LCZERO, SIMPLE, NONET = -1};
+enum {DEFAULT, LCZERO, SIMPLE, QLEARN, NONET = -1};
 
 #define _NOTFOUND 99999
 #define MAX_PIECES 9
@@ -78,7 +78,7 @@ int draw_weight = 100;
 int loss_weight = 100;
 static bool is_trt = false;
 
-static const int net_channels[] = {32, 112, 12, 0};
+static const int net_channels[] = {32, 112, 12, 32, 0};
 
 /*
 Load the dll and get the address of the load and probe functions.
@@ -134,6 +134,11 @@ static void load_net(int id, int nn_cache_size, PLOAD_NN load_nn) {
         strcpy(input_names, "main_input");
         sprintf(input_shapes, "%d 8 8", net_channels[nn_type]);
         strcpy(output_names, "value/BiasAdd policy/Reshape");
+        strcpy(output_sizes, "3 256");
+    } else if(nn_type == QLEARN) {
+        strcpy(input_names, "main_input");
+        sprintf(input_shapes, "%d 8 8", net_channels[nn_type]);
+        strcpy(output_names, "value/BiasAdd score/Reshape");
         strcpy(output_sizes, "3 256");
     } else if(nn_type == SIMPLE) {
         strcpy(input_names, "main_input");
@@ -361,7 +366,7 @@ float SEARCHER::probe_neural_(bool hard_probe, float* policy) {
     float* iplanes[1] = {0};
     fill_input_planes(iplanes);
 
-    if(nn_type == DEFAULT || nn_type == SIMPLE) {
+    if(nn_type == DEFAULT || nn_type == SIMPLE || nn_type == QLEARN) {
         float* wdl = &all_wdl[processor_id][0];
         unsigned short* p_index[2] = {0, mindex};
         int p_size[2] = {3, pstack->count};
@@ -574,7 +579,7 @@ int SEARCHER::compute_move_index(MOVE& m, int mnn_type) {
 
     int nn_type = (mnn_type >= DEFAULT) ? mnn_type : SEARCHER::nn_type;
 
-    if(nn_type == DEFAULT || nn_type == SIMPLE) {
+    if(nn_type == DEFAULT || nn_type == SIMPLE || nn_type == QLEARN) {
 
         bool flip_h = (file(plist[COMBINE(player,king)]->sq) <= FILED);
         if(flip_h) {
@@ -637,7 +642,7 @@ void fill_input_planes(
 
     memset(data,  0, sizeof(float) * 8 * 8 * CHANNELS);
 
-    if(SEARCHER::nn_type == DEFAULT) {
+    if(SEARCHER::nn_type == DEFAULT || SEARCHER::nn_type == QLEARN) {
 
         int board[128];
 
@@ -875,7 +880,7 @@ Fill input planes
 */
 void SEARCHER::fill_input_planes(float** iplanes) {
 
-    if(nn_type == DEFAULT || nn_type == SIMPLE) {
+    if(nn_type == DEFAULT || nn_type == SIMPLE || nn_type == QLEARN) {
 
         int piece[33],square[33],isdraw[1];
         int count = 0, hist = 1;
