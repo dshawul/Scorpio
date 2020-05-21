@@ -32,7 +32,7 @@ static const int low_visits_threshold = 100;
 static const int node_size = 
     (sizeof(Node) + 32 * (sizeof(MOVE) + sizeof(float)));
 static float min_policy_value = 1.0 / 100;
-static int playout_cap_rand = 0;
+static int playout_cap_rand = 1;
 static int early_stop = 1;
 int train_data_type = 0;
 
