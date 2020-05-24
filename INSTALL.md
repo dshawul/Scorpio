@@ -2,8 +2,8 @@
 
 The recommended way to install ScorpioNN is using install scripts, a batch file (`install.bat`) for Windows 
 and a shell script (`install.sh`) for Ubuntu Linux. You need to only download these scripts and nothing else.
-Then figure out beforehand if your GPU supports HALF precision e.g. RTX, V100 support this. GTX 1070 ti doesn't.
-If your GPU supports HALF precision, proceed normally as follows
+Then, you determine two parameters to feed to the installer, namely, which precision (HALF/INT8), and what 
+minibatch size to use based on type of GUI. Some GPUs do not supports HALF precision e.g. GTX 1070.
 
 ## HALF precision
 
@@ -11,9 +11,11 @@ TCEC uses this to install it on their Linux machine with 4xV100
      
       wget https://github.com/dshawul/Scorpio/releases/download/3.0/install.sh
       chmod +x install.sh
-      ./install.sh
+      ./install.sh -p HALF -t 80
 
-The installer takes care of everything for you including multi-GPU mode and other configurations.
+This downloads the installer fresh, because I could have changed scriptfrom time to time, and installs with
+HALF precision and minibatch size per GPU of 80. The installer takes care of everything for you including
+multi-GPU mode and other configurations.
 
 ## INT8 precision
 If your GPU does not support HALF precision, you most likely can use INT8 (most GPUs support this)
@@ -26,7 +28,45 @@ If your GPU does not support HALF precision, you most likely can use INT8 (most 
 
       Example: ./install.sh -p INT8
 
-So to install with INT8 do this `./install.sh -p INT8`.
+So to install with INT8 do this `./install.sh -p INT8 -t 80`.
+
+## MiniBatch size
+
+To optimize for batch size you can specify the number of threads per GPU as well.
+For example, on an RTX 2070 super that has 40 SMs, we can set minibatch size of 80 as
+
+      ./install.sh -t 80 -p HALF
+
+Usually the best batch size is an integer multiple of the number of SMs.
+Here is a list of NVIDIA GPUs and their number of SMs
+
+GPUs with tensor cores
+     
+      V100             80
+      P100             56
+      RTX 2080 ti      68
+      RTX 2080 super   48
+      RTX 2080         46
+      RTX 2070 Super   40
+      RTX 2070         36
+      RTX 2060 Super   34
+      RTX 2060         30
+
+      GTX 1660 ti      24
+      GTX 1660         22
+      GTX 1650         14
+
+GPUs without tensor cores
+
+      GTX 1080 ti      28
+      GTX 1080         20
+      GTX 1070 ti      19
+      GTX 1070         15
+      GTX 1060         10
+
+
+Try minibatch sizes of 1x-2x for the high-end GPUs and upto 4x for the lower end ones.
+Also, the smaller the net or the less powerful the GPU, the more multiples you want to try.
 
 ## Windows nuances
 For windows machine, you  use [install.bat](https://github.com/dshawul/Scorpio/releases/download/3.0/install.bat).

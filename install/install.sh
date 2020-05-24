@@ -24,7 +24,7 @@ fi
 # process cmd line arguments
 PREC=HALF
 if [ $DEV = "gpu" ]; then
-   THREADS=160
+   THREADS=80
 else
    THREADS=4
 fi
