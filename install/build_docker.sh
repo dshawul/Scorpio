@@ -15,7 +15,7 @@ build_image() {
            cd /home/scorpio && \
            wget https://github.com/dshawul/Scorpio/releases/download/${VER}/install.sh && \
            chmod 755 install.sh && \
-           ./install.sh -t 68 -p HALF && \
+           ./install.sh && \
            rm -rf Scorpio/bin/Linux/calibrate.dat"
      docker commit temp ${1}
      docker rm -f temp

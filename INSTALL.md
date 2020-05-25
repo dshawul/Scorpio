@@ -2,71 +2,19 @@
 
 The recommended way to install ScorpioNN is using install scripts, a batch file (`install.bat`) for Windows 
 and a shell script (`install.sh`) for Ubuntu Linux. You need to only download these scripts and nothing else.
-Then, you determine two parameters to feed to the installer, namely, which precision (HALF/INT8), and what 
-minibatch size to use based on type of GUI. Some GPUs do not supports HALF precision e.g. GTX 1070.
 
-## HALF precision
+      $ ./install.sh -h
+      Usage: ./install/install.sh  
 
-TCEC uses this to install it on their Linux machine with 4xV100
-     
-      wget https://github.com/dshawul/Scorpio/releases/download/3.0/install.sh
-      chmod +x install.sh
-      ./install.sh -p HALF -t 80
+        -h       Display this help message.
+        -p       Precision to use FLOAT/HALF/INT8.
+        -t       Threads per GPU/CPU cores.
 
-This downloads the installer fresh, because I could have changed scriptfrom time to time, and installs with
-HALF precision and minibatch size per GPU of 80. The installer takes care of everything for you including
-multi-GPU mode and other configurations.
+      Example: ./install.sh -p INT8 -t 80
 
-## INT8 precision
-If your GPU does not support HALF precision, you most likely can use INT8 (most GPUs support this)
-
-      $ ./install.sh --help
-      Usage: ./install.sh  
-
-        -p     Precision to use FLOAT/HALF/INT8.
-        -t     Threads per GPU/CPU cores.
-
-      Example: ./install.sh -p INT8
-
-So to install with INT8 do this `./install.sh -p INT8 -t 80`.
-
-## MiniBatch size
-
-To optimize for batch size you can specify the number of threads per GPU as well.
-For example, on an RTX 2070 super that has 40 SMs, we can set minibatch size of 80 as
-
-      ./install.sh -t 80 -p HALF
-
-Usually the best batch size is an integer multiple of the number of SMs.
-Here is a list of NVIDIA GPUs and their number of SMs
-
-GPUs with tensor cores
-     
-      V100             80
-      P100             56
-      RTX 2080 ti      68
-      RTX 2080 super   48
-      RTX 2080         46
-      RTX 2070 Super   40
-      RTX 2070         36
-      RTX 2060 Super   34
-      RTX 2060         30
-
-      GTX 1660 ti      24
-      GTX 1660         22
-      GTX 1650         14
-
-GPUs without tensor cores
-
-      GTX 1080 ti      28
-      GTX 1080         20
-      GTX 1070 ti      19
-      GTX 1070         15
-      GTX 1060         10
-
-
-Try minibatch sizes of 1x-2x for the high-end GPUs and upto 4x for the lower end ones.
-Also, the smaller the net or the less powerful the GPU, the more multiples you want to try.
+If you execute the installer without any arguments, it will automatically determine how many GPUs you have,
+which precision to use, how many threads per GPU (minibatch size) to use etc. If you want to force the precision,
+and batch size pass those arguments.
 
 ## Windows nuances
 For windows machine, you  use [install.bat](https://github.com/dshawul/Scorpio/releases/download/3.0/install.bat).
@@ -96,3 +44,15 @@ You can increase the hashtable size by modifying the `ht` parameter.
 
 If you can't get this to work, send me an email at dshawul at yahoo.com, and I will do my best to assist.
 
+## Advanced user -- Optimizing MiniBatch size
+
+Usually the best batch size is an integer multiple of the number of multiprocessors (SMs) of the GPU.
+You can use device.exe, located in the `nnprobe-OS-gpu` directory, to determine the number of SMs of your GPU
+
+      ./device -n    # number of multiprocessors
+      ./device       # gives detail information about your GPU
+
+If the number of SMs is 40, try 40, 80, 120, 160, 200 etc. Usually 1x or 2x is enough.
+Also, the smaller the net or the less powerful the GPU, the more multiples you want to try.
+If you get a small increase in pps going from 80 to 120, the smaller batch size i.e. 80 since it results 
+in less overhead and a more selective tree. 

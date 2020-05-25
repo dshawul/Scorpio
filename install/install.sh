@@ -1,51 +1,33 @@
 #!/bin/bash
 
+set -e
+
 # display help
 display_help() {
     echo "Usage: $0  "
     echo
+    echo "  -h,--help          Display this help message."
     echo "  -p,--precision     Precision to use FLOAT/HALF/INT8."
     echo "  -t,--threads       Threads per GPU/CPU cores."
     echo
-    echo "Example: ./install.sh -p INT8"
+    echo "Example: ./install.sh -p INT8 -t 80"
     echo
 }
+
+if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+    display_help
+    exit 0
+fi
 
 # number of cores and gpus
 CPUS=`grep -c ^processor /proc/cpuinfo`
 if [ ! -z `which nvidia-smi` ]; then
-    GPUS=`nvidia-smi --query-gpu=name --format=csv,noheader | wc -l`
+    GPUS=0
     DEV=gpu
 else
     GPUS=1
     DEV=cpu
 fi
-
-# process cmd line arguments
-PREC=HALF
-if [ $DEV = "gpu" ]; then
-   THREADS=80
-else
-   THREADS=4
-fi
-while [ "$1" != "" ]; do
-    case $1 in
-        -p | --precision )
-            shift
-            PREC=$1
-            ;;
-        -t | --threads )
-            shift
-            THREADS=$1
-            ;;
-        * )
-            display_help
-            exit 0
-    esac
-    shift
-done
-
-set -eux
 
 # Autodetect operating system
 OSD=windows
@@ -54,7 +36,6 @@ if [[ "$OSTYPE" == "linux-gnu" ]]; then
 elif [[ "$OSTYPE" == "darwin"* ]]; then
   OSD=macosx
 fi
-
 
 # Select
 OS=${1:-$OSD}      # OS is either ubuntu/centos/windows/android
@@ -99,22 +80,6 @@ cd ${EGBB}
 chmod 755 *
 cd ../..
 
-# number of threads
-delay=0
-if [ $DEV = "gpu" ]; then
-    if [ $CPUS -le 4 ] || [ $GPUS -ge 2 ]; then
-       delay=1
-    fi
-    if [ $CPUS -eq 1 ]; then
-        mt=$((GPUS*THREADS/2))
-    else
-        mt=$((GPUS*THREADS))
-    fi
-else
-    mt=$((CPUS*THREADS))
-    delay=1
-fi
-
 #paths
 cd $SCORPIO
 PD=`pwd`
@@ -151,6 +116,58 @@ else
     exep=${PD}/bin/Linux
 fi
 cd $exep
+
+#determin GPU props
+if [ $DEV = "gpu" ]; then
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${egbbp}
+    cd ${egbbp}
+    ./device
+    GPUS=`./device -n`
+    THREADS=`./device --mp`
+    THREADS=$((THREADS*2))
+    PREC=HALF
+    HAS=`./device --fp16`
+    if [ "$HAS" = "N" ]; then
+       HAS=`./device --int8`
+       if [ "$HAS" = "Y" ]; then
+          PREC=INT8
+       else
+          PREC=FLOAT
+       fi
+    fi
+    cd $exep
+else
+    PREC=FLOAT
+    THREADS=4
+fi
+
+# process cmd line arguments
+while ! [ -z "$1" ]; do
+    case $1 in
+        -p | --precision )
+            shift
+            PREC=$1
+            ;;
+        -t | --threads )
+            shift
+            THREADS=$1
+            ;;
+    esac
+    shift
+done
+
+# number of threads
+delay=0
+if [ $DEV = "gpu" ]; then
+    mt=$((GPUS*THREADS))
+    rt=$((mt/CPUS))
+    if [ $rt -ge 10 ]; then
+       delay=1
+    fi
+else
+    mt=$((CPUS*THREADS))
+    delay=1
+fi
 
 # Edit scorpio.ini
 egbbp_=$(echo $egbbp | sed 's_/_\\/_g')
