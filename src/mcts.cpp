@@ -1745,6 +1745,8 @@ void SEARCHER::self_play_thread() {
     char* buffer = new char[4096 * MAX_HSTACK];
     int bcount;
 
+    unsigned start_t = get_time();
+
     while(true) {
 
         while(true) {
@@ -1820,6 +1822,14 @@ void SEARCHER::self_play_thread() {
             if(abort_search) {
                 delete[] trn;
                 delete[] buffer;
+
+                if(processor_id == 0) {
+                    float diff = (get_time() - start_t) / 60000.0;
+                    int ngames = wins + losses + draws;
+                    print("[%d] generated %d games in %.2f min : Rate %.2f games/min\n",
+                        GETPID(), ngames, diff, ngames / diff );
+                }
+
                 return;
             }
 
