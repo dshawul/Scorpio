@@ -3,12 +3,16 @@
 The recommended way to install ScorpioNN is using install scripts, a batch file (`install.bat`) for Windows 
 and a shell script (`install.sh`) for Ubuntu Linux. You need to only download these scripts and nothing else.
 
-      $ ./install.sh -h
-      Usage: ./install/install.sh  
+      $ ./install.sh --help
+      Usage: ./install.sh
 
-        -h       Display this help message.
-        -p       Precision to use FLOAT/HALF/INT8.
-        -t       Threads per GPU/CPU cores.
+        -h,--help          Display this help message.
+        -p,--precision     Precision to use FLOAT/HALF/INT8.
+        -t,--threads       Total number of threads, i.e minibatch size.
+        -f,--factor        Factor for auto minibatch size determination from SMs, default 2.
+        --no-egbb          Do not install 5-men egbb.
+        --no-lcnets        Do not install lczero nets.
+        --no-int8          This is used in training mode to disable INT8 all in all.
 
       Example: ./install.sh -p INT8 -t 80
 
@@ -44,15 +48,30 @@ You can increase the hashtable size by modifying the `ht` parameter.
 
 If you can't get this to work, send me an email at dshawul at yahoo.com, and I will do my best to assist.
 
-## Advanced user -- Optimizing MiniBatch size
+## Advanced user -- Optimizing minibatch size and delay parameters
 
 Usually the best batch size is an integer multiple of the number of multiprocessors (SMs) of the GPU.
 You can use device.exe, located in the `nnprobe-OS-gpu` directory, to determine the number of SMs of your GPU
 
-      ./device -n    # number of multiprocessors
-      ./device       # gives detail information about your GPU
+      $ ./device -h
+      Usage: device [option]
+         -h,--help    Display this help message
+         -n,--number  Number of GPUs
+         --mp         Total number of multiprocessors
+         --mp-each    Number of multiprocessors for each GPU
+         --name       Name of GPU 0
+         --name-each  Name of each GPU
+         --int8       Does all GPUs support fast INT8?
+         --int8-each  INT8 support for each GPU
+         --fp16       Does all GPUs support fast FP16?
+         --fp16-each  FP16 support for each GPU
 
 If the number of SMs is 40, try 40, 80, 120, 160, 200 etc. Usually 1x or 2x is enough.
 Also, the smaller the net or the less powerful the GPU, the more multiples you want to try.
 If you get a small increase in pps going from 80 to 120, the smaller batch size i.e. 80 since it results 
-in less overhead and a more selective tree. 
+in less overhead and a more selective tree.
+
+There is a parameter `delay` that can be set to 0 or 1. The installer tries its best to choose
+based on your CPU and GPU. If you have powerful CPU delay=0 with fewer threads may give better performance
+than delay=1 with more threads. If your CPU can't handle the many threads that Scorpio launches, you are
+better of with delay=1

@@ -8,16 +8,52 @@ display_help() {
     echo
     echo "  -h,--help          Display this help message."
     echo "  -p,--precision     Precision to use FLOAT/HALF/INT8."
-    echo "  -t,--threads       Threads per GPU/CPU cores."
+    echo "  -t,--threads       Total number of threads, i.e minibatch size."
+    echo "  -f,--factor        Factor for auto minibatch size determination from SMs, default 2."
+    echo "  --no-egbb          Do not install 5-men egbb."
+    echo "  --no-lcnets        Do not install lczero nets."
+    echo "  --no-int8          This is used in training mode to disable INT8 all in all."
     echo
     echo "Example: ./install.sh -p INT8 -t 80"
     echo
 }
 
-if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
-    display_help
-    exit 0
-fi
+# process cmd line arguments
+PREC=
+THREADS=
+IEGBB=1
+ILCNET=1
+IINT8=1
+FACTOR=2
+while ! [ -z "$1" ]; do
+    case $1 in
+        -p | --precision )
+            shift
+            PREC=$1
+            ;;
+        -t | --threads )
+            shift
+            THREADS=$1
+            ;;
+        -f | --factor )
+            shift
+            FACTOR=$1
+            ;;
+        --no-egbb )
+            IEGBB=0
+            ;;
+        --no-lcnets )
+            ILCNET=0
+            ;;
+        --no-int8 )
+            IINT8=0
+            ;;
+        -h | --help)
+            display_help
+            exit 0
+    esac
+    shift
+done
 
 # number of cores and gpus
 CPUS=`grep -c ^processor /proc/cpuinfo`
@@ -45,11 +81,6 @@ VERSION=3.0        # Version of scorpio
 # paths
 VR=`echo $VERSION | tr -d '.'`
 EGBB=nnprobe-${OS}-${DEV}
-if [ $DEV = "gpu" ]; then
-    NET="nets-scorpio nets-lczero nets-maddex"
-else
-    NET="nets-scorpio"
-fi
 
 # download
 SCORPIO=Scorpio-$(date '+%d-%b-%Y')
@@ -62,14 +93,23 @@ cd $SCORPIO
 LNK=https://github.com/dshawul/Scorpio/releases/download
 wget --no-check-certificate ${LNK}/${VERSION}/${EGBB}.zip
 unzip -o ${EGBB}.zip
+
 # networks
+NET="nets-scorpio"
+if [ $DEV = "gpu" ] && [ $ILCNET -eq 1 ]; then
+    NET="nets-scorpio nets-lczero nets-maddex"
+fi
 for N in $NET; do
     wget --no-check-certificate ${LNK}/${VERSION}/$N.zip
     unzip -o $N.zip
 done
+
 # egbbs
+if [ $IEGBB -ge 1 ]; then
 wget --no-check-certificate ${LNK}/${VERSION}/egbb.zip
 unzip -o egbb.zip
+fi
+
 # scorpio binary
 wget --no-check-certificate ${LNK}/${VERSION}/scorpio${VR}-mcts-nn.zip
 unzip -o scorpio${VR}-mcts-nn.zip
@@ -92,7 +132,11 @@ if [ $DEV = "gpu" ]; then
     nnp_e=${PD}/nets-maddex/ME.uff
     nnp_m=
     nn_type=0
-    nn_type_e=1
+    if [ $ILCNET -ge 1 ]; then
+       nn_type_e=1
+    else
+       nn_type_e=-1
+    fi
     nn_type_m=-1
     wdl_head=0
     wdl_head_e=1
@@ -123,49 +167,35 @@ if [ $DEV = "gpu" ]; then
     cd ${egbbp}
     ./device
     GPUS=`./device -n`
-    THREADS=`./device --mp`
-    THREADS=$((THREADS*2))
-    PREC=HALF
-    HAS=`./device --fp16`
-    if [ "$HAS" = "N" ]; then
-       HAS=`./device --int8`
-       if [ "$HAS" = "Y" ]; then
-          PREC=INT8
-       else
+    if [ -z $THREADS ]; then 
+       THREADS=`./device --mp`
+       THREADS=$((THREADS*FACTOR))
+    fi
+    if [ -z $PREC ]; then 
+       PREC=HALF
+       HAS=`./device --fp16`
+       if [ "$HAS" = "N" ]; then
+          HAS=`./device --int8`
           PREC=FLOAT
+          if [ $IINT8 -ge 1 ] && [ "$HAS" = "Y" ]; then
+             PREC=INT8
+          fi
        fi
     fi
     cd $exep
 else
-    PREC=FLOAT
-    THREADS=4
+    [ -z $PREC ] && PREC=FLOAT
+    [ -z $THREADS ] && THREADS=$((CPUS*FACTOR*2))
 fi
-
-# process cmd line arguments
-while ! [ -z "$1" ]; do
-    case $1 in
-        -p | --precision )
-            shift
-            PREC=$1
-            ;;
-        -t | --threads )
-            shift
-            THREADS=$1
-            ;;
-    esac
-    shift
-done
 
 # number of threads
 delay=0
 if [ $DEV = "gpu" ]; then
-    mt=$((GPUS*THREADS))
-    rt=$((mt/CPUS))
+    rt=$((THREADS/CPUS))
     if [ $rt -ge 10 ]; then
        delay=1
     fi
 else
-    mt=$((CPUS*THREADS))
     delay=1
 fi
 
@@ -180,15 +210,14 @@ sed -i "s/^egbb_path.*/egbb_path                ${egbbp_}/g" scorpio.ini
 sed -i "s/^egbb_files_path.*/egbb_files_path          ${egbbfp_}/g" scorpio.ini
 sed -i "s/^delay.*/delay                    ${delay}/g" scorpio.ini
 sed -i "s/^float_type.*/float_type               ${PREC}/g" scorpio.ini
+sed -i "s/^mt.*/mt                  ${THREADS}/g" scorpio.ini
 
 if [ $DEV = "gpu" ]; then
     sed -i "s/^device_type.*/device_type              GPU/g" scorpio.ini
     sed -i "s/^n_devices.*/n_devices                ${GPUS}/g" scorpio.ini
-    sed -i "s/^mt.*/mt                  ${mt}/g" scorpio.ini
 else
     sed -i "s/^device_type.*/device_type              CPU/g" scorpio.ini
     sed -i "s/^n_devices.*/n_devices                1/g" scorpio.ini
-    sed -i "s/^mt.*/mt                  ${mt}/g" scorpio.ini
 fi
 if [ $nn_type -ge 0 ]; then
     sed -i "s/^nn_path .*/nn_path                  ${nnp_}/g" scorpio.ini
