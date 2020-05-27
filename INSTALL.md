@@ -12,7 +12,6 @@ and a shell script (`install.sh`) for Ubuntu Linux. You need to only download th
         -f,--factor        Factor for auto minibatch size determination from SMs, default 2.
         --no-egbb          Do not install 5-men egbb.
         --no-lcnets        Do not install lczero nets.
-        --no-int8          This is used in training mode to disable INT8 all in all.
 
       Example: ./install.sh -p INT8 -t 80
 

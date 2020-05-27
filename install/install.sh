@@ -12,7 +12,6 @@ display_help() {
     echo "  -f,--factor        Factor for auto minibatch size determination from SMs, default 2."
     echo "  --no-egbb          Do not install 5-men egbb."
     echo "  --no-lcnets        Do not install lczero nets."
-    echo "  --no-int8          This is used in training mode to disable INT8 all in all."
     echo
     echo "Example: ./install.sh -p INT8 -t 80"
     echo
@@ -23,7 +22,6 @@ PREC=
 THREADS=
 IEGBB=1
 ILCNET=1
-IINT8=1
 FACTOR=2
 while ! [ -z "$1" ]; do
     case $1 in
@@ -45,9 +43,6 @@ while ! [ -z "$1" ]; do
         --no-lcnets )
             ILCNET=0
             ;;
-        --no-int8 )
-            IINT8=0
-            ;;
         -h | --help)
             display_help
             exit 0
@@ -58,10 +53,10 @@ done
 # number of cores and gpus
 CPUS=`grep -c ^processor /proc/cpuinfo`
 if [ ! -z `which nvidia-smi` ]; then
-    GPUS=0
+    GPUS=1
     DEV=gpu
 else
-    GPUS=1
+    GPUS=0
     DEV=cpu
 fi
 
@@ -177,7 +172,7 @@ if [ $DEV = "gpu" ]; then
        if [ "$HAS" = "N" ]; then
           HAS=`./device --int8`
           PREC=FLOAT
-          if [ $IINT8 -ge 1 ] && [ "$HAS" = "Y" ]; then
+          if [ "$HAS" = "Y" ]; then
              PREC=INT8
           fi
        fi

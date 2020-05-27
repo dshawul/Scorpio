@@ -8,7 +8,6 @@ SET PREC=
 SET THREADS=
 SET IEGBB=1
 SET ILCNET=1
-SET IINT8=1
 SET FACTOR=2
 :loop
 IF NOT "%1"=="" (
@@ -34,8 +33,6 @@ IF NOT "%1"=="" (
         SET IEGBB=0
     ) ELSE IF "%1"=="--no-lcnets" (
         SET ILCNET=0
-    ) ELSE IF "%1"=="--no-int8" (
-        SET IINT8=0
     ) ELSE IF "%1"=="--help" (
         :usage
         echo Usage: %0
@@ -46,7 +43,6 @@ IF NOT "%1"=="" (
         echo   -f,--factor        Factor for auto minibatch size determination from SMs, default 2.
         echo   --no-egbb          Do not install 5-men egbb.
         echo   --no-lcnets        Do not install lczero nets.
-        echo   --no-int8          This is used in training mode to disable INT8 all in all.
         echo
         echo Example: install.bat -p INT8 - t 80
         exit /b
@@ -98,10 +94,11 @@ powershell Expand-Archive -Force %CWD%%FILENAME% -DestinationPath %CWD%
 DEL %CWD%%FILENAME%
 
 REM --------- download networks
+SET NETS=nets-scorpio.zip
 IF %GPUS% NEQ 0 (
-    SET NETS=nets-scorpio.zip nets-lczero.zip nets-maddex.zip
-) ELSE (
-    SET NETS=nets-scorpio.zip
+    IF %ILCNET% NEQ 0 (
+       SET NETS=nets-scorpio.zip nets-lczero.zip nets-maddex.zip
+    )
 )
 for %%N in ( %NETS% ) DO (
     bitsadmin /transfer mydownload /dynamic /download /priority FOREGROUND "%LNK%/%VERSION%/%%N" %CWD%%%N
@@ -171,9 +168,7 @@ IF %GPUS% NEQ 0 (
              SET HAS=%%F
           )
           IF "%HAS%"=="Y" (
-             IF %IINT8% GEQ 1 (
-                SET PREC=INT8
-             )
+             SET PREC=INT8
           )
        )
     )
