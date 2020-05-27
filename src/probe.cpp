@@ -174,7 +174,7 @@ static void load_net(int id, int nn_cache_size, PLOAD_NN load_nn) {
 
             SEARCHER s;
             char epdc[4 * MAX_FILE_STR];
-            while(epd.next(epdc)) {
+            while(epd.next(epdc,true)) {
                 s.epd_to_nn(epdc,fb,2);
             }
 

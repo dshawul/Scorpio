@@ -1577,7 +1577,7 @@ bool ParallelFile::open(const char* path) {
 void ParallelFile::close() {
     fclose(f);
 }
-bool PGN::next(char* moves) {
+bool PGN::next(char* moves, bool silent) {
 
     l_lock(lock);
 
@@ -1593,7 +1593,7 @@ bool PGN::next(char* moves) {
         if(c == '[') {
             if(!is_header) {
                 count++;
-                print("Game %d\t\r",count);
+                if(!silent) print("Game %d\t\r",count);
                 l_unlock(lock);
                 return true;
             }
@@ -1605,12 +1605,12 @@ bool PGN::next(char* moves) {
 
     return false;
 }
-bool EPD::next(char* moves) {
+bool EPD::next(char* moves, bool silent) {
 
     l_lock(lock);
     if(fgets(moves,4 * MAX_FILE_STR,f)) {
         count++;
-        print("Position %d\t\r",count);
+        if(!silent) print("Position %d\t\r",count);
         l_unlock(lock);
         return true;
     }

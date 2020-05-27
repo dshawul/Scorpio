@@ -280,15 +280,15 @@ public:
     unsigned count;
     bool open(const char*);
     void close();
-    virtual bool next(char*) = 0;
+    virtual bool next(char*, bool = false) = 0;
 };
 class PGN : public ParallelFile {
 public:
-    bool next(char*) override;
+    bool next(char*, bool) override;
 };
 class EPD : public ParallelFile {
 public:
-    bool next(char*) override;
+    bool next(char*, bool) override;
 };
 /*
 chess clock
