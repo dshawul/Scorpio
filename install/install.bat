@@ -62,14 +62,12 @@ IF %ERRORLEVEL% NEQ 0 (
 )
 
 SET EGBB=nnprobe-%OSD%-%DEV%
-SET STMP=%time:~3,2%-%time:~6,2%
 SET LNK=http://github.com/dshawul/Scorpio/releases/download
 
 REM --------- create directory
-SET SCORPIO=Scorpio-%STMP%
+SET SCORPIO=Scorpio
 mkdir %SCORPIO%
-IF EXIST RMDIR /S /Q Scorpio
-MKLINK /D Scorpio %SCORPIO%
+IF EXIST RMDIR /S /Q %SCORPIO%
 cd %SCORPIO%
 SET CWD=%cd%\
 
@@ -277,8 +275,9 @@ for /F "delims=" %%A in (scorpio.ini) do (
    )
 )
 MOVE output.txt scorpio.ini
-cd ../..
+ENDLOCAL
 
 REM ----------
 echo "Making a test run"
 CALL %EXE% go quit
+CD ../../..
