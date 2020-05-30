@@ -78,8 +78,8 @@ powershell Expand-Archive -Force %CWD%%FILENAME% -DestinationPath %CWD%
 DEL %CWD%%FILENAME%
 
 REM --------- download egbb
+SET FILENAME=egbb.zip
 IF %IEGBB% GEQ 1 (
-    SET FILENAME=egbb.zip
     bitsadmin /transfer mydownload /dynamic /download /priority FOREGROUND "%LNK%/%VERSION%/%FILENAME%" %CWD%%FILENAME%
     powershell Expand-Archive -Force %CWD%%FILENAME% -DestinationPath %CWD%
     DEL %CWD%%FILENAME%
@@ -141,6 +141,7 @@ IF %GPUS% NEQ 0 (
 
 REM --------- determine GPU props
 SET HAS=N
+SETLOCAL ENABLEDELAYEDEXPANSION
 IF %GPUS% NEQ 0 (
     cd %EGBB%
     CALL device.exe
@@ -160,12 +161,12 @@ IF %GPUS% NEQ 0 (
        FOR /F "tokens=* USEBACKQ" %%F IN (`device.exe --fp16`) DO (
           SET HAS=%%F
        )
-       IF "%HAS%"=="N" (
+       IF "!HAS!"=="N" (
           SET PREC=FLOAT
           FOR /F "tokens=* USEBACKQ" %%F IN (`device.exe --int8`) DO (
              SET HAS=%%F
           )
-          IF "%HAS%"=="Y" (
+          IF "!HAS!"=="Y" (
              SET PREC=INT8
           )
        )
@@ -190,7 +191,6 @@ IF %GPUS% NEQ 0 (
 
 REM ---------- edit scorpio.ini
 cd "%CWD%bin/Windows"
-SETLOCAL ENABLEDELAYEDEXPANSION
 IF EXIST output.txt DEL /F output.txt
 for /F "delims=" %%A in (scorpio.ini) do (
    SET LMN=%%A
@@ -280,4 +280,4 @@ ENDLOCAL
 REM ----------
 echo "Making a test run"
 CALL %EXE% go quit
-CD ../../..
+cd ..
