@@ -1,7 +1,7 @@
 # Installation instructions
 
-The recommended way to install ScorpioNN is using install scripts, a batch file (`install.bat`) for Windows 
-and a shell script (`install.sh`) for Ubuntu Linux. You need to only download these scripts and nothing else.
+The recommended way to install ScorpioNN is using install scripts, a batch file [install.bat](https://github.com/dshawul/Scorpio/releases/download/3.0/install.bat) for Windows 
+and a shell script [install.sh](https://github.com/dshawul/Scorpio/releases/download/3.0/install.sh) for Ubuntu Linux. You need to only download these scripts and nothing else.
 
       $ ./install.sh --help
       Usage: ./install.sh
