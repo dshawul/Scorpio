@@ -1516,7 +1516,7 @@ MOVE SEARCHER::iterative_deepening() {
             /*reset flags for mcts*/
             stop_searcher = 0;
             abort_search = 0;
-            search_depth = MAX_PLY - 2;
+            search_depth = MIN(search_depth + mcts_strategy_depth, MAX_PLY - 2);
             
             /* wake mcts threads*/
 #ifdef PARALLEL

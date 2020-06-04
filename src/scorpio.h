@@ -1119,6 +1119,7 @@ extern int rollout_type;
 extern bool freeze_tree;
 extern bool is_selfplay;
 extern double frac_abprior;
+extern int mcts_strategy_depth;
 extern int qsearch_level;
 extern int PROTOCOL;
 extern int train_data_type;

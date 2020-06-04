@@ -18,7 +18,6 @@ static int  backup_type = backup_type_setting;
 static double frac_alphabeta = 0.0; 
 static double frac_freeze_tree = 1.0;
 static double frac_abrollouts = 0.2;
-static int  mcts_strategy_depth = 30;
 static int  alphabeta_depth = 1;
 static int  evaluate_depth = 0;
 static int virtual_loss = 1;
@@ -35,6 +34,7 @@ static const int node_size =
 static float min_policy_value = 1.0 / 100;
 static int playout_cap_rand = 1;
 static int early_stop = 1;
+int  mcts_strategy_depth = 30;
 int train_data_type = 0;
 
 int montecarlo = 0;
@@ -1458,7 +1458,7 @@ void SEARCHER::manage_tree(bool single) {
         freeze_tree = true;
     if(frac_alphabeta == 0) {
         rollout_type = MCTS;
-        search_depth = MAX_PLY - 2;
+        search_depth = MIN(search_depth + mcts_strategy_depth, MAX_PLY - 2);
     } else {
         rollout_type = ALPHABETA;
     }
