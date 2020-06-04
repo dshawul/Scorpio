@@ -10,6 +10,7 @@ static double  policy_temp_m = 2.35;
 static double  cpuct_init_e = 1.25;
 static double  policy_temp_e = 2.35;
 static double  fpu_red = 0.33;
+static double  rand_temp = 1.0;
 static int fpu_is_loss = 0;
 static int reuse_tree = 1;
 static int  backup_type_setting = MIX_VISIT;
@@ -407,6 +408,7 @@ Node* Node::Random_select(Node* n) {
                 val += (low_visits_threshold - n->visits) * current->policy;
             else
                 val++;
+            val = pow(val, 1.0 / rand_temp);
             freq.push_back(1000 * val);
             count++;
         }
@@ -1987,6 +1989,8 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
     } else if(!strcmp(command, "policy_temp_e")) {
         policy_temp_e = atoi(commands[command_num++]) / 100.0;
 
+    } else if(!strcmp(command, "rand_temp")) {
+        rand_temp = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "fpu_red")) {
         fpu_red = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "fpu_is_loss")) {
@@ -2054,6 +2058,7 @@ void print_mcts_params() {
     print_spin("policy_temp_m",int(policy_temp_m*100),0,1000);
     print_spin("cpuct_init_e",int(cpuct_init_e*100),0,1000);
     print_spin("policy_temp_e",int(policy_temp_e*100),0,1000);
+    print_spin("rand_temp",int(rand_temp*100),0,1000);
     print_spin("noise_alpha",int(noise_alpha*100),0,100);
     print_spin("noise_beta",int(noise_beta*100),0,100);
     print_spin("noise_frac",int(noise_frac*100),0,100);
