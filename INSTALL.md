@@ -24,6 +24,12 @@ For windows machine, you  use [install.bat](https://github.com/dshawul/Scorpio/r
 Other than that the steps are very similar to that for linux.
 Paths with **spaces** are known to cause problems so please make sure the path you install scorpio to does not have spaces.
 
+The install script uses powershell for extracting zip file.
+So on Windows 7 and older make sure you can call powershell from the command line before installation.
+Also, for downloading `bitsadmin` is used and is usually the lowest level app available on most systems.
+If not (very unlikely) you got to find a way to install it.
+
+
 ## EGBB files
 By default, the installer will download and install 5-men egbbs. If you want to use 6-men, you have to download them
 from this [torrent site](http://oics.olympuschess.com/tracker/index.php). They are only 45GB in size, a fraction of size of syzygy tablebases.
