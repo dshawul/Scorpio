@@ -1,12 +1,13 @@
 ### Table of Contents
 1. [Scorpio](#scorpio)
-2. [Goals](#goals)
-3. [Parallel](#parallel)
-4. [MCTS](#mcts)
-5. [Neural Networks](#nns)
-6. [EGBB](#egbb)
-7. [Acknowledgement](#ackn)
-8. [Book](#book)
+2. [Installation](#install)
+3. [Goals](#goals)
+4. [Parallel](#parallel)
+5. [MCTS](#mcts)
+6. [Neural Networks](#nns)
+7. [EGBB](#egbb)
+8. [Acknowledgement](#ackn)
+9. [Book](#book)
 
 <a name="scorpio"></a>
 ### Scorpio
@@ -14,6 +15,11 @@
 Scorpio is a strong chess engine at the grand master level. It can be used 
 with GUIs that support the Winboard protocol natively such as Winboard and
 Arena, or via the Wb2Uci adapter in Fritz and Shredder interfaces.
+
+<a name="install"></a>
+### Installation
+
+For installation intructions, take a look at [INSTALL.md](https://github.com/dshawul/Scorpio/blob/master/INSTALL.md)
 
 <a name="goals"></a>
 ### Goals
