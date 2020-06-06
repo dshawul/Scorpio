@@ -980,9 +980,17 @@ void SEARCHER::check_mcts_quit(bool single) {
     time_factor = 1.0;
     if(bnval != bnvis)
         time_factor *= 1.3;
-    if(root_node->score <= -30 || root_node->score >= 100)
+    if(root_node->score <= -150)
+        time_factor *= 3.0;
+    else if(root_node->score <= -120)
+        time_factor *= 2.3;
+    else if(root_node->score <= -70)
+        time_factor *= 1.6;
+    else if(root_node->score <= -30)
         time_factor *= 1.3;
     else if(ABS(root_node->score - old_root_score) > 30)
+        time_factor *= 1.3;
+    else if(root_node->score >= 100)
         time_factor *= 1.3;
     else if(root_node->score >= 55)
         time_factor *= 1.2;
