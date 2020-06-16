@@ -12,6 +12,7 @@ display_help() {
     echo "  -f,--factor        Factor for auto minibatch size determination from SMs, default 2."
     echo "  --no-egbb          Do not install 5-men egbb."
     echo "  --no-lcnets        Do not install lczero nets."
+    echo "  --no-scnets        Do not download scorpio nets."
     echo
     echo "Example: ./install.sh -p INT8 -t 80"
     echo
@@ -22,6 +23,7 @@ PREC=
 THREADS=
 IEGBB=1
 ILCNET=1
+ISCNET=1
 FACTOR=2
 while ! [ -z "$1" ]; do
     case $1 in
@@ -42,6 +44,9 @@ while ! [ -z "$1" ]; do
             ;;
         --no-lcnets )
             ILCNET=0
+            ;;
+        --no-scnets )
+            ISCNET=0
             ;;
         -h | --help)
             display_help
@@ -90,9 +95,12 @@ wget --no-check-certificate ${LNK}/${VERSION}/${EGBB}.zip
 unzip -o ${EGBB}.zip
 
 # networks
-NET="nets-scorpio"
+NET=
+if [ $ISCNET -eq 1 ]; then
+    NET="nets-scorpio"
+fi
 if [ $DEV = "gpu" ] && [ $ILCNET -eq 1 ]; then
-    NET="nets-scorpio nets-lczero nets-maddex"
+    NET="${NET} nets-lczero nets-maddex"
 fi
 for N in $NET; do
     wget --no-check-certificate ${LNK}/${VERSION}/$N.zip
@@ -187,7 +195,7 @@ fi
 delay=0
 if [ $DEV = "gpu" ]; then
     rt=$((THREADS/CPUS))
-    if [ $rt -ge 10 ]; then
+    if [ $rt -ge 9 ]; then
        delay=1
     fi
 else
@@ -246,5 +254,7 @@ fi
 cd ../..
 
 # Test
-echo "Making a test run"
-$exep/$EXE go quit
+if [ $ISCNET -eq 1 ]; then
+   echo "Making a test run"
+   $exep/$EXE go quit
+fi

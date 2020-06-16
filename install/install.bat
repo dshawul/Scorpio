@@ -8,6 +8,7 @@ SET PREC=
 SET THREADS=
 SET IEGBB=1
 SET ILCNET=1
+SET ISCNET=1
 SET FACTOR=2
 :loop
 IF NOT "%1"=="" (
@@ -33,6 +34,8 @@ IF NOT "%1"=="" (
         SET IEGBB=0
     ) ELSE IF "%1"=="--no-lcnets" (
         SET ILCNET=0
+    ) ELSE IF "%1"=="--no-scnets" (
+        SET ISCNET=0
     ) ELSE IF "%1"=="--help" (
         :usage
         echo Usage: %0
@@ -43,6 +46,7 @@ IF NOT "%1"=="" (
         echo   -f,--factor        Factor for auto minibatch size determination from SMs, default 2.
         echo   --no-egbb          Do not install 5-men egbb.
         echo   --no-lcnets        Do not install lczero nets.
+        echo   --no-scnets        Do not install scorpio nets.
         echo
         echo Example: install.bat -p INT8 - t 80
         exit /b
@@ -92,10 +96,13 @@ powershell Expand-Archive -Force %CWD%%FILENAME% -DestinationPath %CWD%
 DEL %CWD%%FILENAME%
 
 REM --------- download networks
-SET NETS=nets-scorpio.zip
+SET NETS=
+IF %ISCNET% NEQ 0 (
+   SET NETS=nets-scorpio.zip
+)
 IF %GPUS% NEQ 0 (
     IF %ILCNET% NEQ 0 (
-       SET NETS=nets-scorpio.zip nets-lczero.zip nets-maddex.zip
+       SET NETS=%NETS% nets-lczero.zip nets-maddex.zip
     )
 )
 for %%N in ( %NETS% ) DO (
@@ -182,7 +189,7 @@ SET delay=0
 SET rt=0
 IF %GPUS% NEQ 0 (
     SET /a rt=%THREADS%/%NUMBER_OF_PROCESSORS%
-    IF %rt% GEQ 10 (
+    IF %rt% GEQ 9 (
         SET delay=1
     )
 ) ELSE (
@@ -278,6 +285,8 @@ MOVE output.txt scorpio.ini
 ENDLOCAL
 
 REM ----------
-echo "Making a test run"
-CALL %EXE% go quit
+IF %ISCNET% NEQ 0 (
+   echo "Making a test run"
+   CALL %EXE% go quit
+)
 cd ..
