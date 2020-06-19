@@ -33,6 +33,7 @@ static const int node_size =
     (sizeof(Node) + 32 * (sizeof(MOVE) + sizeof(float)));
 static float min_policy_value = 1.0 / 100;
 static int playout_cap_rand = 1;
+static float full_playouts_frac = 0.25;
 static int early_stop = 1;
 int  mcts_strategy_depth = 30;
 int train_data_type = 0;
@@ -1854,7 +1855,7 @@ void SEARCHER::self_play_thread() {
             unsigned int limit = 0;
             if(playout_cap_rand
                 && chess_clock.max_visits >= 800 
-                && (rand() > RAND_MAX / 4))
+                && (rand() > full_playouts_frac * RAND_MAX))
                 limit = vlimit;
 
             search_mc(true,limit);
@@ -2013,6 +2014,8 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         noise_ply = atoi(commands[command_num++]);
     } else if(!strcmp(command, "playout_cap_rand")) {
         playout_cap_rand = is_checked(commands[command_num++]);
+    } else if(!strcmp(command, "full_playouts_frac")) {
+        full_playouts_frac = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "early_stop")) {
         early_stop = is_checked(commands[command_num++]);
     } else if(!strcmp(command, "train_data_type")) {
@@ -2072,6 +2075,7 @@ void print_mcts_params() {
     print_spin("noise_frac",int(noise_frac*100),0,100);
     print_spin("noise_ply",noise_ply,0,100);
     print_check("playout_cap_rand",playout_cap_rand);
+    print_spin("full_playouts_frac",int(full_playouts_frac*100),0,100);
     print_check("early_stop",early_stop);
     print_spin("train_data_type",train_data_type,0,2);
     print_spin("fpu_red",int(fpu_red*100),-1000,1000);
