@@ -1515,6 +1515,12 @@ void SEARCHER::manage_tree(bool single) {
         current = root_node->child;
         while(current) {
             current->policy /= total;
+#if 0
+            char mvstr[16];
+            mov_str(current->move,mvstr);
+            print("%3d. %7s %8.2f\n",
+                current->rank,mvstr,current->policy);
+#endif
             current = current->next;
         }
     }
@@ -1873,6 +1879,13 @@ void SEARCHER::self_play_thread() {
 
             search_mc(true,limit);
             move = stack[0].pv[0];
+
+#if 0
+            char mvstr[16];
+            mov_str(move,mvstr);
+            print("%3d. %7s %d %d = %8.2f\n",
+                hply+1,mvstr,(limit > 0), root_node->visits, root_node->score);
+#endif
 
             /*get training data*/
             PTRAIN ptrn = &trn[hply];
