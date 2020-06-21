@@ -35,6 +35,7 @@ static float min_policy_value = 1.0 / 100;
 static int playout_cap_rand = 1;
 static float full_playouts_frac = 0.25;
 static int early_stop = 1;
+static int sp_resign_value = 600;
 int  mcts_strategy_depth = 30;
 int train_data_type = 0;
 
@@ -1808,8 +1809,14 @@ void SEARCHER::self_play_thread() {
 
         while(true) {
 
-            /*game ended?*/
-            int res = print_result(false);
+            /*game ended*/
+            int res;
+            if(hply >= 4 && (-root_node->score) <= -sp_resign_value)
+                res = (player == white) ? R_BWIN : R_WWIN;
+            else
+                res = print_result(false);
+
+            /*write pgn and training data*/
             if(res != R_UNKNOWN) {
                 if(res == R_DRAW) l_add(draws,1);
                 else if(res == R_WWIN) l_add(wins,1);
@@ -2056,6 +2063,8 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         visit_threshold = atoi(commands[command_num++]);
     } else if(!strcmp(command, "montecarlo")) {
         montecarlo = is_checked(commands[command_num++]);
+    } else if(!strcmp(command, "sp_resign_value")) {
+        sp_resign_value = atoi(commands[command_num++]);
     } else if(!strcmp(command, "treeht")) {
         UBMP32 ht = atoi(commands[command_num++]);
         UBMP32 size = ht * (double(1024 * 1024) / node_size);
@@ -2101,5 +2110,6 @@ void print_mcts_params() {
     print_spin("virtual_loss",virtual_loss,0,1000);
     print_spin("visit_threshold",visit_threshold,0,1000000);
     print_check("montecarlo",montecarlo);
+    print_spin("sp_resign_value",sp_resign_value,0,10000);
     print_spin("treeht",int((Node::max_tree_nodes / double(1024*1024)) * node_size),0,131072);
 }
