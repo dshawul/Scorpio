@@ -1746,6 +1746,53 @@ void SEARCHER::get_train_data(float& value, int& nmoves, int* moves, float* prob
     bestm = compute_move_index(move, 0);
 }
 
+/*print training data*/
+void print_train(int res, char* buffer, PTRAIN trn, PSEARCHER sb) {
+
+    int bcount = 0;
+
+    int pl = white;
+    for(int h = 0; h < sb->hply; h++) {
+        PTRAIN ptrn = &trn[h];
+        PHIST_STACK phst = &sb->hstack[h];
+
+        if(ptrn->nmoves >= 0) {
+            strcpy(&buffer[bcount], ptrn->fen);
+            bcount += strlen(ptrn->fen);
+
+            if(res == R_WWIN) strcpy(&buffer[bcount]," 1-0");
+            else if(res == R_BWIN) strcpy(&buffer[bcount]," 0-1");
+            else {
+                strcpy(&buffer[bcount]," 1/2-1/2");
+                bcount += 4;
+            }
+            bcount += 4;
+
+            bcount += sprintf(&buffer[bcount], " %f %d ", 
+                ptrn->value, ptrn->nmoves);
+            for(int i = 0; i < ptrn->nmoves; i++) {
+                if(train_data_type == 2)
+                    bcount += sprintf(&buffer[bcount], "%d %f %f ", 
+                        ptrn->moves[i], ptrn->probs[i], ptrn->scores[i]);
+                else
+                    bcount += sprintf(&buffer[bcount], "%d %f ", 
+                        ptrn->moves[i], ptrn->probs[i]);
+            }
+
+            bcount += sprintf(&buffer[bcount], "%d", ptrn->bestm);
+
+            bcount += sprintf(&buffer[bcount], "\n");
+        }
+
+        pl = invert(pl);
+    }
+
+    l_lock(lock_io);
+    fwrite(buffer, bcount, 1, spfile2);
+    fflush(spfile2);
+    l_unlock(lock_io);
+}
+
 /*job for selfplay thread*/
 void SEARCHER::self_play_thread() {
     static VOLATILE int wins = 0, losses = 0, draws = 0;
@@ -1754,7 +1801,6 @@ void SEARCHER::self_play_thread() {
     int phply = hply;
     PTRAIN trn = new TRAIN[MAX_HSTACK];
     char* buffer = new char[4096 * MAX_HSTACK];
-    int bcount;
 
     unsigned start_t = get_time();
 
@@ -1779,48 +1825,8 @@ void SEARCHER::self_play_thread() {
                     ngames);
 
                 /*save training data*/
-                bcount = 0;
-
-                int pl = white;
-                for(int h = 0; h < hply; h++) {
-                    PTRAIN ptrn = &trn[h];
-                    PHIST_STACK phst = &hstack[h];
-
-                    if(ptrn->nmoves >= 0) {
-                        strcpy(&buffer[bcount], ptrn->fen);
-                        bcount += strlen(ptrn->fen);
-
-                        if(res == R_WWIN) strcpy(&buffer[bcount]," 1-0");
-                        else if(res == R_BWIN) strcpy(&buffer[bcount]," 0-1");
-                        else {
-                            strcpy(&buffer[bcount]," 1/2-1/2");
-                            bcount += 4;
-                        }
-                        bcount += 4;
-
-                        bcount += sprintf(&buffer[bcount], " %f %d ", 
-                            ptrn->value, ptrn->nmoves);
-                        for(int i = 0; i < ptrn->nmoves; i++) {
-                            if(train_data_type == 2)
-                                bcount += sprintf(&buffer[bcount], "%d %f %f ", 
-                                    ptrn->moves[i], ptrn->probs[i], ptrn->scores[i]);
-                            else
-                                bcount += sprintf(&buffer[bcount], "%d %f ", 
-                                    ptrn->moves[i], ptrn->probs[i]);
-                        }
-
-                        bcount += sprintf(&buffer[bcount], "%d", ptrn->bestm);
-
-                        bcount += sprintf(&buffer[bcount], "\n");
-                    }
-
-                    pl = invert(pl);
-                }
-
-                l_lock(lock_io);
-                fwrite(buffer, bcount, 1, spfile2);
-                fflush(spfile2);
-                l_unlock(lock_io);
+                print_train(
+                    res,buffer,trn,this);
 
                 /*abort*/
                 if(ngames >= spgames)
