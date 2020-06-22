@@ -1492,35 +1492,19 @@ void SEARCHER::manage_tree(bool single) {
             current = current->next;
         }
 
-        int index = 0;
-        double minp = MAX_NUMBER;
+        int idx = 0;
         current = root_node->child;
         while(current) {
-            double n = ((noise[index] - alpha * beta) / total);
-            current->policy = current->policy * (1 - frac) + n * frac;
-            if(current->policy < minp) minp = current->policy;
-            current = current->next;
-            index++;
-        }
-
-        total = 0;
-        current = root_node->child;
-        while(current) {
-            current->policy -= minp;
-            total += current->policy;
-            current = current->next;
-        }
-        if(total <= 1e-6) total = 1e-6;
-        
-        current = root_node->child;
-        while(current) {
-            current->policy /= total;
+            double n = noise[idx++] / total;
 #if 0
             char mvstr[16];
             mov_str(current->move,mvstr);
-            print("%3d. %7s %8.2f\n",
-                current->rank,mvstr,current->policy);
+            print("%3d. %7s %8.2f %8.2f = %8.2f\n",
+                current->rank,mvstr,
+                current->policy,n,
+                current->policy * (1 - frac) + n * frac);
 #endif
+            current->policy = current->policy * (1 - frac) + n * frac;
             current = current->next;
         }
     }
