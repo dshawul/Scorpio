@@ -177,6 +177,7 @@ static void load_net(int id, int nn_cache_size, PLOAD_NN load_nn) {
             while(epd.next(epdc,true)) {
                 s.epd_to_nn(epdc,fb,2);
             }
+            s.new_board();
 
             SEARCHER::nn_type = save;
 
