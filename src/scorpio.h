@@ -497,7 +497,7 @@ struct Node {
     static void  parallel_reclaim(Node*);
     static void  parallel_rank_reset(Node*);
     static Node* print_tree(Node*,int = 0,int = 0);
-    static Node* Max_UCB_select(Node*,bool,int);
+    static Node* Max_UCB_select(Node*,bool,bool,int);
     static Node* Max_AB_select(Node*,int,int,bool,bool,int);
     static Node* Best_select(Node*,bool);
     static Node* Random_select(Node*);

@@ -36,6 +36,8 @@ static int playout_cap_rand = 1;
 static float full_playouts_frac = 0.25;
 static int early_stop = 1;
 static int sp_resign_value = 600;
+static int forced_playouts = 0;
+static int policy_pruning = 0;
 int  mcts_strategy_depth = 30;
 int train_data_type = 0;
 
@@ -239,7 +241,7 @@ void Node::split(Node* n, std::vector<Node*>* pn, const int S, int& T) {
     }
 }
 
-Node* Node::Max_UCB_select(Node* n, bool has_ab, int processor_id) {
+Node* Node::Max_UCB_select(Node* n, bool has_ab, bool is_root, int processor_id) {
     double uct, bvalue = -10;
     double dCPUCT = cpuct_init + log((n->visits + cpuct_base + 1.0) / cpuct_base);
     double factor = dCPUCT * sqrt(double(n->visits));
@@ -289,6 +291,14 @@ Node* Node::Max_UCB_select(Node* n, bool has_ab, int processor_id) {
             }
 
             uct += current->policy * factor / (vst + 1);
+
+#if 1
+            /*forced playouts*/
+            if(forced_playouts && is_selfplay && is_root && current->visits > 0) {
+                unsigned int n_forced = sqrt(2 * current->policy * n->visits);
+                if(current->visits < n_forced) uct += 5;
+            }
+#endif
 
             if(uct > bvalue) {
                 bvalue = uct;
@@ -790,8 +800,9 @@ SELECT:
             next = Node::Max_AB_select(n,-pstack->beta,-pstack->alpha,
                 try_null,search_by_rank, processor_id);
         } else {
-            bool has_ab = (n == root_node && frac_abprior > 0);
-            next = Node::Max_UCB_select(n, has_ab, processor_id);
+            bool is_root = (n == root_node);
+            bool has_ab = (is_root && frac_abprior > 0);
+            next = Node::Max_UCB_select(n, has_ab, is_root, processor_id);
         }
 
         /*This could happen in parallel search*/
@@ -1685,16 +1696,46 @@ void SEARCHER::self_play_thread_all(FILE* fw, FILE* fw2, int ngames) {
 
 /*get training data from search*/
 void SEARCHER::get_train_data(float& value, int& nmoves, int* moves, float* probs, float* scores, int& bestm) {
+    Node* current;
 
     /*value*/
     value = logistic(root_node->score);
     if(player == black) 
         value = 1 - value;
 
+    /*policy target pruning*/
+    double factor, max_uct = 0;
+
+    if(policy_pruning) {
+        double dCPUCT = cpuct_init + log((root_node->visits + cpuct_base + 1.0) / cpuct_base), uct;
+        factor = dCPUCT * sqrt(double(root_node->visits));
+
+        current = root_node->child;
+        while(current) {
+            uct = logistic(-current->score);
+            uct += current->policy * factor / (current->visits + 1);
+#if 0
+            char mvstr[16];
+            mov_str(current->move,mvstr);
+            print("%3d. %7s %9.2f %9.2f %9.4f\n",
+                current->rank,mvstr,current->policy,
+                logistic(-current->score),uct);
+#endif
+            if(uct > max_uct) max_uct = uct;
+            current = current->next;
+        }
+
+#if 0
+        print("PUCT(c*) = %5.2f c_puct*sqrt(N) = %5.2f\n",
+                max_uct,factor);
+        print(" NO     Move    Policy     Score   BeforeV    AfterV\n");
+#endif
+    }
+
     /*policy*/
     double val, total_visits = 0;
     int cnt = 0, diff = low_visits_threshold - root_node->visits;
-    Node* current = root_node->child;
+    current = root_node->child;
     while(current) {
         /*skip underpromotions*/
         if(is_prom(current->move) && 
@@ -1705,6 +1746,20 @@ void SEARCHER::get_train_data(float& value, int& nmoves, int* moves, float* prob
         /*probabilities*/
         if(train_data_type == 0 || train_data_type == 2) {
             val = current->visits;
+
+            if(policy_pruning) {
+                val = ((current->policy * factor) /
+                    (max_uct - logistic(-current->score)) ) - 1;
+                if(val < 0) val = 0;
+#if 0
+                char mvstr[16];
+                mov_str(current->move,mvstr);
+                print("%3d. %7s %9.2f %9.2f %9d %9d\n",
+                    current->rank,mvstr,current->policy,
+                    logistic(-current->score),current->visits,int(val));
+#endif
+            }
+
             if(diff > 0) 
                 val += diff * current->policy;
             else
@@ -2062,6 +2117,10 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         montecarlo = is_checked(commands[command_num++]);
     } else if(!strcmp(command, "sp_resign_value")) {
         sp_resign_value = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "forced_playouts")) {
+        forced_playouts = is_checked(commands[command_num++]);
+    } else if(!strcmp(command, "policy_pruning")) {
+        policy_pruning = is_checked(commands[command_num++]);
     } else if(!strcmp(command, "treeht")) {
         UBMP32 ht = atoi(commands[command_num++]);
         UBMP32 size = ht * (double(1024 * 1024) / node_size);
@@ -2108,5 +2167,7 @@ void print_mcts_params() {
     print_spin("visit_threshold",visit_threshold,0,1000000);
     print_check("montecarlo",montecarlo);
     print_spin("sp_resign_value",sp_resign_value,0,10000);
+    print_check("forced_playouts",forced_playouts);
+    print_check("policy_pruning",policy_pruning);
     print_spin("treeht",int((Node::max_tree_nodes / double(1024*1024)) * node_size),0,131072);
 }
