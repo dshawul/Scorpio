@@ -1989,56 +1989,63 @@ void SEARCHER::worker_thread() {
 void SEARCHER::select_net() {
     static int nn_type_o = nn_type;
     static int wdl_head_o = wdl_head;
-    static int cpuct_init_o = cpuct_init;
-    static int cpuct_base_o = cpuct_base;
+    static float cpuct_init_o = cpuct_init;
+    static float policy_temp_o = policy_temp;
 
     ensemble = (ensemble_setting > 0) ? 1 : 0;
 
     if(all_man_c <= nn_man_e) {
-        cpuct_init = cpuct_init_e;
-        policy_temp = policy_temp_e;
         if(ensemble) return;
 
         if(nn_type_e >= 0 ) {
             nn_id = 2;
             nn_type = nn_type_e;
             wdl_head = wdl_head_e;
+            cpuct_init = cpuct_init_e;
+            policy_temp = policy_temp_e;
         } else {
             nn_id = -nn_type_e - 1;
             if(nn_id == 0) { 
                 nn_type = nn_type_o;
                 wdl_head = wdl_head_o;
+                cpuct_init = cpuct_init_o;
+                policy_temp = policy_temp_o;
             } else if(nn_id == 1) {
                 nn_type = nn_type_m;
                 wdl_head = wdl_head_m;
+                cpuct_init = cpuct_init_m;
+                policy_temp = policy_temp_m;
             }
         }
     } else if(all_man_c <= nn_man_m) {
-        cpuct_init = cpuct_init_m;
-        policy_temp = policy_temp_m;
         if(ensemble) return;
 
         if(nn_type_m >= 0) {
             nn_id = 1;
             nn_type = nn_type_m;
             wdl_head = wdl_head_m;
+            cpuct_init = cpuct_init_m;
+            policy_temp = policy_temp_m;
         } else {
             nn_id = -nn_type_m - 1;
             if(nn_id == 0) { 
                 nn_type = nn_type_o;
                 wdl_head = wdl_head_o;
+                cpuct_init = cpuct_init_o;
+                policy_temp = policy_temp_o;
             } else if(nn_id == 2) {
                 nn_type = nn_type_e;
                 wdl_head = wdl_head_e;
+                cpuct_init = cpuct_init_e;
+                policy_temp = policy_temp_e;
             }
         }
     } else {
-        cpuct_init = cpuct_init_o;
-        cpuct_base = cpuct_base_o;
-        
         nn_id = 0;
         nn_type = nn_type_o;
         wdl_head = wdl_head_o;
+        cpuct_init = cpuct_init_o;
+        policy_temp = policy_temp_o;
     }
 }
 /*
