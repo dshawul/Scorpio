@@ -1856,8 +1856,8 @@ void SEARCHER::self_play_thread() {
 
             /*game ended*/
             int res;
-            if(hply >= 4 && (-root_node->score) <= -sp_resign_value)
-                res = (player == white) ? R_BWIN : R_WWIN;
+            if(hply >= 4 && -root_node->score >= sp_resign_value)
+                res = (player == white) ? R_WWIN : R_BWIN;
             else
                 res = print_result(false);
 
