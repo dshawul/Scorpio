@@ -246,14 +246,13 @@ void Node::split(Node* n, std::vector<Node*>* pn, const int S, int& T) {
 }
 
 Node* Node::Max_UCB_select(Node* n, bool has_ab, bool is_root, int processor_id) {
-    double uct, bvalue = -10;
+    double uct, fpu, bvalue = -10;
     double dCPUCT = cpuct_init + log((n->visits + cpuct_base + 1.0) / cpuct_base);
     double factor = dCPUCT * sqrt(double(n->visits));
     Node* current, *bnode = 0;
     unsigned vst, vvst = 0;
 
-    double fpu = (1 - fpu_is_loss) / 2.0; //fpu is loss or win
-    if(n->visits > 10000)
+    if(is_root || n->visits > 10000)
         fpu = 1.0;            //fpu = win
     else if(!fpu_is_loss) {
         float fpur = fpu_red; //fpu = reduction
@@ -269,6 +268,8 @@ Node* Node::Max_UCB_select(Node* n, bool has_ab, bool is_root, int processor_id)
             }
         }
         fpu = logistic(n->score) - fpur * sqrt(fpu);
+    } else {
+        fpu = (1 - fpu_is_loss) / 2.0; //fpu is loss or win
     }
 
     current = n->child;
@@ -1498,8 +1499,8 @@ void SEARCHER::manage_tree(bool single) {
         std::vector<double> noise;
         std::gamma_distribution<double> dist(alpha,beta);
         Node* current;
-        double total = 0;
 
+        double total = 0;
         current = root_node->child;
         while(current) {
             double n = dist(mtgen);
@@ -1507,6 +1508,7 @@ void SEARCHER::manage_tree(bool single) {
             total += n;
             current = current->next;
         }
+        if(total < 1e-8) total = 1e-8;
 
         int idx = 0;
         current = root_node->child;
