@@ -10,8 +10,12 @@ static double  policy_temp_m = 2.35;
 static double  cpuct_init_e = 1.25;
 static double  policy_temp_e = 2.35;
 static double  fpu_red = 0.33;
+static int     fpu_is_loss = 0;
+static double  fpu_red_m = 0.33;
+static int     fpu_is_loss_m = 0;
+static double  fpu_red_e = 0.33;
+static int     fpu_is_loss_e = 0;
 static double  rand_temp = 1.0;
-static int fpu_is_loss = 0;
 static int reuse_tree = 1;
 static int  backup_type_setting = MIX_VISIT;
 static int  backup_type = backup_type_setting;
@@ -248,7 +252,7 @@ Node* Node::Max_UCB_select(Node* n, bool has_ab, bool is_root, int processor_id)
     Node* current, *bnode = 0;
     unsigned vst, vvst = 0;
 
-    double fpu = 0.0;         //fpu = loss
+    double fpu = (1 - fpu_is_loss) / 2.0; //fpu is loss or win
     if(n->visits > 10000)
         fpu = 1.0;            //fpu = win
     else if(!fpu_is_loss) {
@@ -256,6 +260,7 @@ Node* Node::Max_UCB_select(Node* n, bool has_ab, bool is_root, int processor_id)
         if(n->visits > 3200)
             fpur = 0;         //fpu reduction = 0 
         else {
+            fpu = 0;
             current = n->child;
             while(current) {
                 if(current->visits && current->move)
@@ -1989,8 +1994,19 @@ void SEARCHER::worker_thread() {
 void SEARCHER::select_net() {
     static int nn_type_o = nn_type;
     static int wdl_head_o = wdl_head;
-    static float cpuct_init_o = cpuct_init;
-    static float policy_temp_o = policy_temp;
+    static double cpuct_init_o = cpuct_init;
+    static double policy_temp_o = policy_temp;
+    static double fpu_red_o = fpu_red;
+    static int  fpu_is_loss_o = fpu_is_loss;
+
+#define SET(p) {                      \
+    nn_type = nn_type_##p;            \
+    wdl_head = wdl_head_##p;          \
+    cpuct_init = cpuct_init_##p;      \
+    policy_temp = policy_temp_##p;    \
+    fpu_red = fpu_red_##p;            \
+    fpu_is_loss = fpu_is_loss_##p;    \
+};
 
     ensemble = (ensemble_setting > 0) ? 1 : 0;
 
@@ -1999,22 +2015,13 @@ void SEARCHER::select_net() {
 
         if(nn_type_e >= 0 ) {
             nn_id = 2;
-            nn_type = nn_type_e;
-            wdl_head = wdl_head_e;
-            cpuct_init = cpuct_init_e;
-            policy_temp = policy_temp_e;
+            SET(e);
         } else {
             nn_id = -nn_type_e - 1;
             if(nn_id == 0) { 
-                nn_type = nn_type_o;
-                wdl_head = wdl_head_o;
-                cpuct_init = cpuct_init_o;
-                policy_temp = policy_temp_o;
+                SET(o);
             } else if(nn_id == 1) {
-                nn_type = nn_type_m;
-                wdl_head = wdl_head_m;
-                cpuct_init = cpuct_init_m;
-                policy_temp = policy_temp_m;
+                SET(m);
             }
         }
     } else if(all_man_c <= nn_man_m) {
@@ -2022,31 +2029,21 @@ void SEARCHER::select_net() {
 
         if(nn_type_m >= 0) {
             nn_id = 1;
-            nn_type = nn_type_m;
-            wdl_head = wdl_head_m;
-            cpuct_init = cpuct_init_m;
-            policy_temp = policy_temp_m;
+            SET(m);
         } else {
             nn_id = -nn_type_m - 1;
             if(nn_id == 0) { 
-                nn_type = nn_type_o;
-                wdl_head = wdl_head_o;
-                cpuct_init = cpuct_init_o;
-                policy_temp = policy_temp_o;
+                SET(o);
             } else if(nn_id == 2) {
-                nn_type = nn_type_e;
-                wdl_head = wdl_head_e;
-                cpuct_init = cpuct_init_e;
-                policy_temp = policy_temp_e;
+                SET(e);
             }
         }
     } else {
         nn_id = 0;
-        nn_type = nn_type_o;
-        wdl_head = wdl_head_o;
-        cpuct_init = cpuct_init_o;
-        policy_temp = policy_temp_o;
+        SET(o);
     }
+
+#undef SET
 }
 /*
 * Search parameters
@@ -2059,23 +2056,31 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         cpuct_init = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "policy_temp")) {
         policy_temp = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "fpu_red")) {
+        fpu_red = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "fpu_is_loss")) {
+        fpu_is_loss = atoi(commands[command_num++]);
 
     } else if(!strcmp(command, "cpuct_init_m")) {
         cpuct_init_m = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "policy_temp_m")) {
         policy_temp_m = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "fpu_red_m")) {
+        fpu_red_m = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "fpu_is_loss_m")) {
+        fpu_is_loss_m = atoi(commands[command_num++]);
 
     } else if(!strcmp(command, "cpuct_init_e")) {
         cpuct_init_e = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "policy_temp_e")) {
         policy_temp_e = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "fpu_red_e")) {
+        fpu_red_e = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "fpu_is_loss_e")) {
+        fpu_is_loss_e = atoi(commands[command_num++]);
 
     } else if(!strcmp(command, "rand_temp")) {
         rand_temp = atoi(commands[command_num++]) / 100.0;
-    } else if(!strcmp(command, "fpu_red")) {
-        fpu_red = atoi(commands[command_num++]) / 100.0;
-    } else if(!strcmp(command, "fpu_is_loss")) {
-        fpu_is_loss = is_checked(commands[command_num++]);
     } else if(!strcmp(command, "noise_alpha")) {
         noise_alpha = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "noise_beta")) {
@@ -2141,12 +2146,22 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
 }
 void print_mcts_params() {
     print_spin("cpuct_base",cpuct_base,0,100000000);
+
     print_spin("cpuct_init",int(cpuct_init*100),0,1000);
     print_spin("policy_temp",int(policy_temp*100),0,1000);
+    print_spin("fpu_red",int(fpu_red*100),-1000,1000);
+    print_spin("fpu_is_loss",fpu_is_loss,-1,1);
+
     print_spin("cpuct_init_m",int(cpuct_init_m*100),0,1000);
     print_spin("policy_temp_m",int(policy_temp_m*100),0,1000);
+    print_spin("fpu_red_m",int(fpu_red_m*100),-1000,1000);
+    print_spin("fpu_is_loss_m",fpu_is_loss_m,-1,1);
+
     print_spin("cpuct_init_e",int(cpuct_init_e*100),0,1000);
     print_spin("policy_temp_e",int(policy_temp_e*100),0,1000);
+    print_spin("fpu_red_e",int(fpu_red_e*100),-1000,1000);
+    print_spin("fpu_is_loss_e",fpu_is_loss_e,-1,1);
+
     print_spin("rand_temp",int(rand_temp*100),0,1000);
     print_spin("noise_alpha",int(noise_alpha*100),0,100);
     print_spin("noise_beta",int(noise_beta*100),0,100);
@@ -2156,8 +2171,6 @@ void print_mcts_params() {
     print_spin("full_playouts_frac",int(full_playouts_frac*100),0,100);
     print_check("early_stop",early_stop);
     print_spin("train_data_type",train_data_type,0,2);
-    print_spin("fpu_red",int(fpu_red*100),-1000,1000);
-    print_check("fpu_is_loss",fpu_is_loss);
     print_check("reuse_tree",reuse_tree);
     print_spin("backup_type",backup_type_setting,0,7);
     print_spin("ensemble",int(ensemble_setting*100),0,100);
