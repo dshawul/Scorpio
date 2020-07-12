@@ -37,7 +37,8 @@ static const int node_size =
     (sizeof(Node) + 32 * (sizeof(MOVE) + sizeof(float)));
 static float min_policy_value = 1.0 / 100;
 static int playout_cap_rand = 1;
-static float full_playouts_frac = 0.25;
+static float frac_full_playouts = 0.25;
+static float frac_sv_low = 0.2;
 static int early_stop = 1;
 static int sp_resign_value = 600;
 static int forced_playouts = 0;
@@ -1849,7 +1850,7 @@ void print_train(int res, char* buffer, PTRAIN trn, PSEARCHER sb) {
 /*job for selfplay thread*/
 void SEARCHER::self_play_thread() {
     static VOLATILE int wins = 0, losses = 0, draws = 0;
-    static const int vlimit = chess_clock.max_visits / 5;
+    static const int vlimit = chess_clock.max_visits * frac_sv_low;
     MOVE move;
     int phply = hply;
     PTRAIN trn = new TRAIN[MAX_HSTACK];
@@ -1920,7 +1921,7 @@ void SEARCHER::self_play_thread() {
             unsigned int limit = 0;
             if(playout_cap_rand
                 && chess_clock.max_visits >= 800 
-                && (rand() > full_playouts_frac * RAND_MAX))
+                && (rand() > frac_full_playouts * RAND_MAX))
                 limit = vlimit;
 
             search_mc(true,limit);
@@ -2093,8 +2094,10 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         noise_ply = atoi(commands[command_num++]);
     } else if(!strcmp(command, "playout_cap_rand")) {
         playout_cap_rand = is_checked(commands[command_num++]);
-    } else if(!strcmp(command, "full_playouts_frac")) {
-        full_playouts_frac = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "frac_full_playouts")) {
+        frac_full_playouts = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "frac_sv_low")) {
+        frac_sv_low = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "early_stop")) {
         early_stop = is_checked(commands[command_num++]);
     } else if(!strcmp(command, "train_data_type")) {
@@ -2170,7 +2173,8 @@ void print_mcts_params() {
     print_spin("noise_frac",int(noise_frac*100),0,100);
     print_spin("noise_ply",noise_ply,0,100);
     print_check("playout_cap_rand",playout_cap_rand);
-    print_spin("full_playouts_frac",int(full_playouts_frac*100),0,100);
+    print_spin("frac_full_playouts",int(frac_full_playouts*100),0,100);
+    print_spin("frac_sv_low",int(frac_sv_low*100),0,100);
     print_check("early_stop",early_stop);
     print_spin("train_data_type",train_data_type,0,2);
     print_check("reuse_tree",reuse_tree);
