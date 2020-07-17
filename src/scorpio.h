@@ -421,7 +421,10 @@ struct Node {
     VOLATILE int alpha;
     VOLATILE int beta;
     VOLATILE float policy;
-    VOLATILE int prior;
+    union {
+        VOLATILE int prior;
+        VOLATILE float pre_noise_policy;
+    };
 #else
     union {
         VOLATILE int alpha;
@@ -668,6 +671,7 @@ typedef struct SEARCHER{
     PLIST plist[15];
     HIST_STACK hstack[MAX_HSTACK];
     STACK stack[MAX_PLY];
+    float prev_kld;
     /*eval data*/
     PAWNREC pawnrec;
     /*functions*/
@@ -731,6 +735,7 @@ typedef struct SEARCHER{
     int   print_result(bool);
     void  check_quit();
     void  check_mcts_quit(bool);
+    double compute_kld();
     int   eval(bool = false);
     void  eval_pawn_cover(int,int,UBMP8*,UBMP8*);
     SCORE eval_pawns(int,int,UBMP8*,UBMP8*);

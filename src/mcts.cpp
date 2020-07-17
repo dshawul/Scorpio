@@ -38,7 +38,8 @@ static const int node_size =
 static float min_policy_value = 1.0 / 100;
 static int playout_cap_rand = 1;
 static float frac_full_playouts = 0.25;
-static float frac_sv_low = 0.2;
+static float frac_sv_low = 1.0 / 3;
+static float kld_threshold = 0;
 static int early_stop = 1;
 static int sp_resign_value = 600;
 static int forced_playouts = 0;
@@ -140,7 +141,10 @@ Node* Node::add_child(int processor_id, int idx,
     node->alpha = -MATE_SCORE;
     node->beta = MATE_SCORE;
     node->rank = idx + 1;
-    node->prior = node->score;
+    if(is_selfplay)
+        node->pre_noise_policy = policy;
+    else
+        node->prior = node->score;
     node->policy = policy;
     add_node(this,node);
     return node;
@@ -975,7 +979,40 @@ FINISH:
     n->dec_busy();
 }
 
+/*compute kld b/n network policy and current simulation pi*/
+double SEARCHER::compute_kld() {
+    Node* current = root_node->child;
+    double kld = 0;
+    while(current) {
+        if(current->visits) {
+            kld -= current->pre_noise_policy * 
+                  log(current->visits / ((current->pre_noise_policy + 1e-6) * root_node->visits));
+        }
+        current = current->next;
+    }
+    return kld;
+}
+
 void SEARCHER::check_mcts_quit(bool single) {
+
+    /*use kld threshold*/
+    if(is_selfplay && kld_threshold > 0) {
+        double kld = compute_kld();
+        double dkld = ABS(kld - prev_kld);
+        prev_kld = kld;
+#if 0
+        print("KLD: %f DKLD: %f\n", kld, dkld);
+#endif
+        if(dkld <= kld_threshold) {
+            if(single)
+                stop_searcher = 1;
+            else
+                abort_search = 1;
+            return;
+        }
+    }
+
+    /*find top two moves*/
     Node* current = root_node->child;
     unsigned int max_visits[2] = {0, 0};
     Node* bnval = current, *bnvis = current, *bnvis2 = current;
@@ -1073,9 +1110,10 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
     unsigned int visits_poll;
 
     /*poll input after this many playouts*/
-    if(chess_clock.max_visits != MAX_NUMBER)
-        visits_poll = chess_clock.max_visits / 40;
-    else if(use_nn)
+    if(chess_clock.max_visits != MAX_NUMBER) {
+        if(is_selfplay) visits_poll = 100;
+        else visits_poll = chess_clock.max_visits / 40;
+    } else if(use_nn)
         visits_poll = 4 * PROCESSOR::n_processors;
     else
         visits_poll = MAX(200, average_pps / 40);
@@ -1148,9 +1186,8 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
         /*threads searching different trees*/
         if(single) {
             if(early_stop && (root->visits - ovisits >= visits_poll)) {
-                double frac = double(root->visits) / chess_clock.max_visits;
-                if(frac >= 0.1)
-                    check_mcts_quit(single);
+                check_mcts_quit(single);
+                ovisits = root->visits;
             }
         /*all threads searching same tree*/
         } else if(processor_id == 0) {
@@ -1187,7 +1224,7 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
                         }
                     }
                     
-                    if(frac >= 0.1 && early_stop && !chess_clock.infinite_mode)
+                    if((is_selfplay || (frac >= 0.1)) && early_stop && !chess_clock.infinite_mode)
                         check_mcts_quit(single);
 
                     if(frac > ensemble_setting)
@@ -1494,7 +1531,7 @@ void SEARCHER::manage_tree(bool single) {
     /*backup type*/
     backup_type = backup_type_setting;
 
-    /*Dirchilet noise*/
+    /*Dirichlet noise*/
     if(is_selfplay && (chess_clock.max_visits > 2 * low_visits_threshold) ) {
         const float alpha = noise_alpha, beta = noise_beta, frac = noise_frac;
         std::vector<double> noise;
@@ -2098,6 +2135,8 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         frac_full_playouts = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "frac_sv_low")) {
         frac_sv_low = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "kld_threshold")) {
+        kld_threshold = atoi(commands[command_num++]) / 1000000.0;
     } else if(!strcmp(command, "early_stop")) {
         early_stop = is_checked(commands[command_num++]);
     } else if(!strcmp(command, "train_data_type")) {
@@ -2175,6 +2214,7 @@ void print_mcts_params() {
     print_check("playout_cap_rand",playout_cap_rand);
     print_spin("frac_full_playouts",int(frac_full_playouts*100),0,100);
     print_spin("frac_sv_low",int(frac_sv_low*100),0,100);
+    print_spin("kld_threshold",int(kld_threshold*1000000),0,1000000);
     print_check("early_stop",early_stop);
     print_spin("train_data_type",train_data_type,0,2);
     print_check("reuse_tree",reuse_tree);
