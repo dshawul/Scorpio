@@ -1014,6 +1014,10 @@ void SEARCHER::check_mcts_quit(bool single) {
         }
     }
 
+    /*check if pruning is enabled*/
+    if(!early_stop)
+        return;
+
     /*find top two moves*/
     Node* current = root_node->child;
     unsigned int max_visits[2] = {0, 0};
@@ -1187,7 +1191,7 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
 
         /*threads searching different trees*/
         if(single) {
-            if(early_stop && (root->visits - ovisits >= visits_poll)) {
+            if(root->visits - ovisits >= visits_poll) {
                 check_mcts_quit(single);
                 ovisits = root->visits;
             }
@@ -1226,7 +1230,7 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
                         }
                     }
                     
-                    if((is_selfplay || (frac >= 0.1)) && early_stop && !chess_clock.infinite_mode)
+                    if((is_selfplay || (frac >= 0.1)) && !chess_clock.infinite_mode)
                         check_mcts_quit(single);
 
                     if(frac > ensemble_setting)
