@@ -39,6 +39,7 @@ static float min_policy_value = 1.0 / 100;
 static int playout_cap_rand = 1;
 static float frac_full_playouts = 0.25;
 static float frac_sv_low = 1.0 / 3;
+static float pcr_write_low = 0;
 static float kld_threshold = 0;
 static int early_stop = 1;
 static int sp_resign_value = 600;
@@ -1992,7 +1993,7 @@ void SEARCHER::self_play_thread() {
 
             /*get training data*/
             PTRAIN ptrn = &trn[hply];
-            if(limit == 0) { 
+            if(pcr_write_low || (limit == 0)) { 
                 get_train_data(
                     ptrn->value, ptrn->nmoves, ptrn->moves,
                     ptrn->probs, ptrn->scores, ptrn->bestm);
@@ -2154,6 +2155,8 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         frac_full_playouts = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "frac_sv_low")) {
         frac_sv_low = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "pcr_write_low")) {
+        pcr_write_low = is_checked(commands[command_num++]);
     } else if(!strcmp(command, "kld_threshold")) {
         kld_threshold = atoi(commands[command_num++]) / 1000000.0;
     } else if(!strcmp(command, "early_stop")) {
@@ -2233,6 +2236,7 @@ void print_mcts_params() {
     print_check("playout_cap_rand",playout_cap_rand);
     print_spin("frac_full_playouts",int(frac_full_playouts*100),0,100);
     print_spin("frac_sv_low",int(frac_sv_low*100),0,100);
+    print_check("pcr_write_low",pcr_write_low);
     print_spin("kld_threshold",int(kld_threshold*1000000),0,1000000);
     print_check("early_stop",early_stop);
     print_spin("train_data_type",train_data_type,0,2);
