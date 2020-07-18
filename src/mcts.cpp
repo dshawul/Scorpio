@@ -139,12 +139,12 @@ Node* Node::add_child(int processor_id, int idx,
     node->score = score;
     node->visits = 0;
     node->alpha = -MATE_SCORE;
-    node->beta = MATE_SCORE;
-    node->rank = idx + 1;
-    if(is_selfplay)
-        node->pre_noise_policy = policy;
+    if(rollout_type == ALPHABETA)
+        node->beta = MATE_SCORE;
     else
-        node->prior = node->score;
+        node->pre_noise_policy = policy;
+    node->rank = idx + 1;
+    node->prior = node->score;
     node->policy = policy;
     add_node(this,node);
     return node;
@@ -996,7 +996,9 @@ double SEARCHER::compute_kld() {
 void SEARCHER::check_mcts_quit(bool single) {
 
     /*use kld threshold*/
-    if(is_selfplay && kld_threshold > 0) {
+    if(kld_threshold > 0 &&
+        root_node->visits >= 2 * low_visits_threshold
+        ) {
         double kld = compute_kld();
         double dkld = ABS(kld - prev_kld);
         prev_kld = kld;
@@ -1894,8 +1896,12 @@ void SEARCHER::self_play_thread() {
     char* buffer = new char[4096 * MAX_HSTACK];
 
     unsigned start_t = get_time();
+    static float average_npm = 0;
+    float local_average_npm;
 
     while(true) {
+
+        local_average_npm = 0;
 
         while(true) {
 
@@ -1925,6 +1931,12 @@ void SEARCHER::self_play_thread() {
                 print_train(
                     res,buffer,trn,this);
 
+                /*average npm*/
+                l_lock(lock_io);
+                average_npm +=
+                    (local_average_npm - average_npm) / ngames;
+                l_unlock(lock_io);
+
                 /*abort*/
                 if(ngames >= spgames)
                     abort_search = 1;
@@ -1940,8 +1952,8 @@ void SEARCHER::self_play_thread() {
                 if(processor_id == 0) {
                     float diff = (get_time() - start_t) / 60000.0;
                     int ngames = wins + losses + draws;
-                    print("[%d] generated %d games in %.2f min : Rate %.2f games/min\n",
-                        GETPID(), ngames, diff, ngames / diff );
+                    print("[%d] generated %d games in %.2f min : Rate %.2f games/min %.2f nodes/move\n",
+                        GETPID(), ngames, diff, ngames / diff, average_npm);
                 }
 
                 return;
@@ -1963,6 +1975,9 @@ void SEARCHER::self_play_thread() {
 
             search_mc(true,limit);
             move = stack[0].pv[0];
+
+            local_average_npm += 
+                (root_node->visits - local_average_npm) / (hply + 1);
 
 #if 0
             char mvstr[16];
