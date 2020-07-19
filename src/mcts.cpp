@@ -997,9 +997,7 @@ double SEARCHER::compute_kld() {
 void SEARCHER::check_mcts_quit(bool single) {
 
     /*use kld threshold*/
-    if(kld_threshold > 0 &&
-        root_node->visits >= 2 * low_visits_threshold
-        ) {
+    if(kld_threshold > 0) {
         double kld = compute_kld();
         double dkld = ABS(kld - prev_kld);
         prev_kld = kld;
@@ -1124,6 +1122,7 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
         visits_poll = 4 * PROCESSOR::n_processors;
     else
         visits_poll = MAX(200, average_pps / 40);
+    prev_kld = -1;
 
     /*wait until all idle processors are awake*/
     if(!single) {
@@ -1987,7 +1986,7 @@ void SEARCHER::self_play_thread() {
 #if 0
             char mvstr[16];
             mov_str(move,mvstr);
-            print("%3d. %7s %d %d = %8.2f\n",
+            print("%3d. %7s %d %5d = %8.2f\n",
                 hply+1,mvstr,(limit > 0), root_node->visits, root_node->score);
 #endif
 

@@ -909,7 +909,6 @@ SEARCHER::SEARCHER() : board(&temp_board[36])
 #endif
     root_node = 0;
     root_key = 0;
-    prev_kld = 0;
 }
 /*
 SEARCHER copier
