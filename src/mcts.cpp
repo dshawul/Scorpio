@@ -1299,7 +1299,7 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
             else POP_NULL();
         }
         /*Random selection for self play*/
-        extract_pv(root,(is_selfplay && (hply <= noise_ply)));
+        extract_pv(root,(is_selfplay && (hply < noise_ply)));
         root_score = root->score;
         if(!single)
             print_pv(root_score);
