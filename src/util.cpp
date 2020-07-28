@@ -357,7 +357,7 @@ void Node::print_xml(Node* n,int depth) {
 void SEARCHER::extract_pv(Node* n, bool rand) {
     Node* best;
     if(rand)
-        best = Node::Random_select(n);
+        best = Node::Random_select(n,hply);
     else {
         bool has_ab = (n == root_node && frac_abprior > 0);
         best = Node::Best_select(n, has_ab);

@@ -503,7 +503,7 @@ struct Node {
     static Node* Max_UCB_select(Node*,bool,bool,int);
     static Node* Max_AB_select(Node*,int,int,bool,bool,int);
     static Node* Best_select(Node*,bool);
-    static Node* Random_select(Node*);
+    static Node* Random_select(Node*,int);
     static float Min_score(Node*);
     static float Avg_score(Node*);
     static float Avg_score_mem(Node*,double,int);

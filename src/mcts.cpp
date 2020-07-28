@@ -15,7 +15,6 @@ static double  fpu_red_m = 0.33;
 static int     fpu_is_loss_m = 0;
 static double  fpu_red_e = 0.33;
 static int     fpu_is_loss_e = 0;
-static double  rand_temp = 1.0;
 static int reuse_tree = 1;
 static int  backup_type_setting = MIX_VISIT;
 static int  backup_type = backup_type_setting;
@@ -31,7 +30,9 @@ static std::mt19937 mtgen(rd());
 static double noise_frac = 0.25;
 static double noise_alpha = 0.3;
 static double noise_beta = 1.0;
-static int noise_ply = 30;
+static int temp_plies = 30;
+static double rand_temp = 1.0;
+static double rand_temp_end = 0.0;
 static const int low_visits_threshold = 100;
 static const int node_size = 
     (sizeof(Node) + 32 * (sizeof(MOVE) + sizeof(float)));
@@ -415,7 +416,7 @@ Node* Node::Max_AB_select(Node* n, int alpha, int beta, bool try_null,
     return bnode;
 }
 
-Node* Node::Random_select(Node* n) {
+Node* Node::Random_select(Node* n, int hply) {
     Node* current, *bnode = n->child;
     int count;
     double val;
@@ -432,7 +433,10 @@ Node* Node::Random_select(Node* n) {
                 val += (low_visits_threshold - n->visits) * current->policy;
             else
                 val++;
-            val = pow(val, 1.0 / rand_temp);
+            if(hply < temp_plies)
+                val = pow(val, 1.0 / rand_temp);
+            else
+                val = pow(val, 1.0 / rand_temp_end);
             freq.push_back(1000 * val);
             count++;
         }
@@ -1299,7 +1303,7 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
             else POP_NULL();
         }
         /*Random selection for self play*/
-        extract_pv(root,(is_selfplay && (hply < noise_ply)));
+        extract_pv(root,(is_selfplay && (hply < temp_plies || rand_temp_end > 0)));
         root_score = root->score;
         if(!single)
             print_pv(root_score);
@@ -2138,16 +2142,18 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
     } else if(!strcmp(command, "fpu_is_loss_e")) {
         fpu_is_loss_e = atoi(commands[command_num++]);
 
-    } else if(!strcmp(command, "rand_temp")) {
-        rand_temp = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "noise_alpha")) {
         noise_alpha = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "noise_beta")) {
         noise_beta = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "noise_frac")) {
         noise_frac = atoi(commands[command_num++]) / 100.0;
-    } else if(!strcmp(command, "noise_ply")) {
-        noise_ply = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "temp_plies")) {
+        temp_plies = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "rand_temp")) {
+        rand_temp = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "rand_temp_end")) {
+        rand_temp_end = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "playout_cap_rand")) {
         playout_cap_rand = is_checked(commands[command_num++]);
     } else if(!strcmp(command, "frac_full_playouts")) {
@@ -2227,11 +2233,12 @@ void print_mcts_params() {
     print_spin("fpu_red_e",int(fpu_red_e*100),-1000,1000);
     print_spin("fpu_is_loss_e",fpu_is_loss_e,-1,1);
 
-    print_spin("rand_temp",int(rand_temp*100),0,1000);
     print_spin("noise_alpha",int(noise_alpha*100),0,100);
     print_spin("noise_beta",int(noise_beta*100),0,100);
     print_spin("noise_frac",int(noise_frac*100),0,100);
-    print_spin("noise_ply",noise_ply,0,100);
+    print_spin("temp_plies",temp_plies,0,100);
+    print_spin("rand_temp",int(rand_temp*100),0,1000);
+    print_spin("rand_temp_end",int(rand_temp_end*100),0,1000);
     print_check("playout_cap_rand",playout_cap_rand);
     print_spin("frac_full_playouts",int(frac_full_playouts*100),0,100);
     print_spin("frac_sv_low",int(frac_sv_low*100),0,100);
