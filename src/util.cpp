@@ -523,7 +523,7 @@ void SEARCHER::print_pv(int score) {
 }
 
 /*repeatition inside tree and fifty move draws*/
-int SEARCHER::draw() const {
+int SEARCHER::draw(int one_repeat) const {
 
     if(fifty >= 100) {
         if(fifty > 100) return true;
@@ -535,7 +535,7 @@ int SEARCHER::draw() const {
         for(int i = hply - 2;i >= hply - fifty;i -= 2) {
             if(hstack[i].hash_key == hash_key) {
                 repeat++;
-                if(repeat >= 2 || ply > 1)
+                if(repeat >= 2 || ply > 1 || one_repeat)
                     return true;
             }
         }

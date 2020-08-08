@@ -718,7 +718,7 @@ typedef struct SEARCHER{
     MOVE  get_move();
     MOVE  get_qmove();
     void  gen_all_legal();
-    int   draw() const;
+    int   draw(int = 0) const;
     MOVE  find_best();
     MOVE  iterative_deepening();
     int   be_selective(int,bool);

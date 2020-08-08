@@ -1669,7 +1669,7 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta) {
                         } else if(score >= -100) {         //stale-mate
                             *p = minp;
                         }
-                    } else if(draw() && score >= -100) {   //repetition & 50-move draws
+                    } else if(score >= -contempt && draw(1)) {   //repetition & 50-move draws
                         *p = minp;
                     } else if(sfifty > 0 && fifty == 0) {  //encourage progress
                         *p += sfifty * (maxp - minp) / 50;
