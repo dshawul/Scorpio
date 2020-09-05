@@ -1378,8 +1378,8 @@ void Node::parallel_rank_reset(Node* n) {
                  V = nprocs / ncores;
 
 #ifdef PARALLEL
- for(int i = 1;i < PROCESSOR::n_processors;i++)
-     processors[i]->state = PARK;
+    for(int i = 1;i < PROCESSOR::n_processors;i++)
+        processors[i]->state = PARK;
 #endif
 
     Node::split(n, gc, S, T);
@@ -1389,7 +1389,7 @@ void Node::parallel_rank_reset(Node* n) {
 
     int* seid = new int[2 * ncores];
     pthread_t* tid = new pthread_t[ncores];
-    
+
     for(int i = 0; i < ncores; i++) {
         seid[2*i+0] = i * V;
         seid[2*i+1] = (i == ncores - 1) ? nprocs : ((i + 1) * V);
@@ -1408,7 +1408,9 @@ void Node::parallel_rank_reset(Node* n) {
     for(int i = 1;i < PROCESSOR::n_processors;i++)
         processors[i]->state = WAIT;
 #endif
+
 }
+
 /*
 Manage search tree
 */
@@ -1418,11 +1420,11 @@ void SEARCHER::manage_tree(bool single) {
         unsigned int s_total_nodes = Node::total_nodes;
 
         /*find root node*/
-        int i = 0;
+        int idx = 0;
         bool found = false;
-        for( ;i < 8 && hply >= i + 1; i++) {
-            if(hply >= (i + 1) && 
-                hstack[hply - 1 - i].hash_key == root_key) {
+        for( ;idx < 8 && hply >= (idx + 0); idx++) {
+            if(hply >= (idx + 0) &&
+                hstack[hply - (idx + 0)].hash_key == root_key) {
                 found = true;
                 break;
             }
@@ -1431,11 +1433,13 @@ void SEARCHER::manage_tree(bool single) {
         /*Recycle nodes in parallel*/
         int st = get_time();
 
-        if(found && reuse_tree) {
+        if(idx == 0) {
+            /*same position searched again*/
+        } else if(found && reuse_tree) {
             MOVE move;
 
             Node* oroot = root_node, *new_root = 0;
-            for(int j = i; j >= 0; --j) {
+            for(int j = (idx - 1); j >= 0; --j) {
                 move = hstack[hply - 1 - j].move;
 
                 Node* current = root_node->child, *prev = 0;
