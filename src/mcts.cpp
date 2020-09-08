@@ -1054,12 +1054,12 @@ void SEARCHER::check_mcts_quit(bool single) {
         time_factor *= 1.6;
     else if(root_node->score <= -30)
         time_factor *= 1.3;
+    else if(root_node->score >= 100)
+        time_factor *= 2.0;
+    else if(root_node->score >= 55)
+        time_factor *= 1.5;
     else if(ABS(root_node->score - old_root_score) > 30)
         time_factor *= 1.3;
-    else if(root_node->score >= 100)
-        time_factor *= 1.3;
-    else if(root_node->score >= 55)
-        time_factor *= 1.2;
     else if(ABS(root_node->score) > 10)
         time_factor *= 1.1;
 
