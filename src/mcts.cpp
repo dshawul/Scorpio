@@ -1237,8 +1237,11 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
                     if((is_selfplay || (frac >= 0.1)) && !chess_clock.infinite_mode)
                         check_mcts_quit(single);
 
-                    if(frac > ensemble_setting)
+                    if(ensemble && (frac > ensemble_setting)) {
+                        print_info("Turning off ensemble.\n");
+                        t_sleep(1);
                         turn_off_ensemble = 1;
+                    }
 
                     /*stop growing tree after some time*/
                     if(rollout_type == ALPHABETA && !freeze_tree && frac_freeze_tree < 1.0 &&
@@ -2253,7 +2256,7 @@ void print_mcts_params() {
     print_check("reuse_tree",reuse_tree);
     print_spin("backup_type",backup_type_setting,0,7);
     print_spin("ensemble",int(ensemble_setting*100),0,100);
-    print_spin("ensemble_type",ensemble_type,0,1);
+    print_spin("ensemble_type",ensemble_type,0,2);
     print_spin("min_policy_value",int(min_policy_value*1000),0,1000);
     print_spin("frac_alphabeta",int(frac_alphabeta*100),0,100);
     print_spin("frac_freeze_tree",int(frac_freeze_tree*100),0,100);

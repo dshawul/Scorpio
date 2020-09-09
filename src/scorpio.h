@@ -854,8 +854,8 @@ typedef struct SEARCHER{
     void fill_list(int&,int*,int*);
     int probe_bitbases(int&);
     bool bitbase_cutoff();
-    void ensemble_net(int,int,float&);
-    float probe_neural_(bool,float*);
+    void ensemble_net(int,int,int,float&);
+    float probe_neural_(bool,float*,int,int,int);
     int probe_neural(bool=false);
     void handle_terminal(Node*,bool);
     void self_play_thread();
