@@ -1529,7 +1529,7 @@ MOVE SEARCHER::iterative_deepening() {
         if(rollout_type == ALPHABETA) {
             root_node->alpha = alpha;
             root_node->beta = beta;
-            Node::parallel_rank_reset(root_node);
+            Node::parallel_job(root_node,rank_reset_thread_proc,true);
         }
     }
 
@@ -1726,11 +1726,11 @@ MOVE SEARCHER::iterative_deepening() {
                     }
                 }
             }
-            /*rank children*/
+            /*rank nodes and reset bounds*/
             if(rollout_type == ALPHABETA) {
                 root_node->alpha = alpha;
                 root_node->beta = beta;
-                Node::parallel_rank_reset(root_node);
+                Node::parallel_job(root_node,rank_reset_thread_proc,true);
             }
         }
 
