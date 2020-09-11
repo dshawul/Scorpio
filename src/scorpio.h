@@ -768,7 +768,7 @@ typedef struct SEARCHER{
     int   get_root_search_score();
     int   get_search_score();
     void  evaluate_moves(int,int,int);
-    void  generate_and_score_moves(int,int,int);
+    void  generate_and_score_moves(int,int);
     /*mcts stuff*/
     void  extract_pv(Node*,bool=false);
     void  create_children(Node*);

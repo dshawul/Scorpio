@@ -635,7 +635,7 @@ void SEARCHER::create_children(Node* n) {
 
     /*generate and score moves*/
     if(ply)
-        generate_and_score_moves(evaluate_depth,-MATE_SCORE,MATE_SCORE);
+        generate_and_score_moves(-MATE_SCORE,MATE_SCORE);
 
     if(pstack->count)
         n->score = pstack->best_score;
@@ -1558,7 +1558,7 @@ void SEARCHER::manage_tree(bool single) {
 /*
 Generate all moves
 */
-void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta) {
+void SEARCHER::generate_and_score_moves(int alpha, int beta) {
 
     /*generate moves here*/
     gen_all_legal();
@@ -1568,7 +1568,7 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta) {
         if(!use_nn) {
             bool save = skip_nn;
             skip_nn = true;
-            evaluate_moves(depth,alpha,beta);
+            evaluate_moves(evaluate_depth,alpha,beta);
             skip_nn = save;
 
             pstack->best_score = pstack->score_st[0];
@@ -1585,17 +1585,17 @@ void SEARCHER::generate_and_score_moves(int depth, int alpha, int beta) {
                 }
 
                 /*normalize policy*/
+                static const float scale = 25.f;
                 double total = 0.f;
                 for(int i = 0;i < pstack->count; i++) {
-                    float p = logistic(pstack->score_st[i]);
-                    p = exp(p * 10 / policy_temp);
-                    total += p;
+                    float* p = (float*)&pstack->score_st[i];
+                    float pp = logistic(pstack->score_st[i]) * scale;
+                    *p = exp(pp / policy_temp);
+                    total += *p;
                 }
                 for(int i = 0;i < pstack->count; i++) {
-                    float p = logistic(pstack->score_st[i]);
-                    p = exp(p * 10 / policy_temp);
-                    float* pp = (float*)&pstack->score_st[i];
-                    *pp = p / total;
+                    float* p = (float*)&pstack->score_st[i];
+                    *p /= total;
                 }
             }
         } else {
@@ -1948,7 +1948,7 @@ void SEARCHER::self_play_thread() {
             }
 
             /*do fixed nodes mcts search*/
-            generate_and_score_moves(0, -MATE_SCORE, MATE_SCORE);
+            generate_and_score_moves(-MATE_SCORE, MATE_SCORE);
             manage_tree(true);
             SEARCHER::egbb_ply_limit = 8;
             pstack->depth = search_depth * UNITDEPTH;

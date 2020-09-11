@@ -1665,7 +1665,7 @@ void SEARCHER::pgn_to_epd(char* pgn, FILE* fb, int task) {
         else if(result == R_BWIN) strcat(fen," 0-1");           \
         else strcat(fen," 1/2-1/2");                            \
         int nmoves;                                             \
-        generate_and_score_moves(0, -MATE_SCORE, MATE_SCORE);   \
+        generate_and_score_moves(-MATE_SCORE, MATE_SCORE);      \
         manage_tree(true);                                      \
         SEARCHER::egbb_ply_limit = 8;                           \
         pstack->depth = search_depth * UNITDEPTH;               \
@@ -1820,7 +1820,7 @@ void SEARCHER::epd_to_nn(char* fen, FILE* fb, int task) {
         l_unlock(lock_io);                                      \
     } else if(task == 1) {                                      \
         int nmoves;                                             \
-        generate_and_score_moves(0, -MATE_SCORE, MATE_SCORE);   \
+        generate_and_score_moves(-MATE_SCORE, MATE_SCORE);      \
         manage_tree(true);                                      \
         SEARCHER::egbb_ply_limit = 8;                           \
         pstack->depth = search_depth * UNITDEPTH;               \

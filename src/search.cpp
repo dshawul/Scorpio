@@ -1876,7 +1876,7 @@ MOVE SEARCHER::find_best() {
     
     /*generate and score moves*/
     chess_clock.set_stime(hply,true);
-    generate_and_score_moves(0,-MATE_SCORE,MATE_SCORE);
+    generate_and_score_moves(-MATE_SCORE,MATE_SCORE);
 
     /*no move*/
     if(pstack->count == 0) {
