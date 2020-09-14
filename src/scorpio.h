@@ -423,10 +423,7 @@ struct Node {
     MOVE move;
 #if 1
     VOLATILE int alpha;
-    union {
-        VOLATILE int beta;
-        VOLATILE float pre_noise_policy;
-    };
+    VOLATILE int beta;
     VOLATILE float policy;
     VOLATILE int prior;
 #else

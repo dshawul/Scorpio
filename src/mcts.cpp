@@ -141,10 +141,7 @@ Node* Node::add_child(int processor_id, int idx,
     node->score = score;
     node->visits = 0;
     node->alpha = -MATE_SCORE;
-    if(rollout_type == ALPHABETA)
-        node->beta = MATE_SCORE;
-    else
-        node->pre_noise_policy = policy;
+    node->beta = MATE_SCORE;
     node->rank = idx + 1;
     node->prior = node->score;
     node->policy = policy;
@@ -990,8 +987,9 @@ double SEARCHER::compute_kld() {
     double kld = 0;
     while(current) {
         if(current->visits) {
-            kld -= current->pre_noise_policy * 
-                  log(current->visits / ((current->pre_noise_policy + 1e-6) * root_node->visits));
+            float pre_noise_policy = root_node->edges.scores()[current->rank - 1];
+            kld -= pre_noise_policy *
+                  log(current->visits / ((pre_noise_policy + 1e-6) * root_node->visits));
         }
         current = current->next;
     }
