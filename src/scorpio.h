@@ -422,8 +422,14 @@ struct Node {
     Edges edges;
     MOVE move;
 #if 1
-    VOLATILE int alpha;
-    VOLATILE int beta;
+    union {
+        VOLATILE int alpha;
+        VOLATILE float reg_policy;
+    };
+    union {
+        VOLATILE int beta;
+        VOLATILE float Q;
+    };
     VOLATILE float policy;
     VOLATILE int prior;
 #else
@@ -502,6 +508,7 @@ struct Node {
     static Node* print_tree(Node*,int = 0,int = 0);
     static Node* Max_UCB_select(Node*,bool,bool,int);
     static Node* Max_AB_select(Node*,int,int,bool,bool,int);
+    static Node* ExactPi_select(Node*,bool,bool,int);
     static Node* Best_select(Node*,bool);
     static Node* Random_select(Node*,int);
     static float Min_score(Node*);
@@ -511,6 +518,12 @@ struct Node {
     static void Backup(Node*,double&,int);
     static void BackupLeaf(Node*,double&);
     static void print_xml(Node*,int);
+    static float compute_policy_sum_forwardKL(Node*,float,float);
+    static float compute_policy_sum_reverseKL(Node*,float,float,float);
+    static float compute_regularized_policy_reverseKL(Node*,float,float);
+    static float compute_regularized_policy_forwardKL(Node*,float,float);
+    static void compute_Q(Node*,float,bool);
+    static float compute_fpu(Node*,bool);
 };
 /*
 stacks

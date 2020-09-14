@@ -46,6 +46,7 @@ static int early_stop = 1;
 static int sp_resign_value = 600;
 static int forced_playouts = 0;
 static int policy_pruning = 0;
+static int use_exactpi = 0;
 int  mcts_strategy_depth = 30;
 int train_data_type = 0;
 
@@ -249,37 +250,15 @@ void Node::split(Node* n, std::vector<Node*>* pn, const int S, int& T) {
     }
 }
 
-Node* Node::Max_UCB_select(Node* n, bool has_ab, bool is_root, int processor_id) {
-    double uct, fpu, bvalue = -10;
-    double dCPUCT = cpuct_init + log((n->visits + cpuct_base + 1.0) / cpuct_base);
-    double factor = dCPUCT * sqrt(double(n->visits));
-    Node* current, *bnode = 0;
+void Node::compute_Q(Node* n, float fpu, bool has_ab) {
+    double uct;
     unsigned vst, vvst = 0;
-
-    if(is_root || n->visits > 10000)
-        fpu = 1.0;            //fpu = win
-    else if(!fpu_is_loss) {
-        float fpur = fpu_red; //fpu = reduction
-        if(n->visits > 3200)
-            fpur = 0;         //fpu reduction = 0 
-        else {
-            fpu = 0;
-            current = n->child;
-            while(current) {
-                if(current->visits && current->move)
-                    fpu += current->policy;
-                current = current->next;
-            }
-        }
-        fpu = logistic(n->score) - fpur * sqrt(fpu);
-    } else {
-        fpu = (1 - fpu_is_loss) / 2.0; //fpu is loss or win
-    }
-
-    current = n->child;
+    Node* current = n->child;
     while(current) {
+
         if(current->move && !current->is_dead()) {
 
+            /*compute Q considering fpu and virtual loss*/
             vst = current->visits;
 #ifdef PARALLEL
             vvst = virtual_loss * current->get_busy();
@@ -292,23 +271,183 @@ Node* Node::Max_UCB_select(Node* n, bool has_ab, bool is_root, int processor_id)
                 uct = logistic(-current->score);
                 uct += (-uct * vvst) / (vst + 1);
             }
-            
+
             if(has_ab) {
                 double uctp = logistic(-current->prior);
-                uct = 0.5 * ((1 - frac_abprior) * uct + 
-                            frac_abprior * uctp + 
+                uct = 0.5 * ((1 - frac_abprior) * uct +
+                            frac_abprior * uctp +
                             MIN(uct,uctp));
             }
 
-            uct += current->policy * factor / (vst + 1);
+            current->Q = uct;
+        }
 
-#if 1
-            /*forced playouts*/
+        current = current->next;
+    }
+}
+float Node::compute_fpu(Node* n, bool is_root) {
+    float fpu;
+    if(is_root || n->visits > 10000)
+        fpu = 1.0;            //fpu = win
+    else if(!fpu_is_loss) {
+        float fpur = fpu_red; //fpu = reduction
+        if(n->visits > 3200)
+            fpur = 0;         //fpu reduction = 0
+        else {
+            fpu = 0;
+            Node* current = n->child;
+            while(current) {
+                if(current->visits && current->move)
+                    fpu += current->policy;
+                current = current->next;
+            }
+        }
+        fpu = logistic(n->score) - fpur * sqrt(fpu);
+    } else {
+        fpu = (1 - fpu_is_loss) / 2.0; //fpu is loss or win
+    }
+    return fpu;
+}
+float Node::compute_policy_sum_reverseKL(Node* n, float factor, float fpu, float alpha) {
+    float reg_policy_sum = 0.f, policy_sum = 0.f, Q;
+
+    Node* current = n->child;
+    while(current) {
+        if(current->move && !current->is_dead()) {
+            policy_sum += current->policy;
+
+            Q = current->Q;
+            current->reg_policy = factor * current->policy / (alpha - Q);
+            reg_policy_sum += current->reg_policy;
+        }
+        current = current->next;
+    }
+
+    Q = fpu;
+    reg_policy_sum += factor * (1 - policy_sum) / (alpha - Q);
+    return reg_policy_sum;
+}
+float Node::compute_regularized_policy_reverseKL(Node* n, float factor, float fpu) {
+    /*find alpha_min and alpha_max*/
+    float alpha, alpha_min = -100, alpha_max = -100;
+    Node* current = n->child;
+    while(current) {
+        if(current->move && !current->is_dead()) {
+            float a = current->Q;
+            float b = a + factor;
+            a += factor * current->policy;
+
+            if(a > alpha_min) alpha_min = a;
+            if(b > alpha_max) alpha_max = b;
+        }
+        current = current->next;
+    }
+
+    int idx = n->edges.get_children();
+    if(idx < n->edges.count) {
+        float a = fpu;
+        float b = a + factor;
+        a += factor * n->edges.scores()[idx];
+
+        if(a > alpha_min) alpha_min = a;
+        if(b > alpha_max) alpha_max = b;
+    }
+
+    /*find alpha and regularized policy using dichotomous search*/
+    static const float eps = 0.01, eps_alpha = 0.001;
+    static const int max_iters = 100;
+    float sum, sum_min, sum_max;
+    sum_min = Node::compute_policy_sum_reverseKL(n,factor,fpu,alpha_min);
+    sum_max = Node::compute_policy_sum_reverseKL(n,factor,fpu,alpha_max);
+    for(int i = 0; i < max_iters; i++) {
+        alpha = 0.5 * (alpha_min + alpha_max);
+        sum = Node::compute_policy_sum_reverseKL(n,factor,fpu,alpha);
+
+        if(fabs(1 - sum) <= eps ||
+           fabs(alpha_min - alpha_max) <= eps_alpha ||
+           fabs(sum_min - sum_max) <= eps)
+            break;
+        if(sum < 1) {
+            alpha_max = alpha;
+            sum_max = sum;
+        } else {
+            alpha_min = alpha;
+            sum_min = sum;
+        }
+#if 0
+        if(i == max_iters - 1) {
+            print("[%3d] ALPHA %f %f = %f SUM %.2f %.2f = %.2f ERR %.4f VIS %d\n",i,
+                alpha_min,alpha_max,alpha,sum_min,sum_max,sum,fabs(1-sum),n->visits);
+            if(i == max_iters - 1) exit(0);
+        }
+#endif
+    }
+
+    float ret = factor / (alpha - fpu);
+    return ret;
+}
+float Node::compute_policy_sum_forwardKL(Node* n, float factor, float fpu) {
+    float reg_policy_sum = 0.f, policy_sum = 0.f, Q;
+
+    Node* current = n->child;
+    while(current) {
+        if(current->move && !current->is_dead()) {
+            policy_sum += current->policy;
+
+            Q = current->Q;
+            current->reg_policy = current->policy * exp(Q / factor);
+            reg_policy_sum += current->reg_policy;
+        }
+        current = current->next;
+    }
+
+    Q = fpu;
+    reg_policy_sum += (1 - policy_sum) * exp(Q / factor);
+    return reg_policy_sum;
+}
+float Node::compute_regularized_policy_forwardKL(Node* n, float factor, float fpu) {
+    float sum = Node::compute_policy_sum_forwardKL(n,factor,fpu);
+
+    Node* current = n->child;
+    while(current) {
+        if(current->move && !current->is_dead())
+            current->reg_policy /= sum;
+        current = current->next;
+    }
+
+    float ret = exp(fpu / factor) / sum;
+    return ret;
+}
+Node* Node::ExactPi_select(Node* n, bool has_ab, bool is_root, int processor_id) {
+    double uct, fpu, bvalue = -10;
+    double dCPUCT = cpuct_init + log((n->visits + cpuct_base + 1.0) / cpuct_base);
+    double factor = dCPUCT * sqrt(double(n->visits)) / (n->edges.get_children() + n->visits);
+    Node* current, *bnode = 0;
+
+    /*compute fpu*/
+    fpu = Node::compute_fpu(n,is_root);
+
+    /*compute Q*/
+    Node::compute_Q(n,fpu,has_ab);
+
+    /*compute regularized policy for selection*/
+    float factor_unvisited;
+    if(use_exactpi == 1)
+        factor_unvisited = Node::compute_regularized_policy_reverseKL(n,factor,fpu);
+    else
+        factor_unvisited = Node::compute_regularized_policy_forwardKL(n,factor,fpu);
+
+    /*select*/
+    current = n->child;
+    while(current) {
+        if(current->move && !current->is_dead()) {
+
+            uct = current->reg_policy - double(current->visits) / n->visits;
+
             if(forced_playouts && is_selfplay && is_root && current->visits > 0) {
                 unsigned int n_forced = sqrt(2 * current->policy * n->visits);
                 if(current->visits < n_forced) uct += 5;
             }
-#endif
 
             if(uct > bvalue) {
                 bvalue = uct;
@@ -323,8 +462,7 @@ Node* Node::Max_UCB_select(Node* n, bool has_ab, bool is_root, int processor_id)
     if(n->edges.try_create()) {
         int idx = n->edges.get_children();
         if(idx < n->edges.count) {
-            uct = fpu;
-            uct += n->edges.scores()[idx] * factor;
+            uct = factor_unvisited * n->edges.scores()[idx];
             if(uct > bvalue) {
                 bnode = n->add_child(processor_id, idx,
                     n->edges.moves()[idx],
@@ -340,6 +478,61 @@ Node* Node::Max_UCB_select(Node* n, bool has_ab, bool is_root, int processor_id)
 
     return bnode;
 }
+
+Node* Node::Max_UCB_select(Node* n, bool has_ab, bool is_root, int processor_id) {
+    double uct, fpu, bvalue = -10;
+    double dCPUCT = cpuct_init + log((n->visits + cpuct_base + 1.0) / cpuct_base);
+    double factor = dCPUCT * sqrt(double(n->visits));
+    Node* current, *bnode = 0;
+
+    /*compute fpu*/
+    fpu = Node::compute_fpu(n,is_root);
+
+    /*compute Q*/
+    Node::compute_Q(n,fpu,has_ab);
+
+    /*select*/
+    current = n->child;
+    while(current) {
+        if(current->move && !current->is_dead()) {
+
+            uct = current->Q + current->policy * factor / (current->visits + 1);
+
+            if(forced_playouts && is_selfplay && is_root && current->visits > 0) {
+                unsigned int n_forced = sqrt(2 * current->policy * n->visits);
+                if(current->visits < n_forced) uct += 5;
+            }
+
+            if(uct > bvalue) {
+                bvalue = uct;
+                bnode = current;
+            }
+
+        }
+        current = current->next;
+    }
+
+    /*check edges and add child*/
+    if(n->edges.try_create()) {
+        int idx = n->edges.get_children();
+        if(idx < n->edges.count) {
+            uct = fpu + n->edges.scores()[idx] * factor;
+            if(uct > bvalue) {
+                bnode = n->add_child(processor_id, idx,
+                    n->edges.moves()[idx],
+                    n->edges.scores()[idx],
+                    -n->edges.score);
+                n->edges.inc_children();
+                n->edges.clear_create();
+                return bnode;
+            }
+        }
+        n->edges.clear_create();
+    }
+
+    return bnode;
+}
+
 Node* Node::Max_AB_select(Node* n, int alpha, int beta, bool try_null,
     bool search_by_rank, int processor_id
     ) {
@@ -815,7 +1008,10 @@ SELECT:
         } else {
             bool is_root = (n == root_node);
             bool has_ab = (is_root && frac_abprior > 0);
-            next = Node::Max_UCB_select(n, has_ab, is_root, processor_id);
+            if(use_exactpi)
+                next = Node::ExactPi_select(n, has_ab, is_root, processor_id);
+            else
+                next = Node::Max_UCB_select(n, has_ab, is_root, processor_id);
         }
 
         /*This could happen in parallel search*/
@@ -1498,6 +1694,7 @@ void SEARCHER::manage_tree(bool single) {
                 Node::reclaim(current,0);
             }
         }
+
     }
     if(!root_node->child) {
         create_children(root_node);
@@ -2182,6 +2379,8 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         forced_playouts = is_checked(commands[command_num++]);
     } else if(!strcmp(command, "policy_pruning")) {
         policy_pruning = is_checked(commands[command_num++]);
+    } else if(!strcmp(command, "use_exactpi")) {
+        use_exactpi = atoi(commands[command_num++]);
     } else if(!strcmp(command, "treeht")) {
         UBMP32 ht = atoi(commands[command_num++]);
         UBMP32 size = ht * (double(1024 * 1024) / node_size);
@@ -2242,5 +2441,6 @@ void print_mcts_params() {
     print_spin("sp_resign_value",sp_resign_value,0,10000);
     print_check("forced_playouts",forced_playouts);
     print_check("policy_pruning",policy_pruning);
+    print_spin("use_exactpi",use_exactpi,0,2);
     print_spin("treeht",int((Node::max_tree_nodes / double(1024*1024)) * node_size),0,131072);
 }
