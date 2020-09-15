@@ -421,7 +421,7 @@ struct Node {
     Node* next;
     Edges edges;
     MOVE move;
-#if 1
+
     union {
         VOLATILE int alpha;
         VOLATILE float reg_policy;
@@ -432,14 +432,7 @@ struct Node {
     };
     VOLATILE float policy;
     VOLATILE int prior;
-#else
-    union {
-        VOLATILE int alpha;
-        VOLATILE float policy;
-        VOLATILE int beta;
-        VOLATILE int prior;
-    };
-#endif
+
     VOLATILE unsigned int visits;
     VOLATILE float score;
     VOLATILE unsigned short busy;

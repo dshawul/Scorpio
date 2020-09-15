@@ -46,7 +46,7 @@ static int early_stop = 1;
 static int sp_resign_value = 600;
 static int forced_playouts = 0;
 static int policy_pruning = 0;
-static int use_exactpi = 0;
+static int select_formula = 0;
 int  mcts_strategy_depth = 30;
 int train_data_type = 0;
 
@@ -432,7 +432,7 @@ Node* Node::ExactPi_select(Node* n, bool has_ab, bool is_root, int processor_id)
 
     /*compute regularized policy for selection*/
     float factor_unvisited;
-    if(use_exactpi == 1)
+    if(select_formula == 2)
         factor_unvisited = Node::compute_regularized_policy_reverseKL(n,factor,fpu);
     else
         factor_unvisited = Node::compute_regularized_policy_forwardKL(n,factor,fpu);
@@ -482,7 +482,7 @@ Node* Node::ExactPi_select(Node* n, bool has_ab, bool is_root, int processor_id)
 Node* Node::Max_UCB_select(Node* n, bool has_ab, bool is_root, int processor_id) {
     double uct, fpu, bvalue = -10;
     double dCPUCT = cpuct_init + log((n->visits + cpuct_base + 1.0) / cpuct_base);
-    double factor = dCPUCT * sqrt(double(n->visits));
+    double factor;
     Node* current, *bnode = 0;
 
     /*compute fpu*/
@@ -491,12 +491,21 @@ Node* Node::Max_UCB_select(Node* n, bool has_ab, bool is_root, int processor_id)
     /*compute Q*/
     Node::compute_Q(n,fpu,has_ab);
 
+    /*Alphazero or UCT formula*/
+    if(select_formula == 0)
+        factor = dCPUCT * sqrt(double(n->visits));
+    else
+        factor = dCPUCT * sqrt(log(double(n->visits)));
+
     /*select*/
     current = n->child;
     while(current) {
         if(current->move && !current->is_dead()) {
 
-            uct = current->Q + current->policy * factor / (current->visits + 1);
+            if(select_formula == 0)
+                uct = current->Q + factor * (current->policy / (current->visits + 1));
+            else
+                uct = current->Q + factor * sqrt(current->policy / (current->visits + 1));
 
             if(forced_playouts && is_selfplay && is_root && current->visits > 0) {
                 unsigned int n_forced = sqrt(2 * current->policy * n->visits);
@@ -516,7 +525,10 @@ Node* Node::Max_UCB_select(Node* n, bool has_ab, bool is_root, int processor_id)
     if(n->edges.try_create()) {
         int idx = n->edges.get_children();
         if(idx < n->edges.count) {
-            uct = fpu + n->edges.scores()[idx] * factor;
+            if(select_formula == 0)
+                uct = fpu + factor * n->edges.scores()[idx];
+            else
+                uct = fpu + factor * sqrt(n->edges.scores()[idx]);
             if(uct > bvalue) {
                 bnode = n->add_child(processor_id, idx,
                     n->edges.moves()[idx],
@@ -1008,7 +1020,7 @@ SELECT:
         } else {
             bool is_root = (n == root_node);
             bool has_ab = (is_root && frac_abprior > 0);
-            if(use_exactpi)
+            if(select_formula >= 2)
                 next = Node::ExactPi_select(n, has_ab, is_root, processor_id);
             else
                 next = Node::Max_UCB_select(n, has_ab, is_root, processor_id);
@@ -2379,8 +2391,8 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         forced_playouts = is_checked(commands[command_num++]);
     } else if(!strcmp(command, "policy_pruning")) {
         policy_pruning = is_checked(commands[command_num++]);
-    } else if(!strcmp(command, "use_exactpi")) {
-        use_exactpi = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "select_formula")) {
+        select_formula = atoi(commands[command_num++]);
     } else if(!strcmp(command, "treeht")) {
         UBMP32 ht = atoi(commands[command_num++]);
         UBMP32 size = ht * (double(1024 * 1024) / node_size);
@@ -2441,6 +2453,6 @@ void print_mcts_params() {
     print_spin("sp_resign_value",sp_resign_value,0,10000);
     print_check("forced_playouts",forced_playouts);
     print_check("policy_pruning",policy_pruning);
-    print_spin("use_exactpi",use_exactpi,0,2);
+    print_spin("select_formula",select_formula,0,3);
     print_spin("treeht",int((Node::max_tree_nodes / double(1024*1024)) * node_size),0,131072);
 }
