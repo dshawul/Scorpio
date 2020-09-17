@@ -725,6 +725,12 @@ float Node::Avg_score_mem(Node* n, double score, int visits) {
     sc += (sc1 - sc) * visits / (n->visits + visits);
     return logit(sc);
 }
+float Node::Rms_score_mem(Node* n, double score, int visits) {
+    double sc = logistic(n->score);
+    double sc1 = logistic(score);
+    sc = sc*sc + (sc1*sc1 - sc*sc) * visits / (n->visits + visits);
+    return logit(sqrt(sc));
+}
 void Node::Backup(Node* n,double& score,int visits) {
     if(rollout_type == MCTS) {
         double pscore = score;
@@ -734,7 +740,13 @@ void Node::Backup(Node* n,double& score,int visits) {
                 score = -Max_visits_score(n);
             else
                 score = -Avg_score(n);
-        } 
+        }
+        else if(backup_type == RMS) {
+            if(n->visits > visit_threshold)
+                score = Rms_score_mem(n,score,visits);
+            else
+                score = Avg_score_mem(n,score,visits);
+        }
         else if(backup_type == CLASSIC)
             score = Avg_score_mem(n,score,visits);
         else if(backup_type == AVERAGE)
@@ -749,7 +761,7 @@ void Node::Backup(Node* n,double& score,int visits) {
                 score = Avg_score_mem(n,score,visits);
         }
         n->update_score(score);
-        if(backup_type == CLASSIC)
+        if(backup_type == CLASSIC || backup_type == RMS)
             score = pscore;
     } else {
 
@@ -2409,7 +2421,7 @@ void print_mcts_params() {
     print_check("early_stop",early_stop);
     print_spin("train_data_type",train_data_type,0,2);
     print_check("reuse_tree",reuse_tree);
-    print_spin("backup_type",backup_type_setting,0,7);
+    print_spin("backup_type",backup_type_setting,0,8);
     print_spin("ensemble",int(ensemble_setting*100),0,100);
     print_spin("ensemble_type",ensemble_type,0,2);
     print_spin("min_policy_value",int(min_policy_value*1000),0,1000);
