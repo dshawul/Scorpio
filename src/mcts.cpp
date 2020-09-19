@@ -285,6 +285,7 @@ void Node::compute_Q(Node* n, float fpu, bool has_ab) {
         current = current->next;
     }
 }
+
 float Node::compute_fpu(Node* n, bool is_root) {
     float fpu;
     if(is_root || n->visits > 10000)
@@ -308,17 +309,23 @@ float Node::compute_fpu(Node* n, bool is_root) {
     }
     return fpu;
 }
+
 float Node::compute_policy_sum_reverseKL(Node* n, float factor, float fpu, float alpha) {
     float reg_policy_sum = 0.f, policy_sum = 0.f, Q;
 
     Node* current = n->child;
     while(current) {
-        if(current->move && !current->is_dead()) {
-            policy_sum += current->policy;
+        if(current->move) {
+            if(!current->is_dead()) {
+                policy_sum += current->policy;
 
-            Q = current->Q;
-            current->reg_policy = factor * current->policy / (alpha - Q);
-            reg_policy_sum += current->reg_policy;
+                Q = current->Q;
+                current->reg_policy = factor * current->policy / (alpha - Q);
+                reg_policy_sum += current->reg_policy;
+            } else {
+                policy_sum += current->policy;
+                reg_policy_sum += current->reg_policy;
+            }
         }
         current = current->next;
     }
@@ -327,6 +334,7 @@ float Node::compute_policy_sum_reverseKL(Node* n, float factor, float fpu, float
     reg_policy_sum += factor * (1 - policy_sum) / (alpha - Q);
     return reg_policy_sum;
 }
+
 float Node::compute_regularized_policy_reverseKL(Node* n, float factor, float fpu) {
     /*find alpha_min and alpha_max*/
     float alpha, alpha_min = -100, alpha_max = -100;
@@ -386,38 +394,7 @@ float Node::compute_regularized_policy_reverseKL(Node* n, float factor, float fp
     float ret = factor / (alpha - fpu);
     return ret;
 }
-float Node::compute_policy_sum_forwardKL(Node* n, float factor, float fpu) {
-    float reg_policy_sum = 0.f, policy_sum = 0.f, Q;
 
-    Node* current = n->child;
-    while(current) {
-        if(current->move && !current->is_dead()) {
-            policy_sum += current->policy;
-
-            Q = current->Q;
-            current->reg_policy = current->policy * exp(Q / factor);
-            reg_policy_sum += current->reg_policy;
-        }
-        current = current->next;
-    }
-
-    Q = fpu;
-    reg_policy_sum += (1 - policy_sum) * exp(Q / factor);
-    return reg_policy_sum;
-}
-float Node::compute_regularized_policy_forwardKL(Node* n, float factor, float fpu) {
-    float sum = Node::compute_policy_sum_forwardKL(n,factor,fpu);
-
-    Node* current = n->child;
-    while(current) {
-        if(current->move && !current->is_dead())
-            current->reg_policy /= sum;
-        current = current->next;
-    }
-
-    float ret = exp(fpu / factor) / sum;
-    return ret;
-}
 Node* Node::ExactPi_select(Node* n, bool has_ab, bool is_root, int processor_id) {
     double uct, fpu, bvalue = -10;
     double dCPUCT = cpuct_init + log((n->visits + cpuct_base + 1.0) / cpuct_base);
@@ -431,11 +408,7 @@ Node* Node::ExactPi_select(Node* n, bool has_ab, bool is_root, int processor_id)
     Node::compute_Q(n,fpu,has_ab);
 
     /*compute regularized policy for selection*/
-    float factor_unvisited;
-    if(select_formula == 2)
-        factor_unvisited = Node::compute_regularized_policy_reverseKL(n,factor,fpu);
-    else
-        factor_unvisited = Node::compute_regularized_policy_forwardKL(n,factor,fpu);
+    float factor_unvisited = Node::compute_regularized_policy_reverseKL(n,factor,fpu);
 
     /*select*/
     current = n->child;
@@ -2453,6 +2426,6 @@ void print_mcts_params() {
     print_spin("sp_resign_value",sp_resign_value,0,10000);
     print_check("forced_playouts",forced_playouts);
     print_check("policy_pruning",policy_pruning);
-    print_spin("select_formula",select_formula,0,3);
+    print_spin("select_formula",select_formula,0,2);
     print_spin("treeht",int((Node::max_tree_nodes / double(1024*1024)) * node_size),0,131072);
 }

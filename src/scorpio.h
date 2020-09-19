@@ -511,10 +511,8 @@ struct Node {
     static void Backup(Node*,double&,int);
     static void BackupLeaf(Node*,double&);
     static void print_xml(Node*,int);
-    static float compute_policy_sum_forwardKL(Node*,float,float);
     static float compute_policy_sum_reverseKL(Node*,float,float,float);
     static float compute_regularized_policy_reverseKL(Node*,float,float);
-    static float compute_regularized_policy_forwardKL(Node*,float,float);
     static void compute_Q(Node*,float,bool);
     static float compute_fpu(Node*,bool);
 };
