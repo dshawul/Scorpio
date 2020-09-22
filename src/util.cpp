@@ -229,7 +229,7 @@ void SEARCHER::print_board() const {
         print("\n");
     }
 
-    char fen[256];
+    char fen[MAX_FEN_STR];
     get_fen(fen);
     print(fen);
     print("\n");
@@ -695,7 +695,7 @@ void SEARCHER::init_data() {
 void SEARCHER::set_board(const char* fen_str) {
     int i,r,f,sq,move_number;
 
-    strcpy(HIST_STACK::start_fen,fen_str);
+    strncpy(HIST_STACK::start_fen,fen_str,MAX_FEN_STR);
 
     for(sq = A1;sq <= H8;sq++) {
         if(!(sq & 0x88)) {
@@ -753,7 +753,7 @@ void SEARCHER::set_board(const char* fen_str) {
 
     /*fifty & hply*/
     p++;
-    if(*p) {
+    if(*p && isdigit(*p)) {
         sscanf(p,"%d %d",&fifty,&move_number);
         if(move_number <= 0) move_number = 1;
     } else {
@@ -1630,7 +1630,7 @@ void SEARCHER::pgn_to_epd(char* pgn, FILE* fb, int task) {
     int    result = R_UNKNOWN,command_num;
     int    comment = 0,line = 0;
     MOVE   move;
-    char   fen[256];
+    char   fen[MAX_FEN_STR];
     char* pc;
     bool illegal = false, has_score = false;
     float score;
@@ -1850,6 +1850,7 @@ void SEARCHER::epd_to_nn(char* fen, FILE* fb, int task) {
 
     fen[strlen(fen) - 1] = 0;
     set_board(fen);
+    get_fen(fen);
 
     TASK();
 
@@ -1878,7 +1879,7 @@ bool SEARCHER::build_book(char* path,char* book,int BOOK_SIZE,int BOOK_DEPTH,int
     int    comment = 0,line = 0,game = 0;
     UBMP16 weight;
     MOVE   move;
-    char   fen[256];
+    char   fen[MAX_FEN_STR];
     char* pc;
     bool illegal = false;
 

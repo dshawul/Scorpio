@@ -1886,7 +1886,7 @@ typedef struct TRAIN {
    int   moves[MAX_MOVES];
    float probs[MAX_MOVES];
    float scores[MAX_MOVES];
-   char  fen[128];
+   char  fen[MAX_FEN_STR];
 } *PTRAIN;
 
 /*multiple worker threads*/

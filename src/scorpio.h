@@ -175,7 +175,7 @@ enum square_names {
 
 #define MAX_STR            256
 #define MAX_FILE_STR      3072
-#define MAX_FEN_STR        128
+#define MAX_FEN_STR        256
 #define MAX_MOVES          256
 #define MAX_CAPS            64
 #define MAX_PLY             64
