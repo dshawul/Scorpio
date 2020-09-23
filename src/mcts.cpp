@@ -2196,7 +2196,7 @@ static ParallelFile* p_pgn = 0;
 static int task = 0;
         
 /*selfplay with multiple threads*/
-void SEARCHER::worker_thread_all(ParallelFile* pgn, FILE* fw, int task_) {
+void SEARCHER::worker_thread_all(ParallelFile* pgn, FILE* fw, int task_, bool single) {
     p_pgn = pgn;
     spfile = fw;
     if(task_ <= 3) {
@@ -2207,7 +2207,10 @@ void SEARCHER::worker_thread_all(ParallelFile* pgn, FILE* fw, int task_) {
         task = task_ - 4;
     }
     
-    launch_worker_threads();
+    if(!single)
+        launch_worker_threads();
+    else
+        worker_thread();
 }
 
 /*job for worker thread*/

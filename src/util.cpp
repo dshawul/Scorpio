@@ -1570,15 +1570,42 @@ END:
 /*
 PGN
 */
-bool ParallelFile::open(const char* path) {
+bool ParallelFile::open(const char* path, bool mem) {
     f = fopen(path,"r");
+    if(!f)
+        return false;
+
+    if(mem) {
+        print("Started loading file: %s\n", path);
+        fseek(f, 0L, SEEK_END);
+        long numbytes = ftell(f);
+        fseek(f, 0L, SEEK_SET);
+        print("Loading file of size %.2f MB ...\n",
+            double(numbytes)/(1024*1024));
+        memmap_file = (char*)malloc(numbytes);
+        fread(memmap_file, sizeof(char), numbytes, f);
+        print("Finished Loading file.\n");
+        fclose(f);
+
+        f = fmemopen(memmap_file, strlen(memmap_file), "r");
+    } else {
+        memmap_file = 0;
+    }
+
     l_create(lock);
     count = 0;
-    if(!f) return false;
     return true;
 }
 void ParallelFile::close() {
     fclose(f);
+    if(memmap_file) {
+        free(memmap_file);
+        memmap_file = 0;
+        print("Unloaded file!\n");
+    }
+}
+void ParallelFile::rewind() {
+    ::rewind(f);
 }
 bool PGN::next(char* moves, bool silent) {
 
@@ -1845,6 +1872,21 @@ void SEARCHER::epd_to_nn(char* fen, FILE* fb, int task) {
         l_lock(lock_io);                                        \
         write_input_planes(fb);                                 \
         l_unlock(lock_io);                                      \
+    } else if(task == 3) {                                      \
+        int sc = eval();                                        \
+        mirror();                                               \
+        int sce = eval();                                       \
+        if(sc == sce);                                          \
+        else {                                                  \
+            print("*****WRONG RESULT*****\n");                  \
+            print("[ %s ] \nsc = %6d sc1 = %6d\n",fen,sc,sce);  \
+            print("**********************\n");                  \
+        }                                                       \
+    } else if(task == 4) {                                      \
+        PROCESSOR::clear_hash_tables();                         \
+        find_best();                                            \
+        if(SEARCHER::pv_print_style == 0)                       \
+            print("**********************\n");                  \
     }                                                           \
 }
 

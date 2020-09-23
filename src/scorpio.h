@@ -274,21 +274,26 @@ hash keys
 PGN/EPD parallel processor class
 */
 class ParallelFile {
+private:
+    char* memmap_file;
 public:
     FILE* f;
     LOCK lock;
     unsigned count;
-    bool open(const char*);
+    bool open(const char*, bool = false);
     void close();
+    void rewind();
+    bool is_open() { return (f != 0); }
+    ParallelFile() { f = 0; }
     virtual bool next(char*, bool = false) = 0;
 };
 class PGN : public ParallelFile {
 public:
-    bool next(char*, bool) override;
+    bool next(char*, bool = false) override;
 };
 class EPD : public ParallelFile {
 public:
-    bool next(char*, bool) override;
+    bool next(char*, bool = false) override;
 };
 /*
 chess clock
@@ -866,7 +871,7 @@ typedef struct SEARCHER{
     void self_play_thread();
     void self_play_thread_all(FILE*,FILE*,int);
     void worker_thread();
-    void worker_thread_all(ParallelFile*,FILE*,int);
+    void worker_thread_all(ParallelFile*,FILE*,int,bool=false);
     void launch_worker_threads();
     void fill_input_planes(float**);
     void write_input_planes(FILE*);

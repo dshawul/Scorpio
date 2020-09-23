@@ -1845,6 +1845,7 @@ void get_log_likelihood_grad(PSEARCHER ps, int result, double se, double* gse, i
         gse[i] = get_log_likelihood(result, nse) - mse;
     }
 
+    static const double reg_lambda = 1.0e-4;
     int delta;
     for(int i = 0;i < nModelParameters;i++) {
         vPARAM* p = &modelParameters[i];
@@ -1852,7 +1853,8 @@ void get_log_likelihood_grad(PSEARCHER ps, int result, double se, double* gse, i
         if(delta < 1) delta = 1;
 
         *(p->value) += delta;
-        gse[i + nParameters] = (get_log_likelihood(result, se) - mse) / delta;
+        gse[i + nParameters] = (get_log_likelihood(result, se) - mse) / delta
+               + 2 * reg_lambda * *(p->value) / (p->maxv - p->minv);
         *(p->value) -= delta;
     }
 }

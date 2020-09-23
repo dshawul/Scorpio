@@ -105,30 +105,12 @@ static int self_play();
 /*
 load epd file
 */
-static char* mem_epdfile = 0;
-static int epdfile_count = 0;
-
+static EPD tune_epd_file;
 static void load_epdfile(char* name) {
-    FILE* fd = fopen(name, "r");
-    if(!fd) {
-        print("epd file %s not found!\n",name);
-        return;
-    }
-    print("Started loading epd ...\n");
-    fseek(fd, 0L, SEEK_END);
-    long numbytes = ftell(fd);
-    fseek(fd, 0L, SEEK_SET);
-    print("Loading epd of size %.2f MB ...\n",double(numbytes)/(1024*1024));
-    mem_epdfile = (char*)malloc(numbytes);
-    fread(mem_epdfile, sizeof(char), numbytes, fd);
-    print("Finished Loading epd file.\n");
-    fclose(fd);
+    tune_epd_file.open(name,true);
 }
-
 static void unload_epdfile() {
-    free(mem_epdfile);
-    mem_epdfile = 0;
-    print("Unloaded epd!\n");
+    tune_epd_file.close();
 }
 /*
 load egbbs with a separate thread
@@ -333,7 +315,6 @@ static const char *const commands_recognized[] = {
     "exit -- Leave analysis mode.",
     "force -- Set the engine to play neither color ('force mode'). Stop clocks.",
     "go -- Leave force mode and set the engine to play the color that is on move.",
-    "gmse -- Compute gradient of mean squared error. Takes same arguments as mse.",
     "jacobian -- Compute jacobian of evaluation.",
     "hard -- Turn on pondering (thinking on the opponent's time or permanent brain).",
     "help -- Produce this listing of supported commands.",
@@ -344,9 +325,6 @@ static const char *const commands_recognized[] = {
     "merge <book1> <book2> <book> <w1> <w2> \n\tMerge two books with weights <w1> and <w2> and save restult in book.",
     "mirror -- Debugging command to mirror the current board.",
     "moves -- Debugging command to print all possible moves for the current board.",
-    "mse -- mse <frac> <seed> Calculate mean squared error of evaluaiton/search result with actual result.",
-    "       <frac>  -- Mini-batch size = fraction of positions to consider (0 - 1).",
-    "       <seed>  -- Random number seed.",
     "mt/cores   <N>      -- Set the number of parallel threads of execution to N.",
     "          auto      -- Set to available logical cores.",
     "          auto-<R>  -- Set to (auto - R) logical cores.",
@@ -365,8 +343,6 @@ static const char *const commands_recognized[] = {
     "remove -- The user asks to back up full move.",
     "resign <RESIGN_VALUE> -- Sets resign value.",
     "result -- Sets the game result.",
-    "runeval -- runeval <epdfile> runs the evalution function on EPD file <epdfile>.",
-    "runsearch -- runsearch <epdfile> runs the engine search on EPD file <epdfile>.",
     "score -- score runs the evaluation function on the current position.",
     "sd -- sd <DEPTH> {The engine should limit its thinking to <DEPTH> ply.}",
     "setboard -- setboard <FEN> is used to set up FEN position <FEN>.",
@@ -374,7 +350,7 @@ static const char *const commands_recognized[] = {
     "time -- time <N> {Set a clock that belongs to the engine in centiseconds.}",
     "param_group -- param_group <N> sets parameter group to tune",
     "zero_params -- zeros all evaluation parameters",
-    "tune -- Tune the evaluation function. Takes same arguments as mse.",
+    "tune -- tune Tune evaluation function.",
     "undo -- The user asks to back up one half move.",
     "uci -- Request uci mode.",
     "xboard -- Request xboard mode.",
@@ -651,15 +627,14 @@ bool internal_commands(char** commands,char* command,int& command_num) {
                !strcmp(command,"pgn_to_dat") ||
                !strcmp(command,"epd_to_score") ||
                !strcmp(command,"epd_to_nn") ||
-               !strcmp(command,"epd_to_dat")
+               !strcmp(command,"epd_to_dat") ||
+               !strcmp(command,"epd_check_eval") ||
+               !strcmp(command,"epd_run_search")
         ) {
-        char source[1024],dest[1024];
-        strcpy(source,commands[command_num++]);
-        strcpy(dest,commands[command_num++]);
-
         load_egbbs();
         wait_for_egbb();
 
+        /*task number*/
         int task;
         if(!strcmp(command,"pgn_to_epd"))
             task = 0;
@@ -673,14 +648,38 @@ bool internal_commands(char** commands,char* command,int& command_num) {
             task = 4;
         else if(!strcmp(command,"epd_to_nn"))
             task = 5;
-        else
+        else if(!strcmp(command,"epd_to_dat"))
             task = 6;
+        else if(!strcmp(command,"epd_check_eval"))
+            task = 7;
+        else
+            task = 8;
 
-        /*process pgn*/
-        FILE* fb;
+        char source[1024],dest[1024];
+        strcpy(source,commands[command_num++]);
+        if(task < 7)
+            strcpy(dest,commands[command_num++]);
+
+        /*header*/
+        if(task == 8) {
+            if(SEARCHER::pv_print_style == 0) 
+                print("******************************************\n");
+            else if(SEARCHER::pv_print_style == 1) {
+                if(montecarlo) {
+                    print("\n\t\tVisits     Time        PPS      NNEPS"
+                          "\n\t\t======     ====        ===      =====\n");
+                } else {
+                    print("\n\t\tNodes     Time        NPS   splits      bad"
+                          "\n\t\t=====     ====        ===   ======      ===\n");
+                }
+            }
+        }
+
+        /*process pgn/epd*/
+        FILE* fb = 0;
         if(task == 2)
             fb = fopen(dest,"wb");
-        else
+        else if(task < 7)
             fb = fopen(dest,"w");
 
         main_searcher->COPY(&searcher);
@@ -693,11 +692,12 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         } else {
             EPD epd;
             epd.open(source);
-            main_searcher->worker_thread_all(&epd,fb,task);
+            main_searcher->worker_thread_all(&epd,fb,task,(task == 8));
             epd.close();
         }
 
-        fclose(fb);
+        if(task < 7)
+            fclose(fb);
 
     } else if (!strcmp(command,"merge")) {
         char source1[1024] = "book1.dat",source2[1024] = "book2.dat",dest[1024] = "book.dat";
@@ -835,300 +835,156 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         /*********************************************
         *     Processing epd files                  *
         *********************************************/
-    } else if (!strcmp(command, "runeval") || 
-               !strcmp(command, "runevalepd") || 
-               !strcmp(command, "runsearch") ||
-               !strcmp(command, "runsearchepd") ||
-               !strcmp(command, "runquietepd") ||
-               !strcmp(command, "jacobian") ||
-               !strcmp(command, "mse") ||
-               !strcmp(command, "gmse") ||
+    } else if (!strcmp(command, "jacobian") ||
                !strcmp(command, "tune")
                ) {
+#ifdef TUNE
         load_egbbs();
         wait_for_egbb();
 
-        MOVE move;
-        char input[MAX_STR],fen[MAX_STR];
-        char* words[100];
-        double frac = 1;
-        int sc,sce,test,visited,result,nwords = 0;
-        static const int DRAW_MARGIN = 35;
-        enum {RUNEVAL = 0, RUNEVALEPD, RUNSEARCH, RUNSEARCHEPD, RUNQUIETEPD, JACOBIAN, MSE, GMSE, TUNE_EVAL};
+        static const int MINI_BATCH_SIZE = 8192;
+        static const int WRITE_FREQ = 40;
+        static const double momentum = 0.9;
+        static const double lr_schedule[] = {2000.0, 1000.0, 500.0, 250.0};
+        static const double lr_schedule_steps[] = {0.25, 0.5, 0.75, 1.0};
+        int lr_idx = 0;
+        double alpha = lr_schedule[lr_idx];
+        enum {JACOBIAN=0, TUNE_EVAL};
 
-        if(!strcmp(command,"runeval")) test = RUNEVAL;
-        else if(!strcmp(command,"runevalepd")) test = RUNEVALEPD;
-        else if(!strcmp(command,"runsearch")) test = RUNSEARCH;
-        else if(!strcmp(command,"runsearchepd")) test = RUNSEARCHEPD;
-        else if(!strcmp(command,"runquietepd")) test = RUNQUIETEPD;
-        else if(!strcmp(command,"jacobian")) test = JACOBIAN;
-        else if(!strcmp(command,"mse")) test = MSE;
-        else if(!strcmp(command,"gmse")) test = GMSE;
-        else test = TUNE_EVAL;
+        /*task*/
+        int task;
+        if(!strcmp(command,"jacobian"))
+            task = JACOBIAN;
+        else
+            task = TUNE_EVAL;
 
-        /*open file*/
-        bool getfen = ((test <= JACOBIAN) 
-#ifdef TUNE
-            || (test >= MSE && !has_jacobian())
-#endif
-            );
+        /*open file if not already open*/
+        char fen[4 * MAX_FILE_STR];
+        bool getfen = ((task == JACOBIAN) || (task == TUNE_EVAL && !has_jacobian()));
 
-        FILE *fd = 0, *fw = 0;
-        if(getfen) {
-#if !defined(_WIN32) && !defined(__ANDROID__)
-            if(mem_epdfile)
-                fd = fmemopen(mem_epdfile, strlen(mem_epdfile), "r");
-            else 
-#endif
-            {
-                fd = fopen(commands[command_num++],"r");
-                if(!fd) {
-                    print("epd file not found!\n");
-                    return false;
-                }
+        if(getfen && !tune_epd_file.is_open())
+            tune_epd_file.open(commands[command_num++],true);
+
+        /*number of fens in file*/
+        static int n_fens = 0;
+        if(!n_fens) {
+            while(tune_epd_file.next(fen,true)) {
+                n_fens++;
             }
-        }
-        if(test == RUNEVALEPD || test == RUNSEARCHEPD || test == RUNQUIETEPD)
-            fw = fopen(commands[command_num++],"w");
-        if(!epdfile_count) {
-            while(fgets(input,MAX_STR,fd))
-                epdfile_count++;
-            rewind(fd);
-        }
-#ifdef TUNE
-        /*set additional parameters of tune,mse & gmse*/
-        if(test >= MSE) {
-            frac = atof(commands[command_num++]);
-            int randseed = atoi(commands[command_num++]);
-            srand(randseed);
+            tune_epd_file.rewind();
         }
 
         /*allocate jacobian*/
-        if(test == JACOBIAN) {
-            allocate_jacobian(epdfile_count);
+        if(task == JACOBIAN) {
+            allocate_jacobian(n_fens);
             print("Computing jacobian matrix of evaluation function ...\n");
         }
 
         /*allocate arrays for SGD*/
-        double *gse, *gmse, *dmse, *params, mse;
-        const double gamma = 0.1, alpha = 1e4;
+        double *gse, *gmse, *dmse, *params;
         int nSize = nParameters + nModelParameters;
         
-        if(test >= GMSE) {
+        if(task == TUNE_EVAL) {
             gse = (double*) malloc(nSize * sizeof(double));
             gmse = (double*) malloc(nSize * sizeof(double));
             dmse = (double*) malloc(nSize * sizeof(double));
             params = (double*) malloc(nSize * sizeof(double));
             memset(dmse,0,nSize * sizeof(double));
+            memset(gmse,0,nSize * sizeof(double));
             readParams(params);
         }
-#endif
-        /*Print headers*/
-        if(test <= RUNSEARCH) {
-            if(SEARCHER::pv_print_style == 0) 
-                print("******************************************\n");
-            else if(SEARCHER::pv_print_style == 1) {
-                if(montecarlo) {
-                    print("\n\t\tVisits     Time        PPS      NNEPS"
-                          "\n\t\t======     ====        ===      =====\n");
-                } else {
-                    print("\n\t\tNodes     Time        NPS   splits      bad"
-                          "\n\t\t=====     ====        ===   ======      ===\n");
-                }
-            }
-        }
+
+        /*initialize*/
         SEARCHER::pre_calculate();
-        PROCESSOR::clear_hash_tables();
 
-        /*Mini-batch loop*/
-        for(int iter = 0;;iter++) {
+        /*loop through all positions*/
+        int visited = 0;
+        int minibatch = 0;
+        int result;
 
-            /*loop through all positions*/
-            visited = 0;
-#ifdef TUNE
-            mse = 0.0;
-            if(test >= GMSE)
-                memset(gmse,0,nSize * sizeof(double));
-#endif
-            for(int cnt = 0;cnt < epdfile_count;cnt++) {
-                /*read line*/
-                if(getfen) {
-                    if(!fgets(input,MAX_STR,fd))
-                        continue;
-                }
-                /*Sample a fraction of total postions: This is called a mini-batch gradient
-                 descent with bootstrap sampling. In the standard mini-batch GD the sampling
-                 of training positions is done without replacement.*/
-                if(test >= MSE && frac > 1e-6) {
-                    double r = double(rand()) / RAND_MAX;
-                    if(r >= frac) continue;
-                }
-                visited++;
-                /*decode fen*/
-                if(getfen) {
-                    input[strlen(input) - 1] = 0;
-                    nwords = tokenize(input,words) - 1;
-                    strcpy(fen,words[0]);
-                    strcat(fen," ");
-                    strcat(fen,words[1]);
-                    strcat(fen," ");
-                    strcat(fen,words[2]);
-                    strcat(fen," ");
-                    strcat(fen,words[3]);
-                    strcat(fen," ");
-                    searcher.set_board(fen);
-                    SEARCHER::scorpio = searcher.player;
-                }
+        for(int cnt = 0;cnt < n_fens;cnt++) {
 
-                switch(test) {
-                case RUNEVAL:
-                case RUNEVALEPD:
-                    sc = searcher.eval();
+            visited++;
 
-                    if(test == RUNEVAL) {
-                        searcher.mirror();
-                        sce = searcher.eval();
-                        if(sc == sce)
-                            print("*%d* %d\n",visited,sc);
-                        else {
-                            print("*****WRONG RESULT*****\n");
-                            print("[ %s ] \nsc = %6d sc1 = %6d\n",fen,sc,sce);
-                            print("**********************\n");
-                        }
-                    }
-                    if(test == RUNEVALEPD) {
-                        int res;
-                        if(sc > DRAW_MARGIN) res = 1;
-                        else if( sc < -DRAW_MARGIN) res = -1;
-                        else res = 0;
-                        if(searcher.player == black) res = -res;
-                        if(res == 1)
-                            fprintf(fw, "%s 1-0\n", fen);
-                        else if(res == -1)
-                            fprintf(fw, "%s 0-1\n", fen);
-                        else
-                            fprintf(fw, "%s 1/2-1/2\n", fen);
-                    }
+            /*read line and parse fen*/
+            if(getfen) {
+                if(!tune_epd_file.next(fen,true))
                     break;
-                case RUNSEARCH:
-                case RUNSEARCHEPD:
-                case RUNQUIETEPD:
-                    PROCESSOR::clear_hash_tables();
-                    main_searcher->COPY(&searcher);
-                    move = main_searcher->find_best();
-                    searcher.copy_root(main_searcher);
 
-                    if(test == RUNSEARCH) {
-                        if(SEARCHER::pv_print_style == 0) 
-                            print("********** %d ************\n",visited);
-                    } else if(test == RUNSEARCHEPD) {
-                        sc = main_searcher->pstack->best_score;
-                        int res;
-                        if(sc > DRAW_MARGIN) res = 1;
-                        else if( sc < -DRAW_MARGIN) res = -1;
-                        else res = 0;
-                        if(searcher.player == black) res = -res;
-                        if(res == 1)
-                            fprintf(fw, "%s 1-0 ", fen);
-                        else if(res == -1)
-                            fprintf(fw, "%s 0-1 ", fen);
-                        else
-                            fprintf(fw, "%s 1/2-1/2 ", fen);
-                        fprintf(fw,"\n");
-                    } else {
-                        if(!is_cap_prom(move)) {
-                            if(!strncmp(words[nwords - 1],"1-0",3))  
-                                fprintf(fw, "%s 1-0\n", fen);
-                            else if(!strncmp(words[nwords - 1],"0-1",3)) 
-                                fprintf(fw, "%s 0-1\n", fen);
-                            else if(!strncmp(words[nwords - 1],"1/2-1/2",7)) 
-                                fprintf(fw, "%s 1/2-1/2\n", fen);
-                        }
-                    }
-                    break;
-                case JACOBIAN:
-                case MSE:
-                case GMSE:
-                case TUNE_EVAL:
-                    if(getfen) {
-                        if(!strncmp(words[nwords - 1],"1-0",3)) result = 1;
-                        else if(!strncmp(words[nwords - 1],"0-1",3)) result = -1;
-                        else if(!strncmp(words[nwords - 1],"1/2-1/2",7)) result = 0;
-                        else {
-                            print("Position %d not labeled: fen %s\n",visited,fen);
-                            continue;
-                        }
-                        if(searcher.player == black) 
-                            result = -result;
-                    }
-#ifdef TUNE
-                    if(test == JACOBIAN) {
-                        compute_jacobian(&searcher,cnt,result);
-                    } else {
-                        /*compute evaluation from the stored jacobian*/
-                        double se;
-                        if(getfen) {
-                            se = searcher.get_root_search_score();
-                        } else {
-                            se = eval_jacobian(cnt,result,params);
-                        }
-                        /*compute loss function (log-likelihood) or its gradient*/
-                        if(test == MSE) {
-                            se = get_log_likelihood(result,se);
-                            mse += (se - mse) / visited;
-                        } else  {
-                            get_log_likelihood_grad(&searcher,result,se,gse,cnt);
-                            for(int i = 0;i < nSize;i++)
-                                gmse[i] += (gse[i] - gmse[i]) / visited;
-                        }
-                    }
-#endif
-                    break;
+                fen[strlen(fen) - 1] = 0;
+                searcher.set_board(fen);
+                SEARCHER::scorpio = searcher.player;
+
+                if(strstr(fen, "1-0") != NULL) result = 1;
+                else if(strstr(fen, "0-1") != NULL) result = -1;
+                else if(strstr(fen, "1/2-1/2") != NULL) result = 0;
+                else {
+                    print("Position %d not labeled: fen %s\n",visited,fen);
+                    continue;
                 }
+                if(searcher.player == black) 
+                    result = -result;
             }
 
-#ifdef TUNE
-            /*Update parameters based on gradient of loss function computed 
-              over the current mini-batch*/
-            if(test == JACOBIAN) {
-                print("Computed jacobian for %d positions.\n",visited);
-            } else if(test == MSE) {
-                print("%.9e\n",mse);
-            } else if(test == GMSE) {
+            /*job*/
+            if(task == JACOBIAN) {
+                compute_jacobian(&searcher,cnt,result);
+            } else {
+                /*compute evaluation from the stored jacobian*/
+                double se;
+                if(getfen) {
+                    se = searcher.get_root_search_score();
+                } else {
+                    se = eval_jacobian(cnt,result,params);
+                }
+                /*compute loss function (log-likelihood) or its gradient*/
+                get_log_likelihood_grad(&searcher,result,se,gse,cnt);
                 for(int i = 0;i < nSize;i++)
-                    print("%.9e ",gmse[i]);
-                print("\n");
-            } else if(test == TUNE_EVAL) {
+                    gmse[i] += (gse[i] - gmse[i]) / visited;
+            }
+
+            /*update parameters with SGD + momentum*/
+            if(task == TUNE_EVAL && visited == MINI_BATCH_SIZE) {
+
                 double normg = 0;
                 for(int i = 0;i < nSize;i++) {
-                    dmse[i] = -gmse[i] + gamma * dmse[i];
-                    params[i] += alpha * dmse[i];
+                    dmse[i] = momentum * dmse[i] + alpha * gmse[i];
+                    params[i] -= dmse[i];
                     normg += pow(gmse[i],2.0);
                 }
                 bound_params(params);
                 writeParams(params);
-                print("%d. %.6e\n",iter,normg);
-                if(iter % 40 == 0)
+                if(minibatch % WRITE_FREQ == 0)
                     write_eval_params();
                 if(getfen) {
                     SEARCHER::pre_calculate();
-                    rewind(fd);
+                }
+                print("%d. |R|=%.6e LR=%.1f\n",minibatch,normg,alpha);
+
+                /*reset*/
+                minibatch++;
+                visited = 0;
+                memset(gmse,0,nSize * sizeof(double));
+
+                /*adjust learning rate*/
+                if(minibatch * MINI_BATCH_SIZE > 
+                    lr_schedule_steps[lr_idx] * n_fens) {
+                    alpha = lr_schedule[++lr_idx];
                 }
             }
-#endif
-            if(test != TUNE_EVAL) break;
         }
-#ifdef TUNE
-        if(test >= GMSE) {
+
+        /*finish*/
+        if(task == TUNE_EVAL) {
             free(gse);
             free(gmse);
             free(dmse);
             free(params);
         }
-#endif
         searcher.new_board();
-        if(fd) fclose(fd);
-        if(fw) fclose(fw);
+        tune_epd_file.close();
+#endif
+
     } else {
         return false;
     }
