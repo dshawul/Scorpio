@@ -753,9 +753,9 @@ void SEARCHER::set_board(const char* fen_str) {
 
     /*fifty & hply*/
     p++;
-    if(*p && isdigit(*p)) {
+    if(*p && *(p+1) && isdigit(*p) && ( isdigit(*(p+1)) || *(p+1) == ' ' ) ) {
         sscanf(p,"%d %d",&fifty,&move_number);
-        if(move_number <= 0) move_number = 1;
+        if(move_number <= 0) move_number = 5;
     } else {
         fifty = 0;
         move_number = 5;
@@ -1842,7 +1842,7 @@ void SEARCHER::epd_to_nn(char* fen, FILE* fb, int task) {
 
 #define TASK() {                                                \
     if(task == 0) {                                             \
-        score = eval(true);                                     \
+        score = eval();                                         \
         if(player == black) score = -score;                     \
         score = logistic(score);                                \
         l_lock(lock_io);                                        \

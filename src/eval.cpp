@@ -1699,20 +1699,36 @@ static double get_scale(double eloD, double eloH) {
     }
     return (4.0 / K) * df;
 }
-double get_log_likelihood(int result, double se) {
+static FORCEINLINE double nlogp(double p) {
+    return (p > 1e-12) ? -log(p) : -log(1e-12);
+}
+double get_log_likelihood(double result, double se) {
+    static const double epsilon = 1e-4;
     double factor_m = double(material) / MAX_MATERIAL;
     int eloH = 0; //we have stm bonus
     int eloD = ELO_DRAW + factor_m * ELO_DRAW_SLOPE_PHASE;
-    double scale = get_scale(eloD,eloH), p;
+    double scale = get_scale(eloD,eloH);
     se = se / scale;
-    if(result == 1)
-        p = win_prob(se,eloH,eloD);
-    else if(result == -1)
-        p = loss_prob(se,eloH,eloD);
-    else
-        p = draw_prob(se,eloH,eloD);
-    if(p < 1e-45) p = 1e-45;
-    return -log(p);
+
+    if(result >= 1 - epsilon)
+        return nlogp(win_prob(se,eloH,eloD));
+    else if(result <= epsilon)
+        return nlogp(loss_prob(se,eloH,eloD));
+    else if(fabs(result - 0.5) <= epsilon)
+        return nlogp(draw_prob(se,eloH,eloD));
+    else {
+        double drawp = 0.7 * MIN(result, 1 - result);
+        double winp = result - drawp / 2.0;
+        double lossp = 1.0 - winp - drawp;
+
+        double winpt = win_prob(se,eloH,eloD);
+        double losspt = loss_prob(se,eloH,eloD);
+        double drawpt = 1 - winpt - losspt;
+
+        return  lossp * nlogp(losspt) +
+                drawp * nlogp(drawpt) +
+                winp  * nlogp(winpt);
+    }
 }
 
 struct vPARAM{
@@ -1801,7 +1817,7 @@ static void compute_grad(PSEARCHER ps, float* J, double sc) {
         J[i] = double(sce - sc) / delta;
     }
 }
-void compute_jacobian(PSEARCHER ps, int pos, int result) {
+void compute_jacobian(PSEARCHER ps, int pos, double result) {
     float* J = jacobian + pos * (nParameters + nPadJac);
     double sc,se;
 
@@ -1817,18 +1833,18 @@ void compute_jacobian(PSEARCHER ps, int pos, int result) {
     J[nParameters+1] = result;
     J[nParameters+2] = material;
 }
-double eval_jacobian(int pos, int& result, double* params) {
+double eval_jacobian(int pos, double& result, double* params) {
     float* J = jacobian + pos * (nParameters + nPadJac);
     double se = J[nParameters];
     for(int i = 0;i < nParameters;i++) {
         se += params[i] * J[i];
     }
 
-    result   = (int) J[nParameters+1];
+    result   = J[nParameters+1];
     material = (int) J[nParameters+2];
     return se;
 }
-void get_log_likelihood_grad(PSEARCHER ps, int result, double se, double* gse, int pos) {
+void get_log_likelihood_grad(PSEARCHER ps, double result, double se, double* gse, int pos) {
     double nse, mse;
 
     mse = get_log_likelihood(result, se);
@@ -1854,7 +1870,7 @@ void get_log_likelihood_grad(PSEARCHER ps, int result, double se, double* gse, i
 
         *(p->value) += delta;
         gse[i + nParameters] = (get_log_likelihood(result, se) - mse) / delta
-               + 2 * reg_lambda * *(p->value) / (p->maxv - p->minv);
+                + (*(p->value) > 0) ? reg_lambda : -reg_lambda;
         *(p->value) -= delta;
     }
 }
@@ -1952,49 +1968,49 @@ void init_parameters(int group) {
     ADD(ROOK_ON_OPEN,0,0,-128,256,actm);
     ADD(ROOK_SUPPORT_PASSED_MG,0,0,-128,256,actm);
     ADD(ROOK_SUPPORT_PASSED_EG,0,0,-128,256,actm);
-    ADD(TRAPPED_BISHOP,0,0,0,400,actm);
-    ADD(TRAPPED_KNIGHT,0,0,0,400,actm);
-    ADD(TRAPPED_ROOK,0,0,0,400,actm);
-    ADD(EXTRA_PAWN,0,0,0,400,actm);
-    ADD(QUEEN_MG,0,wqueen,0,4000,actm);
-    ADD(QUEEN_EG,0,bqueen,0,4000,actm);
-    ADD(ROOK_MG,0,wrook,0,2000,actm);
-    ADD(ROOK_EG,0,brook,0,2000,actm);
-    ADD(BISHOP_MG,0,wbishop,0,2000,actm);
-    ADD(BISHOP_EG,0,bbishop,0,2000,actm);
-    ADD(KNIGHT_MG,0,wknight,0,2000,actm);
-    ADD(KNIGHT_EG,0,bknight,0,2000,actm);
-    ADD(PAWN_MG,0,wpawn,0,1000,actm);
-    ADD(PAWN_EG,0,bpawn,0,1000,actm);
+    ADD(TRAPPED_BISHOP,0,0,0,512,actm);
+    ADD(TRAPPED_KNIGHT,0,0,0,512,actm);
+    ADD(TRAPPED_ROOK,0,0,0,512,actm);
+    ADD(EXTRA_PAWN,0,0,0,512,actm);
+    ADD(QUEEN_MG,0,wqueen,0,4096,actm);
+    ADD(QUEEN_EG,0,bqueen,0,4096,actm);
+    ADD(ROOK_MG,0,wrook,0,2048,actm);
+    ADD(ROOK_EG,0,brook,0,2048,actm);
+    ADD(BISHOP_MG,0,wbishop,0,2048,actm);
+    ADD(BISHOP_EG,0,bbishop,0,2048,actm);
+    ADD(KNIGHT_MG,0,wknight,0,2048,actm);
+    ADD(KNIGHT_EG,0,bknight,0,2048,actm);
+    ADD(PAWN_MG,0,wpawn,0,1024,actm);
+    ADD(PAWN_EG,0,bpawn,0,1024,actm);
     ADD(BISHOP_PAIR_MG,0,0,-128,256,actm);
     ADD(BISHOP_PAIR_EG,0,0,-128,256,actm);
-    ADD(MAJOR_v_P,0,0,-100,400,actm);
-    ADD(MINOR_v_P,0,0,-100,400,actm);
-    ADD(MINORS3_v_MAJOR,0,0,-100,400,actm);
-    ADD(MINORS2_v_MAJOR,0,0,-100,400,actm);
-    ADD(ROOK_v_MINOR,0,0,-100,400,actm);
-    ADD(TEMPO_BONUS,0,0,-100,400,actm);
-    ADD(TEMPO_SLOPE,0,0,-100,400,actm);
-    ADD_ARRAY(king_pcsq,64,wking,-100,100,actp);
-    ADD_ARRAY(queen_pcsq,64,wqueen,-100,100,actp);
-    ADD_ARRAY(rook_pcsq,64,wrook,-100,100,actp);
-    ADD_ARRAY(bishop_pcsq,64,wbishop,-100,100,actp);
-    ADD_ARRAY(knight_pcsq,64,wknight,-100,100,actp);
-    ADD_ARRAY(pawn_pcsq,64,wpawn,-100,100,actp);
-    ADD_ARRAY(outpost,32,0,-100,100,actt);
-    ADD_ARRAY(passed_rank_bonus,8,0,-100,400,actt);
-    ADD_ARRAY(passed_file_bonus,4,0,-100,200,actt);
-    ADD_ARRAY(qr_on_7thrank,18,0,-100,400,actt);
-    ADD_ARRAY(rook_on_hopen,13,0,-100,200,actt);
-    ADD_ARRAY(king_to_pawns,8,0,-100,300,actt);
-    ADD_ARRAY(king_on_hopen,8,0,-100,300,actt);
-    ADD_ARRAY(king_on_file,8,0,-100,300,actt);
-    ADD_ARRAY(king_on_rank,8,0,-100,300,actt);
-    ADD_ARRAY(piece_tropism,8,0,-100,200,actt);
-    ADD_ARRAY(queen_tropism,8,0,-100,200,actt);
-    ADD_ARRAY(file_tropism,8,0,-100,200,actt);
-    ADDM(ELO_DRAW,0,0,-100,500,acte);
-    ADDM(ELO_DRAW_SLOPE_PHASE,0,0,-100,500,acte);
+    ADD(MAJOR_v_P,0,0,-128,512,actm);
+    ADD(MINOR_v_P,0,0,-128,512,actm);
+    ADD(MINORS3_v_MAJOR,0,0,-128,512,actm);
+    ADD(MINORS2_v_MAJOR,0,0,-128,512,actm);
+    ADD(ROOK_v_MINOR,0,0,-128,512,actm);
+    ADD(TEMPO_BONUS,0,0,-128,512,actm);
+    ADD(TEMPO_SLOPE,0,0,-128,512,actm);
+    ADD_ARRAY(king_pcsq,64,wking,-128,128,actp);
+    ADD_ARRAY(queen_pcsq,64,wqueen,-128,128,actp);
+    ADD_ARRAY(rook_pcsq,64,wrook,-128,128,actp);
+    ADD_ARRAY(bishop_pcsq,64,wbishop,-128,128,actp);
+    ADD_ARRAY(knight_pcsq,64,wknight,-128,128,actp);
+    ADD_ARRAY(pawn_pcsq,64,wpawn,-128,128,actp);
+    ADD_ARRAY(outpost,32,0,-128,128,actt);
+    ADD_ARRAY(passed_rank_bonus,8,0,-128,512,actt);
+    ADD_ARRAY(passed_file_bonus,4,0,-128,256,actt);
+    ADD_ARRAY(qr_on_7thrank,18,0,-128,512,actt);
+    ADD_ARRAY(rook_on_hopen,13,0,-128,256,actt);
+    ADD_ARRAY(king_to_pawns,8,0,-128,256,actt);
+    ADD_ARRAY(king_on_hopen,8,0,-128,256,actt);
+    ADD_ARRAY(king_on_file,8,0,-128,256,actt);
+    ADD_ARRAY(king_on_rank,8,0,-128,256,actt);
+    ADD_ARRAY(piece_tropism,8,0,-128,256,actt);
+    ADD_ARRAY(queen_tropism,8,0,-128,256,actt);
+    ADD_ARRAY(file_tropism,8,0,-128,256,actt);
+    ADDM(ELO_DRAW,0,0,-128,512,acte);
+    ADDM(ELO_DRAW_SLOPE_PHASE,0,0,-128,512,acte);
     ADD(PASSER_WEIGHT_MG,0,0,-128,256,actw);
     ADD(PASSER_WEIGHT_EG,0,0,-128,256,actw);
     ADD(ATTACK_WEIGHT,0,0,-128,256,actw);
