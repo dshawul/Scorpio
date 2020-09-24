@@ -843,7 +843,7 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         wait_for_egbb();
 
         static const int MINI_BATCH_SIZE = 8192;
-        static const int WRITE_FREQ = 40;
+        static const int WRITE_FREQ = 20;
         static const double momentum = 0.9;
         static const double lr_schedule[] = {2000.0, 1000.0, 500.0, 250.0};
         static const double lr_schedule_steps[] = {0.25, 0.5, 0.75, 1.0};
@@ -900,7 +900,7 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         /*loop through all positions*/
         int visited = 0;
         int minibatch = 0;
-        int result;
+        int result = -2;
 
         for(int cnt = 0;cnt < n_fens;cnt++) {
 
@@ -915,15 +915,36 @@ bool internal_commands(char** commands,char* command,int& command_num) {
                 searcher.set_board(fen);
                 SEARCHER::scorpio = searcher.player;
 
-                if(strstr(fen, "1-0") != NULL) result = 1;
-                else if(strstr(fen, "0-1") != NULL) result = -1;
-                else if(strstr(fen, "1/2-1/2") != NULL) result = 0;
-                else {
-                    print("Position %d not labeled: fen %s\n",visited,fen);
-                    continue;
+                if(strstr(fen, "1-0") != NULL)
+                    result = 1;
+                else if(strstr(fen, "0-1") != NULL)
+                    result = -1;
+                else if(strstr(fen, "1/2-1/2") != NULL)
+                    result = 0;
+
+                if(result == -2) {
+                    char *p = strrchr(fen, ' ');
+                    if (p && *(p + 1)) {
+                        float prob;
+                        sscanf(p,"%f",&prob);
+                        prob = logistic(prob);
+                        if(prob > 0.55)
+                            result = 1;
+                        else if(prob < 0.45)
+                            result = -1;
+                        else
+                            result = 0;
+                    } else {
+                        print("Position %d not labeled: fen %s\n",
+                            minibatch * MINI_BATCH_SIZE + visited, fen);
+                        visited--;
+                        continue;
+                    }
+                } else {
+                    if(searcher.player == black)
+                        result = -result;
                 }
-                if(searcher.player == black) 
-                    result = -result;
+
             }
 
             /*job*/
@@ -954,11 +975,10 @@ bool internal_commands(char** commands,char* command,int& command_num) {
                 }
                 bound_params(params);
                 writeParams(params);
-                if(minibatch % WRITE_FREQ == 0)
+                if((minibatch + 1) % WRITE_FREQ == 0)
                     write_eval_params();
-                if(getfen) {
+                if(getfen)
                     SEARCHER::pre_calculate();
-                }
                 print("%d. |R|=%.6e LR=%.1f\n",minibatch,normg,alpha);
 
                 /*reset*/
