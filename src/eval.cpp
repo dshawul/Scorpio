@@ -1675,9 +1675,6 @@ static double loss_prob(double eloDelta, int eloH, int eloD) {
         return ngaussian(eloDelta + eloH + eloD);
     }
 }
-static double draw_prob(double eloDelta, int eloH, int eloD) {
-    return 1 - win_prob(eloDelta,eloH,eloD) - loss_prob(eloDelta,eloH,eloD);
-}
 static double get_scale(double eloD, double eloH) {
     const double K = log(10)/400.0;
     double df;
@@ -1715,7 +1712,7 @@ double get_log_likelihood(double result, double se) {
     else if(result <= epsilon)
         return nlogp(loss_prob(se,eloH,eloD));
     else if(fabs(result - 0.5) <= epsilon)
-        return nlogp(draw_prob(se,eloH,eloD));
+        return nlogp(1 - win_prob(se,eloH,eloD) - loss_prob(se,eloH,eloD));
     else {
         double drawp = 0.7 * MIN(result, 1 - result);
         double winp = result - drawp / 2.0;
@@ -1845,8 +1842,9 @@ double eval_jacobian(int pos, double& result, double* params) {
     return se;
 }
 void get_log_likelihood_grad(PSEARCHER ps, double result, double se, double* gse, int pos) {
-    double nse, mse;
+    static const double reg_lambda = 1.0e-4;
 
+    double nse, mse;
     mse = get_log_likelihood(result, se);
 
     float* J;
@@ -1856,21 +1854,30 @@ void get_log_likelihood_grad(PSEARCHER ps, double result, double se, double* gse
         J = jacobian_temp;
         compute_grad(ps,J,se);
     }
+
     for(int i = 0;i < nParameters;i++) {
+        vPARAM* p = &parameters[i];
         nse = se + J[i];
-        gse[i] = get_log_likelihood(result, nse) - mse;
+        gse[i] = (get_log_likelihood(result, nse) - mse)
+#if 0
+               + reg_lambda * ((*(p->value) > 0) ? 1 : (*(p->value) < 0));
+#else
+               + 2 * reg_lambda * ((*(p->value) - p->minv) / (p->maxv - p->minv));
+#endif
     }
 
-    static const double reg_lambda = 1.0e-4;
-    int delta;
     for(int i = 0;i < nModelParameters;i++) {
         vPARAM* p = &modelParameters[i];
-        delta = (p->maxv - p->minv) / 64;
+        int delta = (p->maxv - p->minv) / 64;
         if(delta < 1) delta = 1;
 
         *(p->value) += delta;
         gse[i + nParameters] = (get_log_likelihood(result, se) - mse) / delta
-                + reg_lambda * ((*(p->value) > 0) ? 1 : (*(p->value) < 0));
+#if 0
+               + reg_lambda * ((*(p->value) > 0) ? 1 : (*(p->value) < 0));
+#else
+               + 2 * reg_lambda * ((*(p->value) - p->minv) / (p->maxv - p->minv));
+#endif
         *(p->value) -= delta;
     }
 }
