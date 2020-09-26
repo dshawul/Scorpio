@@ -1800,7 +1800,7 @@ static void compute_grad(PSEARCHER ps, float* J, double sc) {
             ps->update_pcsq_val(pic,sq,delta);
         }
 
-        sce = ps->get_root_search_score();
+        sce = ps->eval();
 
         *(p->value) -= delta;
 
@@ -1821,7 +1821,7 @@ void compute_jacobian(PSEARCHER ps, int pos, double result) {
     float* J = jacobian + pos * (nParameters + nPadJac);
     double sc,se;
 
-    sc = ps->get_root_search_score();
+    sc = ps->eval();
     compute_grad(ps,J,sc);
 
     se = 0;
@@ -2165,5 +2165,184 @@ void SEARCHER::update_pcsq_val(int pic, int sq0, int dval) {
             pcsq_score[black].adde(dval);
         current = current->next;
     }
+}
+/*
+Tuner
+*/
+void SEARCHER::tune(int task, char* path) {
+    static EPD tune_epd_file;
+    static const int MINI_BATCH_SIZE = 4096;
+    static const int VALID_BATCH_SIZE = MINI_BATCH_SIZE >> 3;
+    static const int WRITE_FREQ = 10;
+    static const double momentum = 0.9;
+    static const double lr_schedule[] = {500.0, 250.0, 125.0, 62.5};
+    static const double lr_schedule_steps[] = {0.25, 0.5, 0.75, 1.0};
+
+    int lr_idx = 0;
+    double alpha = lr_schedule[lr_idx];
+    enum {JACOBIAN=0, TUNE_EVAL};
+
+    /*open file if not already open*/
+    char fen[4 * MAX_FILE_STR];
+    bool getfen = ((task == JACOBIAN) || (task == TUNE_EVAL && !has_jacobian()));
+
+    if(getfen && !tune_epd_file.is_open())
+        tune_epd_file.open(path,true);
+
+    /*number of fens in file*/
+    static int n_fens = 0;
+    if(!n_fens) {
+        while(tune_epd_file.next(fen,true)) {
+            n_fens++;
+        }
+        tune_epd_file.rewind();
+    }
+
+    /*allocate jacobian*/
+    if(task == JACOBIAN) {
+        allocate_jacobian(n_fens);
+        print("Computing jacobian matrix of evaluation function ...\n");
+    }
+
+    /*allocate arrays for SGD*/
+    double *gse, *gmse, *dmse, *params, *vgmse;
+    int nSize = nParameters + nModelParameters;
+
+    if(task == TUNE_EVAL) {
+        gse = (double*) malloc(nSize * sizeof(double));
+        gmse = (double*) malloc(nSize * sizeof(double));
+        dmse = (double*) malloc(nSize * sizeof(double));
+        params = (double*) malloc(nSize * sizeof(double));
+        vgmse = (double*) malloc(nSize * sizeof(double));
+        memset(dmse,0,nSize * sizeof(double));
+        memset(gmse,0,nSize * sizeof(double));
+        memset(vgmse,0,nSize * sizeof(double));
+        readParams(params);
+    }
+
+    /*initialize*/
+    SEARCHER::pre_calculate();
+
+    /*loop through all positions*/
+    int visited = 0;
+    int minibatch = 0;
+    double result;
+    double normg_t = 0, vnormg_t = 0;
+
+    for(int cnt = 0;cnt < n_fens;cnt++) {
+
+        visited++;
+
+        /*read line and parse fen*/
+        if(getfen) {
+            if(!tune_epd_file.next(fen,true))
+                break;
+
+            fen[strlen(fen) - 1] = 0;
+            set_board(fen);
+            SEARCHER::scorpio = player;
+
+            result = 2;
+            if(strstr(fen, "1-0") != NULL)
+                result = 1;
+            else if(strstr(fen, "0-1") != NULL)
+                result = 0;
+            else if(strstr(fen, "1/2-1/2") != NULL)
+                result = 0.5;
+
+            if(result > 1.5) {
+                char *p = strrchr(fen, ' ');
+                if (p && *(p + 1)) {
+#if 0
+                    int score;
+                    sscanf(p + 1,"%d",&score);
+                    if(player == black)
+                        score = -score;
+                    result = logistic(score);
+#else
+                    sscanf(p,"%lf",&result);
+#endif
+                } else {
+                    print("Position %d not labeled: fen %s\n",
+                        minibatch * MINI_BATCH_SIZE + visited, fen);
+                    visited--;
+                    continue;
+                }
+            }
+
+            if(player == black)
+                result = 1 - result;
+        }
+
+        /*job*/
+        if(task == JACOBIAN) {
+            compute_jacobian(this,cnt,result);
+        } else {
+            /*compute evaluation from the stored jacobian*/
+            double se;
+            if(getfen) {
+                se = eval();
+            } else {
+                se = eval_jacobian(cnt,result,params);
+            }
+            /*compute loss function (log-likelihood) or its gradient*/
+            get_log_likelihood_grad(this,result,se,gse,cnt);
+            for(int i = 0;i < nSize;i++)
+                gmse[i] += (gse[i] - gmse[i]) / visited;
+            /*validation data*/
+            if(visited > VALID_BATCH_SIZE) {
+                for(int i = 0;i < nSize;i++)
+                    vgmse[i] += (gse[i] - vgmse[i]) / (visited - VALID_BATCH_SIZE);
+            }
+        }
+
+        /*update parameters with SGD + momentum*/
+        if(task == TUNE_EVAL && visited == MINI_BATCH_SIZE) {
+            minibatch++;
+
+            double normg = 0, vnormg = 0;
+            for(int i = 0;i < nSize;i++) {
+                dmse[i] = momentum * dmse[i] + (1 - momentum) * gmse[i];
+                params[i] -= alpha * dmse[i];
+                normg += pow(gmse[i],2.0);
+                vnormg += pow(vgmse[i],2.0);
+            }
+            normg_t += (normg - normg_t) / minibatch;
+            vnormg_t += (vnormg - vnormg_t) / minibatch;
+
+            bound_params(params);
+            writeParams(params);
+            if(minibatch % WRITE_FREQ == 0)
+                write_eval_params();
+
+            print("%8d. Training |R|=%.6e Validation |R|=%.6e LR=%.1f\n",
+                minibatch, normg_t, vnormg_t, alpha);
+
+            if(getfen)
+                SEARCHER::pre_calculate();
+
+            /*reset*/
+            visited = 0;
+            memset(gmse,0,nSize * sizeof(double));
+            memset(vgmse,0,nSize * sizeof(double));
+
+            /*adjust learning rate*/
+            if(minibatch * MINI_BATCH_SIZE > 
+                lr_schedule_steps[lr_idx] * n_fens) {
+                alpha = lr_schedule[++lr_idx];
+            }
+        }
+    }
+
+    /*finish*/
+    if(task == TUNE_EVAL) {
+        free(gse);
+        free(gmse);
+        free(dmse);
+        free(params);
+        free(vgmse);
+        tune_epd_file.close();
+    }
+    new_board();
 }
 #endif

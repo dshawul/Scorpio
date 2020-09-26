@@ -103,16 +103,6 @@ static void init_game();
 static int self_play();
 
 /*
-load epd file
-*/
-static EPD tune_epd_file;
-static void load_epdfile(char* name) {
-    tune_epd_file.open(name,true);
-}
-static void unload_epdfile() {
-    tune_epd_file.close();
-}
-/*
 load egbbs with a separate thread
 */
 static VOLATILE bool egbb_is_loading = false;
@@ -621,6 +611,21 @@ bool internal_commands(char** commands,char* command,int& command_num) {
             }
         }
         searcher.build_book(source,dest,hsize,plies,col);
+    } else if (!strcmp(command,"merge")) {
+        char source1[1024] = "book1.dat",source2[1024] = "book2.dat",dest[1024] = "book.dat";
+        double w1 = 0,w2 = 0;
+        int k = 0;
+        while(true) {
+            command = commands[command_num++];
+            if(!command) break;
+            if(k == 0) strcpy(source1,command);
+            else if(k == 1) strcpy(source2,command);
+            else if(k == 2) strcpy(dest,command);
+            else if(k == 3) w1 = atof(command);
+            else if(k == 4) w2 = atof(command);
+            k++;
+        }
+        merge_books(source1,source2,dest,w1,w2);
     } else if (!strcmp(command,"pgn_to_epd") ||
                !strcmp(command,"pgn_to_epd_score") ||
                !strcmp(command,"pgn_to_nn") ||
@@ -698,22 +703,23 @@ bool internal_commands(char** commands,char* command,int& command_num) {
 
         if(task < 7)
             fclose(fb);
+#endif
+#ifdef TUNE
+    } else if (!strcmp(command, "jacobian") ||
+               !strcmp(command, "tune")
+               ) {
+        load_egbbs();
+        wait_for_egbb();
 
-    } else if (!strcmp(command,"merge")) {
-        char source1[1024] = "book1.dat",source2[1024] = "book2.dat",dest[1024] = "book.dat";
-        double w1 = 0,w2 = 0;
-        int k = 0;
-        while(true) {
-            command = commands[command_num++];
-            if(!command) break;
-            if(k == 0) strcpy(source1,command);
-            else if(k == 1) strcpy(source2,command);
-            else if(k == 2) strcpy(dest,command);
-            else if(k == 3) w1 = atof(command);
-            else if(k == 4) w2 = atof(command);
-            k++;
-        }
-        merge_books(source1,source2,dest,w1,w2);
+        /*task number*/
+        int task;
+        if(!strcmp(command,"jacobian"))
+            task = 0;
+        else
+            task = 1;
+
+        /*call tuner*/
+        searcher.tune(task,commands[command_num++]);
 #endif
 #ifdef LOG_FILE
     } else if (!strcmp(command, "log")) {
@@ -767,10 +773,6 @@ bool internal_commands(char** commands,char* command,int& command_num) {
             score = searcher.eval();
             print("%d\n",score);
         }
-    } else if(!strcmp(command,"loadepd")) {
-        load_epdfile(commands[command_num++]);
-    } else if(!strcmp(command,"unloadepd")) {
-        unload_epdfile();
 #ifdef TUNE
     } else if(!strcmp(command,"param_group")) {
         int parameter_group = atoi(commands[command_num++]);
@@ -832,197 +834,6 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         print("Finished\n");
         fclose(fw);
         fclose(fw2);
-        /*********************************************
-        *     Processing epd files                  *
-        *********************************************/
-    } else if (!strcmp(command, "jacobian") ||
-               !strcmp(command, "tune")
-               ) {
-#ifdef TUNE
-        load_egbbs();
-        wait_for_egbb();
-
-        static const int MINI_BATCH_SIZE = 4096;
-        static const int VALID_BATCH_SIZE = MINI_BATCH_SIZE >> 3;
-        static const int WRITE_FREQ = 10;
-        static const double momentum = 0.9;
-        static const double lr_schedule[] = {2000.0, 1000.0, 500.0, 250.0};
-        static const double lr_schedule_steps[] = {0.25, 0.5, 0.75, 1.0};
-        int lr_idx = 0;
-        double alpha = lr_schedule[lr_idx];
-        enum {JACOBIAN=0, TUNE_EVAL};
-
-        /*task*/
-        int task;
-        if(!strcmp(command,"jacobian"))
-            task = JACOBIAN;
-        else
-            task = TUNE_EVAL;
-
-        /*open file if not already open*/
-        char fen[4 * MAX_FILE_STR];
-        bool getfen = ((task == JACOBIAN) || (task == TUNE_EVAL && !has_jacobian()));
-
-        if(getfen && !tune_epd_file.is_open())
-            tune_epd_file.open(commands[command_num++],true);
-
-        /*number of fens in file*/
-        static int n_fens = 0;
-        if(!n_fens) {
-            while(tune_epd_file.next(fen,true)) {
-                n_fens++;
-            }
-            tune_epd_file.rewind();
-        }
-
-        /*allocate jacobian*/
-        if(task == JACOBIAN) {
-            allocate_jacobian(n_fens);
-            print("Computing jacobian matrix of evaluation function ...\n");
-        }
-
-        /*allocate arrays for SGD*/
-        double *gse, *gmse, *dmse, *params, *vgmse;
-        int nSize = nParameters + nModelParameters;
-        
-        if(task == TUNE_EVAL) {
-            gse = (double*) malloc(nSize * sizeof(double));
-            gmse = (double*) malloc(nSize * sizeof(double));
-            dmse = (double*) malloc(nSize * sizeof(double));
-            params = (double*) malloc(nSize * sizeof(double));
-            vgmse = (double*) malloc(nSize * sizeof(double));
-            memset(dmse,0,nSize * sizeof(double));
-            memset(gmse,0,nSize * sizeof(double));
-            memset(vgmse,0,nSize * sizeof(double));
-            readParams(params);
-        }
-
-        /*initialize*/
-        SEARCHER::pre_calculate();
-
-        /*loop through all positions*/
-        int visited = 0;
-        int minibatch = 0;
-        double result;
-        double normg_t = 0, vnormg_t = 0;
-
-
-        for(int cnt = 0;cnt < n_fens;cnt++) {
-
-            visited++;
-
-            /*read line and parse fen*/
-            if(getfen) {
-                if(!tune_epd_file.next(fen,true))
-                    break;
-
-                fen[strlen(fen) - 1] = 0;
-                searcher.set_board(fen);
-                SEARCHER::scorpio = searcher.player;
-
-                result = 2;
-                if(strstr(fen, "1-0") != NULL)
-                    result = 1;
-                else if(strstr(fen, "0-1") != NULL)
-                    result = 0;
-                else if(strstr(fen, "1/2-1/2") != NULL)
-                    result = 0.5;
-
-                if(result > 1.5) {
-                    char *p = strrchr(fen, ' ');
-                    if (p && *(p + 1)) {
-#if 0
-                        int score;
-                        sscanf(p + 1,"%d",&score);
-                        if(searcher.player == black)
-                            score = -score;
-                        result = logistic(score);
-#else
-                        sscanf(p,"%lf",&result);
-#endif
-                    } else {
-                        print("Position %d not labeled: fen %s\n",
-                            minibatch * MINI_BATCH_SIZE + visited, fen);
-                        visited--;
-                        continue;
-                    }
-                }
-
-                if(searcher.player == black)
-                    result = 1 - result;
-            }
-
-            /*job*/
-            if(task == JACOBIAN) {
-                compute_jacobian(&searcher,cnt,result);
-            } else {
-                /*compute evaluation from the stored jacobian*/
-                double se;
-                if(getfen) {
-                    se = searcher.get_root_search_score();
-                } else {
-                    se = eval_jacobian(cnt,result,params);
-                }
-                /*compute loss function (log-likelihood) or its gradient*/
-                get_log_likelihood_grad(&searcher,result,se,gse,cnt);
-                for(int i = 0;i < nSize;i++)
-                    gmse[i] += (gse[i] - gmse[i]) / visited;
-                /*validation data*/
-                if(visited > VALID_BATCH_SIZE) {
-                    for(int i = 0;i < nSize;i++)
-                        vgmse[i] += (gse[i] - vgmse[i]) / (visited - VALID_BATCH_SIZE);
-                }
-            }
-
-            /*update parameters with SGD + momentum*/
-            if(task == TUNE_EVAL && visited == MINI_BATCH_SIZE) {
-                minibatch++;
-
-                double normg = 0, vnormg = 0;
-                for(int i = 0;i < nSize;i++) {
-                    dmse[i] = momentum * dmse[i] + (1 - momentum) * gmse[i];
-                    params[i] -= alpha * dmse[i];
-                    normg += pow(gmse[i],2.0);
-                    vnormg += pow(vgmse[i],2.0);
-                }
-                normg_t += (normg - normg_t) / minibatch;
-                vnormg_t += (vnormg - vnormg_t) / minibatch;
-
-                bound_params(params);
-                writeParams(params);
-                if(minibatch % WRITE_FREQ == 0)
-                    write_eval_params();
-
-                print("%4d. Training |R|=%.6e Validation |R|=%.6e LR=%.1f\n",
-                    minibatch, normg_t, vnormg_t, alpha);
-
-                if(getfen)
-                    SEARCHER::pre_calculate();
-
-                /*reset*/
-                visited = 0;
-                memset(gmse,0,nSize * sizeof(double));
-                memset(vgmse,0,nSize * sizeof(double));
-
-                /*adjust learning rate*/
-                if(minibatch * MINI_BATCH_SIZE > 
-                    lr_schedule_steps[lr_idx] * n_fens) {
-                    alpha = lr_schedule[++lr_idx];
-                }
-            }
-        }
-
-        /*finish*/
-        if(task == TUNE_EVAL) {
-            free(gse);
-            free(gmse);
-            free(dmse);
-            free(params);
-        }
-        searcher.new_board();
-        tune_epd_file.close();
-#endif
-
     } else {
         return false;
     }
@@ -1559,39 +1370,6 @@ REDO2:
 
     }
     return true;
-}
-/*
-Get search score
-*/
-int SEARCHER::get_root_search_score() {
-    int sce;
-    if(SEARCHER::chess_clock.max_sd == 0) {
-        //evaluation score
-        sce = eval();
-    } else if(SEARCHER::chess_clock.max_sd == 1) {
-        //quiescence search score
-        if((player == white && attacks(black,plist[wking]->sq)) ||
-           (player == black && attacks(white,plist[bking]->sq)) ){
-            sce = eval();
-        } else {
-            main_searcher->COPY(this);
-            main_searcher->pstack->node_type = PV_NODE;
-            main_searcher->pstack->search_state = NORMAL_MOVE;
-            main_searcher->pstack->alpha = -MATE_SCORE;
-            main_searcher->pstack->beta = MATE_SCORE;
-            main_searcher->pstack->depth = 0;
-            main_searcher->pstack->qcheck_depth = 0;    
-            main_searcher->qsearch();
-            sce = main_searcher->pstack->best_score;
-        }
-    } else {
-        //regular search score
-        main_searcher->COPY(this);
-        main_searcher->find_best();
-        this->copy_root(main_searcher);
-        sce = main_searcher->pstack->best_score;
-    }
-    return sce;
 }
 /*
 initilization file

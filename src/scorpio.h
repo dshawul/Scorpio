@@ -755,6 +755,7 @@ typedef struct SEARCHER{
 #ifdef TUNE
     void  update_pcsq(int,int,int);
     void  update_pcsq_val(int,int,int);
+    void  tune(int,char*);
 #endif
     void  record_hash(int,const HASHKEY&,int,int,int,int,MOVE,int,int);
     int   probe_hash(int,const HASHKEY&,int,int,int&,MOVE&,int,int,int&,int&,int&,bool);
@@ -772,7 +773,6 @@ typedef struct SEARCHER{
     void  epd_to_nn(char*,FILE*,int=0);
     void  update_history(MOVE);
     void  clear_history();
-    int   get_root_search_score();
     int   get_search_score();
     void  evaluate_moves(int,int,int);
     void  generate_and_score_moves(int,int);
