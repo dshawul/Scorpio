@@ -1704,9 +1704,9 @@ static FORCEINLINE double nlogp(double p) {
 }
 double get_log_likelihood(double result, double se) {
     static const double epsilon = 1e-4;
+    static const double eloH = 0;  //we have STM bonus
     double factor_m = double(material) / MAX_MATERIAL;
-    int eloH = 0; //we have stm bonus
-    int eloD = ELO_DRAW + factor_m * ELO_DRAW_SLOPE_PHASE;
+    double eloD = ELO_DRAW + factor_m * ELO_DRAW_SLOPE_PHASE;
     double scale = get_scale(eloD,eloH);
     se = se / scale;
 
@@ -1870,7 +1870,7 @@ void get_log_likelihood_grad(PSEARCHER ps, double result, double se, double* gse
 
         *(p->value) += delta;
         gse[i + nParameters] = (get_log_likelihood(result, se) - mse) / delta
-                + (*(p->value) > 0) ? reg_lambda : -reg_lambda;
+                + reg_lambda * ((*(p->value) > 0) ? 1 : (*(p->value) < 0));
         *(p->value) -= delta;
     }
 }
@@ -1887,7 +1887,7 @@ void writeParams(double* params) {
         *(modelParameters[i].value) = int(round(params[i + nParameters]));
 }
 void init_parameters(int group) {
-    int actm = 0, acts = 0, actp = 0, actt = 0, acte = 0, actw = 0;
+    int actm = 0, actp = 0, actt = 0, acts = 0, acte = 0, actw = 0;
 
     /*select parameter group to optimize*/
     switch(group) {

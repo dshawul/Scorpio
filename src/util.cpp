@@ -1574,7 +1574,7 @@ bool ParallelFile::open(const char* path, bool mem) {
     f = fopen(path,"r");
     if(!f)
         return false;
-
+#if !defined(_WIN32) && !defined(__ANDROID__)
     if(mem) {
         print("Started loading file: %s\n", path);
         fseek(f, 0L, SEEK_END);
@@ -1588,7 +1588,9 @@ bool ParallelFile::open(const char* path, bool mem) {
         fclose(f);
 
         f = fmemopen(memmap_file, strlen(memmap_file), "r");
-    } else {
+    } else
+#endif
+    {
         memmap_file = 0;
     }
 
@@ -1598,11 +1600,13 @@ bool ParallelFile::open(const char* path, bool mem) {
 }
 void ParallelFile::close() {
     fclose(f);
+#if !defined(_WIN32) && !defined(__ANDROID__)
     if(memmap_file) {
         free(memmap_file);
         memmap_file = 0;
         print("Unloaded file!\n");
     }
+#endif
 }
 void ParallelFile::rewind() {
     ::rewind(f);
