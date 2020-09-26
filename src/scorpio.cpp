@@ -843,6 +843,7 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         wait_for_egbb();
 
         static const int MINI_BATCH_SIZE = 4096;
+        static const int VALID_BATCH_SIZE = MINI_BATCH_SIZE >> 3;
         static const int WRITE_FREQ = 10;
         static const double momentum = 0.9;
         static const double lr_schedule[] = {2000.0, 1000.0, 500.0, 250.0};
@@ -881,7 +882,7 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         }
 
         /*allocate arrays for SGD*/
-        double *gse, *gmse, *dmse, *params;
+        double *gse, *gmse, *dmse, *params, *vgmse;
         int nSize = nParameters + nModelParameters;
         
         if(task == TUNE_EVAL) {
@@ -889,8 +890,10 @@ bool internal_commands(char** commands,char* command,int& command_num) {
             gmse = (double*) malloc(nSize * sizeof(double));
             dmse = (double*) malloc(nSize * sizeof(double));
             params = (double*) malloc(nSize * sizeof(double));
+            vgmse = (double*) malloc(nSize * sizeof(double));
             memset(dmse,0,nSize * sizeof(double));
             memset(gmse,0,nSize * sizeof(double));
+            memset(vgmse,0,nSize * sizeof(double));
             readParams(params);
         }
 
@@ -901,6 +904,8 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         int visited = 0;
         int minibatch = 0;
         double result;
+        double normg_t = 0, vnormg_t = 0;
+
 
         for(int cnt = 0;cnt < n_fens;cnt++) {
 
@@ -962,32 +967,42 @@ bool internal_commands(char** commands,char* command,int& command_num) {
                 get_log_likelihood_grad(&searcher,result,se,gse,cnt);
                 for(int i = 0;i < nSize;i++)
                     gmse[i] += (gse[i] - gmse[i]) / visited;
+                /*validation data*/
+                if(visited > VALID_BATCH_SIZE) {
+                    for(int i = 0;i < nSize;i++)
+                        vgmse[i] += (gse[i] - vgmse[i]) / (visited - VALID_BATCH_SIZE);
+                }
             }
 
             /*update parameters with SGD + momentum*/
             if(task == TUNE_EVAL && visited == MINI_BATCH_SIZE) {
+                minibatch++;
 
-                double normg = 0;
+                double normg = 0, vnormg = 0;
                 for(int i = 0;i < nSize;i++) {
                     dmse[i] = momentum * dmse[i] + (1 - momentum) * gmse[i];
                     params[i] -= alpha * dmse[i];
                     normg += pow(gmse[i],2.0);
+                    vnormg += pow(vgmse[i],2.0);
                 }
+                normg_t += (normg - normg_t) / minibatch;
+                vnormg_t += (vnormg - vnormg_t) / minibatch;
+
                 bound_params(params);
                 writeParams(params);
-                if((minibatch + 1) % WRITE_FREQ == 0)
+                if(minibatch % WRITE_FREQ == 0)
                     write_eval_params();
 
-                print("%d. |R|=%.6e LR=%.1f\n",
-                    minibatch+1, normg, alpha);
+                print("%4d. Training |R|=%.6e Validation |R|=%.6e LR=%.1f\n",
+                    minibatch, normg_t, vnormg_t, alpha);
 
                 if(getfen)
                     SEARCHER::pre_calculate();
 
                 /*reset*/
-                minibatch++;
                 visited = 0;
                 memset(gmse,0,nSize * sizeof(double));
+                memset(vgmse,0,nSize * sizeof(double));
 
                 /*adjust learning rate*/
                 if(minibatch * MINI_BATCH_SIZE > 
