@@ -1189,22 +1189,8 @@ void  print_mcts_params();
 void fill_input_planes(int, int, int, int, int*, int*, int*, float*, float*);
 
 #ifdef TUNE
-extern int nParameters;
-extern int nModelParameters;
-void init_parameters(int);
-void allocate_jacobian(int);
-bool has_jacobian();
-double eval_jacobian(int,double&,double*);
-void compute_jacobian(PSEARCHER,int,double);
-double get_log_likelihood(double,double);
-void get_log_likelihood_grad(PSEARCHER,double,double,double*,int);
-void readParams(double*);
-void writeParams(double*);
-void write_eval_params();
 bool check_eval_params(char**,char*,int&);
 void print_eval_params();
-void zero_params();
-void bound_params(double*);
 #endif
 
 /*options*/

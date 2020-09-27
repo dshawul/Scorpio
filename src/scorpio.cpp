@@ -773,14 +773,6 @@ bool internal_commands(char** commands,char* command,int& command_num) {
             score = searcher.eval();
             print("%d\n",score);
         }
-#ifdef TUNE
-    } else if(!strcmp(command,"param_group")) {
-        int parameter_group = atoi(commands[command_num++]);
-        init_parameters(parameter_group);
-    } else if(!strcmp(command,"zero_params")) {
-        zero_params();
-        write_eval_params();
-#endif
     } else if(!strcmp(command,"randomize")) {
         is_selfplay = true;
     } else if(!strcmp(command,"quit")) {

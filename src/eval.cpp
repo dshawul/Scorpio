@@ -1636,6 +1636,7 @@ void SEARCHER::eval_win_chance(SCORE& w_score,SCORE& b_score,int& w_win_chance,i
 elo curve
 */
 static PARAM ELO_MODEL = 0;
+static int LR_FACTOR = 100;
 static const int nPadJac = 3;
 
 static inline double score_to_elo(double p) {
@@ -1727,7 +1728,9 @@ double get_log_likelihood(double result, double se) {
                 winp  * nlogp(winpt);
     }
 }
-
+/*
+Tunable parameter data type
+*/
 struct vPARAM{
     int* value;
     int size;
@@ -1750,15 +1753,19 @@ struct vPARAM{
     void set_randv() { *value = rand() % (maxv - minv + 1) + minv; }
 };
 
-int nParameters;
-int nModelParameters;
-static int nInactiveParameters;
+/*define arrays of our parameters*/
 static std::vector<vPARAM> parameters;
 static std::vector<vPARAM> modelParameters;
 static std::vector<vPARAM> inactive_parameters;
+static int nParameters;
+static int nModelParameters;
+static int nInactiveParameters;
 static float* jacobian = 0;
 static float* jacobian_temp = 0;
 
+/*
+compute gradient of evaluation, stored in J for linear evaluation
+*/
 void allocate_jacobian(int npos) {
     size_t numbytes;
     numbytes = npos * (nParameters + nPadJac) * sizeof(float);
@@ -1770,10 +1777,6 @@ void allocate_jacobian(int npos) {
         print("Not enough memory.");
         PROCESSOR::exit_scorpio(0);
     }
-}
-
-bool has_jacobian() {
-    return (jacobian != 0);
 }
 
 static void compute_grad(PSEARCHER ps, float* J, double sc) {
@@ -1848,7 +1851,7 @@ void get_log_likelihood_grad(PSEARCHER ps, double result, double se, double* gse
     mse = get_log_likelihood(result, se);
 
     float* J;
-    if(has_jacobian()) {
+    if(jacobian) {
         J = jacobian + pos * (nParameters + nPadJac);
     } else {
         J = jacobian_temp;
@@ -1881,6 +1884,9 @@ void get_log_likelihood_grad(PSEARCHER ps, double result, double se, double* gse
         *(p->value) -= delta;
     }
 }
+/*
+read/write tunable parameters from/to array
+*/
 void readParams(double* params) {
     for(int i = 0;i < nParameters;i++)
         params[i] = *(parameters[i].value);
@@ -1893,6 +1899,122 @@ void writeParams(double* params) {
     for(int i = 0;i < nModelParameters;i++)
         *(modelParameters[i].value) = int(round(params[i + nParameters]));
 }
+/*
+read/write tunable parameters to file
+*/
+static void write_eval_param(FILE* fd, vPARAM* p) {
+    if(p->size == 0) {
+        fprintf(fd,"static PARAM %s = %d;\n",
+            p->name,*(p->value));
+    } else {
+        int nSize = p->size;
+        fprintf(fd,"static PARAM %s[%d] = {\n",
+            p->name,nSize);
+        for(int j = 0;j < nSize;j++) {
+            fprintf(fd,"%4d",*((p+j)->value));
+            if(j < nSize - 1) {
+                fprintf(fd,",");
+                if((j + 1) % 8 == 0) 
+                    fprintf(fd,"\n");
+            } else fprintf(fd,"\n");
+        }
+        fprintf(fd,"};\n");
+    }
+}
+void write_eval_params() {
+    FILE* fd = fopen(PARAMS_FILE,"w");
+    fprintf(fd,"//Automatically generated file. \n"
+        "//Any changes made will be lost after tuning. \n");
+    for(int i = 0;i < nParameters;i++) {
+        write_eval_param(fd,&parameters[i]);
+        int nSize = parameters[i].size;
+        if(nSize) i += (nSize - 1);
+    }
+    for(int i = 0;i < nModelParameters;i++) {
+        fprintf(fd,"static PARAM %s = %d;\n",
+            modelParameters[i].name,*(modelParameters[i].value));
+    }
+    for(int i = 0;i < nInactiveParameters;i++) {
+        write_eval_param(fd,&inactive_parameters[i]);
+        int nSize = inactive_parameters[i].size;
+        if(nSize) i += (nSize - 1);
+    }
+    fclose(fd);
+}
+void bound_params(double* params) {
+    for(int i = 0;i < nParameters;i++) {
+        if(params[i] < parameters[i].minv)
+            params[i] = parameters[i].minv;
+        if(params[i] > parameters[i].maxv)
+            params[i] = parameters[i].maxv;
+    }
+}
+void zero_params() {
+    for(int i = 0;i < nParameters;i++)
+        parameters[i].set_randv();
+    for(int i = 0;i < nModelParameters;i++)
+        modelParameters[i].set_randv();
+    for(int i = 0;i < nInactiveParameters;i++)
+        inactive_parameters[i].set_randv();
+}
+/*
+update piece-square-tables
+*/
+void SEARCHER::update_pcsq(int pic, int eg, int dval) {
+    for(int sq = 0; sq < 128; sq++) {
+        if( ((sq & 0x88) && eg) || (!(sq & 0x88) && !eg) ) {
+            pcsq[COMBINE(white,pic)][sq] += dval;
+            pcsq[COMBINE(black,pic)][sq] += dval;
+        }
+    }
+    if(eg) {
+        pcsq_score[white].add(0, dval * man_c[COMBINE(white,pic)]);
+        pcsq_score[black].add(0, dval * man_c[COMBINE(black,pic)]);
+    } else {
+        pcsq_score[white].add(dval * man_c[COMBINE(white,pic)], 0);
+        pcsq_score[black].add(dval * man_c[COMBINE(black,pic)], 0);
+    }
+}
+void SEARCHER::update_pcsq_val(int pic, int sq0, int dval) {
+    PLIST current;
+    int sq1,sq2;
+
+    sq1 = SQ6488(sq0);
+    if(file(sq1) >= FILEE) sq1 += 8;
+    sq2 = MIRRORF(sq1);
+
+    //white
+    pcsq[COMBINE(white,pic)][sq1] += dval;
+    pcsq[COMBINE(white,pic)][sq2] += dval;
+
+    current = plist[COMBINE(white,pic)];
+    while(current) {
+        if(current->sq == sq1 || current->sq == sq2)
+            pcsq_score[white].addm(dval);       
+        else if(current->sq == sq1-8 || current->sq == sq2-8)
+            pcsq_score[white].adde(dval);
+        current = current->next;
+    }
+
+    sq1 = MIRRORR(sq1);
+    sq2 = MIRRORR(sq2);
+
+    //black
+    pcsq[COMBINE(black,pic)][sq1] += dval;
+    pcsq[COMBINE(black,pic)][sq2] += dval;
+
+    current = plist[COMBINE(black,pic)];
+    while(current) {
+        if(current->sq == sq1 || current->sq == sq2)
+            pcsq_score[black].addm(dval);       
+        else if(current->sq == sq1-8 || current->sq == sq2-8)
+            pcsq_score[black].adde(dval);
+        current = current->next;
+    }
+}
+/*
+Initialize a subset of parameters
+*/
 void init_parameters(int group) {
     int actm = 0, actp = 0, actt = 0, acts = 0, acte = 0, actw = 0;
 
@@ -2033,6 +2155,23 @@ void init_parameters(int group) {
     if(jacobian_temp) free(jacobian_temp);
     jacobian_temp = (float*) malloc(nParameters * sizeof(float));
 }
+/*
+print/check evaluation commands
+*/
+void print_eval_params() {
+    for(int i = 0;i < nParameters;i++) {
+        print_spin(
+            parameters[i].name,*(parameters[i].value),
+            parameters[i].minv,parameters[i].maxv);
+    }
+    for(int i = 0;i < nModelParameters;i++) {
+        print_spin(
+            modelParameters[i].name,*(modelParameters[i].value),
+            modelParameters[i].minv,modelParameters[i].maxv);
+    }
+    print_spin("elo_model",ELO_MODEL,0,2);
+    print_spin("lr_factor",LR_FACTOR,0,1000);
+}
 bool check_eval_params(char** commands,char* command,int& command_num) {
     for(int i = 0;i < nParameters;i++) {
         if(!strcmp(command, parameters[i].name)) {
@@ -2046,132 +2185,20 @@ bool check_eval_params(char** commands,char* command,int& command_num) {
             return true;
         }
     }
-    if(!strcmp(command, "ELO_MODEL")) {
+    if(!strcmp(command, "elo_model")) {
         ELO_MODEL = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "lr_factor")) {
+        LR_FACTOR = atoi(commands[command_num++]);
+    } else if(!strcmp(command,"param_group")) {
+        int parameter_group = atoi(commands[command_num++]);
+        init_parameters(parameter_group);
+    } else if(!strcmp(command,"zero_params")) {
+        zero_params();
+        write_eval_params();
     } else {
         return false;
     }
     return true;
-}
-static void write_eval_param(FILE* fd, vPARAM* p) {
-    if(p->size == 0) {
-        fprintf(fd,"static PARAM %s = %d;\n",
-            p->name,*(p->value));
-    } else {
-        int nSize = p->size;
-        fprintf(fd,"static PARAM %s[%d] = {\n",
-            p->name,nSize);
-        for(int j = 0;j < nSize;j++) {
-            fprintf(fd,"%4d",*((p+j)->value));
-            if(j < nSize - 1) {
-                fprintf(fd,",");
-                if((j + 1) % 8 == 0) 
-                    fprintf(fd,"\n");
-            } else fprintf(fd,"\n");
-        }
-        fprintf(fd,"};\n");
-    }
-}
-void write_eval_params() {
-    FILE* fd = fopen(PARAMS_FILE,"w");
-    fprintf(fd,"//Automatically generated file. \n"
-        "//Any changes made will be lost after tuning. \n");
-    for(int i = 0;i < nParameters;i++) {
-        write_eval_param(fd,&parameters[i]);
-        int nSize = parameters[i].size;
-        if(nSize) i += (nSize - 1);
-    }
-    for(int i = 0;i < nModelParameters;i++) {
-        fprintf(fd,"static PARAM %s = %d;\n",
-            modelParameters[i].name,*(modelParameters[i].value));
-    }
-    for(int i = 0;i < nInactiveParameters;i++) {
-        write_eval_param(fd,&inactive_parameters[i]);
-        int nSize = inactive_parameters[i].size;
-        if(nSize) i += (nSize - 1);
-    }
-    fclose(fd);
-}
-void print_eval_params() {
-    for(int i = 0;i < nParameters;i++) {
-        print_spin(
-            parameters[i].name,*(parameters[i].value),
-            parameters[i].minv,parameters[i].maxv);
-    }
-    for(int i = 0;i < nModelParameters;i++) {
-        print_spin(
-            modelParameters[i].name,*(modelParameters[i].value),
-            modelParameters[i].minv,modelParameters[i].maxv);
-    }
-    print_spin("ELO_MODEL",ELO_MODEL,0,2);
-}
-void bound_params(double* params) {
-    for(int i = 0;i < nParameters;i++) {
-        if(params[i] < parameters[i].minv)
-            params[i] = parameters[i].minv;
-        if(params[i] > parameters[i].maxv)
-            params[i] = parameters[i].maxv;
-    }
-}
-void zero_params() {
-    for(int i = 0;i < nParameters;i++)
-        parameters[i].set_randv();
-    for(int i = 0;i < nModelParameters;i++)
-        modelParameters[i].set_randv();
-    for(int i = 0;i < nInactiveParameters;i++)
-        inactive_parameters[i].set_randv();
-}
-void SEARCHER::update_pcsq(int pic, int eg, int dval) {
-    for(int sq = 0; sq < 128; sq++) {
-        if( ((sq & 0x88) && eg) || (!(sq & 0x88) && !eg) ) {
-            pcsq[COMBINE(white,pic)][sq] += dval;
-            pcsq[COMBINE(black,pic)][sq] += dval;
-        }
-    }
-    if(eg) {
-        pcsq_score[white].add(0, dval * man_c[COMBINE(white,pic)]);
-        pcsq_score[black].add(0, dval * man_c[COMBINE(black,pic)]);
-    } else {
-        pcsq_score[white].add(dval * man_c[COMBINE(white,pic)], 0);
-        pcsq_score[black].add(dval * man_c[COMBINE(black,pic)], 0);
-    }
-}
-void SEARCHER::update_pcsq_val(int pic, int sq0, int dval) {
-    PLIST current;
-    int sq1,sq2;
-
-    sq1 = SQ6488(sq0);
-    if(file(sq1) >= FILEE) sq1 += 8;
-    sq2 = MIRRORF(sq1);
-
-    //white
-    pcsq[COMBINE(white,pic)][sq1] += dval;
-    pcsq[COMBINE(white,pic)][sq2] += dval;
-
-    current = plist[COMBINE(white,pic)];
-    while(current) {
-        if(current->sq == sq1 || current->sq == sq2)
-            pcsq_score[white].addm(dval);       
-        else if(current->sq == sq1-8 || current->sq == sq2-8)
-            pcsq_score[white].adde(dval);
-        current = current->next;
-    }
-
-    sq1 = MIRRORR(sq1);
-    sq2 = MIRRORR(sq2);
-
-    //black
-    pcsq[COMBINE(black,pic)][sq1] += dval;
-    pcsq[COMBINE(black,pic)][sq2] += dval;
-
-    current = plist[COMBINE(black,pic)];
-    while(current) {
-        if(current->sq == sq1 || current->sq == sq2)
-            pcsq_score[black].addm(dval);       
-        else if(current->sq == sq1-8 || current->sq == sq2-8)
-            pcsq_score[black].adde(dval);
-        current = current->next;
-    }
 }
 /*
 Tuner
@@ -2186,12 +2213,12 @@ void SEARCHER::tune(int task, char* path) {
     static const double lr_schedule_steps[] = {0.25, 0.5, 0.75, 1.0};
 
     int lr_idx = 0;
-    double alpha = lr_schedule[lr_idx];
+    double alpha = lr_schedule[lr_idx] * LR_FACTOR / 100;
     enum {JACOBIAN=0, TUNE_EVAL};
 
     /*open file if not already open*/
     char fen[4 * MAX_FILE_STR];
-    bool getfen = ((task == JACOBIAN) || (task == TUNE_EVAL && !has_jacobian()));
+    bool getfen = ((task == JACOBIAN) || (task == TUNE_EVAL && !jacobian));
 
     if(getfen && !tune_epd_file.is_open())
         tune_epd_file.open(path,true);
@@ -2336,7 +2363,7 @@ void SEARCHER::tune(int task, char* path) {
             /*adjust learning rate*/
             if(minibatch * MINI_BATCH_SIZE > 
                 lr_schedule_steps[lr_idx] * n_fens) {
-                alpha = lr_schedule[++lr_idx];
+                alpha = lr_schedule[++lr_idx] * LR_FACTOR / 100.0;
             }
         }
     }
