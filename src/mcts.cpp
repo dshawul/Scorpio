@@ -2087,12 +2087,14 @@ void SEARCHER::self_play_thread() {
     char* buffer = new char[4096 * MAX_HSTACK];
 
     unsigned start_t = get_time();
+    unsigned limit = 0;
     static float average_npm = 0;
     float local_average_npm;
 
     while(true) {
 
         local_average_npm = 0;
+        limit = 0;
 
         while(true) {
 
@@ -2158,11 +2160,13 @@ void SEARCHER::self_play_thread() {
             stop_searcher = 0;
 
             /*katago's playout cap randomization*/
-            unsigned int limit = 0;
-            if(playout_cap_rand
-                && chess_clock.max_visits >= 800 
-                && (rand() > frac_full_playouts * RAND_MAX))
-                limit = vlimit;
+            if(playout_cap_rand && chess_clock.max_visits >= 800) {
+                if(hply & 1);
+                else if(rand() > frac_full_playouts * RAND_MAX)
+                    limit = vlimit;
+                else
+                    limit = 0;
+            }
 
             search_mc(true,limit);
             move = stack[0].pv[0];
