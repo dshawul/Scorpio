@@ -2088,6 +2088,8 @@ void SEARCHER::self_play_thread() {
 
     unsigned start_t = get_time();
     unsigned limit = 0;
+
+    static float average_plies = 0;
     static float average_npm = 0;
     float local_average_npm;
 
@@ -2128,6 +2130,8 @@ void SEARCHER::self_play_thread() {
                 l_lock(lock_io);
                 average_npm +=
                     (local_average_npm - average_npm) / ngames;
+                average_plies +=
+                    (hply - average_plies) / ngames;
                 l_unlock(lock_io);
 
                 /*abort*/
@@ -2145,8 +2149,9 @@ void SEARCHER::self_play_thread() {
                 if(processor_id == 0) {
                     float diff = (get_time() - start_t) / 60000.0;
                     int ngames = wins + losses + draws;
-                    print("[%d] generated %d games in %.2f min : Rate %.2f games/min %.2f nodes/move\n",
-                        GETPID(), ngames, diff, ngames / diff, average_npm);
+                    print("[%d] generated %d games in %.2f min : "
+                        "%.2f games/min %.2f nodes/move %.2f plies/game\n",
+                        GETPID(), ngames, diff, ngames / diff, average_npm, average_plies);
                 }
 
                 return;
