@@ -3,6 +3,16 @@ SET VERSION=3.0
 SET VR=30
 SET OSD=windows
 
+REM --------- Nvidia GPU
+WHERE nvcuda.dll >nul 2>nul
+IF %ERRORLEVEL% NEQ 0 (
+  SET GPUS=0
+  SET DEV=cpu
+) ELSE (
+  SET GPUS=1
+  SET DEV=gpu
+)
+
 REM --------- process command line arguments
 SET PREC=
 SET THREADS=
@@ -10,6 +20,10 @@ SET IEGBB=1
 SET ILCNET=1
 SET ISCNET=1
 SET FACTOR=2
+IF %GPUS% EQU 0 (
+   SET FACTOR=1
+)
+
 :loop
 IF NOT "%1"=="" (
     IF "%1"=="-p" (
@@ -53,16 +67,6 @@ IF NOT "%1"=="" (
     )
     SHIFT
     GOTO :loop
-)
-
-REM --------- Nvidia GPU
-WHERE nvcuda.dll >nul 2>nul
-IF %ERRORLEVEL% NEQ 0 (
-  SET GPUS=0
-  SET DEV=cpu
-) ELSE (
-  SET GPUS=1
-  SET DEV=gpu
 )
 
 SET EGBB=nnprobe-%OSD%-%DEV%
@@ -181,7 +185,7 @@ IF %GPUS% NEQ 0 (
     cd ..
 ) ELSE (
     IF "%PREC%"=="" ( SET PREC=FLOAT )
-    IF "%THREADS%"=="" ( SET /a THREADS=%NUMBER_OF_PROCESSORS%*%FACTOR%*2 )
+    IF "%THREADS%"=="" ( SET /a THREADS=%NUMBER_OF_PROCESSORS%*%FACTOR% )
 )
 
 REM ---------- number of threads

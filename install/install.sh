@@ -18,13 +18,28 @@ display_help() {
     echo
 }
 
+# number of cores and gpus
+CPUS=`grep -c ^processor /proc/cpuinfo`
+if [ ! -z `which nvidia-smi` ]; then
+    GPUS=1
+    DEV=gpu
+else
+    GPUS=0
+    DEV=cpu
+fi
+
 # process cmd line arguments
 PREC=
 THREADS=
 IEGBB=1
 ILCNET=1
 ISCNET=1
-FACTOR=2
+if [ $DEV = "gpu" ]; then
+  FACTOR=2
+else
+  FACTOR=1
+fi
+
 while ! [ -z "$1" ]; do
     case $1 in
         -p | --precision )
@@ -54,16 +69,6 @@ while ! [ -z "$1" ]; do
     esac
     shift
 done
-
-# number of cores and gpus
-CPUS=`grep -c ^processor /proc/cpuinfo`
-if [ ! -z `which nvidia-smi` ]; then
-    GPUS=1
-    DEV=gpu
-else
-    GPUS=0
-    DEV=cpu
-fi
 
 # Autodetect operating system
 OSD=windows
@@ -188,7 +193,7 @@ if [ $DEV = "gpu" ]; then
     cd $exep
 else
     [ -z $PREC ] && PREC=FLOAT
-    [ -z $THREADS ] && THREADS=$((CPUS*FACTOR*2))
+    [ -z $THREADS ] && THREADS=$((CPUS*FACTOR))
 fi
 
 # number of threads
