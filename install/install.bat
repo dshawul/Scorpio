@@ -44,6 +44,10 @@ IF NOT "%1"=="" (
     ) ELSE IF "%1"=="--factor" (
         SET FACTOR=%2
         SHIFT
+    ) ELSE IF "%1"=="--cpu" (
+        SET GPUS=0
+        SET DEV=cpu
+        SET FACTOR=1
     ) ELSE IF "%1"=="--no-egbb" (
         SET IEGBB=0
     ) ELSE IF "%1"=="--no-lcnets" (
@@ -58,6 +62,7 @@ IF NOT "%1"=="" (
         echo   -p,--precision     Precision to use FLOAT/HALF/INT8.
         echo   -t,--threads       Total number of threads, i.e minibatch size.
         echo   -f,--factor        Factor for auto minibatch size determination from SMs, default 2.
+        echo   --cpu              Force installation on the CPU even if machine has GPU.
         echo   --no-egbb          Do not install 5-men egbb.
         echo   --no-lcnets        Do not install lczero nets.
         echo   --no-scnets        Do not install scorpio nets.

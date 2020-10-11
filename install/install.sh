@@ -10,6 +10,7 @@ display_help() {
     echo "  -p,--precision     Precision to use FLOAT/HALF/INT8."
     echo "  -t,--threads       Total number of threads, i.e minibatch size."
     echo "  -f,--factor        Factor for auto minibatch size determination from SMs, default 2."
+    echo "  --cpu              Force installation on the CPU even if machine has GPU."
     echo "  --no-egbb          Do not install 5-men egbb."
     echo "  --no-lcnets        Do not install lczero nets."
     echo "  --no-scnets        Do not download scorpio nets."
@@ -53,6 +54,11 @@ while ! [ -z "$1" ]; do
         -f | --factor )
             shift
             FACTOR=$1
+            ;;
+        --cpu )
+            GPUS=0
+            DEV=cpu
+            FACTOR=1
             ;;
         --no-egbb )
             IEGBB=0
