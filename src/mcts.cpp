@@ -290,7 +290,7 @@ void Node::compute_Q(Node* n, float fpu, bool has_ab) {
 }
 
 float Node::compute_fpu(Node* n, bool is_root) {
-    float fpu;
+    float fpu = 0.0;
     if(is_root || n->visits > 10000)
         fpu = 1.0;            //fpu = win
     else if(!fpu_is_loss) {

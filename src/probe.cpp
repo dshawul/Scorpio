@@ -429,7 +429,7 @@ void SEARCHER::ensemble_net(int nn_id_, int nn_type_, int wdl_head_, float& scor
 }
 int SEARCHER::probe_neural(bool hard_probe) {
     float* policy = (float*)pstack->score_st;
-    float score;
+    float score = 0.0;
 
     if(ensemble) {
 
