@@ -42,9 +42,16 @@ typedef void (CDECL *PLOAD_NN)(
 typedef void (CDECL *PSET_NUM_ACTIVE_SEARCHERS) (
     int n_searchers);
 
+typedef void (CDECL *PNNUE_INIT) (
+    const char * evalFile);
+typedef int (CDECL *PNNUE_EVALUATE) (
+    int player, int* pieces, int* squares);
+
 static PPROBE_EGBB probe_egbb;
 static PPROBE_NN probe_nn;
 static PSET_NUM_ACTIVE_SEARCHERS set_num_active_searchers = 0;
+static PNNUE_INIT nnue_init;
+static PNNUE_EVALUATE nnue_evaluate;
 
 int SEARCHER::egbb_is_loaded = 0;
 int SEARCHER::egbb_load_type = LOAD_4MEN;
@@ -57,8 +64,10 @@ char SEARCHER::egbb_files_path[MAX_STR] = "egbb/";
 char SEARCHER::nn_path[MAX_STR]   = "../nets-scorpio/net-6x64.pb";
 char SEARCHER::nn_path_e[MAX_STR] = "../nets-scorpio/net-6x64.pb";
 char SEARCHER::nn_path_m[MAX_STR] = "../nets-scorpio/net-6x64.pb";
+char SEARCHER::nnue_path[MAX_STR]   = "../nets-scorpio/nnue.bin";
 int SEARCHER::nn_cache_size = 16;
 int SEARCHER::use_nn = 0;
+int SEARCHER::use_nnue = 0;
 int SEARCHER::save_use_nn = 0;
 int SEARCHER::n_devices = 1;
 int SEARCHER::device_type = CPU;
@@ -220,6 +229,8 @@ void LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
         probe_nn = (PPROBE_NN) GetProcAddress(hmod,"probe_neural_network");
         set_num_active_searchers = 
             (PSET_NUM_ACTIVE_SEARCHERS) GetProcAddress(hmod,"set_num_active_searchers");
+        nnue_init = (PNNUE_INIT) GetProcAddress(hmod,"nnue_init");
+        nnue_evaluate = (PNNUE_EVALUATE) GetProcAddress(hmod,"nnue_evaluate");
 
         if(load_egbb) {
             clean_path(SEARCHER::egbb_files_path);
@@ -245,6 +256,12 @@ void LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
             init_input_planes();
         } else
             SEARCHER::use_nn = 0;
+
+        if(nnue_init && SEARCHER::use_nnue) {
+            nnue_init(SEARCHER::nnue_path);
+        } else {
+            SEARCHER::use_nnue = 0;
+        }
     } else {
         print("EgbbProbe not Loaded!\n");
     }
@@ -958,4 +975,15 @@ int SEARCHER::compress_input_planes(float** iplanes, char* buffer) {
     bcount += sprintf(&buffer[bcount], "%d", cnt);
 
     return bcount;
+}
+/*
+NNUE
+*/
+int SEARCHER::probe_nnue() {
+#ifdef EGBB
+    int piece[33],square[33],count = 0;
+    fill_list(count,piece,square);
+    return nnue_evaluate(player,piece,square);
+#endif
+    return 0;
 }

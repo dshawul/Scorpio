@@ -407,9 +407,12 @@ static void print_options() {
     print_spin("pht",pht,1,256);
     print_path("egbb_path",SEARCHER::egbb_path);
     print_path("egbb_files_path",SEARCHER::egbb_files_path);
+    print_check("use_nn",SEARCHER::use_nn);
+    print_check("use_nnue",SEARCHER::use_nnue);
     print_path("nn_path",SEARCHER::nn_path);
     print_path("nn_path_e",SEARCHER::nn_path_e);
     print_path("nn_path_m",SEARCHER::nn_path_m);
+    print_path("nnue_path",SEARCHER::nnue_path);
     print_spin("egbb_cache_size",SEARCHER::egbb_cache_size,1,16384);
     print_spin("egbb_load_type",SEARCHER::egbb_load_type,0,3);
     print_spin("egbb_depth_limit",SEARCHER::egbb_depth_limit,0,MAX_PLY);
@@ -520,6 +523,13 @@ bool internal_commands(char** commands,char* command,int& command_num) {
             SEARCHER::use_nn = false;
         SEARCHER::save_use_nn = SEARCHER::use_nn;
         command_num++;
+    } else if (!strcmp(command, "use_nnue")) {
+        if(!strcmp(commands[command_num],"on") ||
+            !strcmp(commands[command_num],"1"))
+            SEARCHER::use_nnue = true;
+        else
+            SEARCHER::use_nnue = false;
+        command_num++;
     } else if(!strcmp(command, "nn_path")) {
         strcpy(SEARCHER::nn_path,commands[command_num]);
         command_num++;
@@ -528,6 +538,9 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         command_num++;
     } else if(!strcmp(command, "nn_path_m")) {
         strcpy(SEARCHER::nn_path_m,commands[command_num]);
+        command_num++;
+    } else if(!strcmp(command, "nnue_path")) {
+        strcpy(SEARCHER::nnue_path,commands[command_num]);
         command_num++;
     } else if(!strcmp(command, "n_devices")) {
         SEARCHER::n_devices = atoi(commands[command_num]);

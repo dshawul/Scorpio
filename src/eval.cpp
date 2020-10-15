@@ -64,10 +64,16 @@ int SEARCHER::eval(bool skip_nn_l) {
     /*number of evaluation calls*/
     ecalls++;
 
-    /* neural network evaluation */
 #ifdef EGBB
+    /* neural network evaluation */
     if(use_nn && !skip_nn && !skip_nn_l) {
         pstack->actual_score = probe_neural();
+        record_eval_hash(hash_key,pstack->actual_score);
+        return pstack->actual_score;
+    }
+    /*nnue evaluation*/
+    if(use_nnue) {
+        pstack->actual_score = probe_nnue();
         record_eval_hash(hash_key,pstack->actual_score);
         return pstack->actual_score;
     }

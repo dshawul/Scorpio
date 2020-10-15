@@ -867,6 +867,7 @@ typedef struct SEARCHER{
     void ensemble_net(int,int,int,float&);
     float probe_neural_(bool,float*,int,int,int);
     int probe_neural(bool=false);
+    int probe_nnue();
     void handle_terminal(Node*,bool);
     void self_play_thread();
     void self_play_thread_all(FILE*,FILE*,int);
@@ -890,7 +891,9 @@ typedef struct SEARCHER{
     static char nn_path[MAX_STR];
     static char nn_path_e[MAX_STR];
     static char nn_path_m[MAX_STR];
+    static char nnue_path[MAX_STR];
     static int nn_cache_size;
+    static int use_nnue;
     static int use_nn;
     static int save_use_nn;
     static int n_devices;
