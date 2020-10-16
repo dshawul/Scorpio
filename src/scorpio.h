@@ -523,6 +523,29 @@ struct Node {
     static float compute_fpu(Node*,bool);
 };
 /*
+NNUE - data structures for incemental update
+*/
+#ifdef NNUE_INC
+
+typedef struct DirtyPiece {
+  int dirtyNum;
+  int pc[3];
+  int from[3];
+  int to[3];
+} DirtyPiece;
+
+typedef struct Accumulator {
+  CACHE_ALIGN int16_t accumulation[2][256];
+  int computedAccumulation;
+} Accumulator;
+
+typedef struct NNUEdata {
+  Accumulator accumulator;
+  DirtyPiece dirtyPiece;
+} NNUEdata;
+
+#endif
+/*
 stacks
 */
 typedef struct HIST_STACK{
@@ -680,6 +703,9 @@ typedef struct SEARCHER{
     PLIST list[128];
     PLIST plist[15];
     HIST_STACK hstack[MAX_HSTACK];
+#ifdef NNUE_INC
+    CACHE_ALIGN NNUEdata nnue[MAX_HSTACK];
+#endif
     STACK stack[MAX_PLY];
     float prev_kld;
     /*eval data*/

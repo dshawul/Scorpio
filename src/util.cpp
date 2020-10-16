@@ -690,6 +690,11 @@ void SEARCHER::init_data() {
     if(epsquare)
         hash_key ^= EP_HKEY(epsquare);
     hash_key ^= CAST_HKEY(castle);
+
+#ifdef NNUE_INC
+    if(use_nnue)
+        nnue[hply].accumulator.computedAccumulation = 0;
+#endif
 }
 
 void SEARCHER::set_board(const char* fen_str) {
@@ -964,7 +969,10 @@ void SEARCHER::COPY(SEARCHER* srcSearcher) {
     all_man_c = srcSearcher->all_man_c;
     root_node = srcSearcher->root_node;
     root_key = srcSearcher->root_key;
-
+#ifdef NNUE_INC
+    if(use_nnue)
+        memcpy(nnue, srcSearcher->nnue, (hply + 1) * sizeof(NNUEdata));
+#endif
     /*history stack*/
     memcpy(&hstack[0],&srcSearcher->hstack[0], (hply + 1) * sizeof(HIST_STACK));
 

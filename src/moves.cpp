@@ -23,6 +23,15 @@ void SEARCHER::do_move(const MOVE& move) {
     phstack->pawns_bb[white] = pawns_bb[white];
     phstack->pawns_bb[black] = pawns_bb[black];
 
+    /*nnue*/
+#ifdef NNUE_INC
+    DirtyPiece* dp = &(nnue[hply+1].dirtyPiece);
+    if(use_nnue) {
+        nnue[hply+1].accumulator.computedAccumulation = 0;
+        dp->dirtyNum = 1;
+    }
+#endif
+
     /*remove captured piece*/
     if((pic = m_capture(move)) != 0) {
         if(is_ep(move)) {
@@ -32,7 +41,14 @@ void SEARCHER::do_move(const MOVE& move) {
         else sq = to;
         pcRemove(pic,sq,phstack->pCapt);
         board[sq] = blank;
-
+#ifdef NNUE_INC
+        if(use_nnue) {
+            dp->dirtyNum = 2;
+            dp->pc[1] = pic;
+            dp->from[1] = SQ8864(sq);
+            dp->to[1] = 64;
+        }
+#endif
         hash_key ^= PC_HKEY(pic,sq);
         if(PIECE(pic) == pawn) {
             pawn_hash_key ^= PC_HKEY(pic,sq);
@@ -50,13 +66,28 @@ void SEARCHER::do_move(const MOVE& move) {
     /*move piece*/
     all_bb ^= BB(from);
     all_bb |= BB(to);
+#ifdef NNUE_INC
+    if(use_nnue) {
+        dp->pc[0] = m_piece(move);
+        dp->from[0] = SQ8864(from);
+        dp->to[0] = SQ8864(to);
+    }
+#endif
     if((pic = m_promote(move)) != 0) {
         pic1 = COMBINE(player,pawn);
         board[to] = pic;
         board[from] = blank;
         pcAdd(pic,to);
         pcRemove(pic1,from,phstack->pProm);
-
+#ifdef NNUE_INC
+        if(use_nnue) {
+            dp->to[0] = 64;
+            dp->pc[dp->dirtyNum] = pic;
+            dp->from[dp->dirtyNum] = 64;
+            dp->to[dp->dirtyNum] = SQ8864(to);
+            dp->dirtyNum++;
+        }
+#endif
         pawns_bb[player] ^= BB(from);
         pieces_bb[player] ^= BB(to);
         hash_key      ^= PC_HKEY(pic1,from);
@@ -103,7 +134,14 @@ void SEARCHER::do_move(const MOVE& move) {
         board[fromc] = blank;
         pcSwap(fromc,toc);
         pic = COMBINE(player,rook);
-
+#ifdef NNUE_INC
+        if(use_nnue) {
+            dp->dirtyNum = 2;
+            dp->pc[1] = pic;
+            dp->from[1] = SQ8864(fromc);
+            dp->to[1] = SQ8864(toc);
+        }
+#endif
         pieces_bb[player] ^= (BB(fromc) | BB(toc));
         all_bb ^= (BB(fromc) | BB(toc));
         hash_key ^= PC_HKEY(pic,toc);
@@ -237,6 +275,16 @@ void SEARCHER::do_null() {
     phstack->fifty = fifty;
     phstack->checks = 0;
     phstack->hash_key = hash_key;
+
+    /*nnue*/
+#ifdef NNUE_INC
+    if(use_nnue) {
+        memcpy(&nnue[hply+1].accumulator,
+            &nnue[hply].accumulator, sizeof(Accumulator));
+        DirtyPiece* dp = &(nnue[hply+1].dirtyPiece);
+        dp->dirtyNum = 0;
+    }
+#endif
 
     if(epsquare)
         hash_key ^= EP_HKEY(epsquare);

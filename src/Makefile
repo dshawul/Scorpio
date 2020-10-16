@@ -48,6 +48,7 @@ DEFINES += -DMAX_CPUS=640
 #DEFINES += -DCLUSTER_TT_TYPE=1
 #DEFINES += -DCUTECHESS_FIX
 DEFINES += -DNODES_PRIOR
+DEFINES += -DNNUE_INC
 ############################
 # Compiler choice 
 ############################
@@ -102,16 +103,16 @@ endif
 
 ifeq ($(COMP),win)
     LXXFLAGS += -static
-    CXXFLAGS = -Wall -fstrict-aliasing -fno-exceptions -fno-rtti $(UNUSED) -std=c++11
+    CXXFLAGS = -Wall -fstrict-aliasing -fno-exceptions -fno-rtti $(UNUSED) -std=c++17
 else ifeq ($(COMP),pgcc)
     CXXFLAGS = warn -Mvect=sse -c11
     LXXFLAGS += -ldl
 else ifeq ($(COMP),icpc)
     CXXFLAGS  = -wd128 -wd981 -wd869 -wd2259 -wd383 -wd1418
-    CXXFLAGS += -fstrict-aliasing -fno-exceptions -fno-rtti $(UNUSED) -std=c++11
+    CXXFLAGS += -fstrict-aliasing -fno-exceptions -fno-rtti $(UNUSED) -std=c++17
     LXXFLAGS += -ldl
 else
-    CXXFLAGS = -Wall -fstrict-aliasing -fno-exceptions -fno-rtti $(UNUSED) -std=c++11
+    CXXFLAGS = -Wall -fstrict-aliasing -fno-exceptions -fno-rtti $(UNUSED) -std=c++17
     LXXFLAGS += -ldl
 endif
 

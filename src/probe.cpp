@@ -47,11 +47,20 @@ typedef void (CDECL *PNNUE_INIT) (
 typedef int (CDECL *PNNUE_EVALUATE) (
     int player, int* pieces, int* squares);
 
+#ifdef NNUE_INC
+typedef int (CDECL *PNNUE_EVALUATE_INCREMENTAL) (
+    int player, int* pieces, int* squares, NNUEdata**);
+#endif
+
 static PPROBE_EGBB probe_egbb;
 static PPROBE_NN probe_nn;
 static PSET_NUM_ACTIVE_SEARCHERS set_num_active_searchers = 0;
 static PNNUE_INIT nnue_init;
 static PNNUE_EVALUATE nnue_evaluate;
+
+#ifdef NNUE_INC
+static PNNUE_EVALUATE_INCREMENTAL nnue_evaluate_incremental;
+#endif
 
 int SEARCHER::egbb_is_loaded = 0;
 int SEARCHER::egbb_load_type = LOAD_4MEN;
@@ -231,6 +240,10 @@ void LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
             (PSET_NUM_ACTIVE_SEARCHERS) GetProcAddress(hmod,"set_num_active_searchers");
         nnue_init = (PNNUE_INIT) GetProcAddress(hmod,"nnue_init");
         nnue_evaluate = (PNNUE_EVALUATE) GetProcAddress(hmod,"nnue_evaluate");
+#ifdef NNUE_INC
+        nnue_evaluate_incremental = 
+            (PNNUE_EVALUATE_INCREMENTAL) GetProcAddress(hmod,"nnue_evaluate_incremental");
+#endif
 
         if(load_egbb) {
             clean_path(SEARCHER::egbb_files_path);
@@ -983,7 +996,18 @@ int SEARCHER::probe_nnue() {
 #ifdef EGBB
     int piece[33],square[33],count = 0;
     fill_list(count,piece,square);
-    return nnue_evaluate(player,piece,square);
+
+#ifdef NNUE_INC
+    NNUEdata* a_nnue[3] = {0, 0, 0};
+    for(int i = 0; i < 3 && hply >= i; i++)
+        a_nnue[i] = &nnue[hply - i];
+    return nnue_evaluate_incremental(
+        player,piece,square,&a_nnue[0]);
+#else
+    return nnue_evaluate(
+        player,piece,square);
+#endif
+
 #endif
     return 0;
 }
