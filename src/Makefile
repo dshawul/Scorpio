@@ -32,7 +32,7 @@ DEFINES =
 DEFINES += -DPARALLEL
 DEFINES += -DARC_64BIT
 DEFINES += -DHAS_POPCNT
-ifneq ($(COMP),arm)
+ifneq ($(COMP),android)
     DEFINES += -DHAS_PREFETCH
     DEFINES += -DUSE_SPINLOCK
 endif
@@ -75,7 +75,7 @@ else ifeq ($(COMP),clang)
 	CXX=clang++
 else ifeq ($(COMP),icpc)
 	CXX=icpc
-else ifeq ($(COMP),arm)
+else ifeq ($(COMP),android)
 	CXX=arm-linux-androideabi-g++
 	STRIP=arm-linux-androideabi-strip
 else ifeq ($(COMP),win)
@@ -89,7 +89,7 @@ STRIP += $(EXE)
 #  Compiler flags
 ###########################
 
-ifeq ($(COMP),arm)
+ifeq ($(COMP),android)
     LXXFLAGS = -lm
 else
     LXXFLAGS = -lpthread -lm
@@ -117,7 +117,7 @@ else
 endif
 
 ifeq ($(COMP),pgcc)
-else ifeq ($(COMP),arm)
+else ifeq ($(COMP),android)
      CXXFLAGS += -fPIE -pie
      LXXFLAGS += -fPIE -pie
 else
@@ -190,7 +190,7 @@ help:
 	@echo "  c ="
 	@echo "	gcc    :  g++ compiler"
 	@echo "	icpc   :  intel compiler"
-	@echo "	arm    :  arm android compiler"
+	@echo "	android:  arm android compiler"
 	@echo "	cluster:  mpiC++ compiler"
 	@echo ""
 	@echo "2. make clean - removes all files but source code"
