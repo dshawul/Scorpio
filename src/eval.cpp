@@ -53,6 +53,10 @@ static evaluator
 
 int SEARCHER::eval(bool skip_nn_l) {
 
+    /*phase of the game*/
+    int phase = piece_c[white] + piece_c[black];
+    phase = MIN(phase,MAX_MATERIAL);
+
 #ifndef TUNE
     
     /* check_eval hash table */
@@ -73,17 +77,19 @@ int SEARCHER::eval(bool skip_nn_l) {
     }
     /*nnue evaluation*/
     if(use_nnue) {
-        pstack->actual_score = probe_nnue();
+        int nnue_score;
+        nnue_score = probe_nnue();
+        nnue_score = (nnue_score * nnue_scale) / 128;
+        nnue_score = (nnue_score * (720 + (phase * PAWN_MG) / 32)) / 1024;
+        nnue_score += TEMPO_BONUS + (phase * TEMPO_SLOPE) / MAX_MATERIAL;
+
+        pstack->actual_score = nnue_score;
         record_eval_hash(hash_key,pstack->actual_score);
         return pstack->actual_score;
     }
 #endif
 
 #endif
-
-    /*phase of the game*/
-    int phase = piece_c[white] + piece_c[black];
-    phase = MIN(phase,MAX_MATERIAL);
 
     /*
     evaluate

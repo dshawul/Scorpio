@@ -91,6 +91,7 @@ int SEARCHER::nn_man_m = 24;
 int SEARCHER::wdl_head = 0;
 int SEARCHER::wdl_head_m = 0;
 int SEARCHER::wdl_head_e = 0;
+int SEARCHER::nnue_scale = 128;
 int win_weight = 100;
 int draw_weight = 100;
 int loss_weight = 100;
