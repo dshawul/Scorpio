@@ -322,10 +322,10 @@ Generate captures
 }
 
 void SEARCHER::gen_caps(bool recap) {
-    BITBOARD bb;
-    BITBOARD occupancyw = (pieces_bb[white] | pawns_bb[white]);
-    BITBOARD occupancyb = (pieces_bb[black] | pawns_bb[black]);
-    BITBOARD occupancy = (occupancyw | occupancyb);
+    uint64_t bb;
+    uint64_t occupancyw = (pieces_bb[white] | pawns_bb[white]);
+    uint64_t occupancyb = (pieces_bb[black] | pawns_bb[black]);
+    uint64_t occupancy = (occupancyw | occupancyb);
     MOVE* pmove = &pstack->move_st[pstack->count],*spmove = pmove,tmove;
     int  from,to;
     PLIST current;

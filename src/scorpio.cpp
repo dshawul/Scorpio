@@ -63,7 +63,7 @@ int use_abdada_cluster = 0;
 /*
 static global variables of SEARCHER
 */
-UBMP64 SEARCHER::root_score_st[MAX_MOVES];
+uint64_t SEARCHER::root_score_st[MAX_MOVES];
 CACHE_ALIGN int SEARCHER::history[14][64];
 CACHE_ALIGN MOVE SEARCHER::refutation[14][64];
 CHESS_CLOCK SEARCHER::chess_clock;
@@ -134,14 +134,14 @@ static void load_egbbs() {
 hash tables
 */
 static void reset_ht() {
-    UBMP32 size = 1,size_max = ht * ((1024 * 1024) / (2 * sizeof(HASH)));
+    uint32_t size = 1,size_max = ht * ((1024 * 1024) / (2 * sizeof(HASH)));
     while(2 * size <= size_max) size *= 2;
     for(int i = 0;i < PROCESSOR::n_processors;i++) 
         processors[i]->reset_hash_tab(i,size);
     print("ht %d X %d = %.1f MB\n",2 * size,sizeof(HASH),(2 * size * sizeof(HASH)) / double(1024 * 1024));
 }
 static void reset_eht() {
-    UBMP32 size = 1,size_max = eht * ((1024 * 1024) / (2 * sizeof(EVALHASH)));
+    uint32_t size = 1,size_max = eht * ((1024 * 1024) / (2 * sizeof(EVALHASH)));
     while(2 * size <= size_max) size *= 2;
     for(int i = 0;i < PROCESSOR::n_processors;i++) 
         processors[i]->reset_eval_hash_tab(size);
@@ -149,7 +149,7 @@ static void reset_eht() {
         PROCESSOR::n_processors * (2 * size * sizeof(EVALHASH)) / double(1024 * 1024));
 }
 static void reset_pht() {
-    UBMP32 size = 1,size_max = pht * ((1024 * 1024) / (sizeof(PAWNHASH)));
+    uint32_t size = 1,size_max = pht * ((1024 * 1024) / (sizeof(PAWNHASH)));
     while(2 * size <= size_max) size *= 2;
     for(int i = 0;i < PROCESSOR::n_processors;i++) 
         processors[i]->reset_pawn_hash_tab(size);
@@ -777,7 +777,7 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         clock_t start,end;
         int depth = atoi(commands[command_num++]);
         start = clock();
-        UBMP64 nodes = searcher.perft(depth);
+        uint64_t nodes = searcher.perft(depth);
         end = clock();
         print("\nnodes " FMT64 "\n",nodes);
         print("time %.2f sec\n",(double)(end - start) / CLOCKS_PER_SEC);

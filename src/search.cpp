@@ -1418,10 +1418,10 @@ MOVE SEARCHER::iterative_deepening() {
             }
 
             /*nodes to prior*/
-            UBMP64 maxn = 0;
+            uint64_t maxn = 0;
             int maxni = 0;
             for(int i = 1; i < pstack->count; i++) {
-                UBMP64 v = root_score_st[i];
+                uint64_t v = root_score_st[i];
                 if(v > maxn) { maxn = v; maxni = i; }
             }
 
@@ -1690,7 +1690,7 @@ MOVE SEARCHER::iterative_deepening() {
 
             /*sort moves*/
             MOVE tempm;
-            UBMP64 temps,bests = 0;
+            uint64_t temps,bests = 0;
 
             for(int i = 0;i < pstack->count; i++) {
                 if(pstack->pv[0] == pstack->move_st[i]) {
@@ -1758,7 +1758,7 @@ MOVE SEARCHER::iterative_deepening() {
         if(pv_print_style == 1) {
             print(" %21d %8.2f %10d %10d\n",
                 root_node->visits,float(time_used) / 1000,pps,
-                int(BMP64(nnecalls) / (time_used / 1000.0f)));
+                int(int64_t(nnecalls) / (time_used / 1000.0f)));
         } else if(pv_print_style == 0) {
             /*print tree*/
             if(multipv)
@@ -1766,10 +1766,10 @@ MOVE SEARCHER::iterative_deepening() {
 
             /* print result*/
             print_info("nodes " FMT64 " <%d%% qnodes> time %dms nps %d eps %d nneps %d tbhits %d\n",nodes,
-                int(BMP64(qnodes) / (BMP64(nodes) / 100.0f)),
-                time_used_o,int(BMP64(nodes) / (time_used_o / 1000.0f)),
-                int(BMP64(ecalls) / (time_used_o / 1000.0f)),
-                int(BMP64(nnecalls) / (time_used / 1000.0f)),
+                int(int64_t(qnodes) / (int64_t(nodes) / 100.0f)),
+                time_used_o,int(int64_t(nodes) / (time_used_o / 1000.0f)),
+                int(int64_t(ecalls) / (time_used_o / 1000.0f)),
+                int(int64_t(nnecalls) / (time_used / 1000.0f)),
                 egbb_probes);
             print_info("Tree: nodes %d depth %d pps %d visits %d qcalls %d scalls %d\n",
                   Node::total_nodes,Node::max_tree_depth,pps,root_node->visits,qsearch_calls,search_calls);
@@ -1780,9 +1780,9 @@ MOVE SEARCHER::iterative_deepening() {
 #ifdef CLUSTER
         /*total nps*/
         if(use_abdada_cluster) {
-            UBMP64 tnodes;
+            uint64_t tnodes;
             PROCESSOR::Sum(&nodes, &tnodes);
-            nodes = (UBMP64)tnodes;
+            nodes = (uint64_t)tnodes;
         }
 #endif
 
@@ -1801,13 +1801,13 @@ MOVE SEARCHER::iterative_deepening() {
         if(!time_used) time_used = 1;
         if(pv_print_style == 1) {
             print(" " FMT64W " %8.2f %10d %8d %8d\n",nodes,float(time_used) / 1000,
-                int(BMP64(nodes) / (time_used / 1000.0f)),splits,bad_splits);
+                int(int64_t(nodes) / (time_used / 1000.0f)),splits,bad_splits);
         } else if(pv_print_style == 0) {
             print_info("nodes " FMT64 " <%d%% qnodes> time %dms nps %d eps %d nneps %d tbhits %d splits %d badsplits %d\n",nodes,
-                int(BMP64(qnodes) / (BMP64(nodes) / 100.0f)),
-                time_used,int(BMP64(nodes) / (time_used / 1000.0f)),
-                int(BMP64(ecalls) / (time_used / 1000.0f)),
-                int(BMP64(nnecalls) / (time_used / 1000.0f)),
+                int(int64_t(qnodes) / (int64_t(nodes) / 100.0f)),
+                time_used,int(int64_t(nodes) / (time_used / 1000.0f)),
+                int(int64_t(ecalls) / (time_used / 1000.0f)),
+                int(int64_t(nnecalls) / (time_used / 1000.0f)),
                 egbb_probes,splits,bad_splits);
         }
 

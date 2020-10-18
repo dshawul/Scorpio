@@ -85,7 +85,7 @@ void PROCESSOR::Wait(MPI_Request* rqst) {
 void PROCESSOR::Barrier() {
     MPI_Barrier(MPI_COMM_WORLD);
 }
-void PROCESSOR::Sum(UBMP64* sendbuf,UBMP64* recvbuf) {
+void PROCESSOR::Sum(uint64_t* sendbuf,uint64_t* recvbuf) {
     MPI_Reduce(sendbuf,recvbuf,1,MPI_LONG_LONG_INT,MPI_SUM,0,MPI_COMM_WORLD);
 }
 bool PROCESSOR::IProbe(int& source,int& message_id) {
@@ -347,9 +347,9 @@ void PROCESSOR::handle_message(int source,int message_id) {
                     score,ttmsg.move,ttmsg.alpha,ttmsg.beta,
                     mate_threat,singular,h_depth,false);
         ttmsg.depth = h_depth;
-        ttmsg.score = (BMP16)score;
-        ttmsg.mate_threat = (UBMP8)mate_threat;
-        ttmsg.singular = (UBMP8)singular;
+        ttmsg.score = (int16_t)score;
+        ttmsg.mate_threat = (uint8_t)mate_threat;
+        ttmsg.singular = (uint8_t)singular;
         ttmsg.ply = proc_id;  //embed processor_id in message
         /*send*/
         MPI_Request rq;
@@ -613,7 +613,7 @@ TOP:
         goto TOP;
     }
     /*fill in split info*/
-    split->master = (BMP64)this;
+    split->master = (int64_t)this;
     split->alpha = -(pstack - 1)->beta;
     split->beta = -(pstack - 1)->alpha;
     split->depth = pstack->depth;

@@ -16,7 +16,7 @@ const unsigned int magicmoves_r_shift[64] = {
     53, 54, 54, 54, 54, 54, 54, 53,
     53, 54, 54, 53, 53, 53, 53, 53
 };
-const BITBOARD magicmoves_r_magics[64] = {
+const uint64_t magicmoves_r_magics[64] = {
     UINT64(0x0080001020400080), UINT64(0x0040001000200040), UINT64(0x0080081000200080), UINT64(0x0080040800100080),
     UINT64(0x0080020400080080), UINT64(0x0080010200040080), UINT64(0x0080008001000200), UINT64(0x0080002040800100),
     UINT64(0x0000800020400080), UINT64(0x0000400020005000), UINT64(0x0000801000200080), UINT64(0x0000800800100080),
@@ -34,7 +34,7 @@ const BITBOARD magicmoves_r_magics[64] = {
     UINT64(0x00FFFCDDFCED714A), UINT64(0x007FFCDDFCED714A), UINT64(0x003FFFCDFFD88096), UINT64(0x0000040810002101),
     UINT64(0x0001000204080011), UINT64(0x0001000204000801), UINT64(0x0001000082000401), UINT64(0x0001FFFAABFAD1A2)
 };
-const BITBOARD magicmoves_r_mask[64] = {    
+const uint64_t magicmoves_r_mask[64] = {    
     UINT64(0x000101010101017E), UINT64(0x000202020202027C), UINT64(0x000404040404047A), UINT64(0x0008080808080876),
     UINT64(0x001010101010106E), UINT64(0x002020202020205E), UINT64(0x004040404040403E), UINT64(0x008080808080807E),
     UINT64(0x0001010101017E00), UINT64(0x0002020202027C00), UINT64(0x0004040404047A00), UINT64(0x0008080808087600),
@@ -63,7 +63,7 @@ const unsigned int magicmoves_b_shift[64] = {
     58, 59, 59, 59, 59, 59, 59, 58
 };
 
-const BITBOARD magicmoves_b_magics[64] = {
+const uint64_t magicmoves_b_magics[64] = {
     UINT64(0x0002020202020200), UINT64(0x0002020202020000), UINT64(0x0004010202000000), UINT64(0x0004040080000000),
     UINT64(0x0001104000000000), UINT64(0x0000821040000000), UINT64(0x0000410410400000), UINT64(0x0000104104104000),
     UINT64(0x0000040404040400), UINT64(0x0000020202020200), UINT64(0x0000040102020000), UINT64(0x0000040400800000),
@@ -81,7 +81,7 @@ const BITBOARD magicmoves_b_magics[64] = {
     UINT64(0x0000104104104000), UINT64(0x0000002082082000), UINT64(0x0000000020841000), UINT64(0x0000000000208800),
     UINT64(0x0000000010020200), UINT64(0x0000000404080200), UINT64(0x0000040404040400), UINT64(0x0002020202020200)
 };
-const BITBOARD magicmoves_b_mask[64] = {
+const uint64_t magicmoves_b_mask[64] = {
     UINT64(0x0040201008040200), UINT64(0x0000402010080400), UINT64(0x0000004020100A00), UINT64(0x0000000040221400),
     UINT64(0x0000000002442800), UINT64(0x0000000204085000), UINT64(0x0000020408102000), UINT64(0x0002040810204000),
     UINT64(0x0020100804020000), UINT64(0x0040201008040000), UINT64(0x00004020100A0000), UINT64(0x0000004022140000),
@@ -100,8 +100,8 @@ const BITBOARD magicmoves_b_mask[64] = {
     UINT64(0x0028440200000000), UINT64(0x0050080402000000), UINT64(0x0020100804020000), UINT64(0x0040201008040200)
 };
 
-BITBOARD magicmovesbdb[5248];
-const BITBOARD* magicmoves_b_indices[64] = {
+uint64_t magicmovesbdb[5248];
+const uint64_t* magicmoves_b_indices[64] = {
     magicmovesbdb+4992, magicmovesbdb+2624,  magicmovesbdb+256,  magicmovesbdb+896,
     magicmovesbdb+1280, magicmovesbdb+1664, magicmovesbdb+4800, magicmovesbdb+5120,
     magicmovesbdb+2560, magicmovesbdb+2656,  magicmovesbdb+288,  magicmovesbdb+928,
@@ -120,8 +120,8 @@ const BITBOARD* magicmoves_b_indices[64] = {
     magicmovesbdb+1632, magicmovesbdb+2272, magicmovesbdb+4896, magicmovesbdb+5184
 };
 
-BITBOARD magicmovesrdb[102400];
-const BITBOARD* magicmoves_r_indices[64] = {
+uint64_t magicmovesrdb[102400];
+const uint64_t* magicmoves_r_indices[64] = {
     magicmovesrdb+86016, magicmovesrdb+73728, magicmovesrdb+36864, magicmovesrdb+43008,
     magicmovesrdb+47104, magicmovesrdb+51200, magicmovesrdb+77824, magicmovesrdb+94208,
     magicmovesrdb+69632, magicmovesrdb+32768, magicmovesrdb+38912, magicmovesrdb+10240,
@@ -139,36 +139,36 @@ const BITBOARD* magicmoves_r_indices[64] = {
     magicmovesrdb+90112, magicmovesrdb+75776, magicmovesrdb+40960, magicmovesrdb+45056,
     magicmovesrdb+49152, magicmovesrdb+55296, magicmovesrdb+79872, magicmovesrdb+98304
 };
-BITBOARD initmagicmoves_occ(const int* squares, const int numSquares, const BITBOARD linocc) {
+uint64_t initmagicmoves_occ(const int* squares, const int numSquares, const uint64_t linocc) {
     int i;
-    BITBOARD ret=0;
+    uint64_t ret=0;
     for(i=0;i<numSquares;i++)
-        if(linocc&(((BITBOARD)(1))<<i)) ret|=(((BITBOARD)(1))<<squares[i]);
+        if(linocc&(((uint64_t)(1))<<i)) ret|=(((uint64_t)(1))<<squares[i]);
     return ret;
 }
 
-BITBOARD initmagicmoves_Rmoves(const int square, const BITBOARD occ) {
-    BITBOARD ret=0;
-    BITBOARD bit;
-    BITBOARD rowbits=(((BITBOARD)0xFF)<<(8*(square/8)));
+uint64_t initmagicmoves_Rmoves(const int square, const uint64_t occ) {
+    uint64_t ret=0;
+    uint64_t bit;
+    uint64_t rowbits=(((uint64_t)0xFF)<<(8*(square/8)));
 
-    bit=(((BITBOARD)(1))<<square);
+    bit=(((uint64_t)(1))<<square);
     do {
         bit<<=8;
         ret|=bit;
     }while(bit && !(bit&occ));
-    bit=(((BITBOARD)(1))<<square);
+    bit=(((uint64_t)(1))<<square);
     do {
         bit>>=8;
         ret|=bit;
     }while(bit && !(bit&occ));
-    bit=(((BITBOARD)(1))<<square);
+    bit=(((uint64_t)(1))<<square);
     do {
         bit<<=1;
         if(bit&rowbits) ret|=bit;
         else break;
     }while(!(bit&occ));
-    bit=(((BITBOARD)(1))<<square);
+    bit=(((uint64_t)(1))<<square);
     do {
         bit>>=1;
         if(bit&rowbits) ret|=bit;
@@ -176,13 +176,13 @@ BITBOARD initmagicmoves_Rmoves(const int square, const BITBOARD occ) {
     }while(!(bit&occ));
     return ret;
 }
-BITBOARD initmagicmoves_Bmoves(const int square, const BITBOARD occ) {
-    BITBOARD ret=0;
-    BITBOARD bit;
-    BITBOARD bit2;
-    BITBOARD rowbits=(((BITBOARD)0xFF)<<(8*(square/8)));
+uint64_t initmagicmoves_Bmoves(const int square, const uint64_t occ) {
+    uint64_t ret=0;
+    uint64_t bit;
+    uint64_t bit2;
+    uint64_t rowbits=(((uint64_t)0xFF)<<(8*(square/8)));
 
-    bit=(((BITBOARD)(1))<<square);
+    bit=(((uint64_t)(1))<<square);
     bit2=bit;
     do {
         bit<<=8-1;
@@ -190,7 +190,7 @@ BITBOARD initmagicmoves_Bmoves(const int square, const BITBOARD occ) {
         if(bit2&rowbits) ret|=bit;
         else break;
     }while(bit && !(bit&occ));
-    bit=(((BITBOARD)(1))<<square);
+    bit=(((uint64_t)(1))<<square);
     bit2=bit;
     do {
         bit<<=8+1;
@@ -198,7 +198,7 @@ BITBOARD initmagicmoves_Bmoves(const int square, const BITBOARD occ) {
         if(bit2&rowbits) ret|=bit;
         else break;
     }while(bit && !(bit&occ));
-    bit=(((BITBOARD)(1))<<square);
+    bit=(((uint64_t)(1))<<square);
     bit2=bit;
     do {
         bit>>=8-1;
@@ -206,7 +206,7 @@ BITBOARD initmagicmoves_Bmoves(const int square, const BITBOARD occ) {
         if(bit2&rowbits) ret|=bit;
         else break;
     }while(bit && !(bit&occ));
-    bit=(((BITBOARD)(1))<<square);
+    bit=(((uint64_t)(1))<<square);
     bit2=bit;
     do {
         bit>>=8+1;
@@ -234,7 +234,7 @@ void initmagicmoves(void) {
         44, 24, 15,  8, 23,  7,  6,  5
     };
 
-    BITBOARD* magicmoves_b_indices2[64] = {
+    uint64_t* magicmoves_b_indices2[64] = {
         magicmovesbdb+4992, magicmovesbdb+2624,  magicmovesbdb+256,  magicmovesbdb+896,
         magicmovesbdb+1280, magicmovesbdb+1664, magicmovesbdb+4800, magicmovesbdb+5120,
         magicmovesbdb+2560, magicmovesbdb+2656,  magicmovesbdb+288,  magicmovesbdb+928,
@@ -252,7 +252,7 @@ void initmagicmoves(void) {
         magicmovesbdb+5056, magicmovesbdb+2720,  magicmovesbdb+864, magicmovesbdb+1248,
         magicmovesbdb+1632, magicmovesbdb+2272, magicmovesbdb+4896, magicmovesbdb+5184
     };
-    BITBOARD* magicmoves_r_indices2[64] = {
+    uint64_t* magicmoves_r_indices2[64] = {
         magicmovesrdb+86016, magicmovesrdb+73728, magicmovesrdb+36864, magicmovesrdb+43008,
         magicmovesrdb+47104, magicmovesrdb+51200, magicmovesrdb+77824, magicmovesrdb+94208,
         magicmovesrdb+69632, magicmovesrdb+32768, magicmovesrdb+38912, magicmovesrdb+10240,
@@ -273,14 +273,14 @@ void initmagicmoves(void) {
     for(i=0;i<64;i++) {
         int squares[64];
         int numsquares=0;
-        BITBOARD temp=magicmoves_b_mask[i];
+        uint64_t temp=magicmoves_b_mask[i];
         while(temp) {
-            BITBOARD bit=temp&-temp;
+            uint64_t bit=temp&-temp;
             squares[numsquares++]=initmagicmoves_bitpos64_database[(bit*UINT64(0x07EDD5E59A4E28C2))>>58];
             temp^=bit;
         }
-        for(temp=0;temp<(((BITBOARD)(1))<<numsquares);temp++) {
-            BITBOARD tempocc=initmagicmoves_occ(squares,numsquares,temp);
+        for(temp=0;temp<(((uint64_t)(1))<<numsquares);temp++) {
+            uint64_t tempocc=initmagicmoves_occ(squares,numsquares,temp);
             BmagicNOMASK2(i,tempocc)=initmagicmoves_Bmoves(i,tempocc);
 
         }
@@ -288,14 +288,14 @@ void initmagicmoves(void) {
     for(i=0;i<64;i++) {
         int squares[64];
         int numsquares=0;
-        BITBOARD temp=magicmoves_r_mask[i];
+        uint64_t temp=magicmoves_r_mask[i];
         while(temp) {
-            BITBOARD bit=temp&-temp;
+            uint64_t bit=temp&-temp;
             squares[numsquares++]=initmagicmoves_bitpos64_database[(bit*UINT64(0x07EDD5E59A4E28C2))>>58];
             temp^=bit;
         }
-        for(temp=0;temp<(((BITBOARD)(1))<<numsquares);temp++) {
-            BITBOARD tempocc=initmagicmoves_occ(squares,numsquares,temp);
+        for(temp=0;temp<(((uint64_t)(1))<<numsquares);temp++) {
+            uint64_t tempocc=initmagicmoves_occ(squares,numsquares,temp);
             RmagicNOMASK2(i,tempocc)=initmagicmoves_Rmoves(i,tempocc);
         }
     }
@@ -320,7 +320,7 @@ void initmagicmoves(void) {
     }
 }
 
-const BITBOARD __unit_bb[0x80] = {
+const uint64_t __unit_bb[0x80] = {
     UINT64(0x0000000000000001),UINT64(0x0000000000000002),UINT64(0x0000000000000004),UINT64(0x0000000000000008),UINT64(0x0000000000000010),UINT64(0x0000000000000020),UINT64(0x0000000000000040),UINT64(0x0000000000000080),
     UINT64(0xfffffffffffffffe),UINT64(0xfffffffffffffffd),UINT64(0xfffffffffffffffb),UINT64(0xfffffffffffffff7),UINT64(0xffffffffffffffef),UINT64(0xffffffffffffffdf),UINT64(0xffffffffffffffbf),UINT64(0xffffffffffffff7f),
     UINT64(0x0000000000000100),UINT64(0x0000000000000200),UINT64(0x0000000000000400),UINT64(0x0000000000000800),UINT64(0x0000000000001000),UINT64(0x0000000000002000),UINT64(0x0000000000004000),UINT64(0x0000000000008000),
@@ -338,7 +338,7 @@ const BITBOARD __unit_bb[0x80] = {
     UINT64(0x0100000000000000),UINT64(0x0200000000000000),UINT64(0x0400000000000000),UINT64(0x0800000000000000),UINT64(0x1000000000000000),UINT64(0x2000000000000000),UINT64(0x4000000000000000),UINT64(0x8000000000000000),
     UINT64(0xfeffffffffffffff),UINT64(0xfdffffffffffffff),UINT64(0xfbffffffffffffff),UINT64(0xf7ffffffffffffff),UINT64(0xefffffffffffffff),UINT64(0xdfffffffffffffff),UINT64(0xbfffffffffffffff),UINT64(0x7fffffffffffffff)
 };
-const BITBOARD knight_magics[64] = {
+const uint64_t knight_magics[64] = {
     UINT64(0x0000000000020400),UINT64(0x0000000000050800),UINT64(0x00000000000a1100),UINT64(0x0000000000142200),
     UINT64(0x0000000000284400),UINT64(0x0000000000508800),UINT64(0x0000000000a01000),UINT64(0x0000000000402000),
     UINT64(0x0000000002040004),UINT64(0x0000000005080008),UINT64(0x000000000a110011),UINT64(0x0000000014220022),
@@ -356,7 +356,7 @@ const BITBOARD knight_magics[64] = {
     UINT64(0x0004020000000000),UINT64(0x0008050000000000),UINT64(0x00110a0000000000),UINT64(0x0022140000000000),
     UINT64(0x0044280000000000),UINT64(0x0088500000000000),UINT64(0x0010a00000000000),UINT64(0x0020400000000000)
 };
-const BITBOARD king_magics[64] = {
+const uint64_t king_magics[64] = {
     UINT64(0x0000000000000302),UINT64(0x0000000000000705),UINT64(0x0000000000000e0a),UINT64(0x0000000000001c14),
     UINT64(0x0000000000003828),UINT64(0x0000000000007050),UINT64(0x000000000000e0a0),UINT64(0x000000000000c040),
     UINT64(0x0000000000030203),UINT64(0x0000000000070507),UINT64(0x00000000000e0a0e),UINT64(0x00000000001c141c),
@@ -374,7 +374,7 @@ const BITBOARD king_magics[64] = {
     UINT64(0x0203000000000000),UINT64(0x0507000000000000),UINT64(0x0a0e000000000000),UINT64(0x141c000000000000),
     UINT64(0x2838000000000000),UINT64(0x5070000000000000),UINT64(0xa0e0000000000000),UINT64(0x40c0000000000000)
 };
-const BITBOARD rank_mask[8] = {
+const uint64_t rank_mask[8] = {
     UINT64(0x00000000000000ff),
     UINT64(0x000000000000ff00),
     UINT64(0x0000000000ff0000),
@@ -384,7 +384,7 @@ const BITBOARD rank_mask[8] = {
     UINT64(0x00ff000000000000),
     UINT64(0xff00000000000000)
 };
-const BITBOARD file_mask[8] = {
+const uint64_t file_mask[8] = {
     UINT64(0x0101010101010101),
     UINT64(0x0202020202020202),
     UINT64(0x0404040404040404),
@@ -397,7 +397,7 @@ const BITBOARD file_mask[8] = {
 /*
 first and last bits of a byte
 */
-const UBMP8 first_bit[0x100] = {
+const uint8_t first_bit[0x100] = {
     8, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0,
     4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0,
     5, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0,
@@ -415,7 +415,7 @@ const UBMP8 first_bit[0x100] = {
     5, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0,
     4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0
 };
-const UBMP8 last_bit[0x100] = {
+const uint8_t last_bit[0x100] = {
     8, 0, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3,
     4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
     5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
@@ -433,7 +433,7 @@ const UBMP8 last_bit[0x100] = {
     7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
     7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7
 };
-const UBMP8 center_bit[0x100] = {
+const uint8_t center_bit[0x100] = {
     0, 1, 2, 1, 3, 2, 2, 2, 4, 2, 3, 2, 3, 2, 3, 2,
     5, 3, 3, 2, 4, 3, 3, 2, 4, 3, 3, 3, 4, 3, 3, 3,
     6, 3, 4, 3, 4, 3, 3, 3, 5, 3, 4, 3, 4, 3, 3, 3,
@@ -453,4 +453,4 @@ const UBMP8 center_bit[0x100] = {
 };
 
 /*In-between bitboard*/
-BITBOARD in_between[64][64];
+uint64_t in_between[64][64];

@@ -30,7 +30,7 @@ typedef void (CDECL *PLOAD_EGBB) (
 typedef void (CDECL *PPROBE_NN) (
     float** iplanes, float** p_outputs,
     int* p_size, unsigned short** p_index, 
-    UBMP64 hash_key, bool hard_probe, int nn_id
+    uint64_t hash_key, bool hard_probe, int nn_id
 );
 typedef void (CDECL *PLOAD_NN)(
     char* path,
@@ -384,7 +384,7 @@ void init_input_planes() {
 
 float SEARCHER::probe_neural_(bool hard_probe, float* policy, int nn_id_, int nn_type_, int wdl_head_) {
 #ifdef EGBB
-    UBMP64 hkey = ((player == white) ? hash_key : 
+    uint64_t hkey = ((player == white) ? hash_key : 
              (hash_key ^ UINT64(0x2bc3964f82352234)));
 
     unsigned short* const mindex = all_pindex[processor_id];
@@ -531,7 +531,7 @@ Move policy format
 
 /* 1. AlphaZero format: 56=queen moves, 8=knight moves, 9 pawn under-promotions 
   to Rook, bishop and knight */
-static const UBMP8 t_move_map[] = {
+static const uint8_t t_move_map[] = {
   0,  0,  0,  0,  0,  0,  0,  0,
   0,  5,  0,  0,  0,  0,  0,  0,  3,  0,  0,  0,  0,  0,  0,  7,
   0,  0,  5,  0,  0,  0,  0,  0,  3,  0,  0,  0,  0,  0,  7,  0,
@@ -550,7 +550,7 @@ static const UBMP8 t_move_map[] = {
   0,  6,  0,  0,  0,  0,  0,  0,  2,  0,  0,  0,  0,  0,  0,  4,
   0,  0,  0,  0,  0,  0,  0,  0
 };
-static const UBMP8* const move_map = t_move_map + 0x80;
+static const uint8_t* const move_map = t_move_map + 0x80;
 
 /* 2. LcZero format: flat move representation */
 static const int MOVE_TAB_SIZE = 64*64+8*3*3;

@@ -15,19 +15,11 @@ For others, they are set in Makefile
 #ifdef HAS_BSF
 #define HAS_BSF
 #endif
+
 /*
 int types
 */
 #    include <stdint.h>
-
-typedef int8_t BMP8;
-typedef uint8_t UBMP8;
-typedef int16_t BMP16;
-typedef uint16_t UBMP16;
-typedef int32_t BMP32;
-typedef uint32_t UBMP32;
-typedef int64_t BMP64;
-typedef uint64_t UBMP64;
 
 /*
 Os stuff
@@ -97,12 +89,12 @@ Intrinsic bsf
 #       define bsr(b) (63 - __builtin_clzll(b))
 #   elif defined(_WIN32)
 #       include <intrin.h>
-        FORCEINLINE int bsf(UBMP64 b) {
+        FORCEINLINE int bsf(uint64_t b) {
             unsigned long x;
             _BitScanForward64(&x, b);
             return (int) x;
         }
-        FORCEINLINE int bsr(UBMP64 b) {
+        FORCEINLINE int bsr(uint64_t b) {
             unsigned long x;
             _BitScanReverse64(&x, b);
             return (int) x;

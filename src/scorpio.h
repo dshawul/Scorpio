@@ -75,9 +75,8 @@ parallel search options
 #endif
 
 /*typedefs*/
-typedef UBMP64  HASHKEY;
-typedef UBMP64  BITBOARD;
-typedef UBMP32  MOVE;
+typedef uint64_t  HASHKEY;
+typedef uint32_t  MOVE;
 
 /*
 Scorpio board representation
@@ -186,7 +185,7 @@ enum square_names {
 #define WIN_PLY             20
 #define MAX_NUMBER    16777216
 #define MAX_HIST       8388608
-#define MAX_UBMP64   UBMP64(0xffffffffffffffff)
+#define MAX_UBMP64   uint64_t(0xffffffffffffffff)
 #define MAX_EGBB             6
 
 #define WSC_FLAG            1
@@ -327,8 +326,8 @@ typedef struct LIST{
 score
 */
 typedef struct SCORE {
-    BMP16 mid;
-    BMP16 end;
+    int16_t mid;
+    int16_t end;
     SCORE() {}
     SCORE(int m,int e) {mid = m;end = e;}
     void zero() {mid = 0;end = 0;}
@@ -351,27 +350,27 @@ typedef struct tagHASH {
     union {
         HASHKEY data_key;
         struct {
-            UBMP32  move;
-            BMP16   score;
-            UBMP8   depth;
-            UBMP8   flags;
+            MOVE      move;
+            int16_t   score;
+            uint8_t   depth;
+            uint8_t   flags;
         };
     };
 }HASH,*PHASH;
 
 typedef struct tagPAWNREC {
-    UBMP8  w_passed;
-    UBMP8  b_passed;
-    UBMP8  w_pawn_f;
-    UBMP8  b_pawn_f;
-    UBMP8  w_ksq;
-    UBMP8  b_ksq;
-    BMP8   w_evaled;
-    BMP8   b_evaled;
-    UBMP8  w_attack;
-    UBMP8  b_attack;
-    BMP8   w_s_attack;
-    BMP8   b_s_attack;
+    uint8_t  w_passed;
+    uint8_t  b_passed;
+    uint8_t  w_pawn_f;
+    uint8_t  b_pawn_f;
+    uint8_t  w_ksq;
+    uint8_t  b_ksq;
+    int8_t   w_evaled;
+    int8_t   b_evaled;
+    uint8_t  w_attack;
+    uint8_t  b_attack;
+    int8_t   w_s_attack;
+    int8_t   b_s_attack;
 } PAWNREC,*PPAWNREC;
 
 typedef struct tagPAWNHASH {
@@ -381,9 +380,9 @@ typedef struct tagPAWNHASH {
 } PAWNHASH, *PPAWNHASH;
 
 typedef struct tagEVALHASH {
-    UBMP32  check_sum;
-    BMP16   score;
-    BMP16   age;
+    uint32_t  check_sum;
+    int16_t   score;
+    int16_t   age;
 } EVALHASH,*PEVALHASH;
 /*
 * Edges of the tree
@@ -558,11 +557,11 @@ typedef struct HIST_STACK{
     PLIST pCapt;
     PLIST pProm;
     SCORE pcsq_score[2];
-    BITBOARD all_bb;
+    uint64_t all_bb;
     HASHKEY hash_key;
     HASHKEY pawn_hash_key;
-    BITBOARD pieces_bb[2];
-    BITBOARD pawns_bb[2];
+    uint64_t pieces_bb[2];
+    uint64_t pawns_bb[2];
     static char start_fen[MAX_FEN_STR];
 } *PHIST_STACK;
 
@@ -602,7 +601,7 @@ typedef struct STACK{
     MOVE refutation;
     int qcheck_depth;
     int actual_score;
-    UBMP64 start_nodes;
+    uint64_t start_nodes;
     MOVE move_st[MAX_MOVES];
     int score_st[MAX_MOVES];
     MOVE bad_st[MAX_CAPS];
@@ -622,49 +621,49 @@ struct PROCESSOR;
  * in bytes i.e. sizeof(MESSAGE) * MPI_BYTE is more efficient at least in theory
  */
 struct SPLIT_MESSAGE {
-    BMP64  master;
-    BMP32  depth;
-    BMP32  alpha;
-    BMP32  beta;
-    BMP32  node_type;
-    BMP32  search_state;
-    BMP32  extension;
-    BMP32  reduction;
-    BMP32  pv_length;
+    int64_t  master;
+    int32_t  depth;
+    int32_t  alpha;
+    int32_t  beta;
+    int32_t  node_type;
+    int32_t  search_state;
+    int32_t  extension;
+    int32_t  reduction;
+    int32_t  pv_length;
     MOVE   pv[MAX_PLY];
 };
 struct MERGE_MESSAGE {
-    BMP64  master;
-    UBMP64 nodes;
-    UBMP64 qnodes;
-    UBMP64 ecalls;
-    UBMP64 nnecalls;
-    UBMP64 time_check;
-    UBMP32 splits;
-    UBMP32 bad_splits;
-    UBMP32 egbb_probes;
+    int64_t  master;
+    uint64_t nodes;
+    uint64_t qnodes;
+    uint64_t ecalls;
+    uint64_t nnecalls;
+    uint64_t time_check;
+    uint32_t splits;
+    uint32_t bad_splits;
+    uint32_t egbb_probes;
     MOVE   best_move;
-    BMP32  best_score;
-    BMP32  pv_length;
+    int32_t  best_score;
+    int32_t  pv_length;
     MOVE   pv[MAX_PLY];
 };
 struct INIT_MESSAGE {
-    BMP8 fen[MAX_FEN_STR];
-    BMP32 pv_length;
+    int8_t fen[MAX_FEN_STR];
+    int32_t pv_length;
     MOVE  pv[127];
 };
 struct TT_MESSAGE {
-    UBMP64 hash_key;
-    BMP16  score;
-    UBMP8  depth;
-    UBMP8  flags;
-    UBMP8  ply;
-    UBMP8  col;
-    UBMP8  mate_threat;
-    UBMP8  singular;
+    uint64_t hash_key;
+    int16_t  score;
+    uint8_t  depth;
+    uint8_t  flags;
+    uint8_t  ply;
+    uint8_t  col;
+    uint8_t  mate_threat;
+    uint8_t  singular;
     MOVE   move;
-    BMP16  alpha;
-    BMP16  beta;
+    int16_t  alpha;
+    int16_t  beta;
 };
 #define   SPLIT_MESSAGE_SIZE(x)   (40 + ((x).pv_length << 2))
 #define   RESPLIT_MESSAGE_SIZE(x) (SPLIT_MESSAGE_SIZE(x) + 4)
@@ -693,9 +692,9 @@ typedef struct SEARCHER{
     int piece_c[2];
     int man_c[15];
     int all_man_c;
-    BITBOARD all_bb;
-    BITBOARD pieces_bb[2];
-    BITBOARD pawns_bb[2];
+    uint64_t all_bb;
+    uint64_t pieces_bb[2];
+    uint64_t pawns_bb[2];
     HASHKEY hash_key;
     HASHKEY pawn_hash_key;
     SCORE pcsq_score[2];
@@ -764,7 +763,7 @@ typedef struct SEARCHER{
     void  qsearch();
     void  qsearch_nn();
     bool  hash_cutoff();
-    UBMP64   perft(int);
+    uint64_t   perft(int);
     MOVE  get_book_move();
     void  show_book_moves();
     void  print_pv(int);
@@ -773,9 +772,9 @@ typedef struct SEARCHER{
     void  check_mcts_quit(bool);
     double compute_kld();
     int   eval(bool = false);
-    void  eval_pawn_cover(int,int,UBMP8*,UBMP8*);
-    SCORE eval_pawns(int,int,UBMP8*,UBMP8*);
-    int   eval_passed_pawns(UBMP8*,UBMP8*,UBMP8&,const BITBOARD&,const BITBOARD&);
+    void  eval_pawn_cover(int,int,uint8_t*,uint8_t*);
+    SCORE eval_pawns(int,int,uint8_t*,uint8_t*);
+    int   eval_passed_pawns(uint8_t*,uint8_t*,uint8_t&,const uint64_t&,const uint64_t&);
     void  eval_win_chance(SCORE&,SCORE&,int&,int&);
     static void  pre_calculate();
 #ifdef TUNE
@@ -811,17 +810,17 @@ typedef struct SEARCHER{
     void  print_status();
     void  idle_loop_main();
     /*counts*/
-    UBMP64 nodes;
-    UBMP64 qnodes;
-    UBMP64 ecalls;
-    UBMP64 nnecalls;
-    UBMP64 time_check;
-    UBMP64 message_check;
-    UBMP32 search_calls;
-    UBMP32 qsearch_calls;
-    UBMP32 splits;
-    UBMP32 bad_splits;
-    UBMP32 egbb_probes;
+    uint64_t nodes;
+    uint64_t qnodes;
+    uint64_t ecalls;
+    uint64_t nnecalls;
+    uint64_t time_check;
+    uint64_t message_check;
+    uint32_t search_calls;
+    uint32_t qsearch_calls;
+    uint32_t splits;
+    uint32_t bad_splits;
+    uint32_t egbb_probes;
     VOLATILE int stop_searcher;
     bool finish_search;
     bool skip_nn;
@@ -875,13 +874,13 @@ typedef struct SEARCHER{
     static int analysis_mode;
     static int show_full_pv;
     static int abort_search;
-    static UBMP32 poll_nodes;
+    static uint32_t poll_nodes;
     static MOVE expected_move;
     static int resign_value;
     static int resign_count;
     static unsigned int average_pps;
     static CHESS_CLOCK chess_clock;
-    static UBMP64 root_score_st[MAX_MOVES];
+    static uint64_t root_score_st[MAX_MOVES];
     static int history[14][64];
     static MOVE refutation[14][64];
     /*
@@ -1087,7 +1086,7 @@ typedef struct PROCESSOR {
     static bool IProbe(int& dest,int& message_id);
     static void Wait(MPI_Request*);
     static void Barrier();
-    static void Sum(UBMP64* sendbuf,UBMP64* recvbuf);
+    static void Sum(uint64_t* sendbuf,uint64_t* recvbuf);
     static void handle_message(int dest,int message_id);
     static void offer_help();
 #endif
@@ -1105,14 +1104,14 @@ typedef struct PROCESSOR {
     TT_MESSAGE ttmsg;
     VOLATILE bool ttmsg_recieved;
 #endif
-    static UBMP32 hash_tab_mask;
-    static UBMP32 pawn_hash_tab_mask;
-    static UBMP32 eval_hash_tab_mask;
+    static uint32_t hash_tab_mask;
+    static uint32_t pawn_hash_tab_mask;
+    static uint32_t eval_hash_tab_mask;
     static int age;
 
-    void  reset_hash_tab(int id,UBMP32);
-    void  reset_pawn_hash_tab(UBMP32 = 0);
-    void  reset_eval_hash_tab(UBMP32 = 0);
+    void  reset_hash_tab(int id,uint32_t);
+    void  reset_pawn_hash_tab(uint32_t = 0);
+    void  reset_eval_hash_tab(uint32_t = 0);
     void  delete_hash_tables();
     static void  clear_hash_tables();
 
@@ -1200,7 +1199,7 @@ void  print_move(const MOVE&);
 void  print_move_full(const MOVE&);
 void  print_sq(const int&);
 void  print_pc(const int&);
-void  print_bitboard(BITBOARD);
+void  print_bitboard(uint64_t);
 void  sq_str(const int& ,char*);
 void  mov_strx(const MOVE& ,char*);
 void  mov_str(const MOVE& ,char*);
@@ -1258,11 +1257,11 @@ their respective authors.
 */
 #   ifdef ARC_64BIT
 #if !defined(HAS_POPCNT)
-FORCEINLINE int popcnt(BITBOARD b) {
-    const BITBOARD k1 = UINT64(0x5555555555555555);
-    const BITBOARD k2 = UINT64(0x3333333333333333);
-    const BITBOARD k4 = UINT64(0x0f0f0f0f0f0f0f0f);
-    const BITBOARD kf = UINT64(0x0101010101010101);
+FORCEINLINE int popcnt(uint64_t b) {
+    const uint64_t k1 = UINT64(0x5555555555555555);
+    const uint64_t k2 = UINT64(0x3333333333333333);
+    const uint64_t k4 = UINT64(0x0f0f0f0f0f0f0f0f);
+    const uint64_t kf = UINT64(0x0101010101010101);
     b =  b       - ((b >> 1)  & k1); 
     b = (b & k2) + ((b >> 2)  & k2); 
     b = (b       +  (b >> 4)) & k4 ; 
@@ -1275,7 +1274,7 @@ FORCEINLINE int popcnt(BITBOARD b) {
 Private bitscan routine (64bit deBruijin) generated using Gerd Isenberg's code.
 NB: Table contains squares in 0x88 format.
 */
-const BITBOARD magic = 0x021c9a5edd467e2b; /* The 01111981 => This Number is Copyrighted by BIRTH :) */
+const uint64_t magic = 0x021c9a5edd467e2b; /* The 01111981 => This Number is Copyrighted by BIRTH :) */
 const unsigned int table[64] =  {
     0,  1,  2,  7,  3,103, 82, 16,
     4, 22,112, 39, 83, 33, 17, 87,
@@ -1286,11 +1285,11 @@ const unsigned int table[64] =  {
     118,101, 20, 85, 35, 68, 53, 64,
     100, 19, 67, 52, 99, 51, 98, 97
 };
-FORCEINLINE unsigned int first_one(BITBOARD b) {
+FORCEINLINE unsigned int first_one(uint64_t b) {
     return table[((b & -b) * magic) >> 58];
 }
 #else
-FORCEINLINE unsigned int first_one(BITBOARD b) {
+FORCEINLINE unsigned int first_one(uint64_t b) {
     unsigned int x = bsf(b);
     return SQ6488(x);
 }
@@ -1298,13 +1297,13 @@ FORCEINLINE unsigned int first_one(BITBOARD b) {
 
 #   else
 
-FORCEINLINE int popcnt(BITBOARD b) {
-    const UBMP32 k1 = (0x55555555);
-    const UBMP32 k2 = (0x33333333);
-    const UBMP32 k4 = (0x0f0f0f0f);
-    const UBMP32 kf = (0x01010101);
-    UBMP32 hi = (UBMP32) (b >> 32);
-    UBMP32 lo = (UBMP32) (b);
+FORCEINLINE int popcnt(uint64_t b) {
+    const uint32_t k1 = (0x55555555);
+    const uint32_t k2 = (0x33333333);
+    const uint32_t k4 = (0x0f0f0f0f);
+    const uint32_t kf = (0x01010101);
+    uint32_t hi = (uint32_t) (b >> 32);
+    uint32_t lo = (uint32_t) (b);
     hi =  hi       - ((hi >> 1)  & k1); 
     hi = (hi & k2) + ((hi >> 2)  & k2); 
     hi = (hi       +  (hi >> 4)) & k4 ;
@@ -1324,7 +1323,7 @@ const unsigned int table[64] = {
     49,113, 96, 21, 18, 71, 16, 84,
     36, 87, 70, 38, 33, 69, 68, 50
 };
-FORCEINLINE unsigned int first_one(BITBOARD b) {
+FORCEINLINE unsigned int first_one(uint64_t b) {
     unsigned int folded;
     b ^= (b - 1);
     folded = (int) (b ^ (b >> 32));
@@ -1337,7 +1336,7 @@ Brian Kernighan's sparse bitboard population count
 Used for king attack pattern.
 */
 #if !defined(HAS_POPCNT)
-FORCEINLINE int popcnt_sparse(BITBOARD b) {
+FORCEINLINE int popcnt_sparse(uint64_t b) {
     int count = 0;
     while (b) {
         count++;
@@ -1351,11 +1350,11 @@ FORCEINLINE int popcnt_sparse(BITBOARD b) {
 flip bitboard along a1h8.
 Used to rotate pawn bitboards.
 */
-FORCEINLINE BITBOARD Rotate(BITBOARD b) {
-    BITBOARD t;
-    const BITBOARD k1 = UINT64(0x5500550055005500);
-    const BITBOARD k2 = UINT64(0x3333000033330000);
-    const BITBOARD k4 = UINT64(0x0f0f0f0f00000000);
+FORCEINLINE uint64_t Rotate(uint64_t b) {
+    uint64_t t;
+    const uint64_t k1 = UINT64(0x5500550055005500);
+    const uint64_t k2 = UINT64(0x3333000033330000);
+    const uint64_t k4 = UINT64(0x0f0f0f0f00000000);
     t  = k4 & (b ^ (b << 28));
     b ^=       t ^ (t >> 28) ;
     t  = k2 & (b ^ (b << 14));
@@ -1367,28 +1366,28 @@ FORCEINLINE BITBOARD Rotate(BITBOARD b) {
 /*
 Some bitboards
 */
-extern const BITBOARD rank_mask[8];
-extern const BITBOARD file_mask[8];
-extern const BITBOARD __unit_bb[0x80];
-extern const UBMP8 first_bit[0x100];
-extern const UBMP8 last_bit[0x100];
-extern const UBMP8 center_bit[0x100];
-extern const UBMP8* const _sqatt_pieces;
-extern const BMP8* const _sqatt_step;
-extern BITBOARD in_between[64][64];
+extern const uint64_t rank_mask[8];
+extern const uint64_t file_mask[8];
+extern const uint64_t __unit_bb[0x80];
+extern const uint8_t first_bit[0x100];
+extern const uint8_t last_bit[0x100];
+extern const uint8_t center_bit[0x100];
+extern const uint8_t* const _sqatt_pieces;
+extern const int8_t* const _sqatt_step;
+extern uint64_t in_between[64][64];
 /*
 Pradu's magic tables
 */
-extern const BITBOARD knight_magics[64];
-extern const BITBOARD king_magics[64];
-extern const BITBOARD magicmoves_r_magics[64];
-extern const BITBOARD magicmoves_r_mask[64];
-extern const BITBOARD magicmoves_b_magics[64];
-extern const BITBOARD magicmoves_b_mask[64];
+extern const uint64_t knight_magics[64];
+extern const uint64_t king_magics[64];
+extern const uint64_t magicmoves_r_magics[64];
+extern const uint64_t magicmoves_r_mask[64];
+extern const uint64_t magicmoves_b_magics[64];
+extern const uint64_t magicmoves_b_mask[64];
 extern const unsigned int magicmoves_b_shift[64];
 extern const unsigned int magicmoves_r_shift[64];
-extern const BITBOARD* magicmoves_b_indices[64];
-extern const BITBOARD* magicmoves_r_indices[64];
+extern const uint64_t* magicmoves_b_indices[64];
+extern const uint64_t* magicmoves_r_indices[64];
 
 #define BB(sq)                  (__unit_bb[sq])
 #define NBB(sq)                 (__unit_bb[sq + 8])

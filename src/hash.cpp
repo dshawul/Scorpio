@@ -1,8 +1,8 @@
 #include "scorpio.h"
 
-UBMP32 PROCESSOR::hash_tab_mask = (1 << 8) - 1;
-UBMP32 PROCESSOR::eval_hash_tab_mask = (1 << 8) - 1;
-UBMP32 PROCESSOR::pawn_hash_tab_mask = (1 << 8) - 1;
+uint32_t PROCESSOR::hash_tab_mask = (1 << 8) - 1;
+uint32_t PROCESSOR::eval_hash_tab_mask = (1 << 8) - 1;
+uint32_t PROCESSOR::pawn_hash_tab_mask = (1 << 8) - 1;
 int PROCESSOR::age;
 
 /*
@@ -10,7 +10,7 @@ Allocate tables
     -Main hash table is shared.
     -The rest is allocated for each thread.
 */
-void PROCESSOR::reset_hash_tab(int id,UBMP32 size) {
+void PROCESSOR::reset_hash_tab(int id,uint32_t size) {
 #if NUMA_TT_TYPE == 0
     if(id != 0) return;
 #endif
@@ -22,14 +22,14 @@ void PROCESSOR::reset_hash_tab(int id,UBMP32 size) {
     aligned_reserve<HASH>(hash_tab[black],size);
 }
 
-void PROCESSOR::reset_pawn_hash_tab(UBMP32 size) {
+void PROCESSOR::reset_pawn_hash_tab(uint32_t size) {
     if(size) pawn_hash_tab_mask = size - 1;
     else size = pawn_hash_tab_mask + 1;
     aligned_free<PAWNHASH>(pawn_hash_tab);
     aligned_reserve<PAWNHASH>(pawn_hash_tab,size);
 }
 
-void PROCESSOR::reset_eval_hash_tab(UBMP32 size) {
+void PROCESSOR::reset_eval_hash_tab(uint32_t size) {
     if(size) eval_hash_tab_mask = size - 1;
     else size = eval_hash_tab_mask + 1;
     aligned_free<EVALHASH>(eval_hash_tab[white]);
@@ -65,16 +65,16 @@ void PROCESSOR::delete_hash_tables() {
 #if NUMA_TT_TYPE == 0
 #define TT_KEY \
     static const PPROCESSOR proc = processors[0];\
-    UBMP32 key = UBMP32(hash_key & PROCESSOR::hash_tab_mask);
+    uint32_t key = uint32_t(hash_key & PROCESSOR::hash_tab_mask);
 #elif NUMA_TT_TYPE == 1
 #define TT_KEY \
     int proc_id = ((hash_key >> 48) * PROCESSOR::n_processors) >> 16;\
     PPROCESSOR proc = processors[proc_id];\
-    UBMP32 key = UBMP32(hash_key & PROCESSOR::hash_tab_mask);
+    uint32_t key = uint32_t(hash_key & PROCESSOR::hash_tab_mask);
 #else
 #define TT_KEY \
     PPROCESSOR proc = processors[processor_id];\
-    UBMP32 key = UBMP32(hash_key & PROCESSOR::hash_tab_mask);
+    uint32_t key = uint32_t(hash_key & PROCESSOR::hash_tab_mask);
 #endif
 /*
 Main hash table
@@ -120,10 +120,10 @@ void SEARCHER::record_hash(
         }
     }
     if(flags == HASH_HIT) flags = CRAP;
-    slot.move = UBMP32(move);
-    slot.score = BMP16(score);
-    slot.depth = UBMP8(depth);
-    slot.flags = UBMP8((flags - EXACT) | (mate_threat << 2) | (singular << 3) | (PROCESSOR::age << 4));
+    slot.move  = MOVE(move);
+    slot.score = int16_t(score);
+    slot.depth = uint8_t(depth);
+    slot.flags = uint8_t((flags - EXACT) | (mate_threat << 2) | (singular << 3) | (PROCESSOR::age << 4));
     slot.hash_key = (hash_key ^ slot.data_key);
     *pr_slot = slot;
 }
@@ -199,7 +199,7 @@ Pawn hash tables
 */
 void SEARCHER::record_pawn_hash(const HASHKEY& hash_key,const SCORE& score,const PAWNREC& pawnrec) {
     PPROCESSOR proc = processors[processor_id];
-    UBMP32 key = UBMP32(hash_key & PROCESSOR::pawn_hash_tab_mask);
+    uint32_t key = uint32_t(hash_key & PROCESSOR::pawn_hash_tab_mask);
     PPAWNHASH pawn_hash = proc->pawn_hash_tab + key; 
     
     pawn_hash->hash_key = hash_key;
@@ -208,7 +208,7 @@ void SEARCHER::record_pawn_hash(const HASHKEY& hash_key,const SCORE& score,const
 }
 int SEARCHER::probe_pawn_hash(const HASHKEY& hash_key,SCORE& score,PAWNREC& pawnrec) {
     PPROCESSOR proc = processors[processor_id];
-    UBMP32 key = UBMP32(hash_key & PROCESSOR::pawn_hash_tab_mask);
+    uint32_t key = uint32_t(hash_key & PROCESSOR::pawn_hash_tab_mask);
     PPAWNHASH pawn_hash = proc->pawn_hash_tab + key; 
     
     if(pawn_hash->hash_key == hash_key) {
@@ -223,18 +223,18 @@ Eval hash tables
 */
 void SEARCHER::record_eval_hash(const HASHKEY& hash_key,int score) {
     PPROCESSOR proc = processors[processor_id];
-    UBMP32 key = UBMP32(hash_key & PROCESSOR::eval_hash_tab_mask);
+    uint32_t key = uint32_t(hash_key & PROCESSOR::eval_hash_tab_mask);
     PEVALHASH pslot = proc->eval_hash_tab[player] + key; 
 
-    pslot->check_sum = (UBMP32)(hash_key >> 32);
-    pslot->score = (BMP16)score;
+    pslot->check_sum = (uint32_t)(hash_key >> 32);
+    pslot->score = (int16_t)score;
 }
 int SEARCHER::probe_eval_hash(const HASHKEY& hash_key,int& score) {
     PPROCESSOR proc = processors[processor_id];
-    UBMP32 key = UBMP32(hash_key & PROCESSOR::eval_hash_tab_mask);
+    uint32_t key = uint32_t(hash_key & PROCESSOR::eval_hash_tab_mask);
     PEVALHASH pslot = proc->eval_hash_tab[player] + key; 
 
-    if(pslot->check_sum == (UBMP32)(hash_key >> 32)) {
+    if(pslot->check_sum == (uint32_t)(hash_key >> 32)) {
         score = pslot->score;
         return 1;
     }
@@ -252,10 +252,10 @@ void SEARCHER::prefetch_tt() {
 void SEARCHER::prefetch_qtt() {
 #ifdef HAS_PREFETCH
     PPROCESSOR proc = processors[processor_id];
-    UBMP32 key;
-    key = UBMP32(pawn_hash_key & PROCESSOR::pawn_hash_tab_mask);
+    uint32_t key;
+    key = uint32_t(pawn_hash_key & PROCESSOR::pawn_hash_tab_mask);
     PREFETCH_T0(proc->pawn_hash_tab + key);
-    key = UBMP32(hash_key & PROCESSOR::eval_hash_tab_mask);
+    key = uint32_t(hash_key & PROCESSOR::eval_hash_tab_mask);
     PREFETCH_T0(proc->eval_hash_tab + key); 
 #endif
 }

@@ -2167,7 +2167,7 @@ void SEARCHER::self_play_thread() {
             /*katago's playout cap randomization*/
             if(playout_cap_rand && chess_clock.max_visits >= 800) {
                 if(hply & 1);
-                else if(rand() > frac_full_playouts * RAND_MAX)
+                else if(rand() > frac_full_playouts * float(RAND_MAX))
                     limit = vlimit;
                 else
                     limit = 0;
@@ -2409,8 +2409,8 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
     } else if(!strcmp(command, "select_formula")) {
         select_formula = atoi(commands[command_num++]);
     } else if(!strcmp(command, "treeht")) {
-        UBMP32 ht = atoi(commands[command_num++]);
-        UBMP32 size = ht * (double(1024 * 1024) / node_size);
+        uint32_t ht = atoi(commands[command_num++]);
+        uint32_t size = ht * (double(1024 * 1024) / node_size);
         double size_mb = (size / double(1024 * 1024)) * node_size;
         print("treeht %d X %d = %.1f MB\n",size, node_size,size_mb);
         Node::max_tree_nodes = unsigned((size_mb / node_size) * 1024 * 1024);

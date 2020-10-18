@@ -3,16 +3,16 @@
 /*
 masks
 */
-static const UBMP8  mask[8] = {
+static const uint8_t  mask[8] = {
     1,  2,  4,  8, 16, 32, 64,128
 };
-static const UBMP8  up_mask[8] = {
+static const uint8_t  up_mask[8] = {
     254,252,248,240,224,192,128,  0
 };
-static const UBMP8  down_mask[8] = {
+static const uint8_t  down_mask[8] = {
     0,  1,  3,  7, 15, 31, 63,127
 };
-static const UBMP8  updown_mask[8] = {
+static const uint8_t  updown_mask[8] = {
     254, 253, 251, 247, 239, 223, 191, 127
 };
 /* parameter */
@@ -32,8 +32,8 @@ static const UBMP8  updown_mask[8] = {
 static int material = 0;
 #endif
 
-const BITBOARD lsquares = UINT64(0x55aa55aa55aa55aa);
-const BITBOARD dsquares = UINT64(0xaa55aa55aa55aa55);
+const uint64_t lsquares = UINT64(0x55aa55aa55aa55aa);
+const uint64_t dsquares = UINT64(0xaa55aa55aa55aa55);
 /*
 king safety
 */
@@ -185,11 +185,11 @@ int SEARCHER::eval(bool skip_nn_l) {
     /*
     pawns
     */
-    UBMP8 all_pawn_f;
-    BITBOARD _wps = Rotate(pawns_bb[white]);
-    BITBOARD _bps = Rotate(pawns_bb[black]);
-    UBMP8* wf_pawns = (UBMP8*) (&_wps);
-    UBMP8* bf_pawns = (UBMP8*) (&_bps);
+    uint8_t all_pawn_f;
+    uint64_t _wps = Rotate(pawns_bb[white]);
+    uint64_t _bps = Rotate(pawns_bb[black]);
+    uint8_t* wf_pawns = (uint8_t*) (&_wps);
+    uint8_t* bf_pawns = (uint8_t*) (&_bps);
     int eval_w_attack = (man_c[wqueen] && piece_c[white] > 9);
     int eval_b_attack = (man_c[bqueen] && piece_c[black] > 9);
 
@@ -218,16 +218,16 @@ int SEARCHER::eval(bool skip_nn_l) {
     int b_attackers = 0;
     int f,r,sq,c_sq,mob,opost;
     PLIST current;
-    BITBOARD bb;
-    BITBOARD noccupancyw = ~(pieces_bb[white] | pawns_bb[white]);
-    BITBOARD noccupancyb = ~(pieces_bb[black] | pawns_bb[black]);
-    BITBOARD occupancy = (~noccupancyw | ~noccupancyb);
-    BITBOARD wk_bb,bk_bb;
-    BITBOARD wkattacks_bb,bkattacks_bb;
-    BITBOARD wattacks_bb = UINT64(0),battacks_bb = UINT64(0);
-    BITBOARD wpattacks_bb = ((pawns_bb[white] & ~file_mask[FILEA]) << 7) |
+    uint64_t bb;
+    uint64_t noccupancyw = ~(pieces_bb[white] | pawns_bb[white]);
+    uint64_t noccupancyb = ~(pieces_bb[black] | pawns_bb[black]);
+    uint64_t occupancy = (~noccupancyw | ~noccupancyb);
+    uint64_t wk_bb,bk_bb;
+    uint64_t wkattacks_bb,bkattacks_bb;
+    uint64_t wattacks_bb = UINT64(0),battacks_bb = UINT64(0);
+    uint64_t wpattacks_bb = ((pawns_bb[white] & ~file_mask[FILEA]) << 7) |
                             ((pawns_bb[white] & ~file_mask[FILEH]) << 9);
-    BITBOARD bpattacks_bb = ((pawns_bb[black] & ~file_mask[FILEH]) >> 7) |
+    uint64_t bpattacks_bb = ((pawns_bb[black] & ~file_mask[FILEH]) >> 7) |
                             ((pawns_bb[black] & ~file_mask[FILEA]) >> 9);
 
     sq = w_ksq;
@@ -803,13 +803,13 @@ void SEARCHER::pre_calculate() {
 evaluate pawn cover
 */
 void SEARCHER::eval_pawn_cover(int eval_w_attack,int eval_b_attack,
-                         UBMP8* wf_pawns,UBMP8* bf_pawns
+                         uint8_t* wf_pawns,uint8_t* bf_pawns
                          ) {
     
     int defence,hopen,f,r;
     int w_ksq = plist[wking]->sq;
     int b_ksq = plist[bking]->sq;
-    UBMP8 all_pawn_f = pawnrec.w_pawn_f | pawnrec.b_pawn_f;
+    uint8_t all_pawn_f = pawnrec.w_pawn_f | pawnrec.b_pawn_f;
 
     pawnrec.w_ksq = w_ksq;
     pawnrec.b_ksq = b_ksq;
@@ -827,7 +827,7 @@ void SEARCHER::eval_pawn_cover(int eval_w_attack,int eval_b_attack,
         f = file(w_ksq);
         r = rank(w_ksq);
         
-        BITBOARD bb = (((pawns_bb[black] & ~file_mask[FILEH]) >> 7) |
+        uint64_t bb = (((pawns_bb[black] & ~file_mask[FILEH]) >> 7) |
                        ((pawns_bb[black] & ~file_mask[FILEA]) >> 9) ) &
                        king_attacks(SQ8864(w_ksq));
         pawnrec.b_attack = PAWN_ATTACK * popcnt_sparse(bb);
@@ -917,7 +917,7 @@ void SEARCHER::eval_pawn_cover(int eval_w_attack,int eval_b_attack,
         f = file(b_ksq);
         r = rank(b_ksq);
         
-        BITBOARD bb = (((pawns_bb[white] & ~file_mask[FILEA]) << 7) |
+        uint64_t bb = (((pawns_bb[white] & ~file_mask[FILEA]) << 7) |
                        ((pawns_bb[white] & ~file_mask[FILEH]) << 9) ) &
                        king_attacks(SQ8864(b_ksq));
         pawnrec.w_attack = PAWN_ATTACK * popcnt_sparse(bb);
@@ -1001,7 +1001,7 @@ pawn evaluation
 #define bp_attacks(sq) ((board[sq + LU] == bpawn) + (board[sq + RU] == bpawn))
 
 SCORE SEARCHER::eval_pawns(int eval_w_attack,int eval_b_attack,
-                         UBMP8* wf_pawns,UBMP8* bf_pawns) {
+                         uint8_t* wf_pawns,uint8_t* bf_pawns) {
     SCORE score;
     PLIST pawnl;
 
@@ -1201,27 +1201,27 @@ SCORE SEARCHER::eval_pawns(int eval_w_attack,int eval_b_attack,
 /*
 passed pawn evaluation
 */
-static BITBOARD northFill(BITBOARD b) {
+static uint64_t northFill(uint64_t b) {
    b |= (b <<  8);
    b |= (b << 16);
    b |= (b << 32);
    return b;
 }
-static BITBOARD southFill(BITBOARD b) {
+static uint64_t southFill(uint64_t b) {
    b |= (b >>  8);
    b |= (b >> 16);
    b |= (b >> 32);
    return b;
 }
-int SEARCHER::eval_passed_pawns(UBMP8* wf_pawns,UBMP8* bf_pawns,UBMP8& all_pawn_f,
-                const BITBOARD& wattacks_bb, const BITBOARD& battacks_bb) {
-    UBMP8 passed;
+int SEARCHER::eval_passed_pawns(uint8_t* wf_pawns,uint8_t* bf_pawns,uint8_t& all_pawn_f,
+                const uint64_t& wattacks_bb, const uint64_t& battacks_bb) {
+    uint8_t passed;
     int sq,f,r;
     int w_score,b_score,passed_score,rank_score, temp;
     int qdist,w_best_qdist = RANK8,b_best_qdist = RANK8;
     int w_ksq = plist[wking]->sq;
     int b_ksq = plist[bking]->sq;
-    BITBOARD passer_bb;
+    uint64_t passer_bb;
 
     w_score = 0;
     b_score = 0;

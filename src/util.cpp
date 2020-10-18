@@ -203,7 +203,7 @@ void print_move_full(const MOVE& move) {
     print("%s %s %c %c %c ep = %d cst=%d",f,t,piece_name[m_piece(move)],
         piece_name[m_capture(move)],piece_name[m_promote(move)],is_ep(move),is_castle(move));
 }
-void print_bitboard(BITBOARD b){
+void print_bitboard(uint64_t b){
     char hh[256];
     strcpy(hh,""); 
     for(int i=7;i>=0;i--) {
@@ -459,7 +459,7 @@ void SEARCHER::print_pv(int score) {
 
     /*print what we have*/
     unsigned tm = (get_time() - start_time);
-    UBMP64 nds = (montecarlo && root_node) ? root_node->visits : nodes;
+    uint64_t nds = (montecarlo && root_node) ? root_node->visits : nodes;
     unsigned nps = 1000 * ((double)nds / tm);
 
     if(PROTOCOL == UCI) {
@@ -605,7 +605,7 @@ int SEARCHER::print_result(bool output) {
 /*
 perft : search simulator for debuging purpose
 */
-UBMP64 SEARCHER::perft(int depth) {
+uint64_t SEARCHER::perft(int depth) {
     int stop_ply = ply;
     nodes = 0;
     pstack->depth = depth;
@@ -1294,7 +1294,7 @@ void SEARCHER::check_quit() {
     poll nodes
     */
     if(time_used) {
-        poll_nodes = int(BMP64(nodes) / (time_used / 100.0f));
+        poll_nodes = int(int64_t(nodes) / (time_used / 100.0f));
 #ifdef PARALLEL
         poll_nodes /= PROCESSOR::n_processors;
 #endif
@@ -1357,10 +1357,10 @@ BOOK
 #ifdef BOOK_PROBE
 typedef struct BOOK_E {
     HASHKEY hash_key;
-    UBMP16 wins;
-    UBMP16 losses;
-    UBMP16 draws;
-    UBMP16 learn;
+    uint16_t wins;
+    uint16_t losses;
+    uint16_t draws;
+    uint16_t learn;
     BOOK_E() {
         wins = 0;
         losses = 0;
@@ -1383,11 +1383,11 @@ static int b_positions;
 /*
 Assume little endian byte order
 */
-static UBMP64 read_bytes(int count,FILE* f) {
-    UBMP64 x = 0;
-    UBMP8* c = (UBMP8*) &x;
+static uint64_t read_bytes(int count,FILE* f) {
+    uint64_t x = 0;
+    uint8_t* c = (uint8_t*) &x;
     for(int i = 0; i < count; i++) {
-        c[i] = ((UBMP8) fgetc(f));
+        c[i] = ((uint8_t) fgetc(f));
     }
     return x;
 }
@@ -1396,11 +1396,11 @@ static void read_entry(PBOOK_E pbook_e,int middle,FILE* f = book_file) {
 
     fseek(f,8 + middle * 16,SEEK_SET);
 
-    pbook_e->hash_key = (UBMP64) read_bytes(8,f);
-    pbook_e->wins = (UBMP16) read_bytes(2,f);
-    pbook_e->losses = (UBMP16) read_bytes(2,f);
-    pbook_e->draws = (UBMP16) read_bytes(2,f);
-    pbook_e->learn = (UBMP16) read_bytes(2,f);
+    pbook_e->hash_key = (uint64_t) read_bytes(8,f);
+    pbook_e->wins = (uint16_t) read_bytes(2,f);
+    pbook_e->losses = (uint16_t) read_bytes(2,f);
+    pbook_e->draws = (uint16_t) read_bytes(2,f);
+    pbook_e->learn = (uint16_t) read_bytes(2,f);
 }
 
 void load_book() {
@@ -1934,7 +1934,7 @@ bool SEARCHER::build_book(char* path,char* book,int BOOK_SIZE,int BOOK_DEPTH,int
     char   *commands[MAX_STR],*command,*c;
     int    i,result = 0,command_num;
     int    comment = 0,line = 0,game = 0;
-    UBMP16 weight;
+    uint16_t weight;
     MOVE   move;
     char   fen[MAX_FEN_STR];
     char* pc;
@@ -2089,11 +2089,11 @@ void merge_books(char* path1,char* path2,char* path,double w1 = 1.0,double w2 = 
         while(true) {
             if(index[0] < end[0] && (result <= 0 || index[1] == end[1])) { 
                 read_entry(&entry[0],index[0]++, f1);
-                entry[0].learn = UBMP16(entry[0].learn * w1);
+                entry[0].learn = uint16_t(entry[0].learn * w1);
             }
             if(index[1] < end[1] && (result >= 0 || index[0] == end[0])) {
                 read_entry(&entry[1],index[1]++, f2);
-                entry[1].learn = UBMP16(entry[1].learn * w2);
+                entry[1].learn = uint16_t(entry[1].learn * w2);
             }
             result = compare(&entry[0],&entry[1]);
 
@@ -2101,7 +2101,7 @@ void merge_books(char* path1,char* path2,char* path,double w1 = 1.0,double w2 = 
                 entry[0].wins += entry[1].wins;
                 entry[0].losses += entry[1].losses;
                 entry[0].draws += entry[1].draws;
-                entry[0].learn = UBMP16(entry[0].learn * w1 + entry[1].learn * w2);
+                entry[0].learn = uint16_t(entry[0].learn * w1 + entry[1].learn * w2);
                 fwrite(&entry[0],sizeof(BOOK_E),1,f); c[i]++;
             } else {
                 if((result < 0 || index[1] == end[1]) && entry[0].hash_key) {
