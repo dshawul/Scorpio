@@ -107,7 +107,7 @@ DEL %CWD%%FILENAME%
 REM --------- download networks
 SET NETS=
 IF %ISCNET% NEQ 0 (
-   SET NETS=nets-scorpio.zip
+   SET NETS=nets-scorpio.zip nets-nnue.zip
 )
 IF %GPUS% NEQ 0 (
     IF %ILCNET% NEQ 0 (

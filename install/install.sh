@@ -108,7 +108,7 @@ unzip -o ${EGBB}.zip
 # networks
 NET=
 if [ $ISCNET -eq 1 ]; then
-    NET="nets-scorpio"
+    NET="nets-scorpio nets-nnue"
 fi
 if [ $DEV = "gpu" ] && [ $ILCNET -eq 1 ]; then
     NET="${NET} nets-lczero nets-maddex"
