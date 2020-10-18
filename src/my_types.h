@@ -126,45 +126,29 @@ cache line memory alignment (64 bytes)
 */
 #include <cstdlib>
 #define CACHE_LINE_SIZE  64
-
-#if defined (__GNUC__)
-#   define CACHE_ALIGN  __attribute__ ((aligned(CACHE_LINE_SIZE)))
-#else
-#   define CACHE_ALIGN __declspec(align(CACHE_LINE_SIZE))
-#endif
-
-template<typename T>
-void aligned_reserve(T*& mem,const size_t& size) {
-#ifndef __ANDROID__
-    if((sizeof(T) & (sizeof(T) - 1)) == 0) {
-#ifdef _WIN32
-        if(mem) _aligned_free(mem);
-        mem = (T*)_aligned_malloc(size * sizeof(T),CACHE_LINE_SIZE);
-#else
-        if(mem) free(mem);
-        posix_memalign((void**)&mem,CACHE_LINE_SIZE,size * sizeof(T));
-#endif
-    } else 
-#endif
-    {
-        if(mem) free(mem);
-        mem = (T*) malloc(size * sizeof(T));
-    }
-}
+#define CACHE_ALIGN alignas(CACHE_LINE_SIZE)
 
 template<typename T>
 void aligned_free(T*& mem) {
-    if((sizeof(T) & (sizeof(T) - 1)) == 0) {
 #ifdef _WIN32
-        if(mem) _aligned_free(mem);
+    if(mem) _aligned_free(mem);
 #else
-        if(mem) free(mem);
+    if(mem) free(mem);
 #endif
-    } else {
-        if(mem) free(mem);
-    }
     mem = 0;
 }
+
+template<typename T>
+void aligned_reserve(T*& mem,const size_t& size) {
+#ifdef __ANDROID__
+    mem = (T*) memalign(CACHE_LINE_SIZE,size * sizeof(T));
+#elif defined(_WIN32)
+    mem = (T*)_aligned_malloc(size * sizeof(T),CACHE_LINE_SIZE);
+#else
+    posix_memalign((void**)&mem,CACHE_LINE_SIZE,size * sizeof(T));
+#endif
+}
+
 /*
 Prefetch
 */

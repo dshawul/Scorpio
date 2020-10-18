@@ -32,7 +32,7 @@ DEFINES =
 DEFINES += -DPARALLEL
 DEFINES += -DARC_64BIT
 DEFINES += -DHAS_POPCNT
-ifneq ($(COMP),android)
+ifneq ($(COMP),arm)
     DEFINES += -DHAS_PREFETCH
     DEFINES += -DUSE_SPINLOCK
 endif
@@ -75,7 +75,7 @@ else ifeq ($(COMP),clang)
 	CXX=clang++
 else ifeq ($(COMP),icpc)
 	CXX=icpc
-else ifeq ($(COMP),android)
+else ifeq ($(COMP),arm)
 	CXX=arm-linux-androideabi-g++
 	STRIP=arm-linux-androideabi-strip
 else ifeq ($(COMP),win)
@@ -89,7 +89,7 @@ STRIP += $(EXE)
 #  Compiler flags
 ###########################
 
-ifeq ($(COMP),android)
+ifeq ($(COMP),arm)
     LXXFLAGS = -lm
 else
     LXXFLAGS = -lpthread -lm
@@ -103,21 +103,21 @@ endif
 
 ifeq ($(COMP),win)
     LXXFLAGS += -static
-    CXXFLAGS = -Wall -fstrict-aliasing -fno-exceptions -fno-rtti $(UNUSED) -std=c++17
+    CXXFLAGS = -Wall -fstrict-aliasing -fno-exceptions -fno-rtti $(UNUSED) -std=c++11
 else ifeq ($(COMP),pgcc)
     CXXFLAGS = warn -Mvect=sse -c11
     LXXFLAGS += -ldl
 else ifeq ($(COMP),icpc)
     CXXFLAGS  = -wd128 -wd981 -wd869 -wd2259 -wd383 -wd1418
-    CXXFLAGS += -fstrict-aliasing -fno-exceptions -fno-rtti $(UNUSED) -std=c++17
+    CXXFLAGS += -fstrict-aliasing -fno-exceptions -fno-rtti $(UNUSED) -std=c++11
     LXXFLAGS += -ldl
 else
-    CXXFLAGS = -Wall -fstrict-aliasing -fno-exceptions -fno-rtti $(UNUSED) -std=c++17
+    CXXFLAGS = -Wall -fstrict-aliasing -fno-exceptions -fno-rtti $(UNUSED) -std=c++11
     LXXFLAGS += -ldl
 endif
 
 ifeq ($(COMP),pgcc)
-else ifeq ($(COMP),android)
+else ifeq ($(COMP),arm)
      CXXFLAGS += -fPIE -pie
      LXXFLAGS += -fPIE -pie
 else
@@ -190,7 +190,7 @@ help:
 	@echo "  c ="
 	@echo "	gcc    :  g++ compiler"
 	@echo "	icpc   :  intel compiler"
-	@echo "	android:  arm android compiler"
+	@echo "	arm    :  arm android compiler"
 	@echo "	cluster:  mpiC++ compiler"
 	@echo ""
 	@echo "2. make clean - removes all files but source code"

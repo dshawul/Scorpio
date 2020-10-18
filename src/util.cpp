@@ -914,6 +914,9 @@ SEARCHER::SEARCHER() : board(&temp_board[36])
 #endif
     root_node = 0;
     root_key = 0;
+#ifdef NNUE_INC
+    aligned_reserve<NNUEdata>(nnue,MAX_HSTACK);
+#endif
 }
 /*
 SEARCHER copier

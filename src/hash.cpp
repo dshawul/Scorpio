@@ -16,6 +16,8 @@ void PROCESSOR::reset_hash_tab(int id,UBMP32 size) {
 #endif
     if(size) hash_tab_mask = size - 1;
     else size = hash_tab_mask + 1;
+    aligned_free<HASH>(hash_tab[white]);
+    aligned_free<HASH>(hash_tab[black]);
     aligned_reserve<HASH>(hash_tab[white],size);
     aligned_reserve<HASH>(hash_tab[black],size);
 }
@@ -23,12 +25,15 @@ void PROCESSOR::reset_hash_tab(int id,UBMP32 size) {
 void PROCESSOR::reset_pawn_hash_tab(UBMP32 size) {
     if(size) pawn_hash_tab_mask = size - 1;
     else size = pawn_hash_tab_mask + 1;
+    aligned_free<PAWNHASH>(pawn_hash_tab);
     aligned_reserve<PAWNHASH>(pawn_hash_tab,size);
 }
 
 void PROCESSOR::reset_eval_hash_tab(UBMP32 size) {
     if(size) eval_hash_tab_mask = size - 1;
     else size = eval_hash_tab_mask + 1;
+    aligned_free<EVALHASH>(eval_hash_tab[white]);
+    aligned_free<EVALHASH>(eval_hash_tab[black]);
     aligned_reserve<EVALHASH>(eval_hash_tab[white],size);
     aligned_reserve<EVALHASH>(eval_hash_tab[black],size);
 }

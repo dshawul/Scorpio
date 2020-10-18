@@ -704,7 +704,7 @@ typedef struct SEARCHER{
     PLIST plist[15];
     HIST_STACK hstack[MAX_HSTACK];
 #ifdef NNUE_INC
-    CACHE_ALIGN NNUEdata nnue[MAX_HSTACK];
+    NNUEdata* nnue;
 #endif
     STACK stack[MAX_PLY];
     float prev_kld;
@@ -882,8 +882,8 @@ typedef struct SEARCHER{
     static unsigned int average_pps;
     static CHESS_CLOCK chess_clock;
     static UBMP64 root_score_st[MAX_MOVES];
-    static CACHE_ALIGN int history[14][64];
-    static CACHE_ALIGN MOVE refutation[14][64];
+    static int history[14][64];
+    static MOVE refutation[14][64];
     /*
     Bitbases and neural network
     */
