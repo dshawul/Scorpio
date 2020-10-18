@@ -1,6 +1,6 @@
 #include "scorpio.h"
 
-static const uint8_t t_sqatt_pieces[] = {
+CACHE_ALIGN static const uint8_t t_sqatt_pieces[] = {
   0,  0,  0,  0,  0,  0,  0,  0,  0, 10,  0,  0,  0,  0,  0,  0,
   6,  0,  0,  0,  0,  0,  0, 10,  0,  0, 10,  0,  0,  0,  0,  0,
   6,  0,  0,  0,  0,  0, 10,  0,  0,  0,  0, 10,  0,  0,  0,  0,
@@ -19,7 +19,7 @@ static const uint8_t t_sqatt_pieces[] = {
   6,  0,  0,  0,  0,  0,  0, 10,  0,  0,  0,  0,  0,  0,  0,  0
 };
 
-static const int8_t t_sqatt_step[] = {
+CACHE_ALIGN static const int8_t t_sqatt_step[] = {
   0,  0,  0,  0,  0,  0,  0,  0,  0,-17,  0,  0,  0,  0,  0,  0,
 -16,  0,  0,  0,  0,  0,  0,-15,  0,  0,-17,  0,  0,  0,  0,  0,
 -16,  0,  0,  0,  0,  0,-15,  0,  0,  0,  0,-17,  0,  0,  0,  0,

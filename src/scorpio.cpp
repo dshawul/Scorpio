@@ -22,7 +22,7 @@ const int piece_mask[14] = {
     0,KM,QM,RM,BM,NM,WPM,KM,QM,RM,BM,NM,BPM,0
 };
 
-int pcsq[14][0x80];
+CACHE_ALIGN int pcsq[14][0x80];
 bool book_loaded = false;
 bool log_on = false;
 int scorpio_start_time;

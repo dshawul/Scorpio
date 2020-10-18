@@ -531,7 +531,7 @@ Move policy format
 
 /* 1. AlphaZero format: 56=queen moves, 8=knight moves, 9 pawn under-promotions 
   to Rook, bishop and knight */
-static const uint8_t t_move_map[] = {
+CACHE_ALIGN static const uint8_t t_move_map[] = {
   0,  0,  0,  0,  0,  0,  0,  0,
   0,  5,  0,  0,  0,  0,  0,  0,  3,  0,  0,  0,  0,  0,  0,  7,
   0,  0,  5,  0,  0,  0,  0,  0,  3,  0,  0,  0,  0,  0,  7,  0,
@@ -555,7 +555,7 @@ static const uint8_t* const move_map = t_move_map + 0x80;
 /* 2. LcZero format: flat move representation */
 static const int MOVE_TAB_SIZE = 64*64+8*3*3;
 
-static unsigned short move_index_table[MOVE_TAB_SIZE];
+CACHE_ALIGN static unsigned short move_index_table[MOVE_TAB_SIZE];
 
 void init_index_table() {
 

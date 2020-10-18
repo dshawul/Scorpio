@@ -2133,7 +2133,7 @@ void merge_books(char* path1,char* path2,char* path,double w1 = 1.0,double w2 = 
 /*
 pseudo random numbers generated using rand();
 */
-const HASHKEY piece_hkey[14][64] = {
+CACHE_ALIGN const HASHKEY piece_hkey[14][64] = {
         //blank
     {
         UINT64(0x888450823e5c9d6d),   UINT64(0x857ba5ef038c054c),   UINT64(0x45ea2d0f2cb9015f),   UINT64(0xdc97eb7e2fef8e21),   UINT64(0xa1f239a0b898b793),   UINT64(0x129b3fe9d3fcd504),   UINT64(0xfc3b0f3bf7620267),   UINT64(0x7b77b6b2dba2b499),   
@@ -2289,7 +2289,7 @@ const HASHKEY piece_hkey[14][64] = {
         UINT64(0xb45d94ca2c2c970b),   UINT64(0x2c7adb3be0d192bf),   UINT64(0x99421beb43d04ad6),   UINT64(0x38d1dfb5dbed1de9),   UINT64(0xac61e70587e5af42),   UINT64(0xd02918ac07afd0c8),   UINT64(0xc7b49a3d13fdac72),   UINT64(0xc44a110f78731d4f)
     }
 };
-const HASHKEY ep_hkey[8] = {
+CACHE_ALIGN const HASHKEY ep_hkey[8] = {
     UINT64(0x691ff0fe173166d1),
         UINT64(0x0c9ffc9f7517308d),
         UINT64(0xf1dadc21e7caab3c),
@@ -2299,7 +2299,7 @@ const HASHKEY ep_hkey[8] = {
         UINT64(0x02bb21afa638b262),
         UINT64(0x328272d766106861)
 };
-const HASHKEY cast_hkey[16] = {
+CACHE_ALIGN const HASHKEY cast_hkey[16] = {
     UINT64(0x1acfc1c33a776c55),
         UINT64(0xd81d91c2b209cac0),
         UINT64(0xd60350521b17095a),
@@ -2318,7 +2318,7 @@ const HASHKEY cast_hkey[16] = {
         UINT64(0x3036c8524b6c27c2)
 };
 
-const HASHKEY fifty_hkey[100] = {
+CACHE_ALIGN const HASHKEY fifty_hkey[100] = {
     UINT64(0x60015f27ba684567),
     UINT64(0x0b70634f536c5cff),
     UINT64(0xd8731843d6ced8ba),

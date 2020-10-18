@@ -1275,7 +1275,7 @@ Private bitscan routine (64bit deBruijin) generated using Gerd Isenberg's code.
 NB: Table contains squares in 0x88 format.
 */
 const uint64_t magic = 0x021c9a5edd467e2b; /* The 01111981 => This Number is Copyrighted by BIRTH :) */
-const unsigned int table[64] =  {
+CACHE_ALIGN const unsigned int table[64] =  {
     0,  1,  2,  7,  3,103, 82, 16,
     4, 22,112, 39, 83, 33, 17, 87,
     5, 80, 37, 23, 70,113,115, 48,
@@ -1313,7 +1313,7 @@ FORCEINLINE int popcnt(uint64_t b) {
     return (int) (((hi + lo) * kf) >> 24);
 }
 /*Matt taylor's bitscan , optimized for 32 bit systems*/
-const unsigned int table[64] = {
+CACHE_ALIGN const unsigned int table[64] = {
     119, 54,  3, 64,115, 22, 19, 65,
     116, 48, 98, 17,103, 35, 37, 66,
     117, 53,  2,101, 99, 39, 81, 34,
