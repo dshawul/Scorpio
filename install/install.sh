@@ -14,10 +14,25 @@ display_help() {
     echo "  --no-egbb          Do not install 5-men egbb."
     echo "  --no-lcnets        Do not install lczero nets."
     echo "  --no-scnets        Do not download scorpio nets."
+    echo "  --only-trt         Install only TensorRT and rely on system cuda and cudnn."
+    echo "                     72 needs cuda-11 and cudnn-8"
+    echo "                     60 needs cuda-10 and cudnn-7"
     echo
     echo "Example: ./install.sh -p INT8 -t 80"
     echo
 }
+
+# Scorpio version number
+VERSION=3.0
+VR=`echo $VERSION | tr -d '.'`
+
+# Autodetect operating system
+OS=windows
+if [[ "$OSTYPE" == "linux-gnu" ]]; then
+  OS=ubuntu
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+  OS=macosx
+fi
 
 # number of cores and gpus
 CPUS=`grep -c ^processor /proc/cpuinfo`
@@ -40,6 +55,7 @@ if [ $DEV = "gpu" ]; then
 else
   FACTOR=1
 fi
+TRT=
 
 while ! [ -z "$1" ]; do
     case $1 in
@@ -69,29 +85,16 @@ while ! [ -z "$1" ]; do
         --no-scnets )
             ISCNET=0
             ;;
+        --only-trt )
+            shift
+            TRT="-trt-$1"
+            ;;
         -h | --help)
             display_help
             exit 0
     esac
     shift
 done
-
-# Autodetect operating system
-OSD=windows
-if [[ "$OSTYPE" == "linux-gnu" ]]; then
-  OSD=ubuntu
-elif [[ "$OSTYPE" == "darwin"* ]]; then
-  OSD=macosx
-fi
-
-# Select
-OS=${1:-$OSD}      # OS is either ubuntu/centos/windows/android
-DEV=${2:-$DEV}     # Device is either gpu/cpu
-VERSION=3.0        # Version of scorpio
-
-# paths
-VR=`echo $VERSION | tr -d '.'`
-EGBB=nnprobe-${OS}-${DEV}
 
 # download
 SCORPIO=Scorpio-$(date '+%d-%b-%Y')
@@ -102,6 +105,7 @@ cd $SCORPIO
 
 # egbbdll & linnnprobe
 LNK=https://github.com/dshawul/Scorpio/releases/download
+EGBB=nnprobe-${OS}-${DEV}${TRT}
 wget --no-check-certificate ${LNK}/${VERSION}/${EGBB}.zip
 unzip -o ${EGBB}.zip
 

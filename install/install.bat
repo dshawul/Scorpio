@@ -1,4 +1,6 @@
 @ECHO off
+
+REM -------- Scorpio version number
 SET VERSION=3.0
 SET VR=30
 SET OSD=windows
@@ -23,6 +25,7 @@ SET FACTOR=2
 IF %GPUS% EQU 0 (
    SET FACTOR=1
 )
+SET TRT=
 
 :loop
 IF NOT "%1"=="" (
@@ -54,6 +57,9 @@ IF NOT "%1"=="" (
         SET ILCNET=0
     ) ELSE IF "%1"=="--no-scnets" (
         SET ISCNET=0
+    ) ELSE IF "%1"=="--only-trt" (
+        SET TRT="-trt-%2"
+        SHIFT
     ) ELSE IF "%1"=="--help" (
         :usage
         echo Usage: %0
@@ -66,6 +72,9 @@ IF NOT "%1"=="" (
         echo   --no-egbb          Do not install 5-men egbb.
         echo   --no-lcnets        Do not install lczero nets.
         echo   --no-scnets        Do not install scorpio nets.
+        echo   --only-trt         Install only TensorRT and rely on system cuda and cudnn.
+        echo                      72 needs cuda-11 and cudnn-8
+        echo                      60 needs cuda-10 and cudnn-7
         echo
         echo Example: install.bat -p INT8 - t 80
         exit /b
@@ -74,8 +83,8 @@ IF NOT "%1"=="" (
     GOTO :loop
 )
 
-SET EGBB=nnprobe-%OSD%-%DEV%
 SET LNK=http://github.com/dshawul/Scorpio/releases/download
+SET EGBB=nnprobe-%OSD%-%DEV%%TRT%
 
 REM --------- create directory
 SET SCORPIO=Scorpio
