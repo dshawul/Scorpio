@@ -1899,7 +1899,10 @@ void SEARCHER::epd_to_nn(char* fen, FILE* fb, int task) {
         }                                                       \
     } else if(task == 4) {                                      \
         PROCESSOR::clear_hash_tables();                         \
+        SEARCHER cp;                                            \
+        cp.COPY(this);                                          \
         find_best();                                            \
+        COPY(&cp);                                              \
         if(SEARCHER::pv_print_style == 0)                       \
             print("**********************\n");                  \
     }                                                           \
