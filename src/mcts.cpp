@@ -265,7 +265,6 @@ void Node::compute_Q(Node* n, float fpu, bool has_ab) {
             vst = current->visits;
 #ifdef PARALLEL
             vvst = virtual_loss * current->get_busy();
-            if(current->is_create()) vvst <<= 2;
             vst += vvst;
 #endif
             if(!current->visits) {
@@ -274,14 +273,15 @@ void Node::compute_Q(Node* n, float fpu, bool has_ab) {
                 uct = logistic(-current->score);
                 uct += (-uct * vvst) / (vst + 1);
             }
-
             if(has_ab) {
                 double uctp = logistic(-current->prior);
                 uct = 0.5 * ((1 - frac_abprior) * uct +
                             frac_abprior * uctp +
                             MIN(uct,uctp));
             }
-
+#ifdef PARALLEL
+            if(current->is_create()) uct *= 0.25;
+#endif
             current->Q = uct;
         }
 
@@ -556,8 +556,9 @@ Node* Node::Max_AB_select(Node* n, int alpha, int beta, bool try_null,
                 if(current->rank == 1) uct = MATE_SCORE;
             }
 #ifdef PARALLEL
-            /*Discourage selection of busy node*/
+            /*Discourage selection of busy and children-in-creation node*/
             uct -= virtual_loss * current->get_busy() * 10;
+            if(current->is_create()) uct *= 0.25;
 #endif
             /*pick best*/
             if(uct > bvalue) {
@@ -1691,6 +1692,8 @@ void SEARCHER::manage_tree(bool single) {
     } else {
         print_log("# [Tree-found : visits %d score %d]\n",
             root_node->visits,int(root_node->score));
+
+        playouts += root_node->visits;
 
         /*remove null moves from root*/
         Node* current = root_node->child, *prev;
