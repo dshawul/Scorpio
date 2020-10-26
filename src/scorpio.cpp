@@ -67,6 +67,7 @@ uint64_t SEARCHER::root_score_st[MAX_MOVES];
 CACHE_ALIGN int SEARCHER::history[14][64];
 CACHE_ALIGN MOVE SEARCHER::refutation[14][64];
 CHESS_CLOCK SEARCHER::chess_clock;
+unsigned int SEARCHER::playouts;
 int SEARCHER::search_depth;
 int SEARCHER::start_time;
 int SEARCHER::start_time_o;

@@ -1751,7 +1751,8 @@ MOVE SEARCHER::iterative_deepening() {
         /*search has ended. display some info*/
         int time_used = MAX(1,get_time() - start_time);
         int time_used_o = MAX(1,get_time() - start_time_o);
-        unsigned int pps = int(root_node->visits / (time_used / 1000.0f));
+        unsigned int pps = int(playouts / (time_used / 1000.0f));
+        unsigned int vps = int(root_node->visits / (time_used / 1000.0f));
         if(average_pps > 0 && pps >= 5 * average_pps);
         else average_pps = pps;
 
@@ -1771,8 +1772,8 @@ MOVE SEARCHER::iterative_deepening() {
                 int(int64_t(ecalls) / (time_used_o / 1000.0f)),
                 int(int64_t(nnecalls) / (time_used / 1000.0f)),
                 egbb_probes);
-            print_info("Tree: nodes %d depth %d pps %d visits %d qcalls %d scalls %d\n",
-                  Node::total_nodes,Node::max_tree_depth,pps,root_node->visits,qsearch_calls,search_calls);
+            print_info("Tree: nodes %d depth %d vps %d pps %d visits %d qcalls %d scalls %d\n",
+                  Node::total_nodes,Node::max_tree_depth,vps,pps,root_node->visits,qsearch_calls,search_calls);
         }
         
     } else {
@@ -1850,6 +1851,7 @@ MOVE SEARCHER::find_best() {
     nodes = 0;
     qnodes = 0;
     ecalls = 0;
+    playouts = 0;
     nnecalls = 0;
     splits = 0;
     bad_splits = 0;
@@ -1959,7 +1961,7 @@ void SEARCHER::print_status() {
                 mv_str);
         } else {
             mov_str(stack[0].pv[0],mv_str);
-            print("stat01: %d " FMT64 " %d %d %d %s\n",time_used / 10,root_node->visits,
+            print("stat01: %d " FMT64 " %d %d %d %s\n",time_used / 10,playouts,
                 stack[0].pv_length,
                 0,
                 1,

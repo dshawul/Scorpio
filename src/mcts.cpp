@@ -869,7 +869,7 @@ void SEARCHER::create_children(Node* n) {
     n->edges.n_children = nleaf;
 }
 
-void SEARCHER::handle_terminal(Node* n, bool is_terminal) {
+bool SEARCHER::handle_terminal(Node* n, bool is_terminal) {
     /*wait until collision limit is reached*/
     if(rollout_type == MCTS &&
         l_add(n_terminal,1) <= (PROCESSOR::n_processors >> 2) )
@@ -888,14 +888,16 @@ void SEARCHER::handle_terminal(Node* n, bool is_terminal) {
                 if(pstack->count > 0) {
                     probe_neural(true);
                     POP_MOVE();
-                    return;
+                    return true;
                 }
                 POP_MOVE();
             }
         }
         /*Do useless hard probe without caching*/
         probe_neural(true);
+        return true;
     }
+    return false;
 }
 
 void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
@@ -966,9 +968,9 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
                     create_children(n);
                 n->clear_create();
             } else {
-                if(use_nn)
-                    handle_terminal(n,false);
                 visits = 0;
+                if(use_nn && handle_terminal(n,false))
+                    visits = -1;
                 goto FINISH;
             }
 
@@ -1079,7 +1081,7 @@ RESEARCH:
                 goto FINISH;
 
             /*Research if necessary when window closes*/
-            if(visits
+            if(visits > 0
                 && rollout_type == ALPHABETA
                 && next->alpha >= next->beta
                 ) {
@@ -1116,7 +1118,7 @@ RESEARCH:
             /*Undo move*/
             POP_MOVE();
 
-            if(visits == 0)
+            if(visits <= 0)
                 goto FINISH;
         } else {
             /*Make nullmove*/
@@ -1142,7 +1144,7 @@ RESEARCH:
             POP_NULL();
 
             /*Nullmove cutoff*/
-            if(visits && next->alpha >= next->beta) {
+            if(visits > 0 && next->alpha >= next->beta) {
                 if(score >= pstack->beta)
                     n->set_bounds(score,score);
             }
@@ -1175,7 +1177,8 @@ BACKUP:
     }
 
 FINISH:
-    n->update_visits(visits);
+    if(visits > 0)
+        n->update_visits(visits);
     n->dec_busy();
 }
 
@@ -1366,6 +1369,8 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
 
         /*simulate*/
         play_simulation(root,score,visits);
+        if(visits)
+            l_add(SEARCHER::playouts,1);
 
         /*search stopped*/
         if(abort_search || stop_searcher)

@@ -459,7 +459,7 @@ void SEARCHER::print_pv(int score) {
 
     /*print what we have*/
     unsigned tm = (get_time() - start_time);
-    uint64_t nds = (montecarlo && root_node) ? root_node->visits : nodes;
+    uint64_t nds = (montecarlo && root_node) ? playouts : nodes;
     unsigned nps = 1000 * ((double)nds / tm);
 
     if(PROTOCOL == UCI) {

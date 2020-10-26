@@ -860,6 +860,7 @@ typedef struct SEARCHER{
     /*
     things that are shared among multiple searchers.
     */
+    static unsigned int playouts;
     static int search_depth;
     static int start_time;
     static int start_time_o;
@@ -893,7 +894,7 @@ typedef struct SEARCHER{
     float probe_neural_(bool,float*,int,int,int);
     int probe_neural(bool=false);
     int probe_nnue();
-    void handle_terminal(Node*,bool);
+    bool handle_terminal(Node*,bool);
     void self_play_thread();
     void self_play_thread_all(FILE*,FILE*,int);
     void worker_thread();
