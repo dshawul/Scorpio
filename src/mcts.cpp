@@ -966,11 +966,9 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
                     create_children(n);
                 n->clear_create();
             } else {
-                if(use_nn) {
+                if(use_nn)
                     handle_terminal(n,false);
-                    visits = 0;
-                } else
-                    score = n->score;
+                visits = 0;
                 goto FINISH;
             }
 
@@ -1766,9 +1764,28 @@ void SEARCHER::generate_and_score_moves(int alpha, int beta) {
 
     /*compute move probabilities*/
     if(pstack->count) {
+
+        /*value head only with uniform policy*/
+        if(evaluate_depth == -5) {
+            if(!use_nn) {
+                pstack->best_score = eval();
+            } else {
+                pstack->best_score = probe_neural();
+                n_terminal = 0;
+            }
+            const float uniform_pol = 1.0 / pstack->count;
+            for(int i = 0;i < pstack->count; i++) {
+                float* p = (float*)&pstack->score_st[i];
+                *p = uniform_pol;
+            }
+            return;
+        }
+
+        /*both value and policy heads*/
         const double my_policy_temp = policy_temp * (hply ? 1 : policy_temp_root_factor);
 
         if(!use_nn) {
+
             bool save = skip_nn;
             skip_nn = true;
             evaluate_moves(evaluate_depth,alpha,beta);
@@ -1776,50 +1793,33 @@ void SEARCHER::generate_and_score_moves(int alpha, int beta) {
 
             pstack->best_score = pstack->score_st[0];
 
-            if(montecarlo) {
+            if(!montecarlo) return;
 
-                /*flat policy*/
-                if(my_policy_temp >= 10.0) {
-                    for(int i = 0;i < pstack->count; i++) {
-                        float* p = (float*)&pstack->score_st[i];
-                        *p = 1.0 / pstack->count;
-                    }
-                    return;
-                }
-
-                /*normalize policy*/
-                static const float scale = 25.f;
-                double total = 0.f;
-                for(int i = 0;i < pstack->count; i++) {
-                    float* p = (float*)&pstack->score_st[i];
-                    float pp = logistic(pstack->score_st[i]) * scale;
-                    *p = exp(pp / my_policy_temp);
-                    total += *p;
-                }
-                for(int i = 0;i < pstack->count; i++) {
-                    float* p = (float*)&pstack->score_st[i];
-                    *p /= total;
-                }
+            /*normalize policy*/
+            static const float scale = 25.f;
+            double total = 0.f;
+            for(int i = 0;i < pstack->count; i++) {
+                float* p = (float*)&pstack->score_st[i];
+                float pp = logistic(pstack->score_st[i]) * scale;
+                *p = exp(pp / my_policy_temp);
+                total += *p;
+            }
+            for(int i = 0;i < pstack->count; i++) {
+                float* p = (float*)&pstack->score_st[i];
+                *p /= total;
             }
         } else {
             pstack->best_score = probe_neural();
             n_terminal = 0;
 
-            /*flat policy*/
-            if(my_policy_temp >= 10.0) {
-                for(int i = 0;i < pstack->count; i++) {
-                    float* p = (float*)&pstack->score_st[i];
-                    *p = 1.0 / pstack->count;
-                }
-                return;
-            }
+            if(!montecarlo) return;
 
             /*find minimum and maximum policy values*/
             double total = 0.f, maxp = -100, minp = 100;
             for(int i = 0;i < pstack->count; i++) {
                 float* p = (float*)&pstack->score_st[i];
                 MOVE& move = pstack->move_st[i];
-                if(is_prom(move)) {
+                if((nn_type != 1) && is_prom(move)) {
                     switch(PIECE(m_promote(move))) {
                         case queen:
                             break;
@@ -2465,7 +2465,7 @@ void print_mcts_params() {
     print_spin("frac_abprior",int(frac_abprior*100),0,100);
     print_spin("mcts_strategy_depth",mcts_strategy_depth,0,100);
     print_spin("alphabeta_depth",alphabeta_depth,1,100);
-    print_spin("evaluate_depth",evaluate_depth,-4,100);
+    print_spin("evaluate_depth",evaluate_depth,-5,100);
     print_spin("virtual_loss",virtual_loss,0,1000);
     print_spin("visit_threshold",visit_threshold,0,1000000);
     print_check("montecarlo",montecarlo);
