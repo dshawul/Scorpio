@@ -18,7 +18,7 @@ enum egbb_load_types {
     LOAD_NONE,LOAD_4MEN,SMART_LOAD,LOAD_5MEN
 };
 enum {CPU, GPU};
-enum {DEFAULT, LCZERO, SIMPLE, QLEARN, NONET = -1};
+enum {DEFAULT, LCZERO, SIMPLE, QLEARN, VALUE, NONET = -1};
 
 #define _NOTFOUND 99999
 #define MAX_PIECES 9
@@ -97,7 +97,7 @@ int draw_weight = 100;
 int loss_weight = 100;
 static bool is_trt = false;
 
-static const int net_channels[] = {32, 112, 12, 32, 0};
+static const int net_channels[] = {32, 112, 12, 32, 32, 0};
 
 /*
 Load the dll and get the address of the load and probe functions.
@@ -164,6 +164,11 @@ static void load_net(int id, int nn_cache_size, PLOAD_NN load_nn) {
         sprintf(input_shapes, "%d 8 8", net_channels[nn_type]);
         strcpy(output_names, "value/BiasAdd policy/BiasAdd");
         strcpy(output_sizes, "3 256");
+    } else if(nn_type == VALUE) {
+        strcpy(input_names, "main_input");
+        sprintf(input_shapes, "%d 8 8", net_channels[nn_type]);
+        strcpy(output_names, "value/Sigmoid");
+        strcpy(output_sizes, "1");
     } else if(nn_type == LCZERO) {
         strcpy(input_names, "main_input");
         sprintf(input_shapes, "%d 8 8", net_channels[nn_type]);
@@ -388,9 +393,11 @@ float SEARCHER::probe_neural_(bool hard_probe, float* policy, int nn_id_, int nn
              (hash_key ^ UINT64(0x2bc3964f82352234)));
 
     unsigned short* const mindex = all_pindex[processor_id];
-    for(int i = 0; i < pstack->count; i++) {
-        MOVE& m = pstack->move_st[i];
-        mindex[i] = compute_move_index(m);
+    if(nn_type_ != VALUE) {
+        for(int i = 0; i < pstack->count; i++) {
+            MOVE& m = pstack->move_st[i];
+            mindex[i] = compute_move_index(m);
+        }
     }
 
     nnecalls++;
@@ -398,7 +405,14 @@ float SEARCHER::probe_neural_(bool hard_probe, float* policy, int nn_id_, int nn
     float* iplanes[1] = {0};
     fill_input_planes(iplanes);
 
-    if(nn_type_ == DEFAULT || nn_type_ == SIMPLE || nn_type_ == QLEARN) {
+    if(nn_type_ == VALUE) {
+        float* wdl = &all_wdl[processor_id][0];
+        unsigned short* p_index[1] = {0};
+        int p_size[1] = {1};
+        float* p_outputs[1] = {wdl};
+        probe_nn(iplanes,p_outputs,p_size,p_index,hkey,hard_probe,nn_id_);
+        return wdl[0];
+    } else if(nn_type_ == DEFAULT || nn_type_ == SIMPLE || nn_type_ == QLEARN) {
         float* wdl = &all_wdl[processor_id][0];
         unsigned short* p_index[2] = {0, mindex};
         int p_size[2] = {3, pstack->count};
