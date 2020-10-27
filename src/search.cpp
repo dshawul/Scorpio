@@ -1766,14 +1766,14 @@ MOVE SEARCHER::iterative_deepening() {
                 Node::print_tree(root_node,MAX_PLY);
 
             /* print result*/
-            print_info("nodes " FMT64 " <%d%% qnodes> time %dms nps %d eps %d nneps %d tbhits %d\n",nodes,
+            print_info("Stat: nodes " FMT64 " <%d%% qnodes> tbhits %d qcalls %d scalls %d time %dms nps %d eps %d\n",nodes,
                 int(int64_t(qnodes) / (int64_t(nodes) / 100.0f)),
+                egbb_probes,qsearch_calls,search_calls,
                 time_used_o,int(int64_t(nodes) / (time_used_o / 1000.0f)),
-                int(int64_t(ecalls) / (time_used_o / 1000.0f)),
-                int(int64_t(nnecalls) / (time_used / 1000.0f)),
-                egbb_probes);
-            print_info("Tree: nodes %d depth %d vps %d pps %d visits %d qcalls %d scalls %d\n",
-                  Node::total_nodes,Node::max_tree_depth,vps,pps,root_node->visits,qsearch_calls,search_calls);
+                int(int64_t(ecalls) / (time_used_o / 1000.0f)));
+            print_info("Tree: nodes %d depth %d visits %d Rate: vps %d pps %d nneps %d\n",
+                  Node::total_nodes,Node::max_tree_depth,root_node->visits,vps,pps,
+                   int(int64_t(nnecalls) / (time_used / 1000.0f)));
         }
         
     } else {
@@ -1804,12 +1804,12 @@ MOVE SEARCHER::iterative_deepening() {
             print(" " FMT64W " %8.2f %10d %8d %8d\n",nodes,float(time_used) / 1000,
                 int(int64_t(nodes) / (time_used / 1000.0f)),splits,bad_splits);
         } else if(pv_print_style == 0) {
-            print_info("nodes " FMT64 " <%d%% qnodes> time %dms nps %d eps %d nneps %d tbhits %d splits %d badsplits %d\n",nodes,
+            print_info("Stat: nodes " FMT64 " <%d%% qnodes> tbhits %d splits %d badsplits %d time %dms nps %d eps %d nneps %d\n",nodes,
                 int(int64_t(qnodes) / (int64_t(nodes) / 100.0f)),
+                egbb_probes,splits,bad_splits,
                 time_used,int(int64_t(nodes) / (time_used / 1000.0f)),
                 int(int64_t(ecalls) / (time_used / 1000.0f)),
-                int(int64_t(nnecalls) / (time_used / 1000.0f)),
-                egbb_probes,splits,bad_splits);
+                int(int64_t(nnecalls) / (time_used / 1000.0f)));
         }
 
     }
