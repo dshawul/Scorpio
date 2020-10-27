@@ -970,6 +970,9 @@ int xboard_commands(char** commands,char* command,int& command_num,int& do_searc
         }
         searcher.set_board(fen);
         result = R_UNKNOWN;
+        SEARCHER::first_search = true;
+        SEARCHER::old_root_score = 0;
+        SEARCHER::root_score = 0;
     } else if(!strcmp(command,"undo")) {
         if(searcher.hply >= 1) searcher.undo_move();
     } else if(!strcmp(command,"remove")) {
@@ -1075,6 +1078,10 @@ int uci_commands(char** commands,char* command,int& command_num,int& do_search) 
                     print("Illegal move: %s\n", command);
                 }
             }
+        } else {
+            SEARCHER::first_search = true;
+            SEARCHER::old_root_score = 0;
+            SEARCHER::root_score = 0;
         }
         result = R_UNKNOWN;
         SEARCHER::scorpio = neutral;
