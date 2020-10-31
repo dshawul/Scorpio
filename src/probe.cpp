@@ -18,7 +18,7 @@ enum egbb_load_types {
     LOAD_NONE,LOAD_4MEN,SMART_LOAD,LOAD_5MEN
 };
 enum {CPU, GPU};
-enum {DEFAULT, LCZERO, SIMPLE, QLEARN, VALUE, NONET = -1};
+enum {DEFAULT, LCZERO, SIMPLE, QLEARN, NNUE, NONET = -1};
 
 #define _NOTFOUND 99999
 #define MAX_PIECES 9
@@ -97,7 +97,7 @@ int draw_weight = 100;
 int loss_weight = 100;
 static bool is_trt = false;
 
-static const int net_channels[] = {32, 112, 12, 32, 32, 0};
+static const int net_channels[] = {32, 112, 12, 32, 32*12, 0};
 
 /*
 Load the dll and get the address of the load and probe functions.
@@ -164,9 +164,9 @@ static void load_net(int id, int nn_cache_size, PLOAD_NN load_nn) {
         sprintf(input_shapes, "%d 8 8", net_channels[nn_type]);
         strcpy(output_names, "value/BiasAdd policy/BiasAdd");
         strcpy(output_sizes, "3 256");
-    } else if(nn_type == VALUE) {
-        strcpy(input_names, "main_input");
-        sprintf(input_shapes, "%d 8 8", net_channels[nn_type]);
+    } else if(nn_type == NNUE) {
+        strcpy(input_names, "player_input opponent_input");
+        sprintf(input_shapes, "%d 8 8  %d 8 8", net_channels[nn_type], net_channels[nn_type]);
         strcpy(output_names, "value/Sigmoid");
         strcpy(output_sizes, "1");
     } else if(nn_type == LCZERO) {
@@ -374,7 +374,9 @@ void init_input_planes() {
     float* planes = 0;
     unsigned short* index = 0;
     float* policy = 0;
-    const unsigned int N_PLANE = (8 * 8 * 112);
+    unsigned int N_PLANE = (SEARCHER::nn_type == NNUE) ? 
+               (8 * 8 * net_channels[NNUE] * 2) :
+               (8 * 8 * net_channels[LCZERO]);
 
     aligned_reserve<float>(planes, PROCESSOR::n_processors * N_PLANE);
     aligned_reserve<unsigned short>(index, PROCESSOR::n_processors * MAX_MOVES);
@@ -393,7 +395,7 @@ float SEARCHER::probe_neural_(bool hard_probe, float* policy, int nn_id_, int nn
              (hash_key ^ UINT64(0x2bc3964f82352234)));
 
     unsigned short* const mindex = all_pindex[processor_id];
-    if(nn_type_ != VALUE) {
+    if(nn_type_ != NNUE) {
         for(int i = 0; i < pstack->count; i++) {
             MOVE& m = pstack->move_st[i];
             mindex[i] = compute_move_index(m);
@@ -402,17 +404,10 @@ float SEARCHER::probe_neural_(bool hard_probe, float* policy, int nn_id_, int nn
 
     nnecalls++;
 
-    float* iplanes[1] = {0};
+    float* iplanes[2] = {0, 0};
     fill_input_planes(iplanes);
 
-    if(nn_type_ == VALUE) {
-        float* wdl = &all_wdl[processor_id][0];
-        unsigned short* p_index[1] = {0};
-        int p_size[1] = {1};
-        float* p_outputs[1] = {wdl};
-        probe_nn(iplanes,p_outputs,p_size,p_index,hkey,hard_probe,nn_id_);
-        return wdl[0];
-    } else if(nn_type_ == DEFAULT || nn_type_ == SIMPLE || nn_type_ == QLEARN) {
+    if(nn_type_ == DEFAULT || nn_type_ == SIMPLE || nn_type_ == QLEARN) {
         float* wdl = &all_wdl[processor_id][0];
         unsigned short* p_index[2] = {0, mindex};
         int p_size[2] = {3, pstack->count};
@@ -426,6 +421,13 @@ float SEARCHER::probe_neural_(bool hard_probe, float* policy, int nn_id_, int nn
         float l_ = exp((wdl[2] - minv) * loss_weight / 100.0f);
         float p = (w_ * 1.0 + d_ * 0.5 ) / (w_ + d_ + l_);
         return p;
+   } else if(nn_type_ == NNUE) {
+        float* wdl = &all_wdl[processor_id][0];
+        unsigned short* p_index[1] = {0};
+        int p_size[1] = {1};
+        float* p_outputs[1] = {wdl};
+        probe_nn(iplanes,p_outputs,p_size,p_index,hkey,hard_probe,nn_id_);
+        return wdl[0];
     } else {
         if(draw())
             hkey ^= UINT64(0xc7e9153edee38dcb);
@@ -629,7 +631,7 @@ int SEARCHER::compute_move_index(MOVE& m, int mnn_type) {
 
     int nn_type = (mnn_type >= DEFAULT) ? mnn_type : SEARCHER::nn_type;
 
-    if(nn_type == DEFAULT || nn_type == SIMPLE || nn_type == QLEARN) {
+    if(nn_type == DEFAULT || nn_type == SIMPLE || nn_type == QLEARN || nn_type == NNUE) {
 
         bool flip_h = (file(plist[COMBINE(player,king)]->sq) <= FILED);
         if(flip_h) {
@@ -674,7 +676,7 @@ void fill_input_planes(
     */
 #define DHWC(sq,C)     data[rank(sq) * 8 * CHANNELS + file(sq) * CHANNELS + C]
 #define DCHW(sq,C)     data[C * 8 * 8 + rank(sq) * 8 + file(sq)]
-#define D(sq,C)        ( (is_trt || (SEARCHER::nn_type > DEFAULT) ) ? DCHW(sq,C) : DHWC(sq,C) )
+#define D(sq,C)        ( (is_trt || (SEARCHER::nn_type == LCZERO) ) ? DCHW(sq,C) : DHWC(sq,C) )
 
 #define NK_MOVES(dir, off) {                    \
         to = sq + dir;                          \
@@ -853,6 +855,64 @@ void fill_input_planes(
             }
             D(sq,(pc-1)) = 1.0f;
         }
+    } else if (SEARCHER::nn_type == NNUE) {
+
+        //player
+        {
+            int pl = player;
+            bool flip_rank = (pl == _BLACK);
+
+            int ksq = square[pl];
+            int f = file64(ksq);
+            int r = rank64(ksq);
+            bool flip_file = (f < FILEE);
+            if(flip_rank) r = RANK8 - r;
+            if(flip_file) f = FILEH - f;
+            int kindex = r * 4 + (f - FILEE);
+
+            for(int i = 0; (pc = piece[i]) != _EMPTY; i++) {
+                sq = SQ6488(square[i]);
+                if(flip_rank) {
+                    sq = MIRRORR(sq);
+                    pc = invert_color(pc);
+                }
+                if(flip_file) {
+                    sq = MIRRORF(sq);
+                }
+                D(sq,(kindex*12+pc-1)) = 1.0f;
+            }
+        }
+
+        //opponent
+        float* s_data = data;
+        data = data + (8 * 8 * CHANNELS);
+        memset(data,  0, sizeof(float) * 8 * 8 * CHANNELS);
+        {
+            int pl = 1 - player;
+            bool flip_rank = (pl == _BLACK);
+
+            int ksq = square[pl];
+            int f = file64(ksq);
+            int r = rank64(ksq);
+            bool flip_file = (f < FILEE);
+            if(flip_rank) r = RANK8 - r;
+            if(flip_file) f = FILEH - f;
+            int kindex = r * 4 + (f - FILEE);
+
+            for(int i = 0; (pc = piece[i]) != _EMPTY; i++) {
+                sq = SQ6488(square[i]);
+                if(flip_rank) {
+                    sq = MIRRORR(sq);
+                    pc = invert_color(pc);
+                }
+                if(flip_file) {
+                    sq = MIRRORF(sq);
+                }
+                D(sq,(kindex*12+pc-1)) = 1.0f;
+            }
+        }
+        data = s_data;
+
     } else {
 
         static const int piece_map[2][12] = {
@@ -930,7 +990,7 @@ Fill input planes
 */
 void SEARCHER::fill_input_planes(float** iplanes) {
 
-    if(nn_type == DEFAULT || nn_type == SIMPLE || nn_type == QLEARN) {
+    if(nn_type == DEFAULT || nn_type == SIMPLE || nn_type == QLEARN || nn_type == NNUE) {
 
         int piece[33],square[33],isdraw[1];
         int count = 0, hist = 1;
@@ -938,9 +998,10 @@ void SEARCHER::fill_input_planes(float** iplanes) {
         fill_list(count,piece,square);
 
         iplanes[0] = inp_planes[processor_id];
+        if(nn_type == NNUE)
+            iplanes[1] = iplanes[0] + 8 * 8 * net_channels[NNUE];
         ::fill_input_planes(player,castle,fifty,hply,epsquare,flip_h,hist,
             isdraw,piece,square,iplanes[0]);
-
     } else {
 
         int piece[8*33],square[8*33],isdraw[8];
@@ -972,7 +1033,7 @@ Write input planes to file
 void SEARCHER::write_input_planes(FILE* file) {
     init_input_planes();
 
-    float* iplanes[1] = {0};
+    float* iplanes[2] = {0, 0};
     fill_input_planes(iplanes);
 
     const int CHANNELS = net_channels[nn_type];;
@@ -984,7 +1045,8 @@ void SEARCHER::write_input_planes(FILE* file) {
 compress input planes with RLE
 */
 int SEARCHER::compress_input_planes(float** iplanes, char* buffer) {
-    static const int NPLANE = 8 * 8 * net_channels[nn_type];
+    const int CHANNELS = net_channels[nn_type];;
+    const int NPLANE = 8 * 8 * CHANNELS;
 
     int bcount = 0;
 
