@@ -435,6 +435,7 @@ static void print_options() {
     print_spin("draw_weight",draw_weight,0,1000);
     print_spin("loss_weight",loss_weight,0,1000);
     print_spin("nnue_scale",SEARCHER::nnue_scale,0,1024);
+    print_spin("nnue_type",SEARCHER::nnue_type,0,1);
 }
 /**
 * Internal scorpio commands
@@ -534,6 +535,9 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         command_num++;
     } else if(!strcmp(command, "nnue_scale")) {
         SEARCHER::nnue_scale = atoi(commands[command_num]);
+        command_num++;
+    } else if(!strcmp(command, "nnue_type")) {
+        SEARCHER::nnue_type = atoi(commands[command_num]);
         command_num++;
     } else if(!strcmp(command, "nn_path")) {
         strcpy(SEARCHER::nn_path,commands[command_num]);

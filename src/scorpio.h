@@ -936,6 +936,7 @@ typedef struct SEARCHER{
     static int nn_man_e;
     static int nn_man_m;
     static int nnue_scale;
+    static int nnue_type;
     /*
     End
     */

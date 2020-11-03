@@ -92,6 +92,7 @@ int SEARCHER::wdl_head = 0;
 int SEARCHER::wdl_head_m = 0;
 int SEARCHER::wdl_head_e = 0;
 int SEARCHER::nnue_scale = 128;
+int SEARCHER::nnue_type = 0;
 int win_weight = 100;
 int draw_weight = 100;
 int loss_weight = 100;
@@ -244,12 +245,22 @@ void LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
         probe_nn = (PPROBE_NN) GetProcAddress(hmod,"probe_neural_network");
         set_num_active_searchers = 
             (PSET_NUM_ACTIVE_SEARCHERS) GetProcAddress(hmod,"set_num_active_searchers");
-        nnue_init = (PNNUE_INIT) GetProcAddress(hmod,"nnue_init");
-        nnue_evaluate = (PNNUE_EVALUATE) GetProcAddress(hmod,"nnue_evaluate");
+
+        if(SEARCHER::nnue_type == 0) {
+            nnue_init = (PNNUE_INIT) GetProcAddress(hmod,"nnue_init");
+            nnue_evaluate = (PNNUE_EVALUATE) GetProcAddress(hmod,"nnue_evaluate");
 #ifdef NNUE_INC
-        nnue_evaluate_incremental = 
-            (PNNUE_EVALUATE_INCREMENTAL) GetProcAddress(hmod,"nnue_evaluate_incremental");
+            nnue_evaluate_incremental = 
+                (PNNUE_EVALUATE_INCREMENTAL) GetProcAddress(hmod,"nnue_evaluate_incremental");
 #endif
+        } else {
+            nnue_init = (PNNUE_INIT) GetProcAddress(hmod,"nncpu_init");
+            nnue_evaluate = (PNNUE_EVALUATE) GetProcAddress(hmod,"nncpu_evaluate");
+#ifdef NNUE_INC
+            nnue_evaluate_incremental = 
+                (PNNUE_EVALUATE_INCREMENTAL) GetProcAddress(hmod,"nncpu_evaluate_incremental");
+#endif
+        }
 
         if(load_egbb) {
             clean_path(SEARCHER::egbb_files_path);
