@@ -488,9 +488,9 @@ Back up to previous ply
 Iterative search.
 */
 #ifdef PARALLEL
-void search(PROCESSOR* const proc)
+void search(PROCESSOR* const proc, bool single)
 #else
-void search(SEARCHER* const sb)
+void search(SEARCHER* const sb, bool single)
 #endif
 {
     MOVE move;
@@ -624,7 +624,7 @@ START:
                     /*
                     * Get Smp move
                     */
-                    if(!use_abdada_smp && !montecarlo 
+                    if(!use_abdada_smp && !single
                         && sb->master && sb->stop_ply == sb->ply) {
                         if(!sb->get_smp_move())
                             GOBACK(false); //I
@@ -734,8 +734,8 @@ POP:
 #ifndef PARALLEL
                 return;
 #else
-                /*exit here on montecarlo search*/
-                if(montecarlo)
+                /*exit here on single processor search*/
+                if(single)
                     return;
                 /*
                 * Is this processor a slave?
@@ -934,7 +934,7 @@ IDLE_START:
         case NORMAL_MOVE:
             move = sb->pstack->current_move;
             /*update best move at root and non-root nodes differently*/
-            if(!sb->ply && !montecarlo) {
+            if(!sb->ply && !single) {
 
                 l_lock(lock_smp);
                 sb->root_score_st[sb->pstack->current_index - 1] 
@@ -988,7 +988,7 @@ IDLE_START:
                         sb->update_history(move);
 #ifdef PARALLEL     
                     /* stop workers*/
-                    if(!use_abdada_smp && !montecarlo && 
+                    if(!use_abdada_smp && !single && 
                         sb->master && sb->stop_ply == sb->ply)
                         sb->master->handle_fail_high();
 #endif
@@ -1001,7 +1001,7 @@ IDLE_START:
 #ifdef PARALLEL 
             /* Check for split here since at least one move is searched now.
              * Reset the sb pointer to the child block pointed to by this processor.*/
-            if(!use_abdada_smp && !montecarlo
+            if(!use_abdada_smp && !single
                 && (sb->ply || sb->pstack->legal_moves >= 4) 
                 && sb->check_split())
                 sb = proc->searcher;
@@ -1234,13 +1234,13 @@ void SEARCHER::search() {
 /*
 Get search score
 */
-int SEARCHER::get_search_score() {
+int SEARCHER::search_ab() {
     if(pstack->depth <= 0) qsearch_calls++;
     else search_calls++;
 #ifdef PARALLEL
-    ::search(processors[processor_id]);
+    ::search(processors[processor_id],true);
 #else
-    ::search(this);
+    ::search(this,true);
 #endif
     return pstack->best_score;
 }
@@ -1291,7 +1291,7 @@ TOP:
                   (see(move) - piece_see_v[m_capture(move)]);
             } else {
                 if(depth < 0) qsearch_level = depth;
-                get_search_score();
+                search_ab();
                 if(depth < 0) qsearch_level = 0;
                 score = -pstack->best_score;
             }

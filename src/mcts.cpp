@@ -958,7 +958,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
                 freeze_tree = true;
                 print_info("Maximum number of nodes reached.\n");
             }
-            score = get_search_score();
+            score = search_ab();
             if(stop_searcher || abort_search)
                 goto FINISH;
         /*create children*/

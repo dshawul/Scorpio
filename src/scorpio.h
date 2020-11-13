@@ -798,7 +798,7 @@ typedef struct SEARCHER{
     void  epd_to_nn(char*,FILE*,int=0);
     void  update_history(MOVE);
     void  clear_history();
-    int   get_search_score();
+    int   search_ab();
     void  evaluate_moves(int,int,int);
     void  generate_and_score_moves(int,int);
     /*mcts stuff*/
@@ -943,9 +943,9 @@ typedef struct SEARCHER{
 } *PSEARCHER;
 
 #ifdef PARALLEL
-void search(PROCESSOR* const);
+void search(PROCESSOR* const, bool = false);
 #else
-void search(SEARCHER* const);
+void search(SEARCHER* const, bool = false);
 #endif
 /*
 inline piece list functions
