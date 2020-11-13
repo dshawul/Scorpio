@@ -801,6 +801,7 @@ typedef struct SEARCHER{
     int   search_ab();
     void  evaluate_moves(int,int,int);
     void  generate_and_score_moves(int,int);
+    int   Random_select_ab();
     /*mcts stuff*/
     void  extract_pv(Node*,bool=false);
     void  create_children(Node*);

@@ -1692,17 +1692,14 @@ void SEARCHER::pgn_to_epd(char* pgn, FILE* fb, int task) {
         l_unlock(lock_io);                                      \
     } else if(task == 1) {                                      \
         get_fen(fen);                                           \
-        float Z;                                                \
-        if(result == R_WWIN) { strcat(fen," 1-0"); Z = 1; }     \
-        else if(result == R_BWIN) { strcat(fen," 0-1"); Z = 0; }\
-        else { strcat(fen," 1/2-1/2"); Z = 0.5; }               \
-        int mind = compute_move_index(move);                    \
+        if(result == R_WWIN) strcat(fen," 1-0");                \
+        else if(result == R_BWIN) strcat(fen," 0-1");           \
+        else strcat(fen," 1/2-1/2");                            \
         if(!has_score) score = eval(true);                      \
         if(player == black) score = -score;                     \
         score = logistic(score);                                \
         l_lock(lock_io);                                        \
-        fprintf(fb,"%s %f 1 %d %f\n", fen, score, mind,         \
-                   (train_data_type == 0) ? 1.0 : Z);           \
+        fprintf(fb,"%s %f\n", fen, score);                      \
         l_unlock(lock_io);                                      \
     } else if(task == 2) {                                      \
         get_fen(fen);                                           \
@@ -1722,6 +1719,8 @@ void SEARCHER::pgn_to_epd(char* pgn, FILE* fb, int task) {
             if(train_data_type == 2)                            \
                 fprintf(fb, "%d %f %f ",                        \
                     moves[i],probs[i],scores[i]);               \
+            else if(train_data_type == 1)                       \
+                fprintf(fb, "%d %f ",moves[i],scores[i]);       \
             else                                                \
                 fprintf(fb, "%d %f ",moves[i],probs[i]);        \
         }                                                       \
@@ -1877,6 +1876,8 @@ void SEARCHER::epd_to_nn(char* fen, FILE* fb, int task) {
             if(train_data_type == 2)                            \
                 fprintf(fb, "%d %f %f ",                        \
                     moves[i],probs[i],scores[i]);               \
+            else if(train_data_type == 1)                       \
+                fprintf(fb, "%d %f ",moves[i],scores[i]);       \
             else                                                \
                 fprintf(fb, "%d %f ",moves[i],probs[i]);        \
         }                                                       \

@@ -604,6 +604,12 @@ Node* Node::Random_select(Node* n, int hply) {
     std::vector<Node*> node_pt;
     std::vector<int> freq;
 
+    double temp;
+    if(hply < temp_plies)
+        temp = rand_temp - (hply >> 1) * rand_temp_delta / ((temp_plies >> 1) - 1);
+    else
+        temp = rand_temp_end;
+
     count = 0;
     current = n->child;
     while(current) {
@@ -614,12 +620,7 @@ Node* Node::Random_select(Node* n, int hply) {
                 val += (low_visits_threshold - n->visits) * current->policy;
             else
                 val++;
-            if(hply < temp_plies) {
-                double temp =
-                    rand_temp - (hply >> 1) * rand_temp_delta / ((temp_plies >> 1) - 1);
-                val = pow(val, 1.0 / temp);
-            } else
-                val = pow(val, 1.0 / rand_temp_end);
+            val = pow(val, 1.0 / temp);
             freq.push_back(1000 * val);
             count++;
         }
@@ -627,16 +628,45 @@ Node* Node::Random_select(Node* n, int hply) {
     }
     if(count) {
         std::discrete_distribution<int> dist(freq.begin(),freq.end());
-        int indexc = dist(mtgen);
-        bnode = node_pt[indexc];
+        int idx = dist(mtgen);
+        bnode = node_pt[idx];
 #if 0
         for(int i = 0; i < count; ++i) {
-            print("%c%d. %d\n",(i == indexc) ? '*':' ',i,freq[i]);
+            print("%c%d. %d\n",(i == idx) ? '*':' ',i,freq[i]);
         }
 #endif
     }
 
     return bnode;
+}
+
+int SEARCHER::Random_select_ab() {
+    std::vector<int> freq;
+    int bidx = 0;
+
+    static const float scale = 12.f;
+    double temp;
+    if(hply < temp_plies)
+        temp = rand_temp - (hply >> 1) * rand_temp_delta / ((temp_plies >> 1) - 1);
+    else
+        temp = rand_temp_end;
+
+    for(int i = 0;i < pstack->count; i++) {
+        float pp = logistic(pstack->score_st[i]) * scale;
+        freq.push_back( 100 * exp(pp / temp) );
+    }
+
+    if(pstack->count) {
+        std::discrete_distribution<int> dist(freq.begin(),freq.end());
+        bidx = dist(mtgen);
+#if 0
+        for(int i = 0; i < pstack->count; ++i) {
+            print("%c%d. %d\n",(i == bidx) ? '*':' ',i,freq[i]);
+        }
+#endif
+    }
+
+    return bidx;
 }
 
 Node* Node::Best_select(Node* n, bool has_ab) {
@@ -1790,7 +1820,8 @@ void SEARCHER::generate_and_score_moves(int alpha, int beta) {
         }
 
         /*both value and policy heads*/
-        const double my_policy_temp = policy_temp * (hply ? 1 : policy_temp_root_factor);
+        const double my_policy_temp = 
+                policy_temp * (ply ? 1 : policy_temp_root_factor);
 
         if(!use_nn) {
 
@@ -1942,14 +1973,21 @@ void SEARCHER::self_play_thread_all(FILE* fw, FILE* fw2, int ngames) {
 
 /*get training data from search*/
 void SEARCHER::get_train_data(float& value, int& nmoves, int* moves, float* probs, float* scores, int& bestm) {
-    Node* current;
 
     /*value*/
-    value = logistic(root_node->score);
+    if(montecarlo)
+        value = logistic(root_node->score);
+    else
+        value = logistic(pstack->best_score);
     if(player == black) 
         value = 1 - value;
 
+    /*value head only returns here*/
+    if(train_data_type == 3)
+        return;
+
     /*policy target pruning*/
+    Node* current;
     double factor, max_uct = 0;
 
     if(policy_pruning) {
@@ -1983,9 +2021,10 @@ void SEARCHER::get_train_data(float& value, int& nmoves, int* moves, float* prob
     int cnt = 0, diff = low_visits_threshold - root_node->visits;
     current = root_node->child;
     while(current) {
+        MOVE& move = current->move;
         /*skip underpromotions*/
-        if(is_prom(current->move) && 
-            PIECE(m_promote(current->move)) != queen) {
+        if(is_prom(move) && 
+            PIECE(m_promote(move)) != queen) {
             current = current->next;
             continue;
         }
@@ -1999,7 +2038,7 @@ void SEARCHER::get_train_data(float& value, int& nmoves, int* moves, float* prob
                 if(val < 0) val = 0;
 #if 0
                 char mvstr[16];
-                mov_str(current->move,mvstr);
+                mov_str(move,mvstr);
                 print("%3d. %7s %9.2f %9.2f %9d %9d\n",
                     current->rank,mvstr,current->policy,
                     logistic(-current->score),current->visits,int(val));
@@ -2016,12 +2055,9 @@ void SEARCHER::get_train_data(float& value, int& nmoves, int* moves, float* prob
         /*action value*/
         if(train_data_type == 1 || train_data_type == 2) {
             val = logistic(-current->score, 2 * Kfactor);
-            if(train_data_type == 2)
-                scores[cnt] = val;
-            else
-                probs[cnt] = val;
+            scores[cnt] = val;
         }
-        moves[cnt] = compute_move_index(current->move, 0);
+        moves[cnt] = compute_move_index(move, 0);
         cnt++;
         current = current->next;
     }
@@ -2060,18 +2096,27 @@ void print_train(int res, char* buffer, PTRAIN trn, PSEARCHER sb) {
             }
             bcount += 4;
 
-            bcount += sprintf(&buffer[bcount], " %f %d ", 
-                ptrn->value, ptrn->nmoves);
-            for(int i = 0; i < ptrn->nmoves; i++) {
-                if(train_data_type == 2)
-                    bcount += sprintf(&buffer[bcount], "%d %f %f ", 
-                        ptrn->moves[i], ptrn->probs[i], ptrn->scores[i]);
-                else
-                    bcount += sprintf(&buffer[bcount], "%d %f ", 
-                        ptrn->moves[i], ptrn->probs[i]);
-            }
+            if(train_data_type == 3)
+                bcount += sprintf(&buffer[bcount], " %f ",
+                    ptrn->value);
+            else {
+                bcount += sprintf(&buffer[bcount], " %f %d ", 
+                    ptrn->value, ptrn->nmoves);
 
-            bcount += sprintf(&buffer[bcount], "%d", ptrn->bestm);
+                for(int i = 0; i < ptrn->nmoves; i++) {
+                    if(train_data_type == 2)
+                        bcount += sprintf(&buffer[bcount], "%d %f %f ", 
+                            ptrn->moves[i], ptrn->probs[i], ptrn->scores[i]);
+                    else if(train_data_type == 1)
+                        bcount += sprintf(&buffer[bcount], "%d %f ", 
+                            ptrn->moves[i], ptrn->scores[i]);
+                    else
+                        bcount += sprintf(&buffer[bcount], "%d %f ", 
+                            ptrn->moves[i], ptrn->probs[i]);
+                }
+
+                bcount += sprintf(&buffer[bcount], "%d", ptrn->bestm);
+            }
 
             bcount += sprintf(&buffer[bcount], "\n");
         }
@@ -2088,11 +2133,10 @@ void print_train(int res, char* buffer, PTRAIN trn, PSEARCHER sb) {
 /*job for selfplay thread*/
 void SEARCHER::self_play_thread() {
     static VOLATILE int wins = 0, losses = 0, draws = 0;
-    static const int vlimit = chess_clock.max_visits * frac_sv_low;
+    static const int vlimit = chess_clock.max_visits * frac_sv_low, phply = ply;
     MOVE move;
-    int phply = hply;
-    PTRAIN trn = new TRAIN[MAX_HSTACK];
     char* buffer = new char[4096 * MAX_HSTACK];
+    PTRAIN trn = new TRAIN[MAX_HSTACK];
 
     unsigned start_t = get_time();
     unsigned limit = 0;
@@ -2110,7 +2154,7 @@ void SEARCHER::self_play_thread() {
 
             /*game ended*/
             int res;
-            if(hply >= 4 && -root_node->score >= sp_resign_value)
+            if(hply >= 4 && -pstack->best_score >= sp_resign_value)
                 res = (player == white) ? R_WWIN : R_BWIN;
             else
                 res = print_result(false);
@@ -2167,32 +2211,62 @@ void SEARCHER::self_play_thread() {
 
             /*do fixed nodes mcts search*/
             generate_and_score_moves(-MATE_SCORE, MATE_SCORE);
-            manage_tree(true);
-            SEARCHER::egbb_ply_limit = 8;
-            pstack->depth = search_depth * UNITDEPTH;
-            stop_searcher = 0;
 
-            /*katago's playout cap randomization*/
-            if(playout_cap_rand && chess_clock.max_visits >= 800) {
-                if(hply & 1);
-                else if(rand() > frac_full_playouts * float(RAND_MAX))
-                    limit = vlimit;
-                else
-                    limit = 0;
-            }
+            if(montecarlo) {
+                manage_tree(true);
+                SEARCHER::egbb_ply_limit = 8;
+                stop_searcher = 0;
+                pstack->depth = search_depth * UNITDEPTH;
 
-            search_mc(true,limit);
-            move = stack[0].pv[0];
+                /*katago's playout cap randomization*/
+                if(playout_cap_rand && chess_clock.max_visits >= 800) {
+                    if(hply & 1);
+                    else if(rand() > frac_full_playouts * float(RAND_MAX))
+                        limit = vlimit;
+                    else
+                        limit = 0;
+                }
 
-            local_average_npm += 
-                (root_node->visits - local_average_npm) / (hply + 1);
+                search_mc(true,limit);
+                pstack->best_score = root_node->score;
+                move = stack[0].pv[0];
 
+                local_average_npm += 
+                    (root_node->visits - local_average_npm) / (hply + 1);
 #if 0
-            char mvstr[16];
-            mov_str(move,mvstr);
-            print("%3d. %7s %d %5d = %8.2f\n",
-                hply+1,mvstr,(limit > 0), root_node->visits, root_node->score);
+                char mvstr[16];
+                mov_str(move,mvstr);
+                print("%3d. %7s %d %5d = %8.2f\n",
+                    hply+1,mvstr,(limit > 0), root_node->visits, root_node->score);
 #endif
+            } else {
+                search_depth = chess_clock.max_sd;
+                SEARCHER::egbb_ply_limit = 8;
+                stop_searcher = 0;
+                nodes = 0;
+                qnodes = 0;
+                limit = 0;
+
+                evaluate_moves(search_depth - 1, -MATE_SCORE, MATE_SCORE);
+                pstack->best_score = pstack->score_st[0];
+                pstack->best_move = pstack->move_st[0];
+                /*pick move to play*/
+                int bidx;
+                if(hply < temp_plies || rand_temp_end > 0)
+                    bidx = Random_select_ab();
+                else
+                    bidx = 0;
+                move = pstack->move_st[bidx];
+
+                local_average_npm += 
+                    (nodes - local_average_npm) / (hply + 1);
+#if 0
+                char mvstr[16];
+                mov_str(move,mvstr);
+                print("%3d. %7s = %5d\n",
+                    hply+1,mvstr, pstack->best_score);
+#endif
+            }
 
             /*get training data*/
             PTRAIN ptrn = &trn[hply];
