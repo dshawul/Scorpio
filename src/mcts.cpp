@@ -50,6 +50,7 @@ static int sp_resign_value = 600;
 static int forced_playouts = 0;
 static int policy_pruning = 0;
 static int select_formula = 0;
+static int filter_quiet = 0;
 int  mcts_strategy_depth = 30;
 int train_data_type = 0;
 
@@ -2228,8 +2229,13 @@ void SEARCHER::self_play_thread() {
                 }
 
                 search_mc(true,limit);
-                pstack->best_score = root_node->score;
                 move = stack[0].pv[0];
+                pstack->best_score = root_node->score;
+                if(filter_quiet) {
+                    Node* bnode = Node::Best_select(root_node,false);
+                    pstack->best_move = bnode->move;
+                } else
+                    pstack->best_move = move;
 
                 local_average_npm += 
                     (root_node->visits - local_average_npm) / (hply + 1);
@@ -2270,7 +2276,9 @@ void SEARCHER::self_play_thread() {
 
             /*get training data*/
             PTRAIN ptrn = &trn[hply];
-            if(pcr_write_low || (limit == 0)) { 
+            if(filter_quiet && is_cap_prom(pstack->best_move))
+                ptrn->nmoves = -1;
+            else if(pcr_write_low || (limit == 0)) {
                 get_train_data(
                     ptrn->value, ptrn->nmoves, ptrn->moves,
                     ptrn->probs, ptrn->scores, ptrn->bestm);
@@ -2490,6 +2498,8 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         policy_pruning = is_checked(commands[command_num++]);
     } else if(!strcmp(command, "select_formula")) {
         select_formula = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "filter_quiet")) {
+        filter_quiet = is_checked(commands[command_num++]);
     } else if(!strcmp(command, "treeht")) {
         uint32_t ht = atoi(commands[command_num++]);
         uint32_t size = ht * (double(1024 * 1024) / node_size);
@@ -2555,5 +2565,6 @@ void print_mcts_params() {
     print_check("forced_playouts",forced_playouts);
     print_check("policy_pruning",policy_pruning);
     print_spin("select_formula",select_formula,0,2);
+    print_check("filter_quiet",filter_quiet);
     print_spin("treeht",int((Node::max_tree_nodes / double(1024*1024)) * node_size),0,131072);
 }
