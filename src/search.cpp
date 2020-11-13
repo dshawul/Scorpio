@@ -815,10 +815,11 @@ IDLE_START:
                         }
                         if(proc->state == GO || proc->state == GOSP) {
                             sb = proc->searcher;
-                            if(montecarlo) {
-                                if(proc->state == GOSP)
+                            if(montecarlo || proc->state == GOSP) {
+                                if(proc->state == GOSP) {
+                                    proc->state = GO;
                                     sb->worker_thread();
-                                else
+                                } else
                                     sb->search_mc();
 
                                 l_lock(lock_smp);
