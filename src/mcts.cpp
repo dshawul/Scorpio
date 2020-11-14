@@ -1973,7 +1973,9 @@ void SEARCHER::self_play_thread_all(FILE* fw, FILE* fw2, int ngames) {
 }
 
 /*get training data from search*/
-void SEARCHER::get_train_data(float& value, int& nmoves, int* moves, float* probs, float* scores, int& bestm) {
+void SEARCHER::get_train_data(float& value, int& nmoves, int* moves,
+    float* probs, float* scores, int& bestm
+    ) {
 
     /*value*/
     if(montecarlo)
@@ -1987,12 +1989,36 @@ void SEARCHER::get_train_data(float& value, int& nmoves, int* moves, float* prob
     if(train_data_type == 3)
         return;
 
+    /*AB search*/
+    if(!montecarlo) {
+        static const float scale = 12.f;
+        double total = 0.f;
+        for(int i = 0;i < pstack->count; i++) {
+            MOVE& move = pstack->move_st[i];
+            int score = pstack->score_st[i];
+            float pp = logistic(pstack->score_st[i]);
+            moves[i] = compute_move_index(move, 0);
+            scores[i] = pp;
+            pp = exp(pp * scale);
+            probs[i] = pp;
+            total += pp;
+        }
+        for(int i = 0;i < pstack->count; i++)
+            probs[i] /= total;
+
+        nmoves = pstack->count;
+        MOVE& move = pstack->best_move;
+        bestm = compute_move_index(move, 0);
+        return;
+    }
+
     /*policy target pruning*/
     Node* current;
     double factor, max_uct = 0;
 
     if(policy_pruning) {
-        double dCPUCT = cpuct_init + log((root_node->visits + cpuct_base + 1.0) / cpuct_base), uct;
+        double dCPUCT = cpuct_init +
+            log((root_node->visits + cpuct_base + 1.0) / cpuct_base), uct;
         factor = dCPUCT * sqrt(double(root_node->visits));
 
         current = root_node->child;
@@ -2055,7 +2081,7 @@ void SEARCHER::get_train_data(float& value, int& nmoves, int* moves, float* prob
         }
         /*action value*/
         if(train_data_type == 1 || train_data_type == 2) {
-            val = logistic(-current->score, 2 * Kfactor);
+            val = logistic(-current->score);
             scores[cnt] = val;
         }
         moves[cnt] = compute_move_index(move, 0);
