@@ -53,6 +53,7 @@ bool SEARCHER::hash_cutoff() {
     bool exclusiveP = false;
 #ifdef PARALLEL
     if(!montecarlo && (use_abdada_smp == 1) && ply > 1
+        && PROCESSOR::n_processors > 1
         && DEPTH((pstack - 1)->depth) > PROCESSOR::SMP_SPLIT_DEPTH
         && !(pstack - 1)->second_pass
         && (pstack - 1)->legal_moves > 1
