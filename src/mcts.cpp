@@ -51,6 +51,8 @@ static int forced_playouts = 0;
 static int policy_pruning = 0;
 static int select_formula = 0;
 static int filter_quiet = 0;
+static int max_collisions = 0;
+static float max_collisions_ratio = 0.25;
 int  mcts_strategy_depth = 30;
 int train_data_type = 0;
 
@@ -258,6 +260,17 @@ void Node::compute_Q(Node* n, float fpu, bool has_ab) {
     double uct;
     unsigned vst, vvst = 0;
     Node* current = n->child;
+
+    /*approaching collision limit?*/
+    int collision_lev = 1;
+    if(SEARCHER::use_nn && max_collisions >= 3) {
+        if(n_terminal >= ((3 * max_collisions) >> 2))
+            collision_lev = 4;
+        else if(n_terminal >= (max_collisions >> 1))
+            collision_lev = 2;
+    }
+
+    /*compute Q for all moves*/
     while(current) {
 
         if(current->move && !current->is_dead()) {
@@ -265,7 +278,7 @@ void Node::compute_Q(Node* n, float fpu, bool has_ab) {
             /*compute Q considering fpu and virtual loss*/
             vst = current->visits;
 #ifdef PARALLEL
-            vvst = virtual_loss * current->get_busy();
+            vvst = collision_lev * virtual_loss * current->get_busy();
             vst += vvst;
 #endif
             if(!current->visits) {
@@ -281,7 +294,7 @@ void Node::compute_Q(Node* n, float fpu, bool has_ab) {
                             MIN(uct,uctp));
             }
 #ifdef PARALLEL
-            if(current->is_create()) uct *= 0.25;
+            if(current->is_create()) uct *= 0.1;
 #endif
             current->Q = uct;
         }
@@ -904,7 +917,7 @@ void SEARCHER::create_children(Node* n) {
 bool SEARCHER::handle_terminal(Node* n, bool is_terminal) {
     /*wait until collision limit is reached*/
     if(rollout_type == MCTS &&
-        l_add(n_terminal,1) <= (PROCESSOR::n_processors >> 2) )
+        l_add(n_terminal,1) <= max_collisions )
         ;
     else {
         /*we are about to do a useless NN call for the sake of 
@@ -919,6 +932,7 @@ bool SEARCHER::handle_terminal(Node* n, bool is_terminal) {
                 gen_all_legal();
                 if(pstack->count > 0) {
                     probe_neural(true);
+                    l_add(n_terminal,-1);
                     POP_MOVE();
                     return true;
                 }
@@ -927,6 +941,7 @@ bool SEARCHER::handle_terminal(Node* n, bool is_terminal) {
         }
         /*Do useless hard probe without caching*/
         probe_neural(true);
+        l_add(n_terminal,-1);
         return true;
     }
     return false;
@@ -1758,6 +1773,7 @@ void SEARCHER::manage_tree(bool single) {
 
     /*backup type*/
     backup_type = backup_type_setting;
+    max_collisions = (int)(PROCESSOR::n_processors * max_collisions_ratio / SEARCHER::n_devices);
 
     /*Dirichlet noise*/
     if(is_selfplay && (chess_clock.max_visits > 2 * low_visits_threshold) ) {
@@ -2516,6 +2532,8 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         evaluate_depth = atoi(commands[command_num++]);
     } else if(!strcmp(command, "virtual_loss")) {
         virtual_loss = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "max_collisions_ratio")) {
+        max_collisions_ratio = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "visit_threshold")) {
         visit_threshold = atoi(commands[command_num++]);
     } else if(!strcmp(command, "montecarlo")) {
@@ -2589,6 +2607,7 @@ void print_mcts_params() {
     print_spin("alphabeta_depth",alphabeta_depth,1,100);
     print_spin("evaluate_depth",evaluate_depth,-5,100);
     print_spin("virtual_loss",virtual_loss,0,1000);
+    print_spin("max_collisions_ratio",max_collisions_ratio,0,100*SEARCHER::n_devices);
     print_spin("visit_threshold",visit_threshold,0,1000000);
     print_check("montecarlo",montecarlo);
     print_spin("sp_resign_value",sp_resign_value,0,10000);
