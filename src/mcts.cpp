@@ -1854,6 +1854,10 @@ void SEARCHER::generate_and_score_moves(int alpha, int beta) {
 
             if(!montecarlo) return;
 
+            /*max legal moves cap*/
+            for(int i = MAX_MOVES_NN; i < pstack->count; i++)
+                pstack->score_st[i] = pstack->score_st[MAX_MOVES_NN - 1];
+
             /*find minimum and maximum policy values*/
             double total = 0.f, maxp = -100, minp = 100;
             for(int i = 0;i < pstack->count; i++) {

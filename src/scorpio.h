@@ -176,6 +176,7 @@ enum square_names {
 #define MAX_FILE_STR      3072
 #define MAX_FEN_STR        256
 #define MAX_MOVES          256
+#define MAX_MOVES_NN        80
 #define MAX_CAPS            64
 #define MAX_PLY             64
 #define MAX_HSTACK        1024
@@ -1016,21 +1017,20 @@ FORCEINLINE void SEARCHER::POP_NULL() {
 sort move list
 */
 FORCEINLINE void STACK::sort(const int start,const int end) {
-    int i,bi = start,bs = score_st[start];
-    for (i = start + 1; i < end; i++) {
+    int bi = start, bs = score_st[start];
+    for(int i = start + 1; i < end; i++) {
         if(score_st[i] > bs) {
             bi = i;
             bs = score_st[i];
         }
     }
     if(bi != start) {
-        MOVE tempm;
-        int temps;
-        tempm = move_st[start];
-        temps = score_st[start];
+        MOVE tempm = move_st[start];
         move_st[start] = move_st[bi];
-        score_st[start] = score_st[bi];
         move_st[bi] = tempm;
+
+        int temps = score_st[start];
+        score_st[start] = score_st[bi];
         score_st[bi] = temps;
     }
 }

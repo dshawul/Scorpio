@@ -154,17 +154,17 @@ static void load_net(int id, int nn_cache_size, PLOAD_NN load_nn) {
         strcpy(input_names, "main_input");
         sprintf(input_shapes, "%d 8 8", net_channels[nn_type]);
         strcpy(output_names, "value/BiasAdd policy/Reshape");
-        strcpy(output_sizes, "3 256");
+        sprintf(output_sizes, "3 %d", MAX_MOVES_NN);
     } else if(nn_type == QLEARN) {
         strcpy(input_names, "main_input");
         sprintf(input_shapes, "%d 8 8", net_channels[nn_type]);
         strcpy(output_names, "value/BiasAdd score/Reshape");
-        strcpy(output_sizes, "3 256");
+        sprintf(output_sizes, "3 %d", MAX_MOVES_NN);
     } else if(nn_type == SIMPLE) {
         strcpy(input_names, "main_input");
         sprintf(input_shapes, "%d 8 8", net_channels[nn_type]);
         strcpy(output_names, "value/BiasAdd policy/BiasAdd");
-        strcpy(output_sizes, "3 256");
+        sprintf(output_sizes, "3 %d", MAX_MOVES_NN);
     } else if(nn_type == NNUE) {
         strcpy(input_names, "player_input opponent_input");
         sprintf(input_shapes, "%d 8 8  %d 8 8", net_channels[nn_type], net_channels[nn_type]);
@@ -175,9 +175,9 @@ static void load_net(int id, int nn_cache_size, PLOAD_NN load_nn) {
         sprintf(input_shapes, "%d 8 8", net_channels[nn_type]);
         strcpy(output_names, "value_head policy_head");
         if(wdl_head)
-            strcpy(output_sizes, "3 256");
+            sprintf(output_sizes, "3 %d", MAX_MOVES_NN);
         else
-            strcpy(output_sizes, "1 256");
+            sprintf(output_sizes, "1 %d", MAX_MOVES_NN);
     }
 
     /*generate INT8 calibration data here*/
@@ -390,24 +390,25 @@ void init_input_planes() {
                (8 * 8 * net_channels[LCZERO]);
 
     aligned_reserve<float>(planes, PROCESSOR::n_processors * N_PLANE);
-    aligned_reserve<unsigned short>(index, PROCESSOR::n_processors * MAX_MOVES);
-    aligned_reserve<float>(policy, PROCESSOR::n_processors * MAX_MOVES);
+    aligned_reserve<unsigned short>(index, PROCESSOR::n_processors * MAX_MOVES_NN);
+    aligned_reserve<float>(policy, PROCESSOR::n_processors * MAX_MOVES_NN);
     for(int i = 0; i < PROCESSOR::n_processors;i++) {
         inp_planes[i] = planes + i * N_PLANE;
-        all_pindex[i] = index + i * MAX_MOVES;
-        all_policy[i] = policy + i * MAX_MOVES;
+        all_pindex[i] = index + i * MAX_MOVES_NN;
+        all_policy[i] = policy + i * MAX_MOVES_NN;
     }
     init_done = true;
 }
 
 float SEARCHER::probe_neural_(bool hard_probe, float* policy, int nn_id_, int nn_type_, int wdl_head_) {
 #ifdef EGBB
+    const int max_moves = MIN(pstack->count, MAX_MOVES_NN);
     uint64_t hkey = ((player == white) ? hash_key : 
              (hash_key ^ UINT64(0x2bc3964f82352234)));
 
     unsigned short* const mindex = all_pindex[processor_id];
     if(nn_type_ != NNUE) {
-        for(int i = 0; i < pstack->count; i++) {
+        for(int i = 0; i < max_moves; i++) {
             MOVE& m = pstack->move_st[i];
             mindex[i] = compute_move_index(m);
         }
@@ -421,7 +422,7 @@ float SEARCHER::probe_neural_(bool hard_probe, float* policy, int nn_id_, int nn
     if(nn_type_ == DEFAULT || nn_type_ == SIMPLE || nn_type_ == QLEARN) {
         float* wdl = &all_wdl[processor_id][0];
         unsigned short* p_index[2] = {0, mindex};
-        int p_size[2] = {3, pstack->count};
+        int p_size[2] = {3, max_moves};
         float* p_outputs[2] = {wdl,policy};
         probe_nn(iplanes,p_outputs,p_size,p_index,hkey,hard_probe,nn_id_);
 
@@ -446,7 +447,7 @@ float SEARCHER::probe_neural_(bool hard_probe, float* policy, int nn_id_, int nn
 
         float* wdl = &all_wdl[processor_id][0];
         unsigned short* p_index[2] = {0, mindex};
-        int p_size[2] = {wdl_head_ ? 3 : 1, pstack->count};
+        int p_size[2] = {wdl_head_ ? 3 : 1, max_moves};
         float* p_outputs[2] = {wdl,policy};
         probe_nn(iplanes,p_outputs,p_size,p_index,hkey,hard_probe,nn_id_);
 
@@ -469,6 +470,7 @@ float SEARCHER::probe_neural_(bool hard_probe, float* policy, int nn_id_, int nn
 
 /*ensemble NNs*/
 void SEARCHER::ensemble_net(int nn_id_, int nn_type_, int wdl_head_, float& score) {
+    const int max_moves = MIN(pstack->count, MAX_MOVES_NN);
     float* tpolicy = all_policy[processor_id];
     float* policy = (float*)pstack->score_st;
     float sc;
@@ -477,15 +479,16 @@ void SEARCHER::ensemble_net(int nn_id_, int nn_type_, int wdl_head_, float& scor
 
     if(ensemble_type == 0) {
         score += sc; 
-        for(int i = 0; i < pstack->count; i++)
+        for(int i = 0; i < max_moves; i++)
             policy[i] += tpolicy[i];
     } else {
         score += pow(sc - 0.5, 3.0);
-        for(int i = 0; i < pstack->count; i++)
+        for(int i = 0; i < max_moves; i++)
             policy[i] += pow(tpolicy[i], 3.0);
     }
 }
 int SEARCHER::probe_neural(bool hard_probe) {
+    const int max_moves = MIN(pstack->count, MAX_MOVES_NN);
     float* policy = (float*)pstack->score_st;
     float score = 0.0;
 
@@ -502,7 +505,7 @@ int SEARCHER::probe_neural(bool hard_probe) {
             //zero
             int nensemble = 0;
             score = 0;
-            memset(policy,0,sizeof(int) * pstack->count);
+            memset(policy,0,sizeof(int) * max_moves);
 
             //ensemble nets
             ensemble_net(0,nn_type,wdl_head,score);
@@ -523,11 +526,11 @@ int SEARCHER::probe_neural(bool hard_probe) {
             float iensemble = 1.0 / nensemble;
             if(ensemble_type == 0) {
                 score *= iensemble;
-                for(int i = 0; i < pstack->count; i++)
+                for(int i = 0; i < max_moves; i++)
                     policy[i] *= iensemble;
             } else {
                 score = 0.5 + pow(score * iensemble, 1.0 / 3);
-                for(int i = 0; i < pstack->count; i++)
+                for(int i = 0; i < max_moves; i++)
                     policy[i] = pow(policy[i] * iensemble, 1.0 / 3);
             }
         }
