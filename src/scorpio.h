@@ -897,6 +897,7 @@ typedef struct SEARCHER{
     int probe_neural(bool=false);
     int probe_nnue();
     bool handle_terminal(Node*,bool);
+    void prefetch_nodes(int);
     void self_play_thread();
     void self_play_thread_all(FILE*,FILE*,int);
     void worker_thread();

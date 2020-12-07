@@ -914,33 +914,41 @@ void SEARCHER::create_children(Node* n) {
     n->edges.n_children = nleaf;
 }
 
+/*prefetch nodes recursively and evaluate*/
+void SEARCHER::prefetch_nodes(int idx) {
+    gen_all_legal();
+    if(pstack->count > 0) {
+        if(idx >= pstack->count) {
+            idx -= pstack->count;
+            PUSH_MOVE(pstack->move_st[0]);
+            prefetch_nodes(idx);
+            POP_MOVE();
+            return;
+        } else if(idx < 0)
+            idx = 0;
+
+        PUSH_MOVE(pstack->move_st[idx]);
+        gen_all_legal();
+        if(pstack->count > 0) {
+            probe_neural(true);
+            POP_MOVE();
+            return;
+        }
+        POP_MOVE();
+    }
+    probe_neural(true);
+}
+
+/*handle terminal and collistion nodes*/
 bool SEARCHER::handle_terminal(Node* n, bool is_terminal) {
-    /*wait until collision limit is reached*/
     if(rollout_type == MCTS &&
         l_add(n_terminal,1) <= max_collisions )
         ;
     else {
-        /*we are about to do a useless NN call for the sake of 
-        completing batch_size. Do something useful by moving to 
-        next ply instead, and cache result.*/
-        if(!is_terminal) {
-            gen_all_legal();
-            if(pstack->count > 0) {
-                int idx = n->get_busy() - 2;
-                if(idx >= pstack->count || idx < 0) idx = 0;
-                PUSH_MOVE(pstack->move_st[idx]);
-                gen_all_legal();
-                if(pstack->count > 0) {
-                    probe_neural(true);
-                    l_add(n_terminal,-1);
-                    POP_MOVE();
-                    return true;
-                }
-                POP_MOVE();
-            }
-        }
-        /*Do useless hard probe without caching*/
-        probe_neural(true);
+        if(is_terminal)
+            probe_neural(true);
+        else
+            prefetch_nodes(n->get_busy() - 2);
         l_add(n_terminal,-1);
         return true;
     }
