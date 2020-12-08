@@ -52,7 +52,9 @@ static int policy_pruning = 0;
 static int select_formula = 0;
 static int filter_quiet = 0;
 static int max_collisions = 0;
+static int max_terminals = 0;
 static float max_collisions_ratio = 0.25;
+static float max_terminals_ratio = 2.0;
 int  mcts_strategy_depth = 30;
 int train_data_type = 0;
 
@@ -66,6 +68,7 @@ static float ensemble_setting = 0;
 int ensemble_type = 0;
 VOLATILE int turn_off_ensemble = 0;
 static VOLATILE int n_collisions = 0;
+static VOLATILE int n_terminals = 0;
 
 /*Nodes and edges of tree*/
 std::vector<Node*> Node::mem_[MAX_CPUS];
@@ -940,16 +943,27 @@ void SEARCHER::prefetch_nodes(int idx) {
 }
 
 /*handle collision nodes*/
-bool SEARCHER::handle_collisions(Node* n, bool is_terminal) {
+bool SEARCHER::handle_collisions(Node* n) {
     if(rollout_type == MCTS &&
-        l_add(n_collisions,1) <= max_collisions )
+        l_add(n_collisions,1) <= max_collisions)
         ;
     else {
-        if(is_terminal)
-            probe_neural(true);
-        else
-            prefetch_nodes(n->get_busy() - 2);
+        prefetch_nodes(n->get_busy() - 2);
         l_add(n_collisions,-1);
+        return true;
+    }
+    return false;
+}
+
+
+/*handle terminal nodes*/
+bool SEARCHER::handle_terminals(Node* n) {
+    if(rollout_type == MCTS &&
+        l_add(n_terminals,1) <= max_terminals)
+        ;
+    else {
+        probe_neural(true);
+        l_add(n_terminals,-1);
         return true;
     }
     return false;
@@ -1024,7 +1038,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
                 n->clear_create();
             } else {
                 visits = 0;
-                if(use_nn && handle_collisions(n,false))
+                if(use_nn && handle_collisions(n))
                     visits = -1;
                 goto FINISH;
             }
@@ -1050,7 +1064,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
 BACKUP_LEAF:
         Node::BackupLeaf(n,score);
         if(use_nn)
-            handle_collisions(n,true);
+            handle_terminals(n);
 
     /*Has children*/
     } else {
@@ -1782,7 +1796,12 @@ void SEARCHER::manage_tree(bool single) {
 
     /*backup type*/
     backup_type = backup_type_setting;
-    max_collisions = (int)(PROCESSOR::n_processors * max_collisions_ratio / SEARCHER::n_devices);
+
+    /*max collisions and terminals*/
+    max_collisions = 
+        (int)(PROCESSOR::n_processors * max_collisions_ratio / SEARCHER::n_devices);
+    max_terminals = 
+        (int)(PROCESSOR::n_processors * max_terminals_ratio);
 
     /*Dirichlet noise*/
     if(is_selfplay && (chess_clock.max_visits > 2 * low_visits_threshold) ) {
@@ -1836,6 +1855,7 @@ void SEARCHER::generate_and_score_moves(int alpha, int beta) {
             } else {
                 pstack->best_score = probe_neural();
                 n_collisions = 0;
+                n_terminals = 0;
             }
             const float uniform_pol = 1.0 / pstack->count;
             for(int i = 0;i < pstack->count; i++) {
@@ -1876,6 +1896,7 @@ void SEARCHER::generate_and_score_moves(int alpha, int beta) {
         } else {
             pstack->best_score = probe_neural();
             n_collisions = 0;
+            n_terminals = 0;
 
             if(!montecarlo) return;
 
@@ -2543,6 +2564,8 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         virtual_loss = atoi(commands[command_num++]);
     } else if(!strcmp(command, "max_collisions_ratio")) {
         max_collisions_ratio = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "max_terminals_ratio")) {
+        max_terminals_ratio = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "visit_threshold")) {
         visit_threshold = atoi(commands[command_num++]);
     } else if(!strcmp(command, "montecarlo")) {
@@ -2617,6 +2640,7 @@ void print_mcts_params() {
     print_spin("evaluate_depth",evaluate_depth,-5,100);
     print_spin("virtual_loss",virtual_loss,0,1000);
     print_spin("max_collisions_ratio",max_collisions_ratio,0,100*SEARCHER::n_devices);
+    print_spin("max_terminals_ratio",max_terminals_ratio,0,100*SEARCHER::n_devices);
     print_spin("visit_threshold",visit_threshold,0,1000000);
     print_check("montecarlo",montecarlo);
     print_spin("sp_resign_value",sp_resign_value,0,10000);
