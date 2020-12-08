@@ -1655,7 +1655,7 @@ bool EPD::next(char* moves, bool silent) {
     l_lock(lock);
     if(fgets(moves,4 * MAX_FILE_STR,f)) {
         count++;
-        if(!silent) print("Position %d\t\r",count);
+        if(!silent) printf("Position %d\t\r",count);
         l_unlock(lock);
         return true;
     }
@@ -1906,6 +1906,7 @@ void SEARCHER::epd_to_nn(char* fen, FILE* fb, int task) {
         SEARCHER cp;                                            \
         cp.COPY(this);                                          \
         find_best();                                            \
+        cp.copy_root(this);                                     \
         COPY(&cp);                                              \
         if(SEARCHER::pv_print_style == 0)                       \
             print("**********************\n");                  \
