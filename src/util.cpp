@@ -1638,7 +1638,8 @@ bool PGN::next(char* moves, bool silent) {
         if(c == '[') {
             if(!is_header) {
                 count++;
-                if(!silent) print("Game %d\t\r",count);
+                if(!silent && (SEARCHER::pv_print_style == 0))
+                    print("Game %d\t\r",count);
                 l_unlock(lock);
                 return true;
             }
@@ -1655,7 +1656,8 @@ bool EPD::next(char* moves, bool silent) {
     l_lock(lock);
     if(fgets(moves,4 * MAX_FILE_STR,f)) {
         count++;
-        if(!silent) printf("Position %d\t\r",count);
+        if(!silent && (SEARCHER::pv_print_style == 0))
+            print("Position %d\t\r",count);
         l_unlock(lock);
         return true;
     }
