@@ -65,7 +65,7 @@ int ensemble = 0;
 static float ensemble_setting = 0;
 int ensemble_type = 0;
 VOLATILE int turn_off_ensemble = 0;
-static VOLATILE int n_terminal = 0;
+static VOLATILE int n_collisions = 0;
 
 /*Nodes and edges of tree*/
 std::vector<Node*> Node::mem_[MAX_CPUS];
@@ -264,9 +264,9 @@ void Node::compute_Q(Node* n, float fpu, bool has_ab) {
     /*approaching collision limit?*/
     int collision_lev = 1;
     if(SEARCHER::use_nn && max_collisions >= 3) {
-        if(n_terminal >= ((3 * max_collisions) >> 2))
+        if(n_collisions >= ((3 * max_collisions) >> 2))
             collision_lev = 4;
-        else if(n_terminal >= (max_collisions >> 1))
+        else if(n_collisions >= (max_collisions >> 1))
             collision_lev = 2;
     }
 
@@ -939,17 +939,17 @@ void SEARCHER::prefetch_nodes(int idx) {
     probe_neural(true);
 }
 
-/*handle terminal and collistion nodes*/
-bool SEARCHER::handle_terminal(Node* n, bool is_terminal) {
+/*handle collision nodes*/
+bool SEARCHER::handle_collisions(Node* n, bool is_terminal) {
     if(rollout_type == MCTS &&
-        l_add(n_terminal,1) <= max_collisions )
+        l_add(n_collisions,1) <= max_collisions )
         ;
     else {
         if(is_terminal)
             probe_neural(true);
         else
             prefetch_nodes(n->get_busy() - 2);
-        l_add(n_terminal,-1);
+        l_add(n_collisions,-1);
         return true;
     }
     return false;
@@ -1024,7 +1024,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
                 n->clear_create();
             } else {
                 visits = 0;
-                if(use_nn && handle_terminal(n,false))
+                if(use_nn && handle_collisions(n,false))
                     visits = -1;
                 goto FINISH;
             }
@@ -1034,6 +1034,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
                     score = -MATE_SCORE + WIN_PLY * (ply + 1);
                 else 
                     score = ((scorpio == player) ? -contempt : contempt);
+                goto BACKUP_LEAF;
             } else {
                 if(rollout_type == ALPHABETA) {
                     /*Expand more in case of AB*/
@@ -1049,7 +1050,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
 BACKUP_LEAF:
         Node::BackupLeaf(n,score);
         if(use_nn)
-            handle_terminal(n,true);
+            handle_collisions(n,true);
 
     /*Has children*/
     } else {
@@ -1834,7 +1835,7 @@ void SEARCHER::generate_and_score_moves(int alpha, int beta) {
                 pstack->best_score = eval();
             } else {
                 pstack->best_score = probe_neural();
-                n_terminal = 0;
+                n_collisions = 0;
             }
             const float uniform_pol = 1.0 / pstack->count;
             for(int i = 0;i < pstack->count; i++) {
@@ -1874,7 +1875,7 @@ void SEARCHER::generate_and_score_moves(int alpha, int beta) {
             }
         } else {
             pstack->best_score = probe_neural();
-            n_terminal = 0;
+            n_collisions = 0;
 
             if(!montecarlo) return;
 
