@@ -922,22 +922,26 @@ void SEARCHER::prefetch_nodes(int idx) {
     gen_all_legal();
     if(pstack->count > 0) {
         if(idx >= pstack->count) {
-            idx -= pstack->count;
-            PUSH_MOVE(pstack->move_st[0]);
-            prefetch_nodes(idx);
+            int chosen_move_id = idx % pstack->count;
+            idx -= pstack->count * pstack->count;
+            PUSH_MOVE(pstack->move_st[chosen_move_id]);
+            if(ply < MAX_PLY - 1 
+                && !draw() 
+                && !bitbase_cutoff()
+            ) {
+                prefetch_nodes(idx);
+            } else {
+                probe_neural(true);
+            }
             POP_MOVE();
             return;
         } else if(idx < 0)
             idx = 0;
 
         PUSH_MOVE(pstack->move_st[idx]);
-        gen_all_legal();
-        if(pstack->count > 0) {
-            probe_neural(true);
-            POP_MOVE();
-            return;
-        }
+        probe_neural(true);
         POP_MOVE();
+        return;
     }
     probe_neural(true);
 }
