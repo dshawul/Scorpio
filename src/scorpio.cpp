@@ -137,25 +137,39 @@ hash tables
 static void reset_ht() {
     uint32_t size = 1,size_max = ht * ((1024 * 1024) / (2 * sizeof(HASH)));
     while(2 * size <= size_max) size *= 2;
-    for(int i = 0;i < PROCESSOR::n_processors;i++) 
-        processors[i]->reset_hash_tab(i,size);
+    for(int i = 0;i < PROCESSOR::n_processors;i++) {
+        if(i < PROCESSOR::n_cores)
+            processors[i]->reset_hash_tab(i,size);
+        else
+            processors[i]->reset_hash_tab(i,0);
+    }
     print("ht %d X %d = %.1f MB\n",2 * size,sizeof(HASH),(2 * size * sizeof(HASH)) / double(1024 * 1024));
 }
 static void reset_eht() {
     uint32_t size = 1,size_max = eht * ((1024 * 1024) / (2 * sizeof(EVALHASH)));
     while(2 * size <= size_max) size *= 2;
-    for(int i = 0;i < PROCESSOR::n_processors;i++) 
-        processors[i]->reset_eval_hash_tab(size);
-    print("eht %d X %d X %d = %.1f MB\n",size,sizeof(EVALHASH),PROCESSOR::n_processors,
-        PROCESSOR::n_processors * (2 * size * sizeof(EVALHASH)) / double(1024 * 1024));
+    for(int i = 0;i < PROCESSOR::n_processors;i++) {
+        if(i < PROCESSOR::n_cores)
+            processors[i]->reset_eval_hash_tab(size);
+        else
+            processors[i]->reset_eval_hash_tab(0);
+    }
+    int np = MIN(PROCESSOR::n_cores, PROCESSOR::n_processors);
+    print("eht %d X %d X %d = %.1f MB\n",size,sizeof(EVALHASH), np,
+        np * (2 * size * sizeof(EVALHASH)) / double(1024 * 1024));
 }
 static void reset_pht() {
     uint32_t size = 1,size_max = pht * ((1024 * 1024) / (sizeof(PAWNHASH)));
     while(2 * size <= size_max) size *= 2;
-    for(int i = 0;i < PROCESSOR::n_processors;i++) 
-        processors[i]->reset_pawn_hash_tab(size);
-    print("pht %d X %d X %d = %.1f MB\n",size,sizeof(PAWNHASH),PROCESSOR::n_processors,
-        PROCESSOR::n_processors * (size * sizeof(PAWNHASH)) / double(1024 * 1024));
+    for(int i = 0;i < PROCESSOR::n_processors;i++) {
+        if(i < PROCESSOR::n_cores)
+            processors[i]->reset_pawn_hash_tab(size);
+        else
+            processors[i]->reset_pawn_hash_tab(0);
+    }
+    int np = MIN(PROCESSOR::n_cores, PROCESSOR::n_processors);
+    print("pht %d X %d X %d = %.1f MB\n",size,sizeof(PAWNHASH), np,
+        np * (size * sizeof(PAWNHASH)) / double(1024 * 1024));
 }
 /*
 main
