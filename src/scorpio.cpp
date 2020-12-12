@@ -413,6 +413,7 @@ void print_combo(const char* name, const char* combo[], int def, int N) {
 static void print_options() {
     static const char* dtype[] = {"CPU", "GPU"};
     static const char* ftype[] = {"FLOAT", "HALF", "INT8"};
+    static const char* sched[] = {"FCFS", "ROUNDROBIN"};
     print_check("log",log_on);
     print_button("clear_hash");
     print_spin("resign",SEARCHER::resign_value,100,30000);
@@ -450,6 +451,8 @@ static void print_options() {
     print_spin("loss_weight",loss_weight,0,1000);
     print_spin("nnue_scale",SEARCHER::nnue_scale,0,1024);
     print_spin("nnue_type",SEARCHER::nnue_type,0,1);
+    print_spin("batch_size_factor",SEARCHER::batch_size_factor,0,12);
+    print_combo("scheduling",sched,SEARCHER::batch_size_factor,2);
 }
 /**
 * Internal scorpio commands
@@ -613,6 +616,13 @@ bool internal_commands(char** commands,char* command,int& command_num) {
     } else if(!strcmp(command, "loss_weight")) {
         loss_weight = atoi(commands[command_num]);
         command_num++;
+    } else if(!strcmp(command, "batch_size_factor")) {
+        SEARCHER::batch_size_factor = atoi(commands[command_num]);
+        command_num++;
+    } else if(!strcmp(command, "scheduling")) {
+        command = commands[command_num++];
+        if(!strcmp(command,"FCFS")) SEARCHER::scheduling = 0;
+        else SEARCHER::scheduling = 1;
 #endif
 
 #ifdef BOOK_PROBE

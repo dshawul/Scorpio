@@ -37,7 +37,8 @@ typedef void (CDECL *PLOAD_NN)(
     char* input_names, char* output_names,
     char* input_shapes, char* output_sizes,
     int nn_cache_size, int dev_type, int n_devices,
-    int max_threads, int float_type, int delay, int nn_id
+    int max_threads, int float_type, int delay, int nn_id,
+    int batch_size_factor, int scheduling
 );
 typedef void (CDECL *PSET_NUM_ACTIVE_SEARCHERS) (
     int n_searchers);
@@ -93,6 +94,8 @@ int SEARCHER::wdl_head_m = 0;
 int SEARCHER::wdl_head_e = 0;
 int SEARCHER::nnue_scale = 128;
 int SEARCHER::nnue_type = 0;
+int SEARCHER::batch_size_factor = 0;
+int SEARCHER::scheduling = 0;
 int win_weight = 100;
 int draw_weight = 100;
 int loss_weight = 100;
@@ -213,7 +216,7 @@ static void load_net(int id, int nn_cache_size, PLOAD_NN load_nn) {
 
     load_nn(path, input_names, output_names, input_shapes, output_sizes,
         nn_cache_size,SEARCHER::device_type,SEARCHER::n_devices,PROCESSOR::n_processors,
-        SEARCHER::float_type, SEARCHER::delay,id);
+        SEARCHER::float_type,SEARCHER::delay,id,SEARCHER::batch_size_factor,SEARCHER::scheduling);
 };
 
 static void clean_path(char* main_path) {

@@ -941,6 +941,8 @@ typedef struct SEARCHER{
     static int nn_man_m;
     static int nnue_scale;
     static int nnue_type;
+    static int batch_size_factor;
+    static int scheduling;
     /*
     End
     */
