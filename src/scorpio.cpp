@@ -115,8 +115,8 @@ static void wait_for_egbb() {
 static void CDECL egbb_thread_proc(void*) {
     int start = get_time();
     int egbb_cache_sizeb = (SEARCHER::egbb_cache_size * 1024 * 1024);
-    int nn_cache_sizeb = (SEARCHER::nn_cache_size * 1024 * 1024);
-    LoadEgbbLibrary(SEARCHER::egbb_path,egbb_cache_sizeb,nn_cache_sizeb);
+    int nn_cache_sizekb = (SEARCHER::nn_cache_size * 1024);
+    LoadEgbbLibrary(SEARCHER::egbb_path,egbb_cache_sizeb,nn_cache_sizekb);
     int end = get_time();
     print("loading_time = %ds\n",(end - start) / 1000);
     egbb_is_loading = false;
