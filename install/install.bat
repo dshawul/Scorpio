@@ -120,7 +120,7 @@ IF %ISCNET% NEQ 0 (
 )
 IF %GPUS% NEQ 0 (
     IF %ILCNET% NEQ 0 (
-       SET NETS=%NETS% nets-lczero.zip nets-maddex.zip
+       SET NETS=%NETS% nets-lczero.zip nets-ender.zip
     )
 )
 for %%N in ( %NETS% ) DO (
@@ -140,7 +140,7 @@ SET EXE="%CWD%bin/Windows/scorpio.bat"
 
 IF %GPUS% NEQ 0 (
   SET nnp=%CWD%nets-scorpio/ens-net-20x256.uff
-  SET nnp_e=%CWD%nets-maddex/ME.uff
+  SET nnp_e=%CWD%nets-ender/ME.uff
   SET nnp_m=
   SET nn_type=0
   IF %ILCNET% GEQ 1 (

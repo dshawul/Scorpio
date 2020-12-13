@@ -115,7 +115,7 @@ if [ $ISCNET -eq 1 ]; then
     NET="nets-scorpio nets-nnue"
 fi
 if [ $DEV = "gpu" ] && [ $ILCNET -eq 1 ]; then
-    NET="${NET} nets-lczero nets-maddex"
+    NET="${NET} nets-lczero nets-ender"
 fi
 for N in $NET; do
     wget --no-check-certificate ${LNK}/${VERSION}/$N.zip
@@ -147,7 +147,7 @@ egbbp=${PD}/${EGBB}
 egbbfp=${PD}/egbb
 if [ $DEV = "gpu" ]; then
     nnp=${PD}/nets-scorpio/ens-net-20x256.uff
-    nnp_e=${PD}/nets-maddex/ME.uff
+    nnp_e=${PD}/nets-ender/ME.uff
     nnp_m=
     nn_type=0
     if [ $ILCNET -ge 1 ]; then
