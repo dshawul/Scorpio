@@ -923,6 +923,8 @@ typedef struct SEARCHER{
     static char nn_path_m[MAX_STR];
     static char nnue_path[MAX_STR];
     static int nn_cache_size;
+    static int nn_cache_size_m;
+    static int nn_cache_size_e;
     static int use_nnue;
     static int use_nn;
     static int save_use_nn;
@@ -1253,7 +1255,7 @@ FORCEINLINE double logit(double p, double kf = Kfactor) {
 /*
 Bitbases
 */
-void LoadEgbbLibrary(char* path,int,int);
+void LoadEgbbLibrary(char* path);
 /*
 Bitboards.
 */

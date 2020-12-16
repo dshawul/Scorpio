@@ -75,7 +75,9 @@ char SEARCHER::nn_path[MAX_STR]   = "../nets-scorpio/net-6x64.pb";
 char SEARCHER::nn_path_e[MAX_STR] = "../nets-scorpio/net-6x64.pb";
 char SEARCHER::nn_path_m[MAX_STR] = "../nets-scorpio/net-6x64.pb";
 char SEARCHER::nnue_path[MAX_STR]   = "../nets-scorpio/nnue.bin";
-int SEARCHER::nn_cache_size = 16;
+int SEARCHER::nn_cache_size = 1024;
+int SEARCHER::nn_cache_size_m = 1024;
+int SEARCHER::nn_cache_size_e = 1024;
 int SEARCHER::use_nn = 0;
 int SEARCHER::use_nnue = 0;
 int SEARCHER::save_use_nn = 0;
@@ -231,7 +233,7 @@ static void clean_path(char* main_path) {
         }
     }
 }
-void LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
+void LoadEgbbLibrary(char* main_path) {
 #ifdef EGBB
     static HMODULE hmod = 0;
     PLOAD_EGBB load_egbb;
@@ -267,6 +269,7 @@ void LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
 
         if(load_egbb) {
             clean_path(SEARCHER::egbb_files_path);
+            int egbb_cache_size = (SEARCHER::egbb_cache_size * 1024 * 1024);
             load_egbb(SEARCHER::egbb_files_path,egbb_cache_size,SEARCHER::egbb_load_type);
             SEARCHER::egbb_is_loaded = 1;
         }
@@ -278,12 +281,18 @@ void LoadEgbbLibrary(char* main_path,int egbb_cache_size,int nn_cache_size) {
 
         if(load_nn && SEARCHER::use_nn) {
 
-            if(SEARCHER::nn_type >= DEFAULT)
+            if(SEARCHER::nn_type >= DEFAULT) {
+                int nn_cache_size = (SEARCHER::nn_cache_size * 1024);
                 load_net(0,nn_cache_size,load_nn);
-            if(SEARCHER::nn_type_m >= DEFAULT)
+            }
+            if(SEARCHER::nn_type_m >= DEFAULT) {
+                int nn_cache_size = (SEARCHER::nn_cache_size_m * 1024);
                 load_net(1,nn_cache_size,load_nn);
-            if(SEARCHER::nn_type_e >= DEFAULT)
+            }
+            if(SEARCHER::nn_type_e >= DEFAULT) {
+                int nn_cache_size = (SEARCHER::nn_cache_size_e * 1024);
                 load_net(2,nn_cache_size,load_nn);
+            }
 
             init_index_table();
             init_input_planes();

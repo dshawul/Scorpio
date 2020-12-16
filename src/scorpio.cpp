@@ -114,9 +114,7 @@ static void wait_for_egbb() {
 }
 static void CDECL egbb_thread_proc(void*) {
     int start = get_time();
-    int egbb_cache_sizeb = (SEARCHER::egbb_cache_size * 1024 * 1024);
-    int nn_cache_sizekb = (SEARCHER::nn_cache_size * 1024);
-    LoadEgbbLibrary(SEARCHER::egbb_path,egbb_cache_sizeb,nn_cache_sizekb);
+    LoadEgbbLibrary(SEARCHER::egbb_path);
     int end = get_time();
     print("loading_time = %ds\n",(end - start) / 1000);
     egbb_is_loading = false;
@@ -434,6 +432,8 @@ static void print_options() {
     print_spin("egbb_depth_limit",SEARCHER::egbb_depth_limit,0,MAX_PLY);
     print_spin("egbb_ply_limit_percent",SEARCHER::egbb_ply_limit_percent,0,100);
     print_spin("nn_cache_size",SEARCHER::nn_cache_size,1,16384);
+    print_spin("nn_cache_size_m",SEARCHER::nn_cache_size_m,1,16384);
+    print_spin("nn_cache_size_e",SEARCHER::nn_cache_size_e,1,16384);
     print_spin("n_devices",SEARCHER::n_devices,1,128);
     print_combo("device_type",dtype,SEARCHER::device_type,2);
     print_spin("delay",SEARCHER::delay,0,1000);
@@ -534,6 +534,14 @@ bool internal_commands(char** commands,char* command,int& command_num) {
     } else if(!strcmp(command, "nn_cache_size")) {
         egbb_setting_changed = true;
         SEARCHER::nn_cache_size = atoi(commands[command_num]);
+        command_num++;
+    } else if(!strcmp(command, "nn_cache_size_m")) {
+        egbb_setting_changed = true;
+        SEARCHER::nn_cache_size_m = atoi(commands[command_num]);
+        command_num++;
+    } else if(!strcmp(command, "nn_cache_size_e")) {
+        egbb_setting_changed = true;
+        SEARCHER::nn_cache_size_e = atoi(commands[command_num]);
         command_num++;
     } else if (!strcmp(command, "use_nn")) {
         if(!strcmp(commands[command_num],"on") ||
