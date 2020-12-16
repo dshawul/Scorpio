@@ -413,14 +413,14 @@ float SEARCHER::probe_neural_(bool hard_probe, float* policy, int nn_id_, int nn
     if(nn_type_ != NNUE) {
         for(int i = 0; i < max_moves; i++) {
             MOVE& m = pstack->move_st[i];
-            mindex[i] = compute_move_index(m);
+            mindex[i] = compute_move_index(m, nn_type_);
         }
     }
 
     nnecalls++;
 
     float* iplanes[2] = {0, 0};
-    fill_input_planes(iplanes);
+    fill_input_planes(iplanes, nn_type_);
 
     if(nn_type_ == DEFAULT || nn_type_ == SIMPLE || nn_type_ == QLEARN) {
         float* wdl = &all_wdl[processor_id][0];
@@ -497,13 +497,24 @@ int SEARCHER::probe_neural(bool hard_probe) {
 
     if(ensemble) {
 
-        if(ensemble_type == 2) {
+        if(ensemble_type == 3) {
+            //choose policy and value from two diffferent nets
+            if(nn_type_m >= DEFAULT) {
+                score = probe_neural_(true,policy,1,nn_type_m,wdl_head_m);
+                probe_neural_(true,policy,nn_id,nn_type,wdl_head);
+            } else if(nn_type_e >= DEFAULT) {
+                score = probe_neural_(true,policy,2,nn_type_e,wdl_head_e);
+                probe_neural_(true,policy,nn_id,nn_type,wdl_head);
+            } else
+                score = probe_neural_(hard_probe,policy,nn_id,nn_type,wdl_head);
+        } else if(ensemble_type == 2) {
             //choose one net
             if(nn_type_m >= DEFAULT) {
                 score = probe_neural_(true,policy,1,nn_type_m,wdl_head_m);
             } else if(nn_type_e >= DEFAULT) {
                 score = probe_neural_(true,policy,2,nn_type_e,wdl_head_e);
-            }
+            } else
+                score = probe_neural_(hard_probe,policy,nn_id,nn_type,wdl_head);
         } else {
             //zero
             int nensemble = 0;
@@ -682,18 +693,18 @@ int SEARCHER::compute_move_index(MOVE& m, int mnn_type) {
 
 void fill_input_planes(
     int player, int cast, int fifty, int hply, int epsquare, bool flip_h,
-    int hist, int* draw, int* piece, int* square, float* data
+    int hist, int* draw, int* piece, int* square, float* data, int nn_type_
     ) {
     
     int pc, sq, to;
-    const int CHANNELS = net_channels[SEARCHER::nn_type];
+    const int CHANNELS = net_channels[nn_type_];
 
     /* 
        Add the attack map planes 
     */
 #define DHWC(sq,C)     data[rank(sq) * 8 * CHANNELS + file(sq) * CHANNELS + C]
 #define DCHW(sq,C)     data[C * 8 * 8 + rank(sq) * 8 + file(sq)]
-#define D(sq,C)        ( (is_trt || (SEARCHER::nn_type == LCZERO) ) ? DCHW(sq,C) : DHWC(sq,C) )
+#define D(sq,C)        ( (is_trt || (nn_type_ == LCZERO) ) ? DCHW(sq,C) : DHWC(sq,C) )
 
 #define NK_MOVES(dir, off) {                    \
         to = sq + dir;                          \
@@ -711,7 +722,7 @@ void fill_input_planes(
 
     memset(data,  0, sizeof(float) * 8 * 8 * CHANNELS);
 
-    if(SEARCHER::nn_type == DEFAULT || SEARCHER::nn_type == QLEARN) {
+    if(nn_type_ == DEFAULT || nn_type_ == QLEARN) {
 
         int board[128];
 
@@ -862,7 +873,7 @@ void fill_input_planes(
             D(sq,(CHANNELS - 1)) = 1.0;
         }
 
-    } else if (SEARCHER::nn_type == SIMPLE) {
+    } else if (nn_type_ == SIMPLE) {
 
         for(int i = 0; (pc = piece[i]) != _EMPTY; i++) {
             sq = SQ6488(square[i]);
@@ -872,7 +883,7 @@ void fill_input_planes(
             }
             D(sq,(pc-1)) = 1.0f;
         }
-    } else if (SEARCHER::nn_type == NNUE) {
+    } else if (nn_type_ == NNUE) {
 
         //player
         {
@@ -1005,9 +1016,9 @@ void fill_input_planes(
 /*
 Fill input planes
 */
-void SEARCHER::fill_input_planes(float** iplanes) {
+void SEARCHER::fill_input_planes(float** iplanes, int nn_type_) {
 
-    if(nn_type == DEFAULT || nn_type == SIMPLE || nn_type == QLEARN || nn_type == NNUE) {
+    if(nn_type_ == DEFAULT || nn_type_ == SIMPLE || nn_type_ == QLEARN || nn_type_ == NNUE) {
 
         int piece[33],square[33],isdraw[1];
         int count = 0, hist = 1;
@@ -1015,10 +1026,10 @@ void SEARCHER::fill_input_planes(float** iplanes) {
         fill_list(count,piece,square);
 
         iplanes[0] = inp_planes[processor_id];
-        if(nn_type == NNUE)
+        if(nn_type_ == NNUE)
             iplanes[1] = iplanes[0] + 8 * 8 * net_channels[NNUE];
         ::fill_input_planes(player,castle,fifty,hply,epsquare,flip_h,hist,
-            isdraw,piece,square,iplanes[0]);
+            isdraw,piece,square,iplanes[0], nn_type_);
     } else {
 
         int piece[8*33],square[8*33],isdraw[8];
@@ -1041,7 +1052,7 @@ void SEARCHER::fill_input_planes(float** iplanes) {
 
         iplanes[0] = inp_planes[processor_id];
         ::fill_input_planes(player,castle,fifty,hply,epsquare,flip_h,hist,
-            isdraw,piece,square,iplanes[0]);
+            isdraw,piece,square,iplanes[0], nn_type_);
     }
 }
 /*
@@ -1051,7 +1062,7 @@ void SEARCHER::write_input_planes(FILE* file) {
     init_input_planes();
 
     float* iplanes[2] = {0, 0};
-    fill_input_planes(iplanes);
+    fill_input_planes(iplanes, nn_type);
 
     const int CHANNELS = net_channels[nn_type];;
     const int NPLANE = 8 * 8 * CHANNELS;

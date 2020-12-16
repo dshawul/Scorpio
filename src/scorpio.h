@@ -904,7 +904,7 @@ typedef struct SEARCHER{
     void worker_thread();
     void worker_thread_all(ParallelFile*,FILE*,int,bool=false);
     void launch_worker_threads();
-    void fill_input_planes(float**);
+    void fill_input_planes(float**,int);
     void write_input_planes(FILE*);
     int compress_input_planes(float**, char*);
     void select_net();
