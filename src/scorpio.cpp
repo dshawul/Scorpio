@@ -681,7 +681,7 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         }
         merge_books(source1,source2,dest,w1,w2);
     } else if (!strcmp(command,"pgn_to_epd") ||
-               !strcmp(command,"pgn_to_epd_score") ||
+               !strcmp(command,"pgn_to_score") ||
                !strcmp(command,"pgn_to_nn") ||
                !strcmp(command,"pgn_to_dat") ||
                !strcmp(command,"epd_to_score") ||
@@ -697,7 +697,7 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         int task;
         if(!strcmp(command,"pgn_to_epd"))
             task = 0;
-        else if(!strcmp(command,"pgn_to_epd_score"))
+        else if(!strcmp(command,"pgn_to_score"))
             task = 1;
         else if(!strcmp(command,"pgn_to_nn"))
             task = 2;
@@ -736,7 +736,7 @@ bool internal_commands(char** commands,char* command,int& command_num) {
 
         /*process pgn/epd*/
         FILE* fb = 0;
-        if(task == 2)
+        if(task == 3 || task == 6)
             fb = fopen(dest,"wb");
         else if(task < 7)
             fb = fopen(dest,"w");

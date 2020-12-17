@@ -195,7 +195,7 @@ static void load_net(int id, int nn_cache_size, PLOAD_NN load_nn) {
         if((file = fopen(trtPath,"r")) != 0) {
             fclose(file);
         } else {
-            FILE* fb = fopen("calibrate.dat","w");
+            FILE* fb = fopen("calibrate.dat","wb");
             EPD epd;
             epd.open("calibrate.epd");
 
