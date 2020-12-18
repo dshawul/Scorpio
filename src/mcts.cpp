@@ -923,7 +923,7 @@ void SEARCHER::prefetch_nodes(int idx) {
     if(pstack->count > 0) {
         if(idx >= pstack->count) {
             int chosen_move_id = idx % pstack->count;
-            idx -= pstack->count * pstack->count;
+            idx /= pstack->count;
             PUSH_MOVE(pstack->move_st[chosen_move_id]);
             if(ply < MAX_PLY - 1 
                 && !draw() 
