@@ -55,6 +55,7 @@ static int max_collisions = 0;
 static int max_terminals = 0;
 static float max_collisions_ratio = 0.25;
 static float max_terminals_ratio = 2.0;
+static float rms_power = 1.4;
 int  mcts_strategy_depth = 30;
 int train_data_type = 0;
 
@@ -781,10 +782,10 @@ float Node::Avg_score_mem(Node* n, double score, int visits) {
     return logit(sc);
 }
 float Node::Rms_score_mem(Node* n, double score, int visits) {
-    double sc = logistic(n->score);
-    double sc1 = logistic(score);
-    sc = sc*sc + (sc1*sc1 - sc*sc) * visits / (n->visits + visits);
-    return logit(sqrt(sc));
+    double sc = pow(logistic(n->score), rms_power);
+    double sc1 = pow(logistic(score), rms_power);
+    sc = sc + (sc1 - sc) * visits / (n->visits + visits);
+    return logit(pow(sc, 1.0/rms_power));
 }
 void Node::Backup(Node* n,double& score,int visits) {
     if(rollout_type == MCTS) {
@@ -2546,6 +2547,8 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         ensemble_setting = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "ensemble_type")) {
         ensemble_type = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "rms_power")) {
+        rms_power = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "min_policy_value")) {
         min_policy_value = atoi(commands[command_num++]) / 1000.0;
     } else if(!strcmp(command, "backup_type")) {
@@ -2634,6 +2637,7 @@ void print_mcts_params() {
     print_spin("backup_type",backup_type_setting,0,8);
     print_spin("ensemble",int(ensemble_setting*100),0,100);
     print_spin("ensemble_type",ensemble_type,0,2);
+    print_spin("rms_power",int(rms_power*100),0,1000);
     print_spin("min_policy_value",int(min_policy_value*1000),0,1000);
     print_spin("frac_alphabeta",int(frac_alphabeta*100),0,100);
     print_spin("frac_freeze_tree",int(frac_freeze_tree*100),0,100);
@@ -2643,8 +2647,8 @@ void print_mcts_params() {
     print_spin("alphabeta_depth",alphabeta_depth,1,100);
     print_spin("evaluate_depth",evaluate_depth,-5,100);
     print_spin("virtual_loss",virtual_loss,0,1000);
-    print_spin("max_collisions_ratio",max_collisions_ratio,0,100*SEARCHER::n_devices);
-    print_spin("max_terminals_ratio",max_terminals_ratio,0,100*SEARCHER::n_devices);
+    print_spin("max_collisions_ratio",int(max_collisions_ratio*100),0,1000*SEARCHER::n_devices);
+    print_spin("max_terminals_ratio",int(max_terminals_ratio*100),0,1000*SEARCHER::n_devices);
     print_spin("visit_threshold",visit_threshold,0,1000000);
     print_check("montecarlo",montecarlo);
     print_spin("sp_resign_value",sp_resign_value,0,10000);
