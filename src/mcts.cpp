@@ -679,7 +679,8 @@ int SEARCHER::Random_select_ab() {
         bidx = dist(mtgen);
 #if 0
         for(int i = 0; i < pstack->count; ++i) {
-            print("%c%d. %d\n",(i == bidx) ? '*':' ',i,freq[i]);
+            print("%c%d. %d %d\n",(i == bidx) ? '*':' ',
+                i,pstack->score_st[i],freq[i]);
         }
 #endif
     }
@@ -784,8 +785,9 @@ float Node::Avg_score_mem(Node* n, double score, int visits) {
 float Node::Rms_score_mem(Node* n, double score, int visits) {
     double sc = pow(logistic(n->score), rms_power);
     double sc1 = pow(logistic(score), rms_power);
-    sc = sc + (sc1 - sc) * visits / (n->visits + visits);
-    return logit(pow(sc, 1.0/rms_power));
+    sc += (sc1 - sc) * visits / (n->visits + visits);
+    sc = pow(sc, 1.0 / rms_power);
+    return logit(sc);
 }
 void Node::Backup(Node* n,double& score,int visits) {
     if(rollout_type == MCTS) {
@@ -1156,8 +1158,8 @@ RESEARCH:
                 goto FINISH;
 
             /*Research if necessary when window closes*/
-            if(visits > 0
-                && rollout_type == ALPHABETA
+            if(rollout_type == ALPHABETA
+                && visits > 0
                 && next->alpha >= next->beta
                 ) {
 #if 0

@@ -1267,7 +1267,12 @@ void SEARCHER::evaluate_moves(int depth, int alpha, int beta) {
             score = -pstack->best_score;
             pstack->pv_length = ply;
         } else {
-            int newd = (depth > 3) ? (depth - MIN(i, depth - 3)) : MAX(0, depth - i);
+            int newd = depth;
+            for(int j = 0;j < 8;j++) {
+                if(i >= lmr_count[j] && newd > 1) {
+                    newd--;
+                }
+            }
             score = (pstack-1)->score_st[i];
             if(ply == 1 && newd >= 3) {
                 alpha = score - WINDOW;
