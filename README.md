@@ -310,6 +310,10 @@ Those who supported the egbbs does not have to use the method scorpio
 uses for probing. It is upto the programmer to decide what to do 
 with them. 
             
+### Logo
+The ScorpioNN logo is designed by KanChess of TCEC who gratiously donated it to 
+the Scorpio project, many thanks!
+Thanks also to Graham Banks who designed the previous logo!
 
 <a name="ackn"></a>
 ### Acknowledgement
