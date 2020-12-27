@@ -121,7 +121,7 @@ void mov_strx(const MOVE& move,char* s) {
     *s++ = file_name[file(m_to(move))];
     *s++ = rank_name[rank(m_to(move))];
     if(m_promote(move)) {
-        *s++ = piece_name[PIECE(m_promote(move))];
+        *s++ = piece_name[PIECE(m_promote(move)) + 6];
     }
     *s = 0;
 }
