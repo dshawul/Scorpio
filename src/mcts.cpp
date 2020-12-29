@@ -289,6 +289,10 @@ void Node::compute_Q(Node* n, float fpu, bool has_ab) {
                 uct = fpu;
             } else {
                 uct = logistic(-current->score);
+                if(uct >= 0.9999) {
+                    current->Q = uct;
+                    break;
+                }
                 uct += (-uct * vvst) / (vst + 1);
             }
             if(has_ab) {
@@ -497,7 +501,10 @@ Node* Node::Max_UCB_select(Node* n, bool has_ab, bool is_root, int processor_id)
     current = n->child;
     while(current) {
         if(current->move && !current->is_dead()) {
-
+            if(current->Q >= 0.9999) {
+                bnode = current;
+                break;
+            }
             if(select_formula == 0)
                 uct = current->Q + factor * (current->policy / (current->visits + 1));
             else
