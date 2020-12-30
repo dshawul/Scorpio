@@ -790,11 +790,22 @@ float Node::Avg_score_mem(Node* n, double score, int visits) {
     return logit(sc);
 }
 float Node::Rms_score_mem(Node* n, double score, int visits) {
-    double sc = pow(logistic(n->score), rms_power);
-    double sc1 = pow(logistic(score), rms_power);
+#define signof(x) (((x) > 0) ? 1 : -1)
+    double sc, sc1;
+
+    sc = 2 * logistic(n->score) - 1;
+    sc = signof(sc) * pow(fabs(sc), rms_power);
+
+    sc1 = 2 * logistic(score) - 1;
+    sc1 = signof(sc1) * pow(fabs(sc1), rms_power);
+
     sc += (sc1 - sc) * visits / (n->visits + visits);
-    sc = pow(sc, 1.0 / rms_power);
+
+    sc = signof(sc) * pow(fabs(sc), 1.0 / rms_power);
+    sc = sc / 2.0 + 0.5;
+
     return logit(sc);
+#undef signof
 }
 void Node::Backup(Node* n,double& score,int visits) {
     if(rollout_type == MCTS) {
