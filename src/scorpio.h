@@ -391,7 +391,7 @@ typedef struct tagEVALHASH {
 struct Edges {
     int* _data;
     float score;
-    unsigned short count;
+    VOLATILE unsigned short count;
     VOLATILE unsigned short n_children; 
 
     MOVE* const moves() { return (MOVE*)_data; };

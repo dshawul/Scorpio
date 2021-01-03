@@ -904,18 +904,17 @@ void SEARCHER::create_children(Node* n) {
         n->score = pstack->best_score;
 
     /*add edges tree*/
-    n->edges.count = pstack->count;
     n->edges.score = n->score;
     if(pstack->count) {
         Edges::allocate(n->edges, processor_id, pstack->count);
         memcpy(n->edges.moves(), pstack->move_st,
             pstack->count * sizeof(MOVE));
-        memcpy(n->edges.scores(), pstack->score_st,
+        memcpy(n->edges.moves() + pstack->count, pstack->score_st,
             pstack->count * sizeof(int));
     }
 
     /*add only one child if not at the root*/
-    int nleaf = ply ? MIN(1,pstack->count) : pstack->count;
+    int nleaf = ply ? 0 : pstack->count;
     for(int i = 0; i < nleaf; i++) {
         float* pp =(float*)&pstack->score_st[i];
         n->add_child(processor_id, i,
@@ -936,6 +935,7 @@ void SEARCHER::create_children(Node* n) {
 
     /*set number of children now*/
     n->edges.n_children = nleaf;
+    n->edges.count = pstack->count;
 }
 
 /*prefetch nodes recursively and evaluate*/
@@ -1029,7 +1029,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
     }
 
     /*No children*/
-    if(!n->edges.n_children) {
+    if(!n->edges.count) {
 
         /*run out of memory for nodes*/
         if(rollout_type == MCTS
@@ -1058,7 +1058,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
         } else {
 
             if(n->try_create()) {
-                if(!n->edges.n_children)
+                if(!n->edges.count)
                     create_children(n);
                 n->clear_create();
             } else {
@@ -1068,7 +1068,7 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
                 goto FINISH;
             }
 
-            if(!n->edges.n_children) {
+            if(!n->edges.count) {
                 if(hstack[hply - 1].checks)
                     score = -MATE_SCORE + WIN_PLY * (ply + 1);
                 else 
