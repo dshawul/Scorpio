@@ -36,6 +36,7 @@ static int temp_plies = 30;
 static double rand_temp = 1.0;
 static double rand_temp_delta = 0.0;
 static double rand_temp_end = 0.0;
+static const float winning_threshold = 0.9;
 static const int low_visits_threshold = 100;
 static const int node_size = 
     (sizeof(Node) + 32 * (sizeof(MOVE) + sizeof(float)));
@@ -260,7 +261,7 @@ void Node::split(Node* n, std::vector<Node*>* pn, const int S, int& T) {
     }
 }
 
-void Node::compute_Q(Node* n, float fpu, bool has_ab) {
+bool Node::compute_Q(Node* n, float fpu, bool has_ab) {
     double uct;
     unsigned vst, vvst = 0;
     Node* current = n->child;
@@ -275,6 +276,7 @@ void Node::compute_Q(Node* n, float fpu, bool has_ab) {
     }
 
     /*compute Q for all moves*/
+    bool has_winning = false;
     while(current) {
 
         if(current->move && !current->is_dead()) {
@@ -289,9 +291,11 @@ void Node::compute_Q(Node* n, float fpu, bool has_ab) {
                 uct = fpu;
             } else {
                 uct = logistic(-current->score);
-                if(uct >= 0.9999) {
+                if(uct >= winning_threshold) {
+                    has_winning = true;
                     current->Q = uct;
-                    break;
+                    current = current->next;
+                    continue;
                 }
                 uct += (-uct * vvst) / (vst + 1);
             }
@@ -309,6 +313,7 @@ void Node::compute_Q(Node* n, float fpu, bool has_ab) {
 
         current = current->next;
     }
+    return has_winning;
 }
 
 float Node::compute_fpu(Node* n, bool is_root) {
@@ -491,10 +496,12 @@ Node* Node::Max_UCB_select(Node* n, bool has_ab, bool is_root, int processor_id)
     fpu = Node::compute_fpu(n,is_root);
 
     /*compute Q*/
-    Node::compute_Q(n,fpu,has_ab);
+    bool has_winning = Node::compute_Q(n,fpu,has_ab);
 
     /*Alphazero or UCT formula*/
-    if(select_formula == 0)
+    if(has_winning)
+        factor = 0;
+    else if(select_formula == 0)
         factor = dCPUCT * sqrt(double(n->visits));
     else
         factor = dCPUCT * sqrt(log(double(n->visits)));
@@ -503,10 +510,8 @@ Node* Node::Max_UCB_select(Node* n, bool has_ab, bool is_root, int processor_id)
     current = n->child;
     while(current) {
         if(current->move && !current->is_dead()) {
-            if(current->Q >= 0.9999) {
-                bnode = current;
-                break;
-            }
+
+
             if(select_formula == 0)
                 uct = current->Q + factor * (current->policy / (current->visits + 1));
             else
@@ -527,7 +532,7 @@ Node* Node::Max_UCB_select(Node* n, bool has_ab, bool is_root, int processor_id)
     }
 
     /*check edges and add child*/
-    if(n->edges.try_create()) {
+    if(!has_winning && n->edges.try_create()) {
         int idx = n->edges.get_children();
         if(idx < n->edges.count) {
             if(select_formula == 0)
