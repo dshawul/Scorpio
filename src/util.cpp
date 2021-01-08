@@ -1235,7 +1235,7 @@ void CHESS_CLOCK::set_stime(int hply, bool output) {
     int moves_left, est_moves_left;
     int move_no = (hply / 2);
     int pp_time = p_time;
-    if(p_time > 1500) p_time -= 1500;
+    if(p_time > 5000) p_time -= 1500;
     else p_time = int(0.7 * p_time);
     if(pondering) p_time /= 4;
 
