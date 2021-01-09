@@ -959,6 +959,7 @@ void SEARCHER::prefetch_nodes(int idx) {
             ) {
                 prefetch_nodes(idx);
             } else {
+                gen_all_legal();
                 probe_neural(true);
             }
             POP_MOVE();
@@ -967,6 +968,7 @@ void SEARCHER::prefetch_nodes(int idx) {
             idx = 0;
 
         PUSH_MOVE(pstack->move_st[idx]);
+        gen_all_legal();
         probe_neural(true);
         POP_MOVE();
         return;
