@@ -945,6 +945,7 @@ typedef struct SEARCHER{
     static int nnue_type;
     static int batch_size_factor;
     static int scheduling;
+    static unsigned int root_node_reuse_visits;
     /*
     End
     */

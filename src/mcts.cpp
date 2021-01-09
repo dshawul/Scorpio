@@ -920,7 +920,7 @@ void SEARCHER::create_children(Node* n) {
             pstack->count * sizeof(int));
     }
 
-    /*add only one child if not at the root*/
+    /*add children if we are at root node*/
     int nleaf = ply ? 0 : pstack->count;
     for(int i = 0; i < nleaf; i++) {
         float* pp =(float*)&pstack->score_st[i];
@@ -1370,9 +1370,11 @@ void SEARCHER::check_mcts_quit(bool single) {
     if(chess_clock.max_visits == MAX_NUMBER) {
         int time_used = MAX(1,get_time() - start_time);
         int remain_time = time_factor * chess_clock.search_time - time_used;
-        remain_visits = (remain_time / (double)time_used) * root_node->visits;
+        remain_visits = (remain_time / (double)time_used) * 
+            (root_node->visits - (root_node_reuse_visits >> 1));
     } else {
-        remain_visits = chess_clock.max_visits - root_node->visits;
+        remain_visits = chess_clock.max_visits - 
+            (root_node->visits - (root_node_reuse_visits >> 1));
     }
 
     /*prune root nodes*/
@@ -1790,10 +1792,12 @@ void SEARCHER::manage_tree(bool single) {
     if(!root_node) {
         print_log("# [Tree-not-found]\n");
         root_node = Node::allocate(processor_id);
+        root_node_reuse_visits = 0;
     } else {
         print_log("# [Tree-found : visits %d score %d]\n",
             root_node->visits,int(root_node->score));
 
+        root_node_reuse_visits = root_node->visits;
         playouts += root_node->visits;
 
         /*remove null moves from root*/

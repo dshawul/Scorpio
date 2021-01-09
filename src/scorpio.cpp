@@ -87,6 +87,7 @@ MOVE SEARCHER::expected_move;
 int SEARCHER::resign_value;
 int SEARCHER::resign_count;
 unsigned int SEARCHER::average_pps = 0;
+unsigned int SEARCHER::root_node_reuse_visits = 0;
 char HIST_STACK::start_fen[MAX_FEN_STR];
 /*
 static global variables/functions
