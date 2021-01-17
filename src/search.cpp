@@ -1382,7 +1382,11 @@ MOVE SEARCHER::iterative_deepening() {
         chess_clock.search_time /= 4;
     }
 
-    /* manage tree*/
+    /*AB prior search*/
+    has_ab = montecarlo && (frac_abprior > 0) &&
+        !is_selfplay && (chess_clock.max_visits == MAX_NUMBER) &&
+        (all_man_c <= alphabeta_man_c || root_score >= 400);
+
     if(montecarlo) {
         manage_tree();
         Node::max_tree_depth = 0;
@@ -1392,9 +1396,7 @@ MOVE SEARCHER::iterative_deepening() {
             chess_clock.p_time -= (get_time() - start_time);
 
         /*Alpha-beta prior search */
-        if(frac_abprior > 0 && 
-            (all_man_c <= alphabeta_man_c || root_score >= 400)
-            ) {
+        if(has_ab) {
 
 #ifdef PARALLEL
         for(int i = PROCESSOR::n_cores;i < PROCESSOR::n_processors;i++)
@@ -1542,7 +1544,7 @@ MOVE SEARCHER::iterative_deepening() {
 
     /*set search time and record start time*/
     if(!chess_clock.infinite_mode) {
-        if(montecarlo && frac_abprior > 0) {
+        if(montecarlo && has_ab) {
             chess_clock.p_time *= (1 - frac_abprior);
             chess_clock.p_inc *= (1 - frac_abprior);
             chess_clock.set_stime(hply,false);
@@ -1770,7 +1772,7 @@ MOVE SEARCHER::iterative_deepening() {
         } else if(pv_print_style == 0) {
             /*print tree*/
             if(multipv)
-                Node::print_tree(root_node,MAX_PLY);
+                Node::print_tree(root_node,has_ab,MAX_PLY);
 
             /* print result*/
             print_info("Stat: nodes " FMT64 " <%d%% qnodes> tbhits %d qcalls %d scalls %d time %dms nps %d eps %d\n",nodes,
@@ -1870,8 +1872,6 @@ MOVE SEARCHER::find_best() {
 #ifdef PARALLEL
     PROCESSOR::set_num_searchers();
 #endif
-    if(is_selfplay || (chess_clock.max_visits != MAX_NUMBER))
-        frac_abprior = 0;
 
     /*fen*/
     if(pv_print_style == 0) {

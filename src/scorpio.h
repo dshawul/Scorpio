@@ -503,7 +503,7 @@ struct Node {
     static void  rank_children(Node*);
     static void  reset_bounds(Node*);
     static void  parallel_job(Node*, PTHREAD_PROC, bool = false);
-    static Node* print_tree(Node*,int = 0,int = 0);
+    static Node* print_tree(Node*,bool,int = 0,int = 0);
     static Node* Max_UCB_select(Node*,bool,bool,int);
     static Node* Max_AB_select(Node*,int,int,bool,bool,int);
     static Node* ExactPi_select(Node*,bool,bool,int);
@@ -910,6 +910,7 @@ typedef struct SEARCHER{
     void select_net();
     void get_train_data(float&, int&, int*, float*, float*, int&);
     int compute_move_index(MOVE&, int = -1);
+    static bool has_ab;
     static int egbb_is_loaded;
     static int egbb_load_type;
     static int egbb_depth_limit;

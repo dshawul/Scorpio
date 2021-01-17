@@ -359,8 +359,8 @@ void SEARCHER::extract_pv(Node* n, bool rand) {
     if(rand)
         best = Node::Random_select(n,hply);
     else {
-        bool has_ab = (n == root_node && frac_abprior > 0);
-        best = Node::Best_select(n, has_ab);
+        bool has_ab_ = (n == root_node && has_ab);
+        best = Node::Best_select(n, has_ab_);
     }
     if(best) {
         pstack->pv[ply] = best->move;
@@ -371,15 +371,18 @@ void SEARCHER::extract_pv(Node* n, bool rand) {
         ply--;
     }
 }
-Node* Node::print_tree(Node* root,int max_depth,int depth) {
+Node* Node::print_tree(Node* root,bool has_ab_, int max_depth,int depth) {
     char str[16];
     int total = 0;
-    bool has_ab = (depth == 0 && frac_abprior > 0);
+    bool has_ab = (has_ab_ && depth == 0);
     Node* bnode = Node::Best_select(root, has_ab);
     Node* current = root->child;
 
     if(depth == 0) {
-        print_info("Move   Value=(V,P,V+P)   Policy  Visits                  PV\n");
+        if(has_ab)
+            print_info("Move      (Q,P,Q+P)      Policy  Visits                  PV\n");
+        else
+            print_info("Move  Q   Policy  Visits                  PV\n");
         print_info("----------------------------------------------------------------------------------\n");
     }
 
@@ -390,23 +393,34 @@ Node* Node::print_tree(Node* root,int max_depth,int depth) {
         if((depth == 0 || bnode == current) ) {
             mov_str(current->move,str);
             if(depth == 0) {
-                double uct = logistic(-current->score);
-                double uctp = logistic(-current->prior);
-                double avg = 0.5 * ((1 - frac_abprior) * uct 
-                                    + frac_abprior * uctp + 
-                                    MIN(uct,uctp));
-                print_info("%2d   (%.3f,%0.3f,%0.3f) %6.2f %7d   %s",
-                    total+1,
-                    uct,
-                    uctp,
-                    avg,
-                    100*current->policy,
-                    current->visits,
-                    str
-                    );
+                if(has_ab) {
+                    double uct = logistic(-current->score);
+                    double uctp = logistic(-current->prior);
+                    double avg = 0.5 * ((1 - frac_abprior) * uct 
+                                        + frac_abprior * uctp + 
+                                        MIN(uct,uctp));
+                    print_info("%2d   (%.3f,%0.3f,%0.3f) %6.2f %7d   %s",
+                        total+1,
+                        uct,
+                        uctp,
+                        avg,
+                        100*current->policy,
+                        current->visits,
+                        str
+                        );
+                } else {
+                    double uct = logistic(-current->score);
+                    print_info("%2d  %0.3f %6.2f %7d   %s",
+                        total+1,
+                        uct,
+                        100*current->policy,
+                        current->visits,
+                        str
+                        );
+                }
             } else
                 print(" %s",str);
-            print_tree(current,max_depth,depth+1);
+            print_tree(current,has_ab,max_depth,depth+1);
             total++;
         }
 
@@ -1277,7 +1291,7 @@ void CHESS_CLOCK::set_stime(int hply, bool output) {
         search_time = 3 * search_time / 2;
 
     if(montecarlo)
-        search_time = 1.6 * search_time;
+        search_time = 1.3 * search_time;
 
     if(o_time < p_time)
         search_time += (p_time - o_time) * 2 / moves_left;

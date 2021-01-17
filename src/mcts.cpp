@@ -1112,11 +1112,11 @@ SELECT:
                 try_null,search_by_rank, processor_id);
         } else {
             bool is_root = (n == root_node);
-            bool has_ab = (is_root && frac_abprior > 0);
+            bool has_ab_ = (is_root && has_ab);
             if(select_formula >= 2)
-                next = Node::ExactPi_select(n, has_ab, is_root, processor_id);
+                next = Node::ExactPi_select(n, has_ab_, is_root, processor_id);
             else
-                next = Node::Max_UCB_select(n, has_ab, is_root, processor_id);
+                next = Node::Max_UCB_select(n, has_ab_, is_root, processor_id);
         }
 
         /*This could happen in parallel search*/
@@ -1589,10 +1589,8 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
     if(!single && !abort_search && !stop_searcher) {
         bool failed = (-best->score <= oalpha) || 
                       (-best->score >= obeta);
-        if(!failed) {
-            bool has_ab = (frac_abprior > 0);
+        if(!failed)
             best = Node::Best_select(root,has_ab);
-        }
 
         root->score = -best->score;
         root_score = root->score;
