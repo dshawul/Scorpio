@@ -1619,6 +1619,12 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
             print_pv(root_score);
         search_depth++;
     }
+    /*clear dead*/
+    current = root->child;
+    while(current) {
+        current->clear_dead();
+        current = current->next;
+    }
 }
 /*
 Traverse tree in parallel
