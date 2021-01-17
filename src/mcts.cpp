@@ -509,7 +509,6 @@ Node* Node::Max_UCB_select(Node* n, bool has_ab, bool is_root, int processor_id)
     while(current) {
         if(current->move && !current->is_dead()) {
 
-
             if(select_formula == 0)
                 uct = current->Q + factor * (current->policy / (current->visits + 1));
             else

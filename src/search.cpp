@@ -1393,7 +1393,7 @@ MOVE SEARCHER::iterative_deepening() {
 
         /*Alpha-beta prior search */
         if(frac_abprior > 0 && 
-            (all_man_c <= alphabeta_man_c || root_score >= 350)
+            (all_man_c <= alphabeta_man_c || root_score >= 400)
             ) {
 
 #ifdef PARALLEL
