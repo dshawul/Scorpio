@@ -57,6 +57,7 @@ static int max_terminals = 0;
 static float max_collisions_ratio = 0.25;
 static float max_terminals_ratio = 2.0;
 static float rms_power = 1.4;
+static float insta_move_factor = 0.0;
 int  mcts_strategy_depth = 30;
 int train_data_type = 0;
 
@@ -1365,16 +1366,21 @@ void SEARCHER::check_mcts_quit(bool single) {
     else if(ABS(root_node->score) > 10)
         time_factor *= 1.1;
 
+    /*calculate remain visits*/
     int remain_visits;
     if(chess_clock.max_visits == MAX_NUMBER) {
         int time_used = MAX(1,get_time() - start_time);
         int remain_time = time_factor * chess_clock.search_time - time_used;
         remain_visits = (remain_time / (double)time_used) * 
-            (root_node->visits - (root_node_reuse_visits >> 1));
+            (root_node->visits - (root_node_reuse_visits * (insta_move_factor + (time_factor - 1.0) / 2)));
     } else {
         remain_visits = chess_clock.max_visits - 
-            (root_node->visits - (root_node_reuse_visits >> 1));
+            (root_node->visits - (root_node_reuse_visits * insta_move_factor));
     }
+#if 0
+    print_info("insta %f vistis %d reuse %d remain %d\n",
+        insta_move_factor,root_node->visits, root_node_reuse_visits, remain_visits);
+#endif
 
     /*prune root nodes*/
     int visdiff;
@@ -2607,6 +2613,8 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         max_collisions_ratio = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "max_terminals_ratio")) {
         max_terminals_ratio = atoi(commands[command_num++]) / 100.0;
+    } else if(!strcmp(command, "insta_move_factor")) {
+        insta_move_factor = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "visit_threshold")) {
         visit_threshold = atoi(commands[command_num++]);
     } else if(!strcmp(command, "montecarlo")) {
@@ -2683,6 +2691,7 @@ void print_mcts_params() {
     print_spin("virtual_loss",virtual_loss,0,1000);
     print_spin("max_collisions_ratio",int(max_collisions_ratio*100),0,1000*SEARCHER::n_devices);
     print_spin("max_terminals_ratio",int(max_terminals_ratio*100),0,1000*SEARCHER::n_devices);
+    print_spin("insta_move_factor",int(insta_move_factor*100),0,1000);
     print_spin("visit_threshold",visit_threshold,0,1000000);
     print_check("montecarlo",montecarlo);
     print_spin("sp_resign_value",sp_resign_value,0,10000);
