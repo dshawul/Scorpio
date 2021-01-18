@@ -711,8 +711,8 @@ void fill_input_planes(
     /* 
        Add the attack map planes 
     */
-#define DHWC(sq,C)     data[rank(sq) * 8 * CHANNELS + file(sq) * CHANNELS + C]
-#define DCHW(sq,C)     data[C * 8 * 8 + rank(sq) * 8 + file(sq)]
+#define DHWC(sq,C)     data[rank(sq) * 8 * CHANNELS + file(sq) * CHANNELS + (C)]
+#define DCHW(sq,C)     data[(C) * 8 * 8 + SQ8864(sq)]
 #define D(sq,C)        ( (is_trt || (nn_type_ == LCZERO) ) ? DCHW(sq,C) : DHWC(sq,C) )
 
 #define NK_MOVES(dir, off) {                    \
@@ -727,6 +727,11 @@ void fill_input_planes(
             if(board[to] != 0) break;           \
                 to += dir;                      \
         }                                       \
+}
+
+#define SET(C,V)  {                             \
+    for(int i = 0; i < 64; i++)                 \
+        data[(C) * 64 + i] = V;                 \
 }
 
     memset(data,  0, sizeof(float) * 8 * 8 * CHANNELS);
@@ -864,22 +869,39 @@ void fill_input_planes(
 
             D(sq, (CHANNELS - 8)) = 1.0;
         }
-        for(int i = 0; i < 64; i++) {
-            sq = SQ6488(i);
+        if(is_trt) {
             if(player == _BLACK) {
-                if(cast & BLC_FLAG) D(sq,(CHANNELS - (flip_h ? 6 : 7) )) = 1.0;
-                if(cast & BSC_FLAG) D(sq,(CHANNELS - (flip_h ? 7 : 6) )) = 1.0;
-                if(cast & WLC_FLAG) D(sq,(CHANNELS - (flip_h ? 4 : 5) )) = 1.0;
-                if(cast & WSC_FLAG) D(sq,(CHANNELS - (flip_h ? 5 : 4) )) = 1.0;
+                if(cast & BLC_FLAG) SET((CHANNELS - (flip_h ? 6 : 7) ), 1.0);
+                if(cast & BSC_FLAG) SET((CHANNELS - (flip_h ? 7 : 6) ), 1.0);
+                if(cast & WLC_FLAG) SET((CHANNELS - (flip_h ? 4 : 5) ), 1.0);
+                if(cast & WSC_FLAG) SET((CHANNELS - (flip_h ? 5 : 4) ), 1.0);
             } else {
-                if(cast & WLC_FLAG) D(sq,(CHANNELS - (flip_h ? 6 : 7) )) = 1.0;
-                if(cast & WSC_FLAG) D(sq,(CHANNELS - (flip_h ? 7 : 6) )) = 1.0;
-                if(cast & BLC_FLAG) D(sq,(CHANNELS - (flip_h ? 4 : 5) )) = 1.0;
-                if(cast & BSC_FLAG) D(sq,(CHANNELS - (flip_h ? 5 : 4) )) = 1.0;
+                if(cast & WLC_FLAG) SET((CHANNELS - (flip_h ? 6 : 7) ), 1.0);
+                if(cast & WSC_FLAG) SET((CHANNELS - (flip_h ? 7 : 6) ), 1.0);
+                if(cast & BLC_FLAG) SET((CHANNELS - (flip_h ? 4 : 5) ), 1.0);
+                if(cast & BSC_FLAG) SET((CHANNELS - (flip_h ? 5 : 4) ), 1.0);
             }
-            D(sq,(CHANNELS - 3)) = (hply / 2 + 1) / 200.0;
-            D(sq,(CHANNELS - 2)) = fifty / 100.0;
-            D(sq,(CHANNELS - 1)) = 1.0;
+            SET((CHANNELS - 3), (hply / 2 + 1) / 200.0);
+            SET((CHANNELS - 2), fifty / 100.0);
+            SET((CHANNELS - 1), 1.0);
+        } else {
+            for(int i = 0; i < 64; i++) {
+                sq = SQ6488(i);
+                if(player == _BLACK) {
+                    if(cast & BLC_FLAG) D(sq,(CHANNELS - (flip_h ? 6 : 7) )) = 1.0;
+                    if(cast & BSC_FLAG) D(sq,(CHANNELS - (flip_h ? 7 : 6) )) = 1.0;
+                    if(cast & WLC_FLAG) D(sq,(CHANNELS - (flip_h ? 4 : 5) )) = 1.0;
+                    if(cast & WSC_FLAG) D(sq,(CHANNELS - (flip_h ? 5 : 4) )) = 1.0;
+                } else {
+                    if(cast & WLC_FLAG) D(sq,(CHANNELS - (flip_h ? 6 : 7) )) = 1.0;
+                    if(cast & WSC_FLAG) D(sq,(CHANNELS - (flip_h ? 7 : 6) )) = 1.0;
+                    if(cast & BLC_FLAG) D(sq,(CHANNELS - (flip_h ? 4 : 5) )) = 1.0;
+                    if(cast & BSC_FLAG) D(sq,(CHANNELS - (flip_h ? 5 : 4) )) = 1.0;
+                }
+                D(sq,(CHANNELS - 3)) = (hply / 2 + 1) / 200.0;
+                D(sq,(CHANNELS - 2)) = fifty / 100.0;
+                D(sq,(CHANNELS - 1)) = 1.0;
+            }
         }
 
     } else if (nn_type_ == SIMPLE) {
@@ -982,24 +1004,21 @@ void fill_input_planes(
             i++;
         }
 
-        for(int i = 0; i < 64; i++) {
-            sq = SQ6488(i);
-            if(player == _BLACK) {
-                if(cast & BLC_FLAG) D(sq,(CHANNELS - 8)) = 1.0;
-                if(cast & BSC_FLAG) D(sq,(CHANNELS - 7)) = 1.0;
-                if(cast & WLC_FLAG) D(sq,(CHANNELS - 6)) = 1.0;
-                if(cast & WSC_FLAG) D(sq,(CHANNELS - 5)) = 1.0;
-                D(sq,(CHANNELS - 4)) = 1.0;
-            } else {
-                if(cast & WLC_FLAG) D(sq,(CHANNELS - 8)) = 1.0;
-                if(cast & WSC_FLAG) D(sq,(CHANNELS - 7)) = 1.0;
-                if(cast & BLC_FLAG) D(sq,(CHANNELS - 6)) = 1.0;
-                if(cast & BSC_FLAG) D(sq,(CHANNELS - 5)) = 1.0;
-                D(sq,(CHANNELS - 4)) = 0.0;
-            }
-            D(sq,(CHANNELS - 3)) = fifty / 100.0;
-            D(sq,(CHANNELS - 1)) = 1.0;
+        if(player == _BLACK) {
+            if(cast & BLC_FLAG) SET((CHANNELS - 8), 1.0);
+            if(cast & BSC_FLAG) SET((CHANNELS - 7), 1.0);
+            if(cast & WLC_FLAG) SET((CHANNELS - 6), 1.0);
+            if(cast & WSC_FLAG) SET((CHANNELS - 5), 1.0);
+            SET((CHANNELS - 4), 1.0);
+        } else {
+            if(cast & WLC_FLAG) SET((CHANNELS - 8), 1.0);
+            if(cast & WSC_FLAG) SET((CHANNELS - 7), 1.0);
+            if(cast & BLC_FLAG) SET((CHANNELS - 6), 1.0);
+            if(cast & BSC_FLAG) SET((CHANNELS - 5), 1.0);
+            SET((CHANNELS - 4), 0.0);
         }
+        SET((CHANNELS - 3), fifty / 100.0);
+        SET((CHANNELS - 1), 1.0);
     }
 
 #if 0
@@ -1019,7 +1038,10 @@ void fill_input_planes(
 
 #undef NK_MOVES
 #undef BRQ_MOVES
+#undef DCHW
+#undef DHWC
 #undef D
+#undef SET
 }
 
 /*
