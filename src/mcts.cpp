@@ -1809,18 +1809,12 @@ void SEARCHER::manage_tree(bool single) {
         root_node_reuse_visits = root_node->visits;
         playouts += root_node->visits;
 
-        /*remove null moves from root*/
-        Node* current = root_node->child, *prev;
-        while(current) {
-            prev = current;
-            if(current) current->clear_dead();
-            current = current->next;
-            if(current && current->move == 0) {
-                prev->next = current->next;
-                Node::reclaim(current,0);
-            }
+        /*remove null move from root*/
+        Node* current = root_node->child;
+        if(current && current->move == 0) {
+            root_node->child = current->next;
+            Node::reclaim(current,0);
         }
-
     }
     if(!root_node->child) {
         create_children(root_node);
