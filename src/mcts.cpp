@@ -275,35 +275,33 @@ void Node::split(Node* n, std::vector<Node*>* pn, const int S, int& T) {
     }
 }
 
-bool Node::compute_Q(Node* n, float fpu, bool has_ab) {
-    float uct;
-    unsigned vst, vvst = 0;
-    Node* current = n->child;
+bool Node::compute_Q(Node* const n, float fpu, bool has_ab) {
+    bool has_winning = false;
 
     /*approaching collision limit?*/
-    int collision_lev = 1;
+    unsigned int collision_lev = virtual_loss;
     if(SEARCHER::use_nn && max_collisions >= 3) {
         if(n_collisions >= ((3 * max_collisions) >> 2))
-            collision_lev = 4;
+            collision_lev <<= 2;
         else if(n_collisions >= (max_collisions >> 1))
-            collision_lev = 2;
+            collision_lev <<= 1;
     }
 
     /*compute Q for all moves*/
-    bool has_winning = false;
+    Node* current = n->child;
     while(current) {
-
         if(current->move && !current->is_dead()) {
 
             /*compute Q considering fpu and virtual loss*/
-            vst = current->visits;
-#ifdef PARALLEL
-            vvst = collision_lev * virtual_loss * current->get_busy();
-            vst += vvst;
-#endif
+            float uct;
             if(!current->visits) {
                 uct = fpu;
             } else {
+                unsigned int vst = current->visits;
+#ifdef PARALLEL
+                unsigned int vvst = collision_lev * current->get_busy();
+                vst += vvst;
+#endif
                 uct = 1 - current->score;
                 if(uct >= winning_threshold) {
                     has_winning = true;
@@ -322,6 +320,7 @@ bool Node::compute_Q(Node* n, float fpu, bool has_ab) {
 #ifdef PARALLEL
             if(current->is_create()) uct *= 0.1;
 #endif
+            /*assign*/
             current->Q = uct;
         }
 
@@ -829,7 +828,9 @@ void Node::Backup(Node* n,double& score,int visits) {
     if(rollout_type == MCTS) {
         double pscore = score;
         /*Compute parent's score from children*/
-        if(backup_type == MIX_VISIT) {
+        if(backup_type == CLASSIC)
+            score = Avg_score_mem(n,score,visits);
+        else if(backup_type == MIX_VISIT) {
             if(n->visits > visit_threshold)
                 score = 1 - Max_visits_score(n);
             else
@@ -841,8 +842,6 @@ void Node::Backup(Node* n,double& score,int visits) {
             else
                 score = Avg_score_mem(n,score,visits);
         }
-        else if(backup_type == CLASSIC)
-            score = Avg_score_mem(n,score,visits);
         else if(backup_type == AVERAGE)
             score = 1 - Avg_score(n);
         else {
