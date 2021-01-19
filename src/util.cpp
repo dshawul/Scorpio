@@ -342,9 +342,8 @@ void Node::print_xml(Node* n,int depth) {
     mov_str(n->move,mvstr);
 
     print_log("<node depth=\"%d\" move=\"%s\" alpha=\"%d\" beta=\"%d\" "
-        "visits=\"%d\" policy=\"%.2f\" score=\"%.2f\" prior=\"%.2f\" sum=\"%.2f\">\n",
-        depth,mvstr,n->alpha,n->beta,n->visits,n->policy, logistic(-n->score),
-        logistic(-n->prior),logistic(-n->score)+logistic(-n->prior));
+        "visits=\"%d\" policy=\"%.2f\" score=\"%.2f\" prior=\"%.2f\">\n",
+        depth,mvstr,n->alpha,n->beta,n->visits,n->policy,n->score,n->prior);
 
     Node* current = n->child;
     while(current) {
@@ -393,9 +392,9 @@ Node* Node::print_tree(Node* root,bool has_ab_, int max_depth,int depth) {
         if((depth == 0 || bnode == current) ) {
             mov_str(current->move,str);
             if(depth == 0) {
-                if(has_ab) {
-                    double uct = logistic(-current->score);
-                    double uctp = logistic(-current->prior);
+                if(has_ab && (rollout_type == MCTS)) {
+                    double uct = (1 - current->score);
+                    double uctp = (1 - current->prior);
                     double avg = 0.5 * ((1 - frac_abprior) * uct 
                                         + frac_abprior * uctp + 
                                         MIN(uct,uctp));
@@ -409,7 +408,8 @@ Node* Node::print_tree(Node* root,bool has_ab_, int max_depth,int depth) {
                         str
                         );
                 } else {
-                    double uct = logistic(-current->score);
+                    double uct = (rollout_type == MCTS) ? 
+                            (1 - current->score) : logistic(-current->score);
                     print_info("%2d  %0.3f %6.2f %7d   %s",
                         total+1,
                         uct,

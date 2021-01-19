@@ -1445,12 +1445,14 @@ MOVE SEARCHER::iterative_deepening() {
                     if(move == current->move) {
                         double v = sqrt(double(root_score_st[i]) / maxn);
                         current->prior = -(v - 0.5) * 100;
+                        if(rollout_type == MCTS)
+                            current->prior = logistic(current->prior);
                         current->rank = i + 1;
 #if 0
                         char mvs[16];
                         mov_str(move,mvs);
-                        print("%2d. %6s %6d %9.6f %9.6f " FMT64W " " FMT64W "\n", 
-                            current->rank, mvs, current->prior, logistic(-current->prior),
+                        print("%2d. %6s %9.6f %9.6f " FMT64W " " FMT64W "\n", 
+                            current->rank, mvs, current->prior,
                             v, root_score_st[i], maxn);
 #endif
                         break;
@@ -1507,6 +1509,8 @@ MOVE SEARCHER::iterative_deepening() {
                     MOVE& move = pstack->move_st[i];
                     if(move == current->move) {
                         current->prior = -pstack->score_st[i];
+                        if(rollout_type == MCTS)
+                            current->prior = logistic(current->prior);
                         current->rank = i + 1;
                         break;
                     }
@@ -1741,6 +1745,7 @@ MOVE SEARCHER::iterative_deepening() {
                 double frac = double(get_time() - start_time) / chess_clock.search_time;
                 if(frac_alphabeta != 1.0 && frac > frac_alphabeta) {
                     print_info("Switching rollout type to MCTS.\n");
+                    Node::parallel_job(root_node,convert_score_thread_proc);
                     rollout_type = MCTS;
                     use_nn = save_use_nn;
                     search_depth = MIN(search_depth + mcts_strategy_depth, MAX_PLY - 2);

@@ -229,6 +229,19 @@ void Node::rank_children(Node* n) {
         best->rank = 1;
 }
 
+void Node::convert_score(Node* n) {
+    Node* current = n->child;
+    while(current) {
+        if(!current->is_dead())
+            convert_score(current);
+        current = current->next;
+    }
+    if(rollout_type == MCTS)
+        n->score = logit(n->score);
+    else
+        n->score = logistic(n->score);
+}
+
 void Node::reset_bounds(Node* n) {
     Node* current = n->child;
     while(current) {
@@ -263,7 +276,7 @@ void Node::split(Node* n, std::vector<Node*>* pn, const int S, int& T) {
 }
 
 bool Node::compute_Q(Node* n, float fpu, bool has_ab) {
-    double uct;
+    float uct;
     unsigned vst, vvst = 0;
     Node* current = n->child;
 
@@ -291,7 +304,7 @@ bool Node::compute_Q(Node* n, float fpu, bool has_ab) {
             if(!current->visits) {
                 uct = fpu;
             } else {
-                uct = logistic(-current->score);
+                uct = 1 - current->score;
                 if(uct >= winning_threshold) {
                     has_winning = true;
                     current->Q = uct;
@@ -301,7 +314,7 @@ bool Node::compute_Q(Node* n, float fpu, bool has_ab) {
                 uct += (-uct * vvst) / (vst + 1);
             }
             if(has_ab) {
-                double uctp = logistic(-current->prior);
+                float uctp = 1 - current->prior;
                 uct = 0.5 * ((1 - frac_abprior) * uct +
                             frac_abprior * uctp +
                             MIN(uct,uctp));
@@ -334,7 +347,7 @@ float Node::compute_fpu(Node* n, bool is_root) {
                 current = current->next;
             }
         }
-        fpu = logistic(n->score) - fpur * sqrt(fpu);
+        fpu = n->score - fpur * sqrt(fpu);
     } else {
         fpu = (1 - fpu_is_loss) / 2.0; //fpu is loss or win
     }
@@ -472,7 +485,7 @@ Node* Node::ExactPi_select(Node* n, bool has_ab, bool is_root, int processor_id)
                 bnode = n->add_child(processor_id, idx,
                     n->edges.moves()[idx],
                     n->edges.scores()[idx],
-                    -n->edges.score);
+                    1 - n->edges.score);
                 n->edges.inc_children();
                 n->edges.clear_create();
                 return bnode;
@@ -541,7 +554,7 @@ Node* Node::Max_UCB_select(Node* n, bool has_ab, bool is_root, int processor_id)
                 bnode = n->add_child(processor_id, idx,
                     n->edges.moves()[idx],
                     n->edges.scores()[idx],
-                    -n->edges.score);
+                    1 - n->edges.score);
                 n->edges.inc_children();
                 n->edges.clear_create();
                 return bnode;
@@ -724,12 +737,13 @@ Node* Node::Best_select(Node* n, bool has_ab) {
                         val++;
                 } else {
                     if(current->visits)
-                        val = logistic(-current->score);
+                        val = (rollout_type == MCTS) ? 
+                            1 - current->score : -current->score;
                     else
                         val = bvalue - 1;
 
                     if(has_ab && (rollout_type == MCTS)) {
-                        double valp = logistic(-current->prior);
+                        double valp = 1 - current->prior;
                         val = 0.5 * ((1 - frac_abprior) * val + 
                                     frac_abprior * valp + 
                                     MIN(val,valp));
@@ -777,31 +791,30 @@ float Node::Avg_score(Node* n) {
     Node* current = n->child;
     while(current) {
         if(current->move && current->visits > 0) {
-            tvalue += logistic(current->score) * current->visits;
+            tvalue += current->score * current->visits;
             tvisits += current->visits;
         }
         current = current->next;
     }
     if(tvisits == 0) {
-        tvalue = logistic(-n->score);
+        tvalue = 1 - n->score;
         tvisits = 1;
     }
-    return logit(tvalue / tvisits);
+    return tvalue / tvisits;
 }
 float Node::Avg_score_mem(Node* n, double score, int visits) {
-    double sc = logistic(n->score);
-    double sc1 = logistic(score);
-    sc += (sc1 - sc) * visits / (n->visits + visits);
-    return logit(sc);
+    double sc = n->score;
+    sc += (score - sc) * visits / (n->visits + visits);
+    return sc;
 }
 float Node::Rms_score_mem(Node* n, double score, int visits) {
 #define signof(x) (((x) > 0) ? 1 : -1)
     double sc, sc1;
 
-    sc = 2 * logistic(n->score) - 1;
+    sc = 2 * n->score - 1;
     sc = signof(sc) * pow(fabs(sc), rms_power);
 
-    sc1 = 2 * logistic(score) - 1;
+    sc1 = 2 * score - 1;
     sc1 = signof(sc1) * pow(fabs(sc1), rms_power);
 
     sc += (sc1 - sc) * visits / (n->visits + visits);
@@ -809,7 +822,7 @@ float Node::Rms_score_mem(Node* n, double score, int visits) {
     sc = signof(sc) * pow(fabs(sc), 1.0 / rms_power);
     sc = sc / 2.0 + 0.5;
 
-    return logit(sc);
+    return sc;
 #undef signof
 }
 void Node::Backup(Node* n,double& score,int visits) {
@@ -818,9 +831,9 @@ void Node::Backup(Node* n,double& score,int visits) {
         /*Compute parent's score from children*/
         if(backup_type == MIX_VISIT) {
             if(n->visits > visit_threshold)
-                score = -Max_visits_score(n);
+                score = 1 - Max_visits_score(n);
             else
-                score = -Avg_score(n);
+                score = 1 - Avg_score(n);
         }
         else if(backup_type == RMS) {
             if(n->visits > visit_threshold)
@@ -831,12 +844,12 @@ void Node::Backup(Node* n,double& score,int visits) {
         else if(backup_type == CLASSIC)
             score = Avg_score_mem(n,score,visits);
         else if(backup_type == AVERAGE)
-            score = -Avg_score(n);
+            score = 1 - Avg_score(n);
         else {
             if(backup_type == MINMAX || backup_type == MINMAX_MEM)
-                score = -Min_score(n);
+                score = 1 - Min_score(n);
             else if(backup_type == MIX  || backup_type == MIX_MEM)
-                score = -(Min_score(n) + 3 * Avg_score(n)) / 4;
+                score = 1 - (Min_score(n) + 3 * Avg_score(n)) / 4;
 
             if(backup_type >= MINMAX_MEM)
                 score = Avg_score_mem(n,score,visits);
@@ -902,11 +915,7 @@ void SEARCHER::create_children(Node* n) {
         Node::max_tree_depth = ply;
 
     /*generate and score moves*/
-    if(ply)
-        generate_and_score_moves(-MATE_SCORE,MATE_SCORE);
-
-    if(pstack->count)
-        n->score = pstack->best_score;
+    n->score = generate_and_score_moves(-MATE_SCORE,MATE_SCORE);
 
     /*add edges tree*/
     n->edges.score = n->score;
@@ -920,16 +929,17 @@ void SEARCHER::create_children(Node* n) {
 
     /*add children if we are at root node*/
     int nleaf = ply ? 0 : pstack->count;
+    float rscore = (rollout_type == MCTS) ? 1 - n->score : -n->score;
     for(int i = 0; i < nleaf; i++) {
         float* pp =(float*)&pstack->score_st[i];
         n->add_child(processor_id, i,
-            pstack->move_st[i], *pp, -n->score);
+            pstack->move_st[i], *pp, rscore);
     }
 
     /*add nullmove*/
-    if(use_nullmove
+    if(rollout_type != MCTS
+        && use_nullmove
         && pstack->count
-        && rollout_type != MCTS
         && ply > 0
         && !hstack[hply - 1].checks
         && piece_c[player]
@@ -1017,11 +1027,17 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
     if(ply) {
         /*Draw*/
         if(draw()) {
-            score = ((scorpio == player) ? -contempt : contempt);
+            if(rollout_type == MCTS)
+                score = 0.5;
+            else
+                score = ((scorpio == player) ? -contempt : contempt);
             goto BACKUP_LEAF;
         /*bitbases*/
         } else if(bitbase_cutoff()) {
-            score = pstack->best_score;
+            if(rollout_type == MCTS)
+                score = logistic(pstack->best_score);
+            else
+                score = pstack->best_score;
             goto BACKUP_LEAF;
         /*Reached max plies and depth*/
         } else if(ply >= MAX_PLY - 1 || pstack->depth <= 0) {
@@ -1076,10 +1092,17 @@ void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
             }
 
             if(!n->edges.count) {
-                if(hstack[hply - 1].checks)
-                    score = -MATE_SCORE + WIN_PLY * (ply + 1);
-                else 
-                    score = ((scorpio == player) ? -contempt : contempt);
+                if(rollout_type == MCTS) {
+                    if(hstack[hply - 1].checks)
+                        score = 0;
+                    else
+                        score = 0.5;
+                } else {
+                    if(hstack[hply - 1].checks)
+                        score = -MATE_SCORE + WIN_PLY * (ply + 1);
+                    else
+                        score = ((scorpio == player) ? -contempt : contempt);
+                }
                 goto BACKUP_LEAF;
             } else {
                 if(rollout_type == ALPHABETA) {
@@ -1178,7 +1201,10 @@ RESEARCH:
             /*Simulate selected move*/
             play_simulation(next,score,visits);
 
-            score = -score;
+            if(rollout_type == MCTS)
+                score = 1 - score;
+            else
+                score = -score;
             if(stop_searcher || abort_search)
                 goto FINISH;
 
@@ -1238,7 +1264,10 @@ RESEARCH:
             /*Simulate nullmove*/
             play_simulation(next,score,visits);
 
-            score = -score;
+            if(rollout_type == MCTS)
+                score = 1 - score;
+            else
+                score = -score;
             if(stop_searcher || abort_search)
                 goto FINISH;
 
@@ -1341,33 +1370,34 @@ void SEARCHER::check_mcts_quit(bool single) {
             bnvis2 = current;
         }
         if(current->visits > 0) {
-            if(-current->score > -bnval->score)
+            if(1 - current->score > 1 - bnval->score)
                 bnval = current;
         }
         current = current->next;
     }
 
     /*determine time factor*/
+    float rscore = logit(root_node->score);
     time_factor = 1.0;
     if(bnval != bnvis)
         time_factor *= 1.3;
-    if(root_node->score <= -150)
+    if(rscore <= -150)
         time_factor *= 3.0;
-    else if(root_node->score <= -120)
+    else if(rscore <= -120)
         time_factor *= 2.3;
-    else if(root_node->score <= -70)
+    else if(rscore <= -70)
         time_factor *= 1.6;
-    else if(root_node->score <= -30)
+    else if(rscore <= -30)
         time_factor *= 1.3;
-    else if(root_node->score >= 100)
+    else if(rscore >= 100)
         time_factor *= 2.0;
-    else if(root_node->score >= 55)
+    else if(rscore >= 55)
         time_factor *= 1.6;
-    else if(root_node->score >= 35)
+    else if(rscore >= 35)
         time_factor *= 1.3;
-    else if(ABS(root_node->score - old_root_score) > 30)
+    else if(ABS(rscore - old_root_score) > 30)
         time_factor *= 1.3;
-    else if(ABS(root_node->score) > 10)
+    else if(ABS(rscore) > 10)
         time_factor *= 1.1;
 
     /*calculate remain visits*/
@@ -1544,7 +1574,7 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
                         pfrac = frac;
                         if(rollout_type == MCTS) {
                             extract_pv(root);
-                            root_score = root->score;
+                            root_score = logit(root->score);
                             print_pv(root_score);
                             search_depth++;
                         }
@@ -1610,7 +1640,7 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
         }
         /*Random selection for self play*/
         extract_pv(root,(is_selfplay && (hply < temp_plies || rand_temp_end > 0)));
-        root_score = root->score;
+        root_score = logit(root->score);
         if(!single)
             print_pv(root_score);
         search_depth++;
@@ -1641,6 +1671,15 @@ void CDECL rank_reset_thread_proc(void* seid_) {
         for(unsigned int i = 0; i < gc[proc_id].size(); i++) {
             Node::rank_children(gc[proc_id][i]);
             Node::reset_bounds(gc[proc_id][i]);
+        }
+    }
+}
+
+void CDECL convert_score_thread_proc(void* seid_) {
+    int* seid = (int*)seid_;
+    for(int proc_id = seid[0]; proc_id < seid[1]; proc_id++) {
+        for(unsigned int i = 0; i < gc[proc_id].size(); i++) {
+            Node::convert_score(gc[proc_id][i]);
         }
     }
 }
@@ -1753,11 +1792,12 @@ void SEARCHER::manage_tree(bool single) {
                 root_node = new_root;
 
                 Node* n = root_node;
+                float rscore = (rollout_type == MCTS) ? 1 - n->edges.score : -n->edges.score;
                 for(int i = n->edges.n_children; i < n->edges.count; i++) {
                     n->add_child(processor_id, i,
                         n->edges.moves()[i],
                         n->edges.scores()[i],
-                        -n->edges.score);
+                        rscore);
                     n->edges.inc_children();
                 }
             }
@@ -1796,8 +1836,8 @@ void SEARCHER::manage_tree(bool single) {
         root_node = Node::allocate(processor_id);
         root_node_reuse_visits = 0;
     } else {
-        print_log("# [Tree-found : visits %d score %d]\n",
-            root_node->visits,int(root_node->score));
+        print_log("# [Tree-found : visits %d score %f]\n",
+            root_node->visits,root_node->score);
 
         root_node_reuse_visits = root_node->visits;
         playouts += root_node->visits;
@@ -1823,6 +1863,8 @@ void SEARCHER::manage_tree(bool single) {
         rollout_type = MCTS;
         search_depth = MIN(search_depth + mcts_strategy_depth, MAX_PLY - 2);
     } else {
+        if(rollout_type == MCTS)
+            Node::parallel_job(root_node,convert_score_thread_proc);
         rollout_type = ALPHABETA;
     }
 
@@ -1872,7 +1914,8 @@ void SEARCHER::manage_tree(bool single) {
 /*
 Generate all moves
 */
-void SEARCHER::generate_and_score_moves(int alpha, int beta) {
+float SEARCHER::generate_and_score_moves(int alpha, int beta) {
+    float rscore = 0;
 
     /*generate moves here*/
     gen_all_legal();
@@ -1883,9 +1926,13 @@ void SEARCHER::generate_and_score_moves(int alpha, int beta) {
         /*value head only with uniform policy*/
         if(evaluate_depth == -5) {
             if(!use_nn) {
-                pstack->best_score = eval();
+                rscore = eval();
+                if(rollout_type == MCTS)
+                    rscore = logistic(rscore);
             } else {
-                pstack->best_score = probe_neural();
+                rscore = probe_neural();
+                if(rollout_type == ALPHABETA)
+                    rscore = logit(rscore);
                 n_collisions = 0;
                 n_terminals = 0;
             }
@@ -1894,7 +1941,7 @@ void SEARCHER::generate_and_score_moves(int alpha, int beta) {
                 float* p = (float*)&pstack->score_st[i];
                 *p = uniform_pol;
             }
-            return;
+            return rscore;
         }
 
         /*both value and policy heads*/
@@ -1908,9 +1955,11 @@ void SEARCHER::generate_and_score_moves(int alpha, int beta) {
             evaluate_moves(evaluate_depth,alpha,beta);
             skip_nn = save;
 
-            pstack->best_score = pstack->score_st[0];
+            rscore = pstack->score_st[0];
+            if(rollout_type == MCTS)
+                rscore = logistic(rscore);
 
-            if(!montecarlo) return;
+            if(!montecarlo) return rscore;
 
             /*normalize policy*/
             static const float scale = 25.f;
@@ -1926,11 +1975,13 @@ void SEARCHER::generate_and_score_moves(int alpha, int beta) {
                 *p /= total;
             }
         } else {
-            pstack->best_score = probe_neural();
+            rscore = probe_neural();
+            if(rollout_type == ALPHABETA)
+                rscore = logit(rscore);
             n_collisions = 0;
             n_terminals = 0;
 
-            if(!montecarlo) return;
+            if(!montecarlo) return rscore;
 
             /*max legal moves cap*/
             for(int i = MAX_MOVES_NN; i < pstack->count; i++)
@@ -1960,7 +2011,7 @@ void SEARCHER::generate_and_score_moves(int alpha, int beta) {
 
             /*Minimize draws for low visits training*/
             if(!ply && chess_clock.max_visits < low_visits_threshold) {
-                int score = pstack->best_score;
+                static const float margin[2][2] = {{0.36,0.49},{-100.0,-7.0}};
                 for(int i = 0;i < pstack->count; i++) {
                     float* p = (float*)&pstack->score_st[i];
                     MOVE& move = pstack->move_st[i];
@@ -1971,10 +2022,10 @@ void SEARCHER::generate_and_score_moves(int alpha, int beta) {
                     if(!pstack->count) {
                         if(hstack[hply - 1].checks) {      //mate
                             *p = 5 * maxp;
-                        } else if(score >= -100) {         //stale-mate
+                        } else if(rscore >= margin[rollout_type][0]) {         //stale-mate
                             *p = minp;
                         }
-                    } else if(score >= -contempt && draw(1)) {   //repetition & 50-move draws
+                    } else if(rscore >= margin[rollout_type][1] && draw(1)) {   //repetition & 50-move draws
                         *p = minp;
                     } else if(sfifty > 0 && fifty == 0) {  //encourage progress
                         *p += sfifty * (maxp - minp) / 50;
@@ -1999,6 +2050,7 @@ void SEARCHER::generate_and_score_moves(int alpha, int beta) {
                 pstack->sort(i,pstack->count);
         }
     }
+    return rscore;
 }
 /*
 * Self-play with policy
@@ -2061,7 +2113,7 @@ void SEARCHER::get_train_data(float& value, int& nmoves, int* moves,
 
     /*value*/
     if(montecarlo)
-        value = logistic(root_node->score);
+        value = root_node->score;
     else
         value = logistic(pstack->best_score);
     if(player == black) 
@@ -2105,14 +2157,14 @@ void SEARCHER::get_train_data(float& value, int& nmoves, int* moves,
 
         current = root_node->child;
         while(current) {
-            uct = logistic(-current->score);
+            uct = 1 - current->score;
             uct += current->policy * factor / (current->visits + 1);
 #if 0
             char mvstr[16];
             mov_str(current->move,mvstr);
             print("%3d. %7s %9.2f %9.2f %9.4f\n",
                 current->rank,mvstr,current->policy,
-                logistic(-current->score),uct);
+                1 - current->score,uct);
 #endif
             if(uct > max_uct) max_uct = uct;
             current = current->next;
@@ -2143,14 +2195,14 @@ void SEARCHER::get_train_data(float& value, int& nmoves, int* moves,
 
             if(policy_pruning) {
                 val = ((current->policy * factor) /
-                    (max_uct - logistic(-current->score)) ) - 1;
+                    (max_uct - (1 - current->score))) - 1;
                 if(val < 0) val = 0;
 #if 0
                 char mvstr[16];
                 mov_str(move,mvstr);
                 print("%3d. %7s %9.2f %9.2f %9d %9d\n",
                     current->rank,mvstr,current->policy,
-                    logistic(-current->score),current->visits,int(val));
+                    1 - current->score,current->visits,int(val));
 #endif
             }
 
@@ -2163,7 +2215,7 @@ void SEARCHER::get_train_data(float& value, int& nmoves, int* moves,
         }
         /*action value*/
         if(train_data_type == 1 || train_data_type == 2) {
-            val = logistic(-current->score);
+            val = (1 - current->score);
             scores[cnt] = val;
         }
         moves[cnt] = compute_move_index(move, 0);
@@ -2338,7 +2390,7 @@ void SEARCHER::self_play_thread() {
 
                 search_mc(true,limit);
                 move = stack[0].pv[0];
-                pstack->best_score = root_node->score;
+                pstack->best_score = logit(root_node->score);
                 if(filter_quiet) {
                     Node* bnode = Node::Best_select(root_node,false);
                     pstack->best_move = bnode->move;

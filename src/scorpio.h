@@ -420,6 +420,7 @@ struct Edges {
 typedef void (CDECL *PTHREAD_PROC) (void*);
 void CDECL gc_thread_proc(void*);
 void CDECL rank_reset_thread_proc(void*);
+void CDECL convert_score_thread_proc(void*);
 
 struct Node {
     Node* VOLATILE child;
@@ -436,7 +437,7 @@ struct Node {
         VOLATILE float Q;
     };
     VOLATILE float policy;
-    VOLATILE int prior;
+    VOLATILE float prior;
 
     VOLATILE unsigned int visits;
     VOLATILE float score;
@@ -501,6 +502,7 @@ struct Node {
     static void  split(Node*, std::vector<Node*>*, const int, int&);
     static void  reclaim(Node*,int);
     static void  rank_children(Node*);
+    static void  convert_score(Node*);
     static void  reset_bounds(Node*);
     static void  parallel_job(Node*, PTHREAD_PROC, bool = false);
     static Node* print_tree(Node*,bool,int = 0,int = 0);
@@ -801,7 +803,7 @@ typedef struct SEARCHER{
     void  clear_history();
     int   search_ab();
     void  evaluate_moves(int,int,int);
-    void  generate_and_score_moves(int,int);
+    float  generate_and_score_moves(int,int);
     int   Random_select_ab();
     /*mcts stuff*/
     void  extract_pv(Node*,bool=false);
@@ -894,7 +896,7 @@ typedef struct SEARCHER{
     bool bitbase_cutoff();
     void ensemble_net(int,int,int,float&);
     float probe_neural_(bool,float*,int,int,int);
-    int probe_neural(bool=false);
+    float probe_neural(bool=false);
     int probe_nnue();
     bool handle_collisions(Node*);
     bool handle_terminals(Node*);

@@ -499,7 +499,7 @@ void SEARCHER::ensemble_net(int nn_id_, int nn_type_, int wdl_head_, float& scor
             policy[i] += pow(tpolicy[i], 3.0);
     }
 }
-int SEARCHER::probe_neural(bool hard_probe) {
+float SEARCHER::probe_neural(bool hard_probe) {
     const int max_moves = MIN(pstack->count, MAX_MOVES_NN);
     float* policy = (float*)pstack->score_st;
     float score = 0.0;
@@ -564,7 +564,7 @@ int SEARCHER::probe_neural(bool hard_probe) {
         score = probe_neural_(hard_probe,policy,nn_id,nn_type,wdl_head);
     }
 
-    return logit(score);
+    return score;
 }
 
 #ifdef PARALLEL
