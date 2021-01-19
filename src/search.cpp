@@ -1737,6 +1737,18 @@ MOVE SEARCHER::iterative_deepening() {
             }
             /*rank nodes and reset bounds*/
             if(rollout_type == ALPHABETA) {
+                /*Switching rollouts type*/
+                double frac = double(get_time() - start_time) / chess_clock.search_time;
+                if(frac_alphabeta != 1.0 && frac > frac_alphabeta) {
+                    print_info("Switching rollout type to MCTS.\n");
+                    rollout_type = MCTS;
+                    use_nn = save_use_nn;
+                    search_depth = MIN(search_depth + mcts_strategy_depth, MAX_PLY - 2);
+                    pstack->depth = search_depth * UNITDEPTH;
+                    root_failed_low = 0;
+                    freeze_tree = false;
+                }
+                /*alphabeta bounds*/
                 root_node->alpha = alpha;
                 root_node->beta = beta;
                 Node::parallel_job(root_node,rank_reset_thread_proc,true);

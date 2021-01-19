@@ -19,8 +19,7 @@ static double  cpuct_init_root_factor = 1.0;
 static double  policy_temp_root_factor = 1.0;
 static int reuse_tree = 1;
 static int  backup_type_setting = MIX_VISIT;
-static int  backup_type = backup_type_setting;
-static double frac_alphabeta = 0.0; 
+static int  backup_type = backup_type_setting; 
 static double frac_freeze_tree = 1.0;
 static double frac_abrollouts = 0.2;
 static int  alphabeta_depth = 1;
@@ -65,6 +64,7 @@ int montecarlo = 0;
 int rollout_type = ALPHABETA;
 bool freeze_tree = false;
 double frac_abprior = 0.3;
+double frac_alphabeta = 0.0;
 
 int ensemble = 0;
 static float ensemble_setting = 0;
@@ -1564,17 +1564,6 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
                         frac >= frac_freeze_tree * frac_alphabeta) {
                         freeze_tree = true;
                         print_info("Freezing tree.\n");
-                    }
-                    /*Switching rollouts type*/
-                    if(rollout_type == ALPHABETA && frac_alphabeta != 1.0 
-                        && frac > frac_alphabeta) {
-                        print_info("Switching rollout type to MCTS.\n");
-                        rollout_type = MCTS;
-                        use_nn = save_use_nn;
-                        search_depth = search_depth + mcts_strategy_depth;
-                        pstack->depth = search_depth * UNITDEPTH;
-                        root_failed_low = 0;
-                        freeze_tree = false;
                     }
                 }
 #ifdef CLUSTER

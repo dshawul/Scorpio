@@ -1174,6 +1174,7 @@ extern int rollout_type;
 extern bool freeze_tree;
 extern bool is_selfplay;
 extern double frac_abprior;
+extern double frac_alphabeta;
 extern int mcts_strategy_depth;
 extern int qsearch_level;
 extern int PROTOCOL;
