@@ -1301,6 +1301,10 @@ double SEARCHER::compute_kld() {
 
 void SEARCHER::check_mcts_quit(bool single) {
 
+    /*only mcts*/
+    if(rollout_type != MCTS)
+        return;
+
     /*use kld threshold*/
     if(kld_threshold > 0) {
         double kld = compute_kld();
