@@ -3,38 +3,38 @@
 
 /*mcts parameters*/
 static unsigned int  cpuct_base = 19652;
-static double  cpuct_init = 1.25;
-static double  policy_temp = 2.35;
-static double  cpuct_init_m = 1.25;
-static double  policy_temp_m = 2.35;
-static double  cpuct_init_e = 1.25;
-static double  policy_temp_e = 2.35;
-static double  fpu_red = 0.33;
-static int     fpu_is_loss = 0;
-static double  fpu_red_m = 0.33;
-static int     fpu_is_loss_m = 0;
-static double  fpu_red_e = 0.33;
-static int     fpu_is_loss_e = 0;
-static double  cpuct_init_root_factor = 1.0;
-static double  policy_temp_root_factor = 1.0;
-static int reuse_tree = 1;
+static float  cpuct_init = 1.25;
+static float  policy_temp = 2.35;
+static float  cpuct_init_m = 1.25;
+static float  policy_temp_m = 2.35;
+static float  cpuct_init_e = 1.25;
+static float  policy_temp_e = 2.35;
+static float  fpu_red = 0.33;
+static int    fpu_is_loss = 0;
+static float  fpu_red_m = 0.33;
+static int    fpu_is_loss_m = 0;
+static float  fpu_red_e = 0.33;
+static int    fpu_is_loss_e = 0;
+static float  cpuct_init_root_factor = 1.0;
+static float  policy_temp_root_factor = 1.0;
+static int  reuse_tree = 1;
 static int  backup_type_setting = MIX_VISIT;
 static int  backup_type = backup_type_setting; 
-static double frac_freeze_tree = 1.0;
-static double frac_abrollouts = 0.2;
+static float frac_freeze_tree = 1.0;
+static float frac_abrollouts = 0.2;
 static int  alphabeta_depth = 1;
 static int  evaluate_depth = 0;
 static int virtual_loss = 1;
 static unsigned int visit_threshold = 800;
 static std::random_device rd;
 static std::mt19937 mtgen(rd());
-static double noise_frac = 0.25;
-static double noise_alpha = 0.3;
-static double noise_beta = 1.0;
+static float noise_frac = 0.25;
+static float noise_alpha = 0.3;
+static float noise_beta = 1.0;
 static int temp_plies = 30;
-static double rand_temp = 1.0;
-static double rand_temp_delta = 0.0;
-static double rand_temp_end = 0.0;
+static float rand_temp = 1.0;
+static float rand_temp_delta = 0.0;
+static float rand_temp_end = 0.0;
 static const float winning_threshold = 0.9;
 static const int low_visits_threshold = 100;
 static const int node_size = 
@@ -63,8 +63,8 @@ int train_data_type = 0;
 int montecarlo = 0;
 int rollout_type = ALPHABETA;
 bool freeze_tree = false;
-double frac_abprior = 0.3;
-double frac_alphabeta = 0.0;
+float frac_abprior = 0.3;
+float frac_alphabeta = 0.0;
 
 int ensemble = 0;
 static float ensemble_setting = 0;
@@ -434,10 +434,10 @@ float Node::compute_regularized_policy_reverseKL(Node* n, float factor, float fp
 }
 
 Node* Node::ExactPi_select(Node* n, bool has_ab, bool is_root, int processor_id) {
-    double uct, fpu, bvalue = -10;
-    double dCPUCT = cpuct_init * (is_root ? cpuct_init_root_factor : 1.0) +
+    float uct, fpu, bvalue = -10;
+    float dCPUCT = cpuct_init * (is_root ? cpuct_init_root_factor : 1.0) +
                     log((n->visits + cpuct_base + 1.0) / cpuct_base);
-    double factor = dCPUCT * sqrt(double(n->visits)) / (n->edges.get_children() + n->visits);
+    float factor = dCPUCT * (float)(sqrt(double(n->visits))) / (n->edges.get_children() + n->visits);
     Node* current, *bnode = 0;
 
     /*compute fpu*/
@@ -454,7 +454,7 @@ Node* Node::ExactPi_select(Node* n, bool has_ab, bool is_root, int processor_id)
     while(current) {
         if(current->move && !current->is_dead()) {
 
-            uct = current->reg_policy - double(current->visits) / n->visits;
+            uct = current->reg_policy - float(double(current->visits) / n->visits);
 
             if(forced_playouts && is_selfplay && is_root && current->visits > 0) {
                 unsigned int n_forced = sqrt(2 * current->policy * n->visits);
@@ -492,10 +492,10 @@ Node* Node::ExactPi_select(Node* n, bool has_ab, bool is_root, int processor_id)
 }
 
 Node* Node::Max_UCB_select(Node* n, bool has_ab, bool is_root, int processor_id) {
-    double uct, fpu, bvalue = -10;
-    double dCPUCT = cpuct_init * (is_root ? cpuct_init_root_factor : 1.0) +
+    float uct, fpu, bvalue = -10;
+    float dCPUCT = cpuct_init * (is_root ? cpuct_init_root_factor : 1.0) +
                     log((n->visits + cpuct_base + 1.0) / cpuct_base);
-    double factor;
+    float factor;
     Node* current, *bnode = 0;
 
     /*compute fpu*/
@@ -508,9 +508,9 @@ Node* Node::Max_UCB_select(Node* n, bool has_ab, bool is_root, int processor_id)
     if(has_winning)
         factor = 0;
     else if(select_formula == 0)
-        factor = dCPUCT * sqrt(double(n->visits));
+        factor = dCPUCT * float(sqrt(double(n->visits)));
     else
-        factor = dCPUCT * sqrt(log(double(n->visits)));
+        factor = dCPUCT * float(sqrt(log(double(n->visits))));
 
     /*select*/
     current = n->child;
@@ -563,7 +563,7 @@ Node* Node::Max_UCB_select(Node* n, bool has_ab, bool is_root, int processor_id)
 Node* Node::Max_AB_select(Node* n, int alpha, int beta, bool try_null,
     bool search_by_rank, int processor_id
     ) {
-    double bvalue = -MAX_NUMBER, uct;
+    float bvalue = -MAX_NUMBER, uct;
     Node* current, *bnode = 0;
     int alphac, betac;
 
@@ -796,14 +796,14 @@ float Node::Avg_score(Node* n) {
     }
     return tvalue / tvisits;
 }
-float Node::Avg_score_mem(Node* n, double score, int visits) {
-    double sc = n->score;
-    sc += (score - sc) * visits / (n->visits + visits);
+float Node::Avg_score_mem(Node* n, float score, int visits) {
+    float sc = n->score;
+    sc += double(score - sc) * visits / (n->visits + visits);
     return sc;
 }
-float Node::Rms_score_mem(Node* n, double score, int visits) {
+float Node::Rms_score_mem(Node* n, float score, int visits) {
 #define signof(x) (((x) > 0) ? 1 : -1)
-    double sc, sc1;
+    float sc, sc1;
 
     sc = 2 * n->score - 1;
     sc = signof(sc) * pow(fabs(sc), rms_power);
@@ -811,7 +811,7 @@ float Node::Rms_score_mem(Node* n, double score, int visits) {
     sc1 = 2 * score - 1;
     sc1 = signof(sc1) * pow(fabs(sc1), rms_power);
 
-    sc += (sc1 - sc) * visits / (n->visits + visits);
+    sc += double(sc1 - sc) * visits / (n->visits + visits);
 
     sc = signof(sc) * pow(fabs(sc), 1.0 / rms_power);
     sc = sc / 2.0 + 0.5;
@@ -819,9 +819,9 @@ float Node::Rms_score_mem(Node* n, double score, int visits) {
     return sc;
 #undef signof
 }
-void Node::Backup(Node* n,double& score,int visits) {
+void Node::Backup(Node* n,float& score,int visits) {
     if(rollout_type == MCTS) {
-        double pscore = score;
+        float pscore = score;
         /*Compute parent's score from children*/
         if(backup_type == CLASSIC)
             score = Avg_score_mem(n,score,visits);
@@ -893,7 +893,7 @@ void Node::Backup(Node* n,double& score,int visits) {
         n->edges.clear_create();
     }
 }
-void Node::BackupLeaf(Node* n,double& score) {
+void Node::BackupLeaf(Node* n,float& score) {
     if(rollout_type == MCTS) {
         n->update_score(score);
     } else if(n->alpha < n->beta) {
@@ -1005,7 +1005,7 @@ bool SEARCHER::handle_terminals(Node* n) {
     return false;
 }
 
-void SEARCHER::play_simulation(Node* n, double& score, int& visits) {
+void SEARCHER::play_simulation(Node* n, float& score, int& visits) {
 
     nodes++;
     visits = 1;
@@ -1412,7 +1412,7 @@ void SEARCHER::check_mcts_quit(bool single) {
 
     /*prune root nodes*/
     int visdiff;
-    double factor;
+    float factor;
 
     factor = sqrt(bnvis->policy / (bnvis2->policy + 1e-8));
     if(factor >= 20) factor = 20;
@@ -1449,7 +1449,7 @@ void SEARCHER::check_mcts_quit(bool single) {
 
 void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
     Node* root = root_node;
-    double pfrac = 0,score;
+    float pfrac = 0,score;
     int visits;
     int oalpha = pstack->alpha;
     int obeta = pstack->beta;
@@ -1558,7 +1558,7 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
                     ovisits = root->visits;
                     check_quit();
 
-                    double frac = 1;
+                    float frac = 1;
                     if(chess_clock.max_visits != MAX_NUMBER)
                         frac = double(root->visits) / chess_clock.max_visits;
                     else 
@@ -1939,7 +1939,7 @@ float SEARCHER::generate_and_score_moves(int alpha, int beta) {
         }
 
         /*both value and policy heads*/
-        const double my_policy_temp = 
+        const float my_policy_temp = 
                 policy_temp * (ply ? 1 : policy_temp_root_factor);
 
         if(!use_nn) {
@@ -2142,10 +2142,10 @@ void SEARCHER::get_train_data(float& value, int& nmoves, int* moves,
 
     /*policy target pruning*/
     Node* current;
-    double factor, max_uct = 0;
+    float factor, max_uct = 0;
 
     if(policy_pruning) {
-        double dCPUCT = cpuct_init +
+        float dCPUCT = cpuct_init +
             log((root_node->visits + cpuct_base + 1.0) / cpuct_base), uct;
         factor = dCPUCT * sqrt(double(root_node->visits));
 
@@ -2496,9 +2496,9 @@ void SEARCHER::worker_thread() {
 void SEARCHER::select_net() {
     static int nn_type_o = nn_type;
     static int wdl_head_o = wdl_head;
-    static double cpuct_init_o = cpuct_init;
-    static double policy_temp_o = policy_temp;
-    static double fpu_red_o = fpu_red;
+    static float cpuct_init_o = cpuct_init;
+    static float policy_temp_o = policy_temp;
+    static float fpu_red_o = fpu_red;
     static int  fpu_is_loss_o = fpu_is_loss;
 
 #define SET(p) {                      \

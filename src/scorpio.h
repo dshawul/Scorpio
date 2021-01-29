@@ -476,7 +476,7 @@ struct Node {
     }
 
     void update_visits(unsigned int v) { l_add(visits,v); }
-    void update_score(double s) { score = s; } /* Assume atomic until fixed! */
+    void update_score(float s) { score = s; } /* Assume atomic until fixed! */
 
     Node* add_child(int,int,MOVE,float,float);
     Node* add_null_child(int,float);
@@ -513,11 +513,11 @@ struct Node {
     static Node* Random_select(Node*,int);
     static float Min_score(Node*);
     static float Avg_score(Node*);
-    static float Avg_score_mem(Node*,double,int);
-    static float Rms_score_mem(Node*,double,int);
+    static float Avg_score_mem(Node*,float,int);
+    static float Rms_score_mem(Node*,float,int);
     static float Max_visits_score(Node*);
-    static void Backup(Node*,double&,int);
-    static void BackupLeaf(Node*,double&);
+    static void Backup(Node*,float&,int);
+    static void BackupLeaf(Node*,float&);
     static void print_xml(Node*,int);
     static float compute_policy_sum_reverseKL(Node*,float,float,float);
     static float compute_regularized_policy_reverseKL(Node*,float,float);
@@ -809,7 +809,7 @@ typedef struct SEARCHER{
     void  extract_pv(Node*,bool=false);
     void  create_children(Node*);
     void  manage_tree(bool=false);
-    void  play_simulation(Node*,double&,int&);
+    void  play_simulation(Node*,float&,int&);
     void  search_mc(bool=false, unsigned int = 0);
     void  print_status();
     void  idle_loop_main();
@@ -1175,8 +1175,8 @@ extern int montecarlo;
 extern int rollout_type;
 extern bool freeze_tree;
 extern bool is_selfplay;
-extern double frac_abprior;
-extern double frac_alphabeta;
+extern float frac_abprior;
+extern float frac_alphabeta;
 extern int mcts_strategy_depth;
 extern int qsearch_level;
 extern int PROTOCOL;
