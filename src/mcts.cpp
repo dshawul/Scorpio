@@ -101,12 +101,7 @@ Node* Node::allocate(int id) {
 void Node::reclaim(Node* n, int id) {
     Node* current = n->child;
     while(current) {
-        if(current->is_dead());
-        else if(!current->child) {
-            Edges::reclaim(current->edges,id);
-            mem_[id].push_back(current);
-            l_add(total_nodes,-1);
-        } else
+        if(!current->is_dead())
             reclaim(current,id);
         current = current->next;
     }
