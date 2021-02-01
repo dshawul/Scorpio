@@ -272,71 +272,46 @@ void Node::split(Node* n, std::vector<Node*>* pn, const int S, int& T) {
     }
 }
 
-bool Node::compute_Q(Node* const n, float fpu, bool has_ab) {
-    bool has_winning = false;
-
-    /*approaching collision limit?*/
-    unsigned int collision_lev = virtual_loss;
-    if(SEARCHER::use_nn && max_collisions >= 3) {
-        if(n_collisions >= ((3 * max_collisions) >> 2))
-            collision_lev <<= 2;
-        else if(n_collisions >= (max_collisions >> 1))
-            collision_lev <<= 1;
-    }
-
-    /*compute Q for all moves*/
-    Node* current = n->child;
-    while(current) {
-        if(current->move && !current->is_dead()) {
-
-            /*compute Q considering fpu and virtual loss*/
-            float uct;
-            if(!current->visits) {
-                uct = fpu;
-            } else {
-                unsigned int vst = current->visits;
+float Node::compute_Q(float fpu, unsigned int collision_lev, bool has_ab) {
+    float uct;
+    if(!visits) {
+        uct = fpu;
+    } else {
+        unsigned int vst = visits;
 #ifdef PARALLEL
-                unsigned int vvst = collision_lev * current->get_busy();
-                vst += vvst;
+        unsigned int vvst = collision_lev * get_busy();
+        vst += vvst;
 #endif
-                uct = 1 - current->score;
-                if(uct >= winning_threshold) {
-                    has_winning = true;
-                    current->Q = uct;
-                    current = current->next;
-                    continue;
-                }
-                uct += (-uct * vvst) / (vst + 1);
-            }
-            if(has_ab) {
-                float uctp = 1 - current->prior;
-                uct = 0.5 * ((1 - frac_abprior) * uct +
-                            frac_abprior * uctp +
-                            MIN(uct,uctp));
-            }
-#ifdef PARALLEL
-            if(current->is_create()) uct *= 0.1;
-#endif
-            /*assign*/
-            current->Q = uct;
+        uct = 1 - score;
+        if(uct >= winning_threshold) {
+            uct += 50;
+            return uct;
         }
-
-        current = current->next;
+        uct += (-uct * vvst) / (vst + 1);
     }
-    return has_winning;
+    if(has_ab) {
+        float uctp = 1 - prior;
+        uct = 0.5 * ((1 - frac_abprior) * uct +
+                    frac_abprior * uctp +
+                    MIN(uct,uctp));
+    }
+#ifdef PARALLEL
+    if(is_create()) uct *= 0.1;
+#endif
+    return uct;
 }
 
-float Node::compute_fpu(Node* n, bool is_root) {
+float Node::compute_fpu(bool is_root) {
     float fpu = 0.0;
-    if(is_root || n->visits > 10000)
+    if(is_root || visits > 10000)
         fpu = 1.0;            //fpu = win
     else if(!fpu_is_loss) {
         float fpur = fpu_red; //fpu = reduction
-        if(n->visits > 3200)
+        if(visits > 3200)
             fpur = 0;         //fpu reduction = 0
         else
-            fpu = n->v_pol_sum; //sum of children policies
-        fpu = n->score - fpur * sqrt(fpu);
+            fpu = v_pol_sum;  //sum of children policies
+        fpu = score - fpur * sqrt(fpu);
     } else {
         fpu = (1 - fpu_is_loss) / 2.0; //fpu is loss or win
     }
@@ -368,12 +343,25 @@ float Node::compute_policy_sum_reverseKL(Node* n, float factor, float fpu, float
     return reg_policy_sum;
 }
 
-float Node::compute_regularized_policy_reverseKL(Node* n, float factor, float fpu) {
+float Node::compute_regularized_policy_reverseKL(Node* n, float factor, float fpu, bool has_ab) {
+
+    /*approaching collision limit?*/
+    unsigned int collision_lev = virtual_loss;
+    if(SEARCHER::use_nn && max_collisions >= 3) {
+        if(n_collisions >= ((3 * max_collisions) >> 2))
+            collision_lev <<= 2;
+        else if(n_collisions >= (max_collisions >> 1))
+            collision_lev <<= 1;
+    }
+
     /*find alpha_min and alpha_max*/
     float alpha, alpha_min = -100, alpha_max = -100;
     Node* current = n->child;
     while(current) {
         if(current->move && !current->is_dead()) {
+
+            current->Q = current->compute_Q(fpu, collision_lev, has_ab);
+
             float a = current->Q;
             float b = a + factor;
             a += factor * current->policy;
@@ -429,23 +417,19 @@ float Node::compute_regularized_policy_reverseKL(Node* n, float factor, float fp
 }
 
 Node* Node::ExactPi_select(Node* n, bool has_ab, bool is_root, int processor_id) {
-    float uct, fpu, bvalue = -10;
     float dCPUCT = cpuct_init * (is_root ? cpuct_init_root_factor : 1.0) +
                     log((n->visits + cpuct_base + 1.0) / cpuct_base);
     float factor = dCPUCT * (float)(sqrt(double(n->visits))) / (n->edges.get_children() + n->visits);
-    Node* current, *bnode = 0;
 
     /*compute fpu*/
-    fpu = Node::compute_fpu(n,is_root);
-
-    /*compute Q*/
-    Node::compute_Q(n,fpu,has_ab);
+    float fpu = n->compute_fpu(is_root);
 
     /*compute regularized policy for selection*/
-    float factor_unvisited = Node::compute_regularized_policy_reverseKL(n,factor,fpu);
+    float factor_unvisited = Node::compute_regularized_policy_reverseKL(n,factor,fpu,has_ab);
 
     /*select*/
-    current = n->child;
+    float uct, bvalue = -10;
+    Node* current = n->child, *bnode = 0;
     while(current) {
         if(current->move && !current->is_dead()) {
 
@@ -488,39 +472,50 @@ Node* Node::ExactPi_select(Node* n, bool has_ab, bool is_root, int processor_id)
 }
 
 Node* Node::Max_UCB_select(Node* n, bool has_ab, bool is_root, int processor_id) {
-    float uct, fpu, bvalue = -10;
     float dCPUCT = cpuct_init * (is_root ? cpuct_init_root_factor : 1.0) +
                     log((n->visits + cpuct_base + 1.0) / cpuct_base);
     float factor;
-    Node* current, *bnode = 0;
 
     /*compute fpu*/
-    fpu = Node::compute_fpu(n,is_root);
-
-    /*compute Q*/
-    bool has_winning = Node::compute_Q(n,fpu,has_ab);
+    float fpu = n->compute_fpu(is_root);
 
     /*Alphazero or UCT formula*/
-    if(has_winning)
-        factor = 0;
-    else if(select_formula == 0)
+    if(select_formula == 0)
         factor = dCPUCT * float(sqrt(double(n->visits)));
     else
         factor = dCPUCT * float(sqrt(log(double(n->visits))));
 
+    /*approaching collision limit?*/
+    unsigned int collision_lev = virtual_loss;
+    if(SEARCHER::use_nn && max_collisions >= 3) {
+        if(n_collisions >= ((3 * max_collisions) >> 2))
+            collision_lev <<= 2;
+        else if(n_collisions >= (max_collisions >> 1))
+            collision_lev <<= 1;
+    }
+
     /*select*/
-    current = n->child;
+    bool has_winning = false;
+    float uct, bvalue = -10;
+    Node* current = n->child, *bnode = 0;
     while(current) {
         if(current->move && !current->is_dead()) {
 
-            if(select_formula == 0)
-                uct = current->Q + factor * (current->policy / (current->visits + 1));
-            else
-                uct = current->Q + factor * sqrt(current->policy / (current->visits + 1));
+            /*compute Q considering fpu and virtual loss*/
+            uct = current->compute_Q(fpu, collision_lev, has_ab);
 
-            if(forced_playouts && is_selfplay && is_root && current->visits > 0) {
-                unsigned int n_forced = sqrt(2 * current->policy * n->visits);
-                if(current->visits < n_forced) uct += 5;
+            if(uct >= 45)
+                has_winning = true;
+            else {
+                if(select_formula == 0)
+                    uct += factor * (current->policy / (current->visits + 1));
+                else
+                    uct += factor * sqrt(current->policy / (current->visits + 1));
+
+                if(forced_playouts && is_selfplay && is_root && current->visits > 0) {
+                    unsigned int n_forced = sqrt(2 * current->policy * n->visits);
+                    if(current->visits < n_forced) uct += 5;
+                }
             }
 
             if(uct > bvalue) {
@@ -560,15 +555,15 @@ Node* Node::Max_UCB_select(Node* n, bool has_ab, bool is_root, int processor_id)
 Node* Node::Max_AB_select(Node* n, int alpha, int beta, bool try_null,
     bool search_by_rank, int processor_id
     ) {
-    float bvalue = -MAX_NUMBER, uct;
-    Node* current, *bnode = 0;
-    int alphac, betac;
 
     /*lock*/
     while(!n->edges.try_create())
         t_pause();
 
-    current = n->child;
+    /*select*/
+    float bvalue = -MAX_NUMBER, uct;
+    int alphac, betac;
+    Node* current = n->child, *bnode = 0;
     while(current) {
         alphac = current->alpha;
         betac = current->beta;

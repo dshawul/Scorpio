@@ -483,6 +483,8 @@ struct Node {
 
     Node* add_child(int,int,MOVE,float,float);
     Node* add_null_child(int,float);
+    float compute_Q(float,unsigned int, bool);
+    float compute_fpu(bool);
 
     void clear() {
         score = 0;
@@ -524,9 +526,7 @@ struct Node {
     static void BackupLeaf(Node*,float&);
     static void print_xml(Node*,int);
     static float compute_policy_sum_reverseKL(Node*,float,float,float);
-    static float compute_regularized_policy_reverseKL(Node*,float,float);
-    static bool compute_Q(Node*,float,bool);
-    static float compute_fpu(Node*,bool);
+    static float compute_regularized_policy_reverseKL(Node*,float,float,bool);
 };
 /*
 NNUE - data structures for incemental update
