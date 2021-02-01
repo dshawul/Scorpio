@@ -151,7 +151,7 @@ Node* Node::add_child(int processor_id, int idx,
     node->alpha = -MATE_SCORE;
     node->beta = MATE_SCORE;
     node->rank = idx + 1;
-    node->prior = node->score;
+    node->prior = 0;
     node->policy = policy;
     add_node(this,node);
     return node;
@@ -165,7 +165,7 @@ Node* Node::add_null_child(int processor_id, float score) {
     node->alpha = -MATE_SCORE;
     node->beta = MATE_SCORE;
     node->rank = 0;
-    node->prior = node->score;
+    node->prior = 0;
     node->policy = 0;
     add_node(this,node);
     return node;
@@ -332,15 +332,8 @@ float Node::compute_fpu(Node* n, bool is_root) {
         float fpur = fpu_red; //fpu = reduction
         if(n->visits > 3200)
             fpur = 0;         //fpu reduction = 0
-        else {
-            fpu = 0;
-            Node* current = n->child;
-            while(current) {
-                if(current->visits && current->move)
-                    fpu += current->policy;
-                current = current->next;
-            }
-        }
+        else
+            fpu = n->v_pol_sum; //sum of children policies
         fpu = n->score - fpur * sqrt(fpu);
     } else {
         fpu = (1 - fpu_is_loss) / 2.0; //fpu is loss or win
@@ -480,6 +473,7 @@ Node* Node::ExactPi_select(Node* n, bool has_ab, bool is_root, int processor_id)
                     n->edges.moves()[idx],
                     n->edges.scores()[idx],
                     1 - n->edges.score);
+                n->v_pol_sum += n->edges.scores()[idx];
                 n->edges.inc_children();
                 n->edges.clear_create();
                 return bnode;
@@ -549,6 +543,7 @@ Node* Node::Max_UCB_select(Node* n, bool has_ab, bool is_root, int processor_id)
                     n->edges.moves()[idx],
                     n->edges.scores()[idx],
                     1 - n->edges.score);
+                n->v_pol_sum += n->edges.scores()[idx];
                 n->edges.inc_children();
                 n->edges.clear_create();
                 return bnode;

@@ -436,9 +436,12 @@ struct Node {
         VOLATILE int beta;
         VOLATILE float Q;
     };
-    VOLATILE float policy;
-    VOLATILE float prior;
+    union {
+        VOLATILE float prior;
+        VOLATILE float v_pol_sum;
+    };
 
+    VOLATILE float policy;
     VOLATILE unsigned int visits;
     VOLATILE float score;
     VOLATILE unsigned short busy;
@@ -483,6 +486,7 @@ struct Node {
 
     void clear() {
         score = 0;
+        v_pol_sum = 0;
         visits = 0;
         child = 0;
         next = 0;
