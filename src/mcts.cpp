@@ -1840,6 +1840,13 @@ void SEARCHER::manage_tree(bool single) {
             Node::reclaim(current,0);
         }
     }
+    /*no alphabeta*/
+    if(frac_alphabeta == 0) {
+        rollout_type = MCTS;
+        search_depth = MIN(search_depth + mcts_strategy_depth, MAX_PLY - 2);
+    }
+
+    /*create root node*/
     if(!root_node->child) {
         create_children(root_node);
         root_node->visits++;
@@ -1850,10 +1857,7 @@ void SEARCHER::manage_tree(bool single) {
     /*only have root child*/
     if(!freeze_tree && frac_freeze_tree == 0)
         freeze_tree = true;
-    if(frac_alphabeta == 0) {
-        rollout_type = MCTS;
-        search_depth = MIN(search_depth + mcts_strategy_depth, MAX_PLY - 2);
-    } else {
+    if(frac_alphabeta > 0) {
         if(rollout_type == MCTS)
             Node::parallel_job(root_node,convert_score_thread_proc);
         rollout_type = ALPHABETA;
