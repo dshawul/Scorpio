@@ -1975,8 +1975,9 @@ float SEARCHER::generate_and_score_moves(int alpha, int beta) {
             if(!montecarlo) return rscore;
 
             /*max legal moves cap*/
+            const int mp = pstack->score_st[MAX_MOVES_NN - 1];
             for(int i = MAX_MOVES_NN; i < pstack->count; i++)
-                pstack->score_st[i] = pstack->score_st[MAX_MOVES_NN - 1];
+                pstack->score_st[i] = mp;
 
             /*find minimum and maximum policy values*/
             double total = 0.f, maxp = -100, minp = 100;
@@ -2027,11 +2028,12 @@ float SEARCHER::generate_and_score_moves(int alpha, int beta) {
             /*normalize policy*/
             for(int i = 0;i < pstack->count; i++) {
                 float* p = (float*)&pstack->score_st[i];
-                total += exp( (*p - maxp) / my_policy_temp );
+                *p = exp( (*p - maxp) / my_policy_temp );
+                total += *p;
             }
             for(int i = 0;i < pstack->count; i++) {
                 float* p = (float*)&pstack->score_st[i];
-                float pp = exp( (*p - maxp) / my_policy_temp ) / total;
+                float pp = *p / total;
                 if(pp < 2 * min_policy_value)
                     pp = MAX(pp, min_policy_value + pp / 8);
                 *p = pp;
