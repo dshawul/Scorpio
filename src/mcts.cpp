@@ -110,7 +110,8 @@ void Node::reclaim(Node* n, int id) {
     l_add(total_nodes,-1);
 }
 
-void Edges::allocate(Edges& edges, int id, int sz) {
+void Edges::allocate(Edges& edges, int id, int sz_) {
+    const int sz = (((sz_ - 1) >> 3) + 1) << 3;
     if(mem_[id].count(sz) > 0) {
         std::vector<int*>& vec = mem_[id][sz];
         if(!vec.empty()) {
@@ -124,7 +125,8 @@ void Edges::allocate(Edges& edges, int id, int sz) {
 }
 
 void Edges::reclaim(Edges& edges, int id) {
-    std::vector<int*>& vec = mem_[id][edges.count];
+    const int sz = (((edges.count - 1) >> 3) + 1) << 3;
+    std::vector<int*>& vec = mem_[id][sz];
     vec.push_back(edges._data);
 }
 
