@@ -423,11 +423,22 @@ void CDECL rank_reset_thread_proc(void*);
 void CDECL convert_score_thread_proc(void*);
 
 struct Node {
-    Node* VOLATILE child;
-    Node* next;
-    Edges edges;
-    MOVE move;
 
+    /*64 bytes data*/
+    Node* child;
+    Node* next;
+    MOVE move;
+    float policy;
+    union {
+        float prior;
+        float v_pol_sum;
+    };
+    Edges edges;
+    VOLATILE unsigned int visits;
+    VOLATILE float score;
+    VOLATILE unsigned short busy;
+    VOLATILE unsigned char flag;
+    unsigned char rank;
     union {
         VOLATILE int alpha;
         VOLATILE float reg_policy;
@@ -436,17 +447,6 @@ struct Node {
         VOLATILE int beta;
         VOLATILE float Q;
     };
-    union {
-        VOLATILE float prior;
-        VOLATILE float v_pol_sum;
-    };
-
-    VOLATILE float policy;
-    VOLATILE unsigned int visits;
-    VOLATILE float score;
-    VOLATILE unsigned short busy;
-    VOLATILE unsigned char flag;
-    unsigned char rank;
 
     /*accessors*/
     enum {
