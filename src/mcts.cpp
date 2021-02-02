@@ -81,11 +81,10 @@ unsigned int Node::max_tree_nodes = 0;
 unsigned int Node::max_tree_depth = 0;
 
 Node* Node::allocate(int id) {
-    static const int MEM_INC = 1024;
     Node* n;
-    
     if(mem_[id].empty()) {
-        n = new Node[MEM_INC];
+        static const int MEM_INC = 1024;
+        aligned_reserve<Node>(n, MEM_INC);
         mem_[id].reserve(MEM_INC);
         for(int i = 0;i < MEM_INC;i++)
             mem_[id].push_back(&n[i]);
@@ -93,7 +92,6 @@ Node* Node::allocate(int id) {
     n = mem_[id].back();
     mem_[id].pop_back();
     l_add(total_nodes,1);
-
     n->clear();
     return n;
 }
@@ -112,16 +110,21 @@ void Node::reclaim(Node* n, int id) {
 
 void Edges::allocate(Edges& edges, int id, int sz_) {
     const int sz = (((sz_ - 1) >> 3) + 1) << 3;
-    if(mem_[id].count(sz) > 0) {
+
+    if(mem_[id][sz].empty()) {
+        int64_t* n;
+        static const int MEM_INC = 128;
+        aligned_reserve<int64_t>(n, sz * MEM_INC);
+
         std::vector<int*>& vec = mem_[id][sz];
-        if(!vec.empty()) {
-            edges._data = vec.back();
-            vec.pop_back();
-            return;
-        }
+        vec.reserve(MEM_INC);
+        for(int i = 0;i < MEM_INC;i++)
+            vec.push_back((int*)(n) + i*sz*2);
     }
-    size_t bytes = sz * (sizeof(MOVE) + sizeof(int));
-    edges._data = (int*) malloc(bytes);
+
+    std::vector<int*>& vec = mem_[id][sz];
+    edges._data = vec.back();
+    vec.pop_back();
 }
 
 void Edges::reclaim(Edges& edges, int id) {
@@ -130,6 +133,7 @@ void Edges::reclaim(Edges& edges, int id) {
     vec.push_back(edges._data);
 }
 
+/*add child nodes*/
 static void add_node(Node* n, Node* node) {
     if(!n->child)
         n->child = node;
