@@ -1383,11 +1383,12 @@ MOVE SEARCHER::iterative_deepening() {
     }
 
     /*AB prior search*/
-    has_ab = montecarlo && (frac_abprior > 0) &&
-        !is_selfplay && (chess_clock.max_visits == MAX_NUMBER) &&
-        (all_man_c <= alphabeta_man_c || root_score >= 400);
-
     if(montecarlo) {
+        
+        has_ab = (frac_abprior > 0) &&
+            !is_selfplay && (chess_clock.max_visits == MAX_NUMBER) &&
+            (all_man_c <= alphabeta_man_c || root_score >= 400);
+
         manage_tree();
         Node::max_tree_depth = 0;
 

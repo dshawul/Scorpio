@@ -484,7 +484,7 @@ struct Node {
     Node* add_child(int,int,MOVE,float,float);
     Node* add_null_child(int,float);
     float compute_Q(float,unsigned int, bool);
-    float compute_fpu(bool);
+    float compute_fpu(int);
 
     void clear() {
         score = 0;
@@ -512,9 +512,9 @@ struct Node {
     static void  reset_bounds(Node*);
     static void  parallel_job(Node*, PTHREAD_PROC, bool = false);
     static Node* print_tree(Node*,bool,int = 0,int = 0);
-    static Node* Max_UCB_select(Node*,bool,bool,int);
+    static Node* Max_UCB_select(Node*,bool,int,int);
     static Node* Max_AB_select(Node*,int,int,bool,bool,int);
-    static Node* ExactPi_select(Node*,bool,bool,int);
+    static Node* ExactPi_select(Node*,bool,int,int);
     static Node* Best_select(Node*,bool);
     static Node* Random_select(Node*,int);
     static float Min_score(Node*);

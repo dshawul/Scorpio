@@ -305,13 +305,13 @@ float Node::compute_Q(float fpu, unsigned int collision_lev, bool has_ab) {
     return uct;
 }
 
-float Node::compute_fpu(bool is_root) {
+float Node::compute_fpu(int ply) {
     float fpu = 0.0;
-    if(is_root || visits > 10000)
+    if(!ply || visits > 10000)
         fpu = 1.0;            //fpu = win
     else if(!fpu_is_loss) {
         float fpur = fpu_red; //fpu = reduction
-        if(visits > 3200)
+        if((ply == 1) || (visits > 3200))
             fpur = 0;         //fpu reduction = 0
         else
             fpu = v_pol_sum;  //sum of children policies
@@ -420,13 +420,14 @@ float Node::compute_regularized_policy_reverseKL(Node* n, float factor, float fp
     return ret;
 }
 
-Node* Node::ExactPi_select(Node* n, bool has_ab, bool is_root, int processor_id) {
+Node* Node::ExactPi_select(Node* n, bool has_ab, int processor_id, int ply) {
+    bool is_root = (ply == 0);
     float dCPUCT = cpuct_init * (is_root ? cpuct_init_root_factor : 1.0) +
                     log((n->visits + cpuct_base + 1.0) / cpuct_base);
     float factor = dCPUCT * (float)(sqrt(double(n->visits))) / (n->edges.get_children() + n->visits);
 
     /*compute fpu*/
-    float fpu = n->compute_fpu(is_root);
+    float fpu = n->compute_fpu(ply);
 
     /*compute regularized policy for selection*/
     float factor_unvisited = Node::compute_regularized_policy_reverseKL(n,factor,fpu,has_ab);
@@ -463,7 +464,8 @@ Node* Node::ExactPi_select(Node* n, bool has_ab, bool is_root, int processor_id)
                     n->edges.moves()[idx],
                     n->edges.scores()[idx],
                     1 - n->edges.score);
-                n->v_pol_sum += n->edges.scores()[idx];
+                if(ply > 1)
+                    n->v_pol_sum += n->edges.scores()[idx];
                 n->edges.inc_children();
                 n->edges.clear_create();
                 return bnode;
@@ -475,13 +477,14 @@ Node* Node::ExactPi_select(Node* n, bool has_ab, bool is_root, int processor_id)
     return bnode;
 }
 
-Node* Node::Max_UCB_select(Node* n, bool has_ab, bool is_root, int processor_id) {
+Node* Node::Max_UCB_select(Node* n, bool has_ab, int processor_id, int ply) {
+    bool is_root = (ply == 0);
     float dCPUCT = cpuct_init * (is_root ? cpuct_init_root_factor : 1.0) +
                     log((n->visits + cpuct_base + 1.0) / cpuct_base);
     float factor;
 
     /*compute fpu*/
-    float fpu = n->compute_fpu(is_root);
+    float fpu = n->compute_fpu(ply);
 
     /*Alphazero or UCT formula*/
     if(select_formula == 0)
@@ -544,7 +547,8 @@ Node* Node::Max_UCB_select(Node* n, bool has_ab, bool is_root, int processor_id)
                     n->edges.moves()[idx],
                     n->edges.scores()[idx],
                     1 - n->edges.score);
-                n->v_pol_sum += n->edges.scores()[idx];
+                if(ply > 1)
+                    n->v_pol_sum += n->edges.scores()[idx];
                 n->edges.inc_children();
                 n->edges.clear_create();
                 return bnode;
@@ -1125,12 +1129,11 @@ SELECT:
             next = Node::Max_AB_select(n,-pstack->beta,-pstack->alpha,
                 try_null,search_by_rank, processor_id);
         } else {
-            bool is_root = (n == root_node);
-            bool has_ab_ = (is_root && has_ab);
+            bool has_ab_ = ((n == root_node) && has_ab);
             if(select_formula >= 2)
-                next = Node::ExactPi_select(n, has_ab_, is_root, processor_id);
+                next = Node::ExactPi_select(n, has_ab_, processor_id, ply);
             else
-                next = Node::Max_UCB_select(n, has_ab_, is_root, processor_id);
+                next = Node::Max_UCB_select(n, has_ab_, processor_id, ply);
         }
 
         /*This could happen in parallel search*/
@@ -1397,6 +1400,7 @@ void SEARCHER::check_mcts_quit(bool single) {
         int remain_time = time_factor * chess_clock.search_time - time_used;
         remain_visits = (remain_time / (double)time_used) * 
             (root_node->visits - (root_node_reuse_visits * (insta_move_factor + (time_factor - 1.0) / 2)));
+        if(remain_visits < 0) remain_visits = 0;
     } else {
         remain_visits = chess_clock.max_visits - 
             (root_node->visits - (root_node_reuse_visits * insta_move_factor));
