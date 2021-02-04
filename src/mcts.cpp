@@ -998,6 +998,7 @@ bool SEARCHER::handle_terminals(Node* n) {
         l_add(n_terminals,1) <= max_terminals)
         ;
     else {
+        gen_all_legal();
         probe_neural(true);
         l_add(n_terminals,-1);
         return true;
