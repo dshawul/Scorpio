@@ -13,13 +13,13 @@
 ### Scorpio
 
 Scorpio is a strong chess engine at the grand master level. It can be used 
-with GUIs that support the Winboard protocol natively such as Winboard and
-Arena, or via the Wb2Uci adapter in Fritz and Shredder interfaces.
+with GUIs that support the Winboard or UCI protocol such as Winboard and
+Arena, Fritz and Shredder interfaces
 
 <a name="install"></a>
 ### Installation
 
-For installation intructions, take a look at [INSTALL.md](https://github.com/dshawul/Scorpio/blob/master/INSTALL.md)
+For installation intructions, please take a look at [INSTALL.md](https://github.com/dshawul/Scorpio/blob/master/INSTALL.md)
 
 <a name="goals"></a>
 ### Goals
@@ -79,6 +79,8 @@ in nature.
 ### Neural Networks (NNs)
 
 The neural network version of Scorpio works using egbbdll that provides neural network inference via tensorflow and/or TensorRT backends.
+NN version has lots of dependencies, hence, the recommended way of installation is through the install
+scripts as described in [INSTALL.md](https://github.com/dshawul/Scorpio/blob/master/INSTALL.md)
 
 #### Building egbbdll
 

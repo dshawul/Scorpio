@@ -4,20 +4,41 @@ The recommended way to install ScorpioNN is using install scripts, a batch file 
 and a shell script [install.sh](https://github.com/dshawul/Scorpio/releases/download/3.0/install.sh) for Ubuntu Linux. You need to only download these scripts and nothing else.
 
       $ ./install.sh --help
-      Usage: ./install.sh
-
+      Usage: ./install.sh  
+      
         -h,--help          Display this help message.
         -p,--precision     Precision to use FLOAT/HALF/INT8.
         -t,--threads       Total number of threads, i.e minibatch size.
         -f,--factor        Factor for auto minibatch size determination from SMs, default 2.
+        --cpu              Force installation on the CPU even if machine has GPU.
         --no-egbb          Do not install 5-men egbb.
         --no-lcnets        Do not install lczero nets.
-
+        --no-scnets        Do not download scorpio nets.
+        --only-trt         Install only TensorRT and rely on system cuda and cudnn.
+                           72 needs cuda-11 and cudnn-8
+                           60 needs cuda-10 and cudnn-7
+      
       Example: ./install.sh -p INT8 -t 80
 
 If you execute the installer without any arguments, it will automatically determine how many GPUs you have,
 which precision to use, how many threads per GPU (minibatch size) to use etc. If you want to force the precision,
 and batch size pass those arguments.
+
+The version of Linux supported by the install script is Ubuntu 18.04, other versions probably won't work due to
+glibc issues. To run on other versions of Linux and also Mac, you can build docker containers of scorpio using Dockerfiles
+provided [here](https://github.com/dshawul/Scorpio/tree/master/install). Installation on Windows may pose some difficulties
+described below.
+
+NN and NNUE versions of Scorpio are compiled with AVX2 support so if your machine does not support that, it will not work.
+AVX2 has been around since 2012 so your CPU most likely supports it unless it is older than that.
+
+For newer GPUs such as 3080s and 3090s, you would need to install cuda 11.1 and cudnn 8.
+The later is too big to ship with Scorpio, so your system must have it.
+Then you can install scorpio as
+
+      $ ./install.sh --only-trt 72
+
+This will install Scorpio with TensorRT 7.2 and use the cuda-11 and cudnn-8 on your system.
 
 ## Windows nuances
 For windows machine, you  use [install.bat](https://github.com/dshawul/Scorpio/releases/download/3.0/install.bat).
@@ -83,3 +104,14 @@ There is a parameter `delay` that can be set to 0 or 1. The installer tries its 
 based on your CPU and GPU. If you have powerful CPU delay=0 with fewer threads may give better performance
 than delay=1 with more threads. If your CPU can't handle the many threads that Scorpio launches, you are
 better of with delay=1
+
+## NNUE installation
+If you want to use Scorpio as a NNUE engine, you have to edit scorpio.ini manually after installing it
+as a NN engines as described above. Scorpio comes with the dh-0.2.bin, as Stockfish style net, by default.
+So to use NNUE, we need to turn off NN usage and turn on NNUE usage
+
+      mt         4      # If you have a 4 threads machine.
+      use_nn     0      # Turn off NN
+      use_nnue   1      # Turn on NNUE
+      nnue_type  0      # This is default
+      nnue_scale 256    # dh-0.2 bin needs larger scaling than other SF style nets that need 128
