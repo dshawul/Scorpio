@@ -669,7 +669,9 @@ Node* Node::Random_select(Node* n, int hply) {
         bnode = node_pt[idx];
 #if 0
         for(int i = 0; i < count; ++i) {
-            print("%c%d. %d\n",(i == idx) ? '*':' ',i,freq[i]);
+            char mvs[16];
+            mov_str(pstack->move_st[i], mvs);
+            print("%c%3d. %6s %d\n",(i == idx) ? '*':' ',i,mvs,freq[i]);
         }
 #endif
     }
@@ -688,8 +690,22 @@ int SEARCHER::Random_select_ab() {
     else
         temp = rand_temp_end;
 
+    int maxs = -MATE_SCORE, avgs = 0;
     for(int i = 0;i < pstack->count; i++) {
-        float pp = logistic(pstack->score_st[i]) * scale;
+        int score = pstack->score_st[i];
+        if(score > maxs) maxs = score;
+        avgs += score;
+    }
+    avgs /= pstack->count;
+
+    int delta = 0 - avgs;
+    if(maxs >= 800)
+        delta = 0;
+    else if(maxs + delta >= 800)
+        delta = 800 - maxs;
+
+    for(int i = 0;i < pstack->count; i++) {
+        float pp = logistic(pstack->score_st[i] + delta) * scale;
         freq.push_back( 100 * exp(pp / temp) );
     }
 
@@ -698,8 +714,10 @@ int SEARCHER::Random_select_ab() {
         bidx = dist(mtgen);
 #if 0
         for(int i = 0; i < pstack->count; ++i) {
-            print("%c%d. %d %d\n",(i == bidx) ? '*':' ',
-                i,pstack->score_st[i],freq[i]);
+            char mvs[16];
+            mov_str(pstack->move_st[i], mvs);
+            print("%c%3d. %6s %7d %d\n",(i == bidx) ? '*':' ',
+                i,mvs,pstack->score_st[i],freq[i]);
         }
 #endif
     }
@@ -1951,7 +1969,7 @@ float SEARCHER::generate_and_score_moves(int alpha, int beta) {
 
             bool save = skip_nn;
             skip_nn = true;
-            evaluate_moves(evaluate_depth,alpha,beta);
+            evaluate_moves(evaluate_depth);
             skip_nn = save;
 
             rscore = pstack->score_st[0];
@@ -2315,8 +2333,12 @@ void SEARCHER::self_play_thread() {
         while(true) {
 
             /*game ended*/
-            int res;
-            if(hply >= 4 && -pstack->best_score >= sp_resign_value)
+            int res, score;
+            if(egbb_is_loaded && all_man_c <= MAX_EGBB && probe_bitbases(score)) {
+                if(score == 0) res = R_DRAW;
+                else if(score > 0) res = (player == white) ? R_WWIN : R_BWIN;
+                else res = (player == black) ? R_WWIN : R_BWIN;
+            } else if(hply >= 4 && -pstack->best_score >= sp_resign_value)
                 res = (player == white) ? R_WWIN : R_BWIN;
             else
                 res = print_result(false);
@@ -2403,8 +2425,11 @@ void SEARCHER::self_play_thread() {
 #if 0
                 char mvstr[16];
                 mov_str(move,mvstr);
-                print("%3d. %7s %d %5d = %8.2f\n",
-                    hply+1,mvstr,(limit > 0), root_node->visits, root_node->score);
+                char fen[256];
+                get_fen(fen);
+                print("%3d. %7s [%d %5d] = %5d %s\n",
+                    hply+1,mvstr,(limit > 0), root_node->visits,
+                    int(logit(root_node->score)), fen);
 #endif
             } else {
                 search_depth = chess_clock.max_sd;
@@ -2414,7 +2439,7 @@ void SEARCHER::self_play_thread() {
                 qnodes = 0;
                 limit = 0;
 
-                evaluate_moves(search_depth - 1, -MATE_SCORE, MATE_SCORE);
+                evaluate_moves(search_depth - 1);
                 pstack->best_score = pstack->score_st[0];
                 pstack->best_move = pstack->move_st[0];
                 /*pick move to play*/
@@ -2430,8 +2455,10 @@ void SEARCHER::self_play_thread() {
 #if 0
                 char mvstr[16];
                 mov_str(move,mvstr);
-                print("%3d. %7s = %5d\n",
-                    hply+1,mvstr, pstack->best_score);
+                char fen[256];
+                get_fen(fen);
+                print("%3d. %7s = %5d %s\n",
+                    hply+1,mvstr, pstack->best_score, fen);
 #endif
             }
 

@@ -67,7 +67,7 @@ int SEARCHER::egbb_is_loaded = 0;
 int SEARCHER::egbb_load_type = LOAD_4MEN;
 int SEARCHER::egbb_depth_limit = 3;
 int SEARCHER::egbb_ply_limit_percent = 75;
-int SEARCHER::egbb_ply_limit;
+int SEARCHER::egbb_ply_limit = 8;
 int SEARCHER::egbb_cache_size = 16;
 char SEARCHER::egbb_path[MAX_STR] = "egbb/";
 char SEARCHER::egbb_files_path[MAX_STR] = "egbb/";

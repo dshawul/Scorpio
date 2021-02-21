@@ -806,7 +806,7 @@ typedef struct SEARCHER{
     void  update_history(MOVE);
     void  clear_history();
     int   search_ab();
-    void  evaluate_moves(int,int,int);
+    void  evaluate_moves(int);
     float  generate_and_score_moves(int,int);
     int   Random_select_ab();
     /*mcts stuff*/

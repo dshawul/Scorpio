@@ -1248,85 +1248,77 @@ int SEARCHER::search_ab() {
 /*
 Evaluate moves with search
 */
-void SEARCHER::evaluate_moves(int depth, int alpha, int beta) {
-    int score = 0, WINDOW = 2*aspiration_window, bscore = -MATE_SCORE;
+void SEARCHER::evaluate_moves(int depth) {
+    int alpha = -MATE_SCORE;
+    int beta = MATE_SCORE;
+    int score;
 
     finish_search = true;
 
     for(int i = 0;i < pstack->count; i++) {
         pstack->current_move = pstack->move_st[i];
         PUSH_MOVE(pstack->current_move);
+
         nodes++;
         if(depth <= 0) qnodes++;
-        alpha = -MATE_SCORE;
-        beta = MATE_SCORE;
-        
-        if(egbb_is_loaded && all_man_c <= MAX_EGBB 
-            && bitbase_cutoff()
-            ) {
-            score = -pstack->best_score;
-            pstack->pv_length = ply;
-        } else {
-            int newd = depth;
-            for(int j = 0;j < 8;j++) {
-                if(i >= lmr_count[j] && newd > 1) {
-                    newd--;
-                }
+
+        /*search move*/
+        int newd = depth;
+        for(int j = 0;j < 8;j++) {
+            if(i >= lmr_count[j] && newd > 1) {
+                newd--;
             }
-            score = (pstack-1)->score_st[i];
-            if(ply == 1 && newd >= 3) {
-                alpha = score - WINDOW;
-                beta  = score + WINDOW;
-            }
+        }
+
+        if(i == 0 || depth <= 0) {
 TOP:
             pstack->alpha = -beta;
             pstack->beta = -alpha;
-            pstack->depth = newd;
             pstack->node_type = PV_NODE;
-            pstack->search_state = NORMAL_MOVE;
-            pstack->extension = 0;
-            pstack->reduction = 0;
-            pstack->pv_length = ply;
-            pstack->best_score = -MATE_SCORE;
-
-            if(depth == -4) {
-                score = -eval();
-            } else if(depth == -3) {
-                MOVE& move = (pstack-1)->current_move;
-                score = -eval() + 
-                  (see(move) - piece_see_v[m_capture(move)]);
-            } else {
-                if(depth < 0) qsearch_level = depth;
-                search_ab();
-                if(depth < 0) qsearch_level = 0;
-                score = -pstack->best_score;
-            }
-
-            if(!abort_search &&
-                ply == 1 && newd >= 3
-                ) {
-                if(score <= alpha) {
-                    WINDOW = MIN(200, 3 * WINDOW / 2);
-                    alpha = MAX(-MATE_SCORE,score - WINDOW);
-                    goto TOP;
-                } else if(score >= beta) {
-                    WINDOW = MIN(200, 3 * WINDOW / 2);
-                    beta = MIN(MATE_SCORE,score + WINDOW);
-                    goto TOP;
-                }
-            }
-
+        } else {
+            pstack->alpha = -alpha - 1;
+            pstack->beta = -alpha;
+            pstack->node_type = CUT_NODE;
         }
+
+        pstack->depth = newd;
+        pstack->search_state = NORMAL_MOVE;
+        pstack->extension = 0;
+        pstack->reduction = 0;
+        pstack->pv_length = ply;
+        pstack->best_score = -MATE_SCORE;
+
+        if(depth == -4) {
+            score = -eval();
+        } else if(depth == -3) {
+            MOVE& move = (pstack-1)->current_move;
+            score = -eval() + 
+              (see(move) - piece_see_v[m_capture(move)]);
+        } else {
+            if(depth < 0) qsearch_level = depth;
+            search_ab();
+            if(depth < 0) qsearch_level = 0;
+            score = -pstack->best_score;
+        }
+
+        if(depth > 0 && score > alpha) {
+            if(pstack->node_type == CUT_NODE)
+                goto TOP;
+            else if(newd < depth) {
+                newd++;
+                goto TOP;
+            }
+        }
+
+        /*end search move*/
         POP_MOVE();
 
         if(!ply && abort_search)
             break;
 
-        if(!ply && depth >= 10 && score > bscore) {
-            UPDATE_PV(pstack->current_move);
-            print_pv(score);
-            bscore = score;
-        }
+        /*better score*/
+        if(depth > 0 && score > alpha)
+            alpha = score;
 
         pstack->score_st[i] = score;
     }
@@ -1335,7 +1327,6 @@ TOP:
 
     for(int i = 0;i < pstack->count; i++)
         pstack->sort(i,pstack->count);
-
 }
 /*
 Find best move using alpha-beta or mcts
@@ -1477,7 +1468,7 @@ MOVE SEARCHER::iterative_deepening() {
             for(int d = 2; d < MAX_PLY - 1 ; d++) {
                 stop_searcher = 0;
                 search_depth = d;
-                evaluate_moves(d,-MATE_SCORE,MATE_SCORE);
+                evaluate_moves(d);
 
                 int time_used = get_time() - start_time;
                 if(abort_search || time_used >= 0.75 * chess_clock.search_time)
