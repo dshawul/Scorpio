@@ -2464,8 +2464,13 @@ void SEARCHER::self_play_thread() {
 
             /*get training data*/
             PTRAIN ptrn = &trn[hply];
-            if(filter_quiet && is_cap_prom(pstack->best_move))
+            if(filter_quiet &&
+                ( is_cap_prom(pstack->best_move) ||
+                (hply >= 1 && hstack[hply - 1].checks) ||
+                checks(pstack->best_move, hstack[hply].rev_check) )
+                ) {
                 ptrn->nmoves = -1;
+            }
             else if(pcr_write_low || (limit == 0)) {
                 get_train_data(
                     ptrn->value, ptrn->nmoves, ptrn->moves,
