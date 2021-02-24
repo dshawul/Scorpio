@@ -1255,6 +1255,19 @@ void SEARCHER::evaluate_moves(int depth) {
 
     finish_search = true;
 
+    /*sort tt move*/
+    if(depth > 0) {
+        hash_cutoff();
+        for(int i = 0; i < pstack->count;i++) {
+            if(pstack->move_st[i] == pstack->hash_move) {
+                pstack->score_st[i] = MATE_SCORE;
+                break;
+            }
+        }
+        for(int i = 0;i < pstack->count; i++)
+            pstack->sort(i,pstack->count);
+    }
+
     for(int i = 0;i < pstack->count; i++) {
         pstack->current_move = pstack->move_st[i];
         PUSH_MOVE(pstack->current_move);
@@ -1262,14 +1275,26 @@ void SEARCHER::evaluate_moves(int depth) {
         nodes++;
         if(depth <= 0) qnodes++;
 
-        /*search move*/
+        /*extensions and reductions*/
         int newd = depth;
-        for(int j = 0;j < 8;j++) {
-            if(i >= lmr_count[j] && newd > 1) {
-                newd--;
+        pstack->extension = 0;
+        pstack->reduction = 0;
+        if(depth > 0) {
+            for(int j = 0;j < 8;j++) {
+                if(i >= lmr_count[j] && newd > 1) {
+                    newd--;
+                    pstack->reduction++;
+                }
+            }
+            if(i > lmr_count[0]) {
+                if(hstack[hply - 1].checks) {
+                    newd++;
+                    pstack->extension++;
+                }
             }
         }
 
+        /*search move*/
         if(i == 0 || depth <= 0) {
 TOP:
             pstack->alpha = -beta;
@@ -1280,13 +1305,8 @@ TOP:
             pstack->beta = -alpha;
             pstack->node_type = CUT_NODE;
         }
-
-        pstack->depth = newd;
-        pstack->search_state = NORMAL_MOVE;
-        pstack->extension = 0;
-        pstack->reduction = 0;
-        pstack->pv_length = ply;
-        pstack->best_score = -MATE_SCORE;
+        pstack->depth = newd * UNITDEPTH;
+        pstack->search_state = NULL_MOVE;
 
         if(depth == -4) {
             score = -eval();
@@ -1301,11 +1321,10 @@ TOP:
             score = -pstack->best_score;
         }
 
+        /*research*/
         if(depth > 0 && score > alpha) {
-            if(pstack->node_type == CUT_NODE)
-                goto TOP;
-            else if(newd < depth) {
-                newd++;
+            if(pstack->node_type == CUT_NODE || newd < depth) {
+                if(newd < depth) newd++;
                 goto TOP;
             }
         }

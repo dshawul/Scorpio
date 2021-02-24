@@ -1472,7 +1472,7 @@ DO_AGAIN:
                         *pscore = 90;
                     else if(move == pstack->killer[1])
                         *pscore = 80;
-                    else if(move == REFUTATION(move))
+                    else if(move == REFUTATION(hstack[hply - 1].move))
                         *pscore = 70;
                     else if(is_cap_prom(move)) {
                         *pscore = see(move);
