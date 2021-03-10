@@ -128,6 +128,8 @@ void Edges::allocate(Edges& edges, int id, int sz_) {
 }
 
 void Edges::reclaim(Edges& edges, int id) {
+    if(!edges.count)
+        return;
     const int sz = (((edges.count - 1) >> 3) + 1) << 3;
     std::vector<int*>& vec = mem_[id][sz];
     vec.push_back(edges._data);

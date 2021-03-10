@@ -782,8 +782,10 @@ void SEARCHER::set_board(const char* fen_str) {
     hply = 2 * (move_number - 1) + (player == black);
 
     /*zero history of moves*/
-    for(int i = 0; i < hply; i++)
+    for(int i = 0; i < hply; i++) {
         hstack[i].move = 0;
+        hstack[i].hash_key = 0;
+    }
 
     /*initialize other stuff*/
     init_data();    
