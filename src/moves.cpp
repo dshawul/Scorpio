@@ -34,21 +34,12 @@ void SEARCHER::do_move(const MOVE& move) {
 
     /*remove captured piece*/
     if((pic = m_capture(move)) != 0) {
-        if(is_ep(move)) {
-            sq = to - pawn_dir[player];
-            all_bb ^= BB(sq);
-        }
+        if(is_ep(move)) sq = to - pawn_dir[player];
         else sq = to;
         pcRemove(pic,sq,phstack->pCapt);
         board[sq] = blank;
-#ifdef NNUE_INC
-        if(use_nnue) {
-            dp->dirtyNum = 2;
-            dp->pc[1] = pic;
-            dp->from[1] = SQ8864(sq);
-            dp->to[1] = 64;
-        }
-#endif
+
+        all_bb ^= BB(sq);
         hash_key ^= PC_HKEY(pic,sq);
         if(PIECE(pic) == pawn) {
             pawn_hash_key ^= PC_HKEY(pic,sq);
@@ -58,36 +49,40 @@ void SEARCHER::do_move(const MOVE& move) {
             pieces_bb[opponent] ^= BB(sq);
             piece_c[opponent] -= piece_cv[pic];
         }
+
         pcsq_score[opponent].sub(pcsq[pic][sq],pcsq[pic][sq + 8]);
         man_c[pic]--;
         all_man_c--;
+
+#ifdef NNUE_INC
+        if(use_nnue) {
+            dp->dirtyNum = 2;
+            dp->pc[1] = pic;
+            dp->from[1] = SQ8864(sq);
+            dp->to[1] = 64;
+        }
+#endif
     }
 
     /*move piece*/
-    all_bb ^= BB(from);
-    all_bb |= BB(to);
+    if(from != to) {
+        all_bb ^= (BB(from) | BB(to));
 #ifdef NNUE_INC
-    if(use_nnue) {
-        dp->pc[0] = m_piece(move);
-        dp->from[0] = SQ8864(from);
-        dp->to[0] = SQ8864(to);
-    }
+        if(use_nnue) {
+            dp->pc[0] = m_piece(move);
+            dp->from[0] = SQ8864(from);
+            dp->to[0] = SQ8864(to);
+        }
 #endif
+    }
+
     if((pic = m_promote(move)) != 0) {
         pic1 = COMBINE(player,pawn);
         board[to] = pic;
         board[from] = blank;
         pcAdd(pic,to);
         pcRemove(pic1,from,phstack->pProm);
-#ifdef NNUE_INC
-        if(use_nnue) {
-            dp->to[0] = 64;
-            dp->pc[dp->dirtyNum] = pic;
-            dp->from[dp->dirtyNum] = 64;
-            dp->to[dp->dirtyNum] = SQ8864(to);
-            dp->dirtyNum++;
-        }
-#endif
+
         pawns_bb[player] ^= BB(from);
         pieces_bb[player] ^= BB(to);
         hash_key      ^= PC_HKEY(pic1,from);
@@ -100,7 +95,17 @@ void SEARCHER::do_move(const MOVE& move) {
                                pcsq[pic][to + 8] - pcsq[pic1][from + 8]);
         man_c[pic1]--;
         man_c[pic]++;
-    } else {
+
+#ifdef NNUE_INC
+        if(use_nnue) {
+            dp->to[0] = 64;
+            dp->pc[dp->dirtyNum] = pic;
+            dp->from[dp->dirtyNum] = 64;
+            dp->to[dp->dirtyNum] = SQ8864(to);
+            dp->dirtyNum++;
+        }
+#endif
+    } else if(from != to) {
         pic = m_piece(move);
         board[to] = board[from];
         board[from] = blank;
@@ -115,6 +120,7 @@ void SEARCHER::do_move(const MOVE& move) {
         } else {
             pieces_bb[player] ^= (BB(from) | BB(to));
         }
+
         pcsq_score[player].add(pcsq[pic][to] - pcsq[pic][from],
                                pcsq[pic][to + 8] - pcsq[pic][from + 8]);
     }
@@ -122,33 +128,40 @@ void SEARCHER::do_move(const MOVE& move) {
     /*move castle*/
     if(is_castle(move)) {
         int fromc,toc;
-        if(to > from) {
-           fromc = to + RR;
-           toc = to + LL;
+        if(to == SQ(rank(from), FILEG)) {
+            fromc = frc_squares[3*player+1];
+            toc = to + LL;
         } else {
-           fromc = to + LLL;
-           toc = to + RR;
+            fromc = frc_squares[3*player+2];
+            toc = to + RR;
         }
         
-        board[toc] = board[fromc];
-        board[fromc] = blank;
-        pcSwap(fromc,toc);
-        pic = COMBINE(player,rook);
-#ifdef NNUE_INC
-        if(use_nnue) {
-            dp->dirtyNum = 2;
-            dp->pc[1] = pic;
-            dp->from[1] = SQ8864(fromc);
-            dp->to[1] = SQ8864(toc);
-        }
-#endif
-        pieces_bb[player] ^= (BB(fromc) | BB(toc));
-        all_bb ^= (BB(fromc) | BB(toc));
-        hash_key ^= PC_HKEY(pic,toc);
-        hash_key ^= PC_HKEY(pic,fromc);
+        if(fromc != toc) {
+            pic = COMBINE(player,rook);
+            board[toc] = pic;
+            if(fromc != to) {
+                board[fromc] = blank;
+                pcSwap(fromc,toc);
+            } else {
+                pcSwap(from,toc);
+            }
 
-        pcsq_score[player].add(pcsq[pic][toc] - pcsq[pic][fromc],
-                               pcsq[pic][toc + 8] - pcsq[pic][fromc + 8]);
+            pieces_bb[player] ^= (BB(fromc) | BB(toc));
+            all_bb ^= (BB(fromc) | BB(toc));
+            hash_key ^= PC_HKEY(pic,toc);
+            hash_key ^= PC_HKEY(pic,fromc);
+
+            pcsq_score[player].add(pcsq[pic][toc] - pcsq[pic][fromc],
+                                   pcsq[pic][toc + 8] - pcsq[pic][fromc + 8]);
+#ifdef NNUE_INC
+            if(use_nnue) {
+                dp->dirtyNum = 2;
+                dp->pc[1] = pic;
+                dp->from[1] = SQ8864(fromc);
+                dp->to[1] = SQ8864(toc);
+            }
+#endif
+        }
     } 
 
     /*enpassant*/
@@ -170,10 +183,20 @@ void SEARCHER::do_move(const MOVE& move) {
     /*castling*/
     if(castle) {
         int p_castle = castle;
-        if(from == E1 || to == A1 || from == A1) castle &= ~WLC_FLAG;
-        if(from == E1 || to == H1 || from == H1) castle &= ~WSC_FLAG;
-        if(from == E8 || to == A8 || from == A8) castle &= ~BLC_FLAG;
-        if(from == E8 || to == H8 || from == H8) castle &= ~BSC_FLAG;
+
+        if(from == frc_squares[0])
+            castle &= ~WSLC_FLAG;
+        else if(to == frc_squares[1] || from == frc_squares[1])
+            castle &= ~WSC_FLAG;
+        else if(to == frc_squares[2] || from == frc_squares[2])
+            castle &= ~WLC_FLAG;
+        if(from == frc_squares[3])
+            castle &= ~BSLC_FLAG;
+        else if(to == frc_squares[4] || from == frc_squares[4])
+            castle &= ~BSC_FLAG;
+        else if(to == frc_squares[5] || from == frc_squares[5])
+            castle &= ~BLC_FLAG;
+
         if(p_castle != castle) {
             hash_key ^= CAST_HKEY(p_castle);
             hash_key ^= CAST_HKEY(castle);
@@ -218,20 +241,24 @@ void SEARCHER::undo_move() {
     from = m_from(move);
 
     /*unmove castle*/
+    int fromc,toc;
     if(is_castle(move)) {
-        int fromc,toc;
-        if(to > from) {
-           fromc = to + LL;
-           toc = to + RR;
+        if(to == SQ(rank(from), FILEG)) {
+            fromc = to + LL;
+            toc = frc_squares[3*player+1];
         } else {
-           fromc = to + RR;
-           toc = to + LLL;
+            fromc = to + RR;
+            toc = frc_squares[3*player+2];
         }
-        board[toc] = board[fromc];
-        board[fromc] = blank;
-        pcSwap(fromc,toc);
-        pic = COMBINE(player,rook);
-    } 
+        if(fromc != toc) {
+            board[toc] = board[fromc];
+            board[fromc] = blank;
+            if(toc != to)
+                pcSwap(fromc,toc);
+            else
+                pcSwap(from,fromc);
+        }
+    }
 
     /*unmove piece*/
     if((pic = m_promote(move)) != 0) {
@@ -245,11 +272,14 @@ void SEARCHER::undo_move() {
         piece_c[player] -= piece_cv[pic];
         man_c[pic1]++;
         man_c[pic]--;
-    } else {
-        board[from] = board[to];
-        board[to] = blank;
+    } else if(from != to) {
+        if(is_castle(move) && toc == to) {
+            board[from] = COMBINE(player,king);
+        } else {
+            board[from] = board[to];
+            board[to] = blank;
+        }
         pcSwap(to,from);
-        pic = m_piece(move);
     }
 
     /*insert captured piece*/
@@ -532,6 +562,43 @@ Generate non captures
         }                                                       \
 }
 
+bool SEARCHER::can_castle(bool sc) {
+    int kfrom, kto, rfrom, rto, sq, dir;
+    uint64_t save_all_bb = all_bb;
+    if(sc) {
+        kfrom = frc_squares[3*player];
+        rfrom = frc_squares[3*player+1];
+        kto = SQ(rank(kfrom), FILEG);
+        rto = SQ(rank(kfrom), FILEF);
+
+        all_bb ^= (BB(rfrom) | BB(kfrom));
+        if(blocked(MIN(kfrom,rto-1),MAX(rfrom,kto+1))) {
+            all_bb = save_all_bb;
+            return false;
+        }
+    } else {
+        kfrom = frc_squares[3*player];
+        rfrom = frc_squares[3*player+2];
+        kto = SQ(rank(kfrom), FILEC);
+        rto = SQ(rank(kfrom), FILED);
+
+        all_bb ^= (BB(rfrom) | BB(kfrom));
+        if(blocked(MIN(rfrom,kto-1),MAX(kfrom,rto+1))) {
+            all_bb = save_all_bb;
+            return false;
+        }
+    }
+    dir = (kfrom < kto) ? 1 : -1;
+    for(sq = kfrom; sq != kto + dir; sq += dir) {
+        if(attacks(opponent,sq)) {
+            all_bb = save_all_bb;
+            return false;
+        }
+    }
+    all_bb = save_all_bb;
+    return true;
+}
+
 void SEARCHER::gen_noncaps() {
     MOVE* pmove = &pstack->move_st[pstack->count],*spmove = pmove,tmove;
     int  from,to;
@@ -540,21 +607,13 @@ void SEARCHER::gen_noncaps() {
     if(player == white) {
 
         /*castling*/
-        if((castle & WSLC_FLAG) && !attacks(black,E1)) {
-            if(castle & WSC_FLAG &&
-                board[F1] == blank &&
-                board[G1] == blank &&
-                !attacks(black,F1) &&
-                !attacks(black,G1))
-                *pmove++ = E1 | (G1<<8) | (wking<<16) | CASTLE_FLAG;
-            if(castle & WLC_FLAG &&
-                board[B1] == blank &&
-                board[C1] == blank &&
-                board[D1] == blank &&
-                !attacks(black,C1) &&
-                !attacks(black,D1)) {
-                *pmove++ = E1 | (C1<<8) | (wking<<16) | CASTLE_FLAG;
-            }
+        if(castle & WSC_FLAG) {
+            if(can_castle(true))
+                *pmove++ = frc_squares[0] | (G1<<8) | (wking<<16) | CASTLE_FLAG;
+        }
+        if(castle & WLC_FLAG) {
+            if(can_castle(false))
+                *pmove++ = frc_squares[0] | (C1<<8) | (wking<<16) | CASTLE_FLAG;
         }
         /*knight*/
         current = plist[wknight];
@@ -646,23 +705,14 @@ void SEARCHER::gen_noncaps() {
     } else {
 
         /*castling*/
-        if((castle & BSLC_FLAG) && !attacks(white,E8)) {
-            if(castle & BSC_FLAG &&
-                board[F8] == blank &&
-                board[G8] == blank &&
-                !attacks(white,F8) &&
-                !attacks(white,G8))
-                *pmove++ = E8 | (G8<<8) | (bking<<16) | CASTLE_FLAG;
-            if(castle & BLC_FLAG &&
-                board[B8] == blank &&
-                board[C8] == blank &&
-                board[D8] == blank &&
-                !attacks(white,C8) &&
-                !attacks(white,D8)) {
-                *pmove++ = E8 | (C8<<8) | (bking<<16) | CASTLE_FLAG;
-            }
+        if(castle & BSC_FLAG) {
+            if(can_castle(true))
+                *pmove++ = frc_squares[3] | (G8<<8) | (bking<<16) | CASTLE_FLAG;
         }
-
+        if(castle & BLC_FLAG) {
+            if(can_castle(false))
+                *pmove++ = frc_squares[3] | (C8<<8) | (bking<<16) | CASTLE_FLAG;
+        }
         /*knight*/
         current = plist[bknight];
         while(current) {
@@ -1583,7 +1633,7 @@ END:
         goto DO_AGAIN;
     }
 
-    if(hply >= 1 && hstack[hply - 1].checks) {
+    if(ply && hply >= 1 && hstack[hply - 1].checks) {
     } else {
         move = pstack->move_st[pstack->current_index];
 
@@ -1684,7 +1734,7 @@ DO_AGAIN:
     if(pstack->sortm)
         pstack->sort(pstack->current_index,pstack->count);
 
-    if(hply >= 1 && hstack[hply - 1].checks) {
+    if(ply && hply >= 1 && hstack[hply - 1].checks) {
     } else {
         move = pstack->move_st[pstack->current_index];
         if(in_check(move)) {

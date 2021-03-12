@@ -212,6 +212,7 @@ Scorpio moves are 32bit long
 #define EP_FLAG          0x10000000
 #define CASTLE_FLAG      0x20000000
 #define FROM_TO_PROM     0x0f00ffff
+#define FROM_TO_PROM_CAS 0x2f00ffff
 #define CAP_PROM         0x0ff00000
 #define m_from(x)        (int)((x) & FROM_FLAG)
 #define m_to(x)          (int)(((x) & TO_FLAG) >> 8)
@@ -708,6 +709,7 @@ typedef struct SEARCHER{
     int temp_board[192];
     PLIST list[128];
     PLIST plist[15];
+    int frc_squares[6];
     HIST_STACK hstack[MAX_HSTACK];
 #ifdef NNUE_INC
     NNUEdata* nnue;
@@ -741,9 +743,10 @@ typedef struct SEARCHER{
     int   checks(MOVE,int&) const;
     int   in_check(MOVE) const;
     int   is_legal(MOVE&);
-    int   is_legal_fast(MOVE) const;
+    int   is_legal_fast(MOVE);
     int   is_pawn_push(MOVE move) const;
     int   pinned_on_king(int,int) const;
+    bool  can_castle(bool);
     void  print_board() const;
     void  print_history();
     void  print_stack();
@@ -800,6 +803,8 @@ typedef struct SEARCHER{
     void  prefetch_tt();
     void  prefetch_qtt();
     bool  san_mov(MOVE& move,char* s);
+    void  str_mov(MOVE& move,char* s);
+    void  mov_str(const MOVE& move,char* s);
     bool  build_book(char*,char*,int,int,int);
     void  pgn_to_epd(char*,FILE*,int=0);
     void  epd_to_nn(char*,FILE*,int=0);
@@ -1185,6 +1190,7 @@ extern int mcts_strategy_depth;
 extern int qsearch_level;
 extern int PROTOCOL;
 extern int train_data_type;
+extern int variant;
 
 extern int win_weight;
 extern int draw_weight;
@@ -1219,9 +1225,9 @@ void  print_sq(const int&);
 void  print_pc(const int&);
 void  print_bitboard(uint64_t);
 void  sq_str(const int& ,char*);
+void  mov_san(const MOVE& ,char*);
 void  mov_strx(const MOVE& ,char*);
-void  mov_str(const MOVE& ,char*);
-void  str_mov(MOVE& ,char*);
+void  str_movx(MOVE& ,char*);
 int   tokenize(char* , char** , const char* str2 = " =\n\r\t");
 bool  read_line(char*);
 int   bios_key(void);

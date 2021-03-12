@@ -28,6 +28,7 @@ bool log_on = false;
 int scorpio_start_time;
 bool is_selfplay = false;
 int  PROTOCOL = CONSOLE;
+int variant = 0;
 
 /*
 parallel search
@@ -466,6 +467,7 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         PROTOCOL = UCI;
         print("id name Scorpio %s\n",VERSION);
         print("id author Daniel Shawul\n");
+        print_check("UCI_Chess960",variant);
         print_options();
         print_search_params();
         print_mcts_params();
@@ -690,7 +692,8 @@ bool internal_commands(char** commands,char* command,int& command_num) {
                !strcmp(command,"epd_to_nn") ||
                !strcmp(command,"epd_to_dat") ||
                !strcmp(command,"epd_check_eval") ||
-               !strcmp(command,"epd_run_search")
+               !strcmp(command,"epd_run_search") ||
+               !strcmp(command,"epd_run_perft")
         ) {
         load_egbbs();
         wait_for_egbb();
@@ -713,8 +716,10 @@ bool internal_commands(char** commands,char* command,int& command_num) {
             task = 6;
         else if(!strcmp(command,"epd_check_eval"))
             task = 7;
-        else
+        else if(!strcmp(command,"epd_run_search"))
             task = 8;
+        else
+            task = 9;
 
         char source[1024],dest[1024];
         strcpy(source,commands[command_num++]);
@@ -834,6 +839,11 @@ bool internal_commands(char** commands,char* command,int& command_num) {
     } else if(!strcmp(command,"quit")) {
         print("Bye Bye\n");
         PROCESSOR::exit_scorpio(EXIT_SUCCESS);
+    } else if (!strcmp(command, "variant")) {
+        if(!strcmp(commands[command_num++], "fischerandom"))
+            variant = 1;
+        else
+            variant = 0;
     } else if(!strcmp(command,"selfplay")) {
         int wins = 0, losses = 0, draws = 0,res;
         char FEN[MAX_STR];
@@ -894,6 +904,7 @@ int xboard_commands(char** commands,char* command,int& command_num,int& do_searc
     if (!strcmp(command, "protover")) {
         print("feature name=1 myname=\"Scorpio %s\"\n",VERSION);
         print("feature sigint=0 sigterm=0\n");
+        print("feature variants=\"normal,fischerandom\"\n");
         print("feature setboard=1 usermove=1 draw=0 colors=0\n");
         print("feature smp=0 memory=0 debug=1\n");
         print_options();
@@ -945,7 +956,7 @@ int xboard_commands(char** commands,char* command,int& command_num,int& do_searc
         } else {
             SEARCHER::chess_clock.p_time = 60000 * atoi(commands[command_num++]);
         }
-        SEARCHER::chess_clock.p_inc = 1000 * atoi(commands[command_num++]);
+        SEARCHER::chess_clock.p_inc = 1000 * atof(commands[command_num++]);
         SEARCHER::chess_clock.o_time = searcher.chess_clock.p_time;
         SEARCHER::chess_clock.o_inc = searcher.chess_clock.p_inc;
         SEARCHER::chess_clock.max_st = MAX_NUMBER;
@@ -1033,7 +1044,7 @@ int xboard_commands(char** commands,char* command,int& command_num,int& do_searc
         }
         /*parse opponent's move and make it*/
         MOVE move;
-        str_mov(move,command);
+        searcher.str_mov(move,command);
         if(searcher.is_legal(move)) {
             searcher.do_move(move);
             do_search = true;
@@ -1077,6 +1088,8 @@ int uci_commands(char** commands,char* command,int& command_num,int& do_search) 
     } else if(!strcmp(command, "isready")) {
         wait_for_egbb();
         print("readyok\n");
+    } else if (!strcmp(command, "UCI_Chess960")) {
+        variant = is_checked(commands[command_num++]);
     } else if(!strcmp(command,"position")) {
         command = commands[command_num++];
         if(command && !strcmp(command,"fen")) {    
@@ -1109,7 +1122,7 @@ int uci_commands(char** commands,char* command,int& command_num,int& do_search) 
                 if(!command) break;
 
                 MOVE move;
-                str_mov(move,command);
+                searcher.str_mov(move,command);
                 if(searcher.is_legal(move)) {
                     searcher.do_move(move);
                 } else {
@@ -1220,13 +1233,13 @@ static bool send_bestmove(MOVE move) {
     /*
     send move and result
     */
-    mov_strx(move,mv_str);
+    main_searcher->mov_str(move,mv_str);
     print_log("<%012d>",get_time() - scorpio_start_time);
     if(PROTOCOL == UCI) {
         if(main_searcher->stack[0].pv_length > 1) {
             char mv_ponder_str[10];
             MOVE move_ponder = main_searcher->stack[0].pv[1];
-            mov_strx(move_ponder,mv_ponder_str);
+            main_searcher->mov_str(move_ponder,mv_ponder_str);
             print("bestmove %s ponder %s\n",mv_str, mv_ponder_str);
             SEARCHER::expected_move = move;
         } else
@@ -1395,7 +1408,7 @@ REDO2:
                     }
                     /*ponder with the move*/
                     if(move) {
-                        mov_str(move,mv_str);
+                        main_searcher->mov_str(move,mv_str);
                         print_info("pondering after move [%s]\n",mv_str);
                         SEARCHER::expected_move = move;
                         SEARCHER::chess_clock.infinite_mode = true;

@@ -8,6 +8,7 @@ static const char rank_name[] = "12345678";
 static const char file_name[] = "abcdefgh";
 static const char col_name[] = "WwBb";
 static const char cas_name[] = "KQkq";
+static const char cas_frc_name[] = "AaBbCcDdEeFfGgHh";
 static const char start_fen[] = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 /*
@@ -125,20 +126,18 @@ void mov_strx(const MOVE& move,char* s) {
     }
     *s = 0;
 }
-void mov_str(const MOVE& move,char* s) {
-    if(PIECE(m_piece(move)) != pawn) 
-        *s++ = piece_name[PIECE(m_piece(move))];
-    *s++ = file_name[file(m_from(move))];
-    *s++ = rank_name[rank(m_from(move))];
-    if(m_capture(move)) *s++='x';
-    else *s++ = '-';
-    *s++ = file_name[file(m_to(move))];
-    *s++ = rank_name[rank(m_to(move))];
-    if(m_promote(move)) {
-        *s++ = '=';
-        *s++ = piece_name[PIECE(m_promote(move))];
+void SEARCHER::mov_str(const MOVE& move,char* s) {
+    MOVE tmove = move;
+    if((variant == 1) && is_castle(move)) {
+        int to = m_to(move);
+        if(to == G1)      to = frc_squares[1];
+        else if(to == C1) to = frc_squares[2];
+        else if(to == G8) to = frc_squares[4];
+        else if(to == C8) to = frc_squares[5];
+        tmove &= ~TO_FLAG;
+        tmove |= (to << 8);
     }
-    *s = 0;
+    mov_strx(tmove,s);
 }
 void mov_san(const MOVE& move,char* s) {
     if(is_castle(move)) {
@@ -159,7 +158,7 @@ void mov_san(const MOVE& move,char* s) {
     }
     *s = 0;
 }
-void str_mov(MOVE& move,char* s) {
+void str_movx(MOVE& move,char* s) {
     int promote,from,to;
     s[0] = (char)tolower(s[0]);
     s[2] = (char)tolower(s[2]);
@@ -183,6 +182,47 @@ void str_mov(MOVE& move,char* s) {
     }
     move = from | (to<<8) | (promote<<24); 
 }
+void SEARCHER::str_mov(MOVE& move, char* s) {
+    if(variant == 1 && 
+        ( (player == white && castle & WSLC_FLAG) || 
+          (player == black && castle & BSLC_FLAG) )
+        ) {
+        char sc[8]={0}, lc[8]={0};
+        if(player == white) {
+            if(castle & WSC_FLAG) {
+                sq_str(frc_squares[0], sc);
+                sq_str(frc_squares[1], &sc[2]);
+            }
+            if(castle & WLC_FLAG) {
+                sq_str(frc_squares[0], lc);
+                sq_str(frc_squares[2], &lc[2]);
+            }
+        } else {
+            if(castle & BSC_FLAG) {
+                sq_str(frc_squares[3], sc);
+                sq_str(frc_squares[4], &sc[2]);
+            }
+            if(castle & BLC_FLAG) {
+                sq_str(frc_squares[3], lc);
+                sq_str(frc_squares[5], &lc[2]);
+            }
+        }
+        if(!strcmp(s,lc) || strstr(s,"O-O-O")) {
+            if(player == white)
+                move = frc_squares[0] | (C1 << 8) | (wking<<16) | CASTLE_FLAG;
+            else
+                move = frc_squares[3] | (C8 << 8) | (bking<<16) | CASTLE_FLAG;
+            return;
+        } else if(!strcmp(s,sc) || strstr(s,"O-O")) {
+            if(player == white)
+                move = frc_squares[0] | (G1 << 8) | (wking<<16) | CASTLE_FLAG;
+            else
+                move = frc_squares[3] | (G8 << 8) | (bking<<16) | CASTLE_FLAG;
+            return;
+        }
+    }
+    str_movx(move,s);
+}
 void print_sq(const int& sq) {
     char f[6];
     sq_str(sq,f);
@@ -193,7 +233,7 @@ void print_pc(const int& pc) {
 }
 void print_move(const MOVE& move) {
     char str[12];
-    mov_str(move,str);
+    mov_strx(move,str);
     print(str);
 }
 void print_move_full(const MOVE& move) {
@@ -339,7 +379,7 @@ void SEARCHER::print_allmoves() {
 */
 void Node::print_xml(Node* n,int depth) {
     char mvstr[32];
-    mov_str(n->move,mvstr);
+    mov_strx(n->move,mvstr);
 
     print_log("<node depth=\"%d\" move=\"%s\" alpha=\"%d\" beta=\"%d\" "
         "visits=\"%d\" policy=\"%.2f\" score=\"%.2f\" prior=\"%.2f\">\n",
@@ -390,7 +430,7 @@ Node* Node::print_tree(Node* root,bool has_ab_, int max_depth,int depth) {
     }
     while(current) {
         if((depth == 0 || bnode == current) ) {
-            mov_str(current->move,str);
+            mov_strx(current->move,str);
             if(depth == 0) {
                 if(has_ab && (rollout_type == MCTS)) {
                     double uct = (1 - current->score);
@@ -439,11 +479,12 @@ int SEARCHER::is_legal(MOVE& move) {
         move |= (prom << 24);
     }
     /*generate root moves here*/
+    const MOVE comp_flag = (variant == 1) ? FROM_TO_PROM_CAS : FROM_TO_PROM;
     pstack->count = 0;
     gen_all();
     for(int i = 0;i < pstack->count; i++) {
         pstack->current_move = pstack->move_st[i];
-        if((move & FROM_TO_PROM) == (pstack->current_move & FROM_TO_PROM)) {
+        if((move & comp_flag) == (pstack->current_move & comp_flag)) {
             do_move(pstack->current_move);
             if(attacks(player,plist[COMBINE(opponent,king)]->sq)) {
                 undo_move();
@@ -496,10 +537,7 @@ void SEARCHER::print_pv(int score) {
     for(i = 0;i < stack[0].pv_length;i++) {
         move = stack[0].pv[i];
         strcpy(mv_str,"");
-        if(PROTOCOL == UCI)
-            mov_strx(move,mv_str);
-        else
-            mov_str(move,mv_str);
+        mov_str(move,mv_str);
         strcat(pv," ");
         strcat(pv,mv_str);
         if(move) PUSH_MOVE(move);
@@ -515,10 +553,7 @@ void SEARCHER::print_pv(int score) {
             break;
 
         strcpy(mv_str,"");
-        if(PROTOCOL == UCI)
-            mov_strx(move,mv_str);
-        else
-            mov_str(move,mv_str);
+        mov_str(move,mv_str);
         strcat(pv, " ");
         strcat(pv, mv_str);
         if(move) PUSH_MOVE(move);
@@ -623,7 +658,9 @@ uint64_t SEARCHER::perft(int depth) {
     int stop_ply = ply;
     nodes = 0;
     pstack->depth = depth;
-    pstack->gen_status = GEN_START;
+    pstack->gen_status = !ply ? GEN_RESET : GEN_START;
+
+    gen_all_legal();
 
     while(true) {
         while(true) {
@@ -643,14 +680,13 @@ uint64_t SEARCHER::perft(int depth) {
             if(ply >= MAX_PLY - 1) {
                 break;
             }
-            if(ply == 1)
-                print(".");
         }
 
         if(stop_ply == ply)
             break;
         POP_MOVE();
     }
+
     return nodes;
 }
 
@@ -705,6 +741,33 @@ void SEARCHER::init_data() {
         hash_key ^= EP_HKEY(epsquare);
     hash_key ^= CAST_HKEY(castle);
 
+    /*frc*/
+    PLIST current;
+    for(int side = 0; side < 2; side++) {
+        frc_squares[3*side] = plist[COMBINE(side,king)]->sq;
+        current = plist[COMBINE(side,rook)];
+        while(current) {
+            if(rank(current->sq) == rank(frc_squares[3*side])) {
+                if(current->sq > frc_squares[3*side])
+                    frc_squares[3*side+1] = current->sq;
+                else
+                    frc_squares[3*side+2] = current->sq;
+            }
+            current = current->next;
+        }
+    }
+
+#if 0
+    print("==========\n");
+    for(int i = 0; i < 6; i++) {
+        print_sq(frc_squares[i]);
+        print(" ");
+    }
+    print("\n");
+    print("==========\n");
+#endif
+
+    /*nnue*/
 #ifdef NNUE_INC
     if(use_nnue)
         nnue[hply].accumulator.computedAccumulation = 0;
@@ -713,6 +776,7 @@ void SEARCHER::init_data() {
 
 void SEARCHER::set_board(const char* fen_str) {
     int i,r,f,sq,move_number;
+    int ksq[2];
 
     strncpy(HIST_STACK::start_fen,fen_str,MAX_FEN_STR);
 
@@ -730,6 +794,10 @@ void SEARCHER::set_board(const char* fen_str) {
             sq = SQ(r,f);
             if((pfen = strchr(piece_name,*p)) != 0) {
                 board[sq] = int(strchr(piece_name,*pfen) - piece_name);
+                if(*p == 'K')
+                    ksq[0] = sq;
+                else if(*p == 'k')
+                    ksq[1] = sq;
             } else if((pfen = strchr(rank_name,*p)) != 0) {
                 for(i = 0;i < pfen - rank_name;i++) {
                     board[sq + i] = blank;
@@ -752,9 +820,29 @@ void SEARCHER::set_board(const char* fen_str) {
     if(*p == '-') {
         p++;
     } else {
-        while((pfen = strchr(cas_name,*p)) != 0) {
-            castle |= (1 << (pfen - cas_name));
-            p++;
+        if((*p >= 'A' && *p <= 'H') || (*p >= 'a' && *p <= 'h')) {
+            while((pfen = strchr(cas_frc_name,*p)) != 0) {
+                int idx = pfen - cas_frc_name;
+                if(idx & 1) {
+                    int rfrom = SQ(RANK8, idx >> 1);
+                    if(ksq[1] < rfrom)
+                        castle |= BSC_FLAG;
+                    else
+                        castle |= BLC_FLAG;
+                } else {
+                    int rfrom = SQ(RANK1, idx >> 1);
+                    if(ksq[0] < rfrom)
+                        castle |= WSC_FLAG;
+                    else
+                        castle |= WLC_FLAG;
+                }
+                p++;
+            }
+        } else {
+            while((pfen = strchr(cas_name,*p)) != 0) {
+                castle |= (1 << (pfen - cas_name));
+                p++;
+            }
         }
     }
 
@@ -785,6 +873,7 @@ void SEARCHER::set_board(const char* fen_str) {
     for(int i = 0; i < hply; i++) {
         hstack[i].move = 0;
         hstack[i].hash_key = 0;
+        hstack[i].checks = 0;
     }
 
     /*initialize other stuff*/
@@ -989,6 +1078,7 @@ void SEARCHER::COPY(SEARCHER* srcSearcher) {
     pcsq_score[white] = srcSearcher->pcsq_score[white];
     pcsq_score[black] = srcSearcher->pcsq_score[black];
     memcpy(man_c,srcSearcher->man_c,sizeof(man_c));
+    memcpy(frc_squares,srcSearcher->frc_squares,sizeof(frc_squares));
     all_man_c = srcSearcher->all_man_c;
     root_node = srcSearcher->root_node;
     root_key = srcSearcher->root_key;
@@ -1875,6 +1965,7 @@ void SEARCHER::epd_to_nn(char* fen, FILE* fb, int task) {
     int   moves[MAX_MOVES];
     float probs[MAX_MOVES];
     float scores[MAX_MOVES];
+    char  epd[4*MAX_FEN_STR];
 
 #define TASK() {                                                \
     if(task == 0) {                                             \
@@ -1932,9 +2023,20 @@ void SEARCHER::epd_to_nn(char* fen, FILE* fb, int task) {
         COPY(&cp);                                              \
         if(SEARCHER::pv_print_style == 0)                       \
             print("**********************\n");                  \
+    } else if(task == 5) {                                      \
+        char word[32] = {0};                                    \
+        print("%s",epd);                                        \
+        for(int d = 1; d <= 5; d++) {                           \
+            perft(d);                                           \
+            print("D%d " FMT64 "\n",d,nodes);                   \
+            sprintf(word,"" FMT64 "",(long long)(nodes));       \
+        }                                                       \
+        if(strstr(epd, word) == 0)                              \
+            print("Error\n");                                   \
     }                                                           \
 }
 
+    strcpy(epd, fen);
     fen[strlen(fen) - 1] = 0;
     set_board(fen);
     get_fen(fen);

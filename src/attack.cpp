@@ -48,7 +48,7 @@ int SEARCHER::pinned_on_king(int sq,int col) const {
     int step = sqatt_step(sq - king_sq);
 
     if(step && !blocked(sq,king_sq)) {
-        for(sq1 = sq + step;board[sq1] == blank;sq1 += step);
+        for(sq1 = sq + step; board[sq1] == blank; sq1 += step);
         if(!(sq1 & 0x88)) {
             if(PCOLOR(board[sq1]) == invert(col) 
                 && (sqatt_pieces(sq1 - king_sq) & piece_mask[board[sq1]]))
@@ -193,7 +193,7 @@ int SEARCHER::checks(MOVE move,int& rev_check) const {
     
     /*castling*/
     if(is_castle(move)) {
-        int cast = ((to > from) ? (to + LL):(to + RR));
+        int cast = ((to == SQ(rank(from), FILEG)) ? (to + LL):(to + RR));
         if(sqatt_pieces(cast - ksq) & piece_mask[COMBINE(player,rook)]) {
             special = (rank(cast) == rank(ksq));
             if(special) {
@@ -308,7 +308,7 @@ int SEARCHER::in_check(MOVE move) const {
 }
 
 /*used to check legality of move during search*/
-int SEARCHER::is_legal_fast(MOVE move) const {
+int SEARCHER::is_legal_fast(MOVE move) {
     
     int from = m_from(move), to = m_to(move),
                  pic = m_piece(move),
@@ -372,43 +372,15 @@ int SEARCHER::is_legal_fast(MOVE move) const {
                 return false;
         } else if(is_castle(move)) {
             if(player == white) {
-                if(!attacks(black,E1)) {
-                    if(to == G1 &&
-                        castle & WSC_FLAG &&
-                        board[F1] == blank &&
-                        board[G1] == blank &&
-                        !attacks(black,F1) &&
-                        !attacks(black,G1))
-                        return true;
-                    if(to == C1 &&
-                        castle & WLC_FLAG &&
-                        board[B1] == blank &&
-                        board[C1] == blank &&
-                        board[D1] == blank &&
-                        !attacks(black,C1) &&
-                        !attacks(black,D1)) {
-                        return true;
-                    }
-                }
+                if(castle & WSC_FLAG && to == G1 && can_castle(true))
+                    return true;
+                if(castle & WLC_FLAG && to == C1 && can_castle(false))
+                    return true;
             } else if(player == black) {
-                if(!attacks(white,E8)) {
-                    if(to == G8 &&
-                        castle & BSC_FLAG &&
-                        board[F8] == blank &&
-                        board[G8] == blank &&
-                        !attacks(white,F8) &&
-                        !attacks(white,G8))
-                        return true;
-                    if(to == C8 &&
-                        castle & BLC_FLAG &&
-                        board[B8] == blank &&
-                        board[C8] == blank &&
-                        board[D8] == blank &&
-                        !attacks(white,C8) &&
-                        !attacks(white,D8)) {
-                        return true;
-                    }
-                }
+                if(castle & BSC_FLAG && to == G8 && can_castle(true))
+                    return true;
+                if(castle & BLC_FLAG && to == C8 && can_castle(false))
+                    return true;
             }
         } else {
             if(!(sqatt_pieces(to - from) & piece_mask[pic]))
