@@ -289,10 +289,8 @@ float Node::compute_Q(float fpu, unsigned int collision_lev, bool has_ab) {
         vst += vvst;
 #endif
         uct = 1 - score;
-        if(uct >= winning_threshold) {
-            uct += 50;
-            return uct;
-        }
+        if(uct >= winning_threshold)
+            uct += 100;
         uct += (-uct * vvst) / (vst + 1);
     }
     if(has_ab) {
@@ -504,7 +502,6 @@ Node* Node::Max_UCB_select(Node* n, bool has_ab, int processor_id, int ply) {
     }
 
     /*select*/
-    bool has_winning = false;
     float uct, bvalue = -10;
     Node* current = n->child, *bnode = 0;
     while(current) {
@@ -513,18 +510,14 @@ Node* Node::Max_UCB_select(Node* n, bool has_ab, int processor_id, int ply) {
             /*compute Q considering fpu and virtual loss*/
             uct = current->compute_Q(fpu, collision_lev, has_ab);
 
-            if(uct >= 45)
-                has_winning = true;
-            else {
-                if(select_formula == 0)
-                    uct += factor * (current->policy / (current->visits + 1));
-                else
-                    uct += factor * sqrt(current->policy / (current->visits + 1));
+            if(select_formula == 0)
+                uct += factor * (current->policy / (current->visits + 1));
+            else
+                uct += factor * sqrt(current->policy / (current->visits + 1));
 
-                if(forced_playouts && is_selfplay && is_root && current->visits > 0) {
-                    unsigned int n_forced = sqrt(2 * current->policy * n->visits);
-                    if(current->visits < n_forced) uct += 5;
-                }
+            if(forced_playouts && is_selfplay && is_root && current->visits > 0) {
+                unsigned int n_forced = sqrt(2 * current->policy * n->visits);
+                if(current->visits < n_forced) uct += 5;
             }
 
             if(uct > bvalue) {
@@ -537,7 +530,7 @@ Node* Node::Max_UCB_select(Node* n, bool has_ab, int processor_id, int ply) {
     }
 
     /*check edges and add child*/
-    if(!has_winning && n->edges.try_create()) {
+    if(n->edges.try_create()) {
         int idx = n->edges.get_children();
         if(idx < n->edges.count) {
             if(select_formula == 0)
