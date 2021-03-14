@@ -55,8 +55,13 @@ parallel search options
 #   if !defined(MAX_CPUS)
 #       define MAX_CPUS             640
 #   endif
-#   define MAX_SEARCHERS_PER_CPU     32
-#   define MAX_CPUS_PER_SPLIT         8
+#   if defined(YBW)
+#       define MAX_SEARCHERS_PER_CPU 32
+#       define MAX_CPUS_PER_SPLIT     8
+#   else
+#       define MAX_SEARCHERS_PER_CPU  1
+#       define MAX_CPUS_PER_SPLIT     1
+#   endif
 #else
 #   define MAX_CPUS                   1
 #   define MAX_SEARCHERS_PER_CPU      1

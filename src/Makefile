@@ -18,6 +18,7 @@ HPP = scorpio.h my_types.h params.h
 #  DUSE_SPINLOCK   --  Use spin locks.
 #  DCLUSTER        --  Compile MPI cluster code.
 #  DMAX_CPUS=n     --  Compile for maximum of n cpus. Default is 32                 
+#  DYBW            --  Compile with YBW
 #  DSMP_TT_TYPE=n  --  Shared memory transposition table type (0 - global, 1 - distributed, 2 - local) default=0
 #  DDST_TT_TYPE=n  --  Distributed   transposition table type (0 - global, 1 - distributed, 2 - local) default=1
 #  DTUNE           --  Compile evaluation tuning code. [NOT recommended to turn on]
@@ -44,6 +45,7 @@ DEFINES += -DEGBB
 #DEFINES += -DMYDEBUG
 #DEFINES += -DTUNE
 DEFINES += -DMAX_CPUS=640
+#DEFINES += -DYBW
 #DEFINES += -DNUMA_TT_TYPE=0
 #DEFINES += -DCLUSTER_TT_TYPE=1
 #DEFINES += -DCUTECHESS_FIX
