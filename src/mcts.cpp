@@ -283,15 +283,14 @@ float Node::compute_Q(float fpu, unsigned int collision_lev, bool has_ab) {
     if(!visits) {
         uct = fpu;
     } else {
-        unsigned int vst = visits;
 #ifdef PARALLEL
         unsigned int vvst = collision_lev * get_busy();
-        vst += vvst;
 #endif
         uct = 1 - score;
         if(uct >= winning_threshold)
             uct += 100;
-        uct += (-uct * vvst) / (vst + 1);
+        if(vvst)
+            uct += (-uct * vvst) / (vvst + visits + 1);
     }
     if(has_ab) {
         float uctp = 1 - prior;
@@ -1957,8 +1956,8 @@ float SEARCHER::generate_and_score_moves(int alpha, int beta) {
         }
 
         /*both value and policy heads*/
-        const float my_policy_temp = 
-                policy_temp * (ply ? 1 : policy_temp_root_factor);
+        const float my_policy_temp = 1.0f /
+                (policy_temp * (ply ? 1 : policy_temp_root_factor));
 
         if(!use_nn) {
 
@@ -1975,16 +1974,17 @@ float SEARCHER::generate_and_score_moves(int alpha, int beta) {
 
             /*normalize policy*/
             static const float scale = 25.f;
-            double total = 0.f;
+            float total = 0.f;
             for(int i = 0;i < pstack->count; i++) {
-                float* p = (float*)&pstack->score_st[i];
+                float* const p = (float*)&pstack->score_st[i];
                 float pp = logistic(pstack->score_st[i]) * scale;
-                *p = exp(pp / my_policy_temp);
+                *p = exp(pp * my_policy_temp);
                 total += *p;
             }
+            total = 1.0f / total;
             for(int i = 0;i < pstack->count; i++) {
-                float* p = (float*)&pstack->score_st[i];
-                *p /= total;
+                float* const p = (float*)&pstack->score_st[i];
+                *p *= total;
             }
         } else {
             rscore = probe_neural();
@@ -2001,9 +2001,9 @@ float SEARCHER::generate_and_score_moves(int alpha, int beta) {
                 pstack->score_st[i] = mp;
 
             /*find minimum and maximum policy values*/
-            double total = 0.f, maxp = -100, minp = 100;
+            float total = 0.f, maxp = -100, minp = 100;
             for(int i = 0;i < pstack->count; i++) {
-                float* p = (float*)&pstack->score_st[i];
+                float* const p = (float*)&pstack->score_st[i];
                 MOVE& move = pstack->move_st[i];
                 if((nn_type != 1) && is_prom(move)) {
                     switch(PIECE(m_promote(move))) {
@@ -2026,7 +2026,7 @@ float SEARCHER::generate_and_score_moves(int alpha, int beta) {
             if(!ply && chess_clock.max_visits < low_visits_threshold) {
                 static const float margin[2][2] = {{0.36,0.49},{-100.0,-7.0}};
                 for(int i = 0;i < pstack->count; i++) {
-                    float* p = (float*)&pstack->score_st[i];
+                    float* const p = (float*)&pstack->score_st[i];
                     MOVE& move = pstack->move_st[i];
                     int sfifty = fifty;
 
@@ -2048,15 +2048,16 @@ float SEARCHER::generate_and_score_moves(int alpha, int beta) {
             }
             /*normalize policy*/
             for(int i = 0;i < pstack->count; i++) {
-                float* p = (float*)&pstack->score_st[i];
-                *p = exp( (*p - maxp) / my_policy_temp );
+                float* const p = (float*)&pstack->score_st[i];
+                *p = exp( (*p - maxp) * my_policy_temp );
                 total += *p;
             }
+            total = 1.0f / total;
             for(int i = 0;i < pstack->count; i++) {
-                float* p = (float*)&pstack->score_st[i];
-                float pp = *p / total;
+                float* const p = (float*)&pstack->score_st[i];
+                float pp = *p * total;
                 if(pp < 2 * min_policy_value)
-                    pp = MAX(pp, min_policy_value + pp / 8);
+                    pp = MAX(pp, min_policy_value + pp * 0.125f);
                 *p = pp;
             }
 

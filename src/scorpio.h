@@ -712,6 +712,7 @@ typedef struct SEARCHER{
     HASHKEY pawn_hash_key;
     SCORE pcsq_score[2];
     int temp_board[192];
+    LIST temp_list[128];
     PLIST list[128];
     PLIST plist[15];
     int frc_squares[6];

@@ -1422,7 +1422,7 @@ MOVE SEARCHER::iterative_deepening() {
             chess_clock.p_time *= frac_abprior;
             chess_clock.p_inc *= frac_abprior;
 
-            iterative_deepening();
+            MOVE bestm = iterative_deepening();
 #ifdef PARALLEL
             t_sleep(30);
 #endif
@@ -1459,6 +1459,7 @@ MOVE SEARCHER::iterative_deepening() {
                         if(rollout_type == MCTS)
                             current->prior = logistic(current->prior);
                         current->rank = i + 1;
+                        if(move == bestm) current->policy += 0.1;
 #if 0
                         char mvs[16];
                         mov_str(move,mvs);
@@ -1523,6 +1524,7 @@ MOVE SEARCHER::iterative_deepening() {
                         if(rollout_type == MCTS)
                             current->prior = logistic(current->prior);
                         current->rank = i + 1;
+                        if(i == 0) current->policy += 0.1;
                         break;
                     }
                 }

@@ -165,23 +165,27 @@ void SEARCHER::do_move(const MOVE& move) {
     } 
 
     /*enpassant*/
-    if(epsquare) hash_key ^= EP_HKEY(epsquare);
-    epsquare = 0;
+    if(epsquare) {
+        hash_key ^= EP_HKEY(epsquare);
+        epsquare = 0;
+    }
 
     /*fifty moves*/
     fifty++;
-    if(PIECE(m_piece(move)) == pawn) {
+    pic = PIECE(m_piece(move));
+    pic1 = m_capture(move);
+    if(pic == pawn) {
         fifty = 0;
         if(to - from == (2 * pawn_dir[player])) {
             epsquare = ((to + from) >> 1);
             hash_key ^= EP_HKEY(epsquare);
         }
-    } else if(m_capture(move)) {
+    } else if(pic1) {
         fifty = 0;
     }
 
     /*castling*/
-    if(castle) {
+    if(castle && (pic == king || pic == rook || PIECE(pic1) == rook)) {
         int p_castle = castle;
 
         if(from == frc_squares[0])

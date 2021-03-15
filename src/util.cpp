@@ -993,7 +993,7 @@ SEARCHER::SEARCHER() : board(&temp_board[36])
 {
     int sq;
     for (sq = 0;sq < 128; sq++) {
-        list[sq] = new LIST;
+        list[sq] = temp_list + sq;
     }
     for(sq = 0;sq < 36;sq++)
         temp_board[sq] = elephant;

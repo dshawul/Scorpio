@@ -717,7 +717,8 @@ void fill_input_planes(
 
 #define NK_MOVES(dir, off) {                    \
         to = sq + dir;                          \
-        if(!(to & 0x88)) D(to, off) = 1.0f;     \
+        if(!(to & 0x88))                        \
+            D(to, off) = 1.0f;                  \
 }
 
 #define BRQ_MOVES(dir, off) {                   \
@@ -725,7 +726,7 @@ void fill_input_planes(
         while(!(to & 0x88)) {                   \
             D(to, off) = 1.0f;                  \
             if(board[to] != 0) break;           \
-                to += dir;                      \
+            to += dir;                          \
         }                                       \
 }
 
