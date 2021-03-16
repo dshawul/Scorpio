@@ -25,9 +25,10 @@ void SEARCHER::do_move(const MOVE& move) {
 
     /*nnue*/
 #ifdef NNUE_INC
-    DirtyPiece* dp = &(nnue[hply+1].dirtyPiece);
-    if(use_nnue) {
+    DirtyPiece* dp = 0;
+    if(use_nnue && !use_nn) {
         nnue[hply+1].accumulator.computedAccumulation = 0;
+        dp = &(nnue[hply+1].dirtyPiece);
         dp->dirtyNum = 1;
     }
 #endif
@@ -55,7 +56,7 @@ void SEARCHER::do_move(const MOVE& move) {
         all_man_c--;
 
 #ifdef NNUE_INC
-        if(use_nnue) {
+        if(use_nnue && !use_nn) {
             dp->dirtyNum = 2;
             dp->pc[1] = pic;
             dp->from[1] = SQ8864(sq);
@@ -68,7 +69,7 @@ void SEARCHER::do_move(const MOVE& move) {
     if(from != to) {
         all_bb ^= (BB(from) | BB(to));
 #ifdef NNUE_INC
-        if(use_nnue) {
+        if(use_nnue && !use_nn) {
             dp->pc[0] = m_piece(move);
             dp->from[0] = SQ8864(from);
             dp->to[0] = SQ8864(to);
@@ -97,7 +98,7 @@ void SEARCHER::do_move(const MOVE& move) {
         man_c[pic]++;
 
 #ifdef NNUE_INC
-        if(use_nnue) {
+        if(use_nnue && !use_nn) {
             dp->to[0] = 64;
             dp->pc[dp->dirtyNum] = pic;
             dp->from[dp->dirtyNum] = 64;
@@ -154,7 +155,7 @@ void SEARCHER::do_move(const MOVE& move) {
             pcsq_score[player].add(pcsq[pic][toc] - pcsq[pic][fromc],
                                    pcsq[pic][toc + 8] - pcsq[pic][fromc + 8]);
 #ifdef NNUE_INC
-            if(use_nnue) {
+            if(use_nnue && !use_nn) {
                 dp->dirtyNum = 2;
                 dp->pc[1] = pic;
                 dp->from[1] = SQ8864(fromc);
@@ -312,7 +313,7 @@ void SEARCHER::do_null() {
 
     /*nnue*/
 #ifdef NNUE_INC
-    if(use_nnue) {
+    if(use_nnue && !use_nn) {
         memcpy(&nnue[hply+1].accumulator,
             &nnue[hply].accumulator, sizeof(Accumulator));
         DirtyPiece* dp = &(nnue[hply+1].dirtyPiece);

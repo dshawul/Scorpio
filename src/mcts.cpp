@@ -421,8 +421,8 @@ float Node::compute_regularized_policy_reverseKL(Node* n, float factor, float fp
 
 Node* Node::ExactPi_select(Node* n, bool has_ab, int processor_id, int ply) {
     bool is_root = (ply == 0);
-    float dCPUCT = cpuct_init * (is_root ? cpuct_init_root_factor : 1.0) +
-                    log((n->visits + cpuct_base + 1.0) / cpuct_base);
+    float dCPUCT = cpuct_init * (is_root ? cpuct_init_root_factor : 1.0f) +
+                    logf((n->visits + cpuct_base + 1.0) / cpuct_base);
     float factor = dCPUCT * (float)(sqrt(double(n->visits))) / (n->edges.get_children() + n->visits);
 
     /*compute fpu*/
@@ -478,8 +478,8 @@ Node* Node::ExactPi_select(Node* n, bool has_ab, int processor_id, int ply) {
 
 Node* Node::Max_UCB_select(Node* n, bool has_ab, int processor_id, int ply) {
     bool is_root = (ply == 0);
-    float dCPUCT = cpuct_init * (is_root ? cpuct_init_root_factor : 1.0) +
-                    log((n->visits + cpuct_base + 1.0) / cpuct_base);
+    float dCPUCT = cpuct_init * (is_root ? cpuct_init_root_factor : 1.0f) +
+                    logf((n->visits + cpuct_base + 1.0) / cpuct_base);
     float factor;
 
     /*compute fpu*/
@@ -1155,46 +1155,52 @@ SELECT:
             goto FINISH;
         }
 
-        /*Determine next node type*/
-        int next_node_t;
-        if(pstack->node_type == ALL_NODE) {
-            next_node_t = CUT_NODE;
-        } else if(pstack->node_type == CUT_NODE) {
-            next_node_t = ALL_NODE;
-        } else {
-            if(next->rank == 1 || next->is_failed_scout())
-                next_node_t = PV_NODE;
-            else
+        /*AB rollout*/
+        int next_node_t, alphac, betac, try_scout;
+
+        if(rollout_type == ALPHABETA) {
+            /*Determine next node type*/
+            if(pstack->node_type == ALL_NODE) {
                 next_node_t = CUT_NODE;
+            } else if(pstack->node_type == CUT_NODE) {
+                next_node_t = ALL_NODE;
+            } else {
+                if(next->rank == 1 || next->is_failed_scout())
+                    next_node_t = PV_NODE;
+                else
+                    next_node_t = CUT_NODE;
+            }
+            /*Determine next alpha-beta bound*/
+            alphac = -pstack->beta;
+            betac = -pstack->alpha;
+            if(next->alpha > alphac) alphac = next->alpha;
+            if(next->beta < betac)    betac = next->beta;
+            /*scout search*/
+            try_scout = (alphac + 1 < betac &&
+                  ABS(betac) != MATE_SCORE &&
+                  pstack->node_type == PV_NODE && 
+                  next_node_t == CUT_NODE);
         }
 
-        /*Determine next alpha-beta bound*/
-        int alphac, betac;
-        alphac = -pstack->beta;
-        betac = -pstack->alpha;
-        if(next->alpha > alphac) alphac = next->alpha;
-        if(next->beta < betac)    betac = next->beta;
-
         if(next->move) {
-            bool try_scout = (alphac + 1 < betac &&
-                              ABS(betac) != MATE_SCORE &&
-                              pstack->node_type == PV_NODE && 
-                              next_node_t == CUT_NODE);
+
             /*Make move*/
             PUSH_MOVE(next->move);
 RESEARCH:
-            if(try_scout) {
-                pstack->alpha = betac - 1;
-                pstack->beta = betac;
-            } else {
-                pstack->alpha = alphac;
-                pstack->beta = betac;
-            }
-            pstack->node_type = next_node_t;
             pstack->depth = (pstack - 1)->depth - UNITDEPTH;
             pstack->search_state = NULL_MOVE;
-            /*Next ply depth*/
+
             if(rollout_type == ALPHABETA) {
+                /*AB window*/
+                if(try_scout) {
+                    pstack->alpha = betac - 1;
+                    pstack->beta = betac;
+                } else {
+                    pstack->alpha = alphac;
+                    pstack->beta = betac;
+                }
+                pstack->node_type = next_node_t;
+                /*Next ply depth*/
                 if(use_selective 
                     && be_selective(next->rank,true)
                     && ABS(betac) != MATE_SCORE 
@@ -1204,6 +1210,7 @@ RESEARCH:
                     goto BACKUP;
                 }
             }
+
             /*Simulate selected move*/
             play_simulation(next,score,visits);
 
@@ -2049,7 +2056,7 @@ float SEARCHER::generate_and_score_moves(int alpha, int beta) {
             /*normalize policy*/
             for(int i = 0;i < pstack->count; i++) {
                 float* const p = (float*)&pstack->score_st[i];
-                *p = exp( (*p - maxp) * my_policy_temp );
+                *p = expf( (*p - maxp) * my_policy_temp );
                 total += *p;
             }
             total = 1.0f / total;
