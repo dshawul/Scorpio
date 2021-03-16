@@ -1,3 +1,3 @@
 #!/bin/bash
-cd src; make clean; make COMP=$1
+cd src; make clean; make "$@"
 

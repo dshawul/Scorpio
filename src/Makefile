@@ -1,7 +1,8 @@
 ############################
 # Target executable and files
 ############################
-EXE = ../bin/scorpio
+BIN = ../bin
+EXE = $(BIN)/scorpio
 RM = rm -rf
 OBJ = attack.o scorpio.o eval.o hash.o moves.o parallel.o probe.o search.o mcts.o see.o magics.o util.o
 HPP = scorpio.h my_types.h params.h
@@ -107,7 +108,7 @@ ifeq ($(COMP),win)
     LXXFLAGS += -static
     CXXFLAGS = -Wall -fstrict-aliasing -fno-exceptions -fno-rtti $(UNUSED) -std=c++11
 else ifeq ($(COMP),pgcc)
-    CXXFLAGS = warn -Mvect=sse -c11
+    CXXFLAGS = warn -c11
     LXXFLAGS += -ldl
 else ifeq ($(COMP),icpc)
     CXXFLAGS  = -wd128 -wd981 -wd869 -wd2259 -wd383 -wd1418
@@ -118,12 +119,13 @@ else
     LXXFLAGS += -ldl
 endif
 
-ifeq ($(COMP),pgcc)
-else ifeq ($(COMP),arm)
+ifeq ($(COMP),arm)
      CXXFLAGS += -fPIE -pie
      LXXFLAGS += -fPIE -pie
+else ifeq ($(COMP),pgcc)
+     CXXFLAGS += -Mvect=avx2
 else
-     CXXFLAGS += -msse
+     CXXFLAGS += -mavx2
 endif
 
 ifeq ($(DEBUG),3)
@@ -131,6 +133,9 @@ ifeq ($(DEBUG),3)
                 CXXFLAGS += -O2 -prof-gen
         else ifeq ($(COMP),pgcc)
                 CXXFLAGS += -O2 -Mpfi
+        else ifeq ($(COMP),clang)
+                CXXFLAGS += -O2 -fprofile-instr-generate
+                LXXFLAGS += -fprofile-instr-generate
         else
                 CXXFLAGS += -O2 -fprofile-generate
                 LXXFLAGS += -lgcov
@@ -149,9 +154,12 @@ else ifeq ($(DEBUG),1)
                 CXXFLAGS += -prof-use -fast -fomit-frame-pointer
         else ifeq ($(COMP),pgcc)
                 CXXFLAGS += -Mpfo -fast noframe
+        else ifeq ($(COMP),clang)
+                CXXFLAGS += -fprofile-instr-use -Ofast -fomit-frame-pointer -flto
+                LXXFLAGS += -fprofile-use -flto
         else
-                CXXFLAGS += -fprofile-use -Ofast -fomit-frame-pointer -flto
-                LXXFLAGS += -lgcov
+                CXXFLAGS += -fprofile-use -Ofast -fomit-frame-pointer -flto -Wno-error=coverage-mismatch
+                LXXFLAGS += -lgcov -flto
         endif
 else
         ifeq ($(COMP),icpc)
@@ -159,10 +167,8 @@ else
         else ifeq ($(COMP),pgcc)
                 CXXFLAGS += -fast noframe
         else
-                CXXFLAGS += -Ofast -fomit-frame-pointer
-                ifneq ($(COMP),clang)
-                    CXXFLAGS += -flto
-                endif
+                CXXFLAGS += -Ofast -fomit-frame-pointer -flto
+                LXXFLAGS += -flto
         endif
 endif
 
@@ -173,8 +179,17 @@ endif
 default:
 	$(MAKE) $(EXE) strip
 
+profile:
+	$(MAKE) DEBUG=3 $(EXE)
+	$(BIN)/scorpio.sh mt 1 use_nn 0 montecarlo 0 st 20 go quit
+	@if [ $(COMP) = clang ]; then \
+	    llvm-profdata merge -output=default.profdata $(BIN)/*.profraw; \
+	fi
+	$(RM) $(OBJ) $(EXE) $(BIN)/*.profraw
+	$(MAKE) DEBUG=1 $(EXE)
+
 clean:
-	$(RM) $(OBJ) $(EXE) core.* cluster.* *.gcda
+	$(RM) $(OBJ) $(EXE) $(BIN)/core.* $(BIN)/*.profraw *.profdata *.gcda
 
 strip:
 	$(STRIP)
