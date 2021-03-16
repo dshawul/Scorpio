@@ -619,7 +619,8 @@ typedef struct STACK{
     int score_st[MAX_MOVES];
     MOVE bad_st[MAX_CAPS];
     MOVE pv[MAX_PLY];
-    void sort(const int,const int);
+    void sort_1(const int,const int);
+    void quick_sort(const int, const int);
 } *PSTACK;
 
 struct SEARCHER;
@@ -1041,7 +1042,18 @@ FORCEINLINE void SEARCHER::POP_NULL() {
 /*
 sort move list
 */
-FORCEINLINE void STACK::sort(const int start,const int end) {
+#define SWAP(ii,jj) {                   \
+    if(ii != jj) {                      \
+        MOVE tempm = move_st[ii];       \
+        move_st[ii] = move_st[jj];      \
+        move_st[jj] = tempm;            \
+        int temps = score_st[ii];       \
+        score_st[ii] = score_st[jj];    \
+        score_st[jj] = temps;           \
+    }                                   \
+}
+
+FORCEINLINE void STACK::sort_1(const int start,const int end) {
     int bi = start, bs = score_st[start];
     for(int i = start + 1; i < end; i++) {
         if(score_st[i] > bs) {
@@ -1049,14 +1061,21 @@ FORCEINLINE void STACK::sort(const int start,const int end) {
             bs = score_st[i];
         }
     }
-    if(bi != start) {
-        MOVE tempm = move_st[start];
-        move_st[start] = move_st[bi];
-        move_st[bi] = tempm;
-
-        int temps = score_st[start];
-        score_st[start] = score_st[bi];
-        score_st[bi] = temps;
+    SWAP(start,bi);
+}
+inline void STACK::quick_sort(const int start, const int end) {
+    if(start < end) {
+        int pivot = score_st[start + (end - start) / 2];
+        int startI = start - 1;
+        int endI = end + 1;
+        while(1) {
+            while(score_st[++startI] > pivot);
+            while(score_st[--endI] < pivot);
+            if(startI >= endI) break;
+            SWAP(startI, endI);
+        }
+        quick_sort(start, endI);
+        quick_sort(endI + 1, end);
     }
 }
 /*

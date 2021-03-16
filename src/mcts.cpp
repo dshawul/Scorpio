@@ -2061,8 +2061,7 @@ float SEARCHER::generate_and_score_moves(int alpha, int beta) {
                 *p = pp;
             }
 
-            for(int i = 0;i < pstack->count; i++)
-                pstack->sort(i,pstack->count);
+            pstack->quick_sort(0, pstack->count - 1);
         }
     }
     return rscore;

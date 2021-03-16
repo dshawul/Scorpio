@@ -1630,7 +1630,7 @@ DO_AGAIN:
     
 END:
     if(pstack->sortm)
-        pstack->sort(pstack->current_index,pstack->count);  
+        pstack->sort_1(pstack->current_index,pstack->count);  
 
     if(pstack->score_st[pstack->current_index] == -MAX_NUMBER) {
         pstack->current_index++;
@@ -1736,7 +1736,7 @@ DO_AGAIN:
         return 0;
 
     if(pstack->sortm)
-        pstack->sort(pstack->current_index,pstack->count);
+        pstack->sort_1(pstack->current_index,pstack->count);
 
     if(ply && hply >= 1 && hstack[hply - 1].checks) {
     } else {

@@ -1260,12 +1260,11 @@ void SEARCHER::evaluate_moves(int depth) {
         hash_cutoff();
         for(int i = 0; i < pstack->count;i++) {
             if(pstack->move_st[i] == pstack->hash_move) {
-                pstack->score_st[i] = MATE_SCORE;
+                pstack->move_st[i] = pstack->move_st[0];
+                pstack->move_st[0] = pstack->hash_move;
                 break;
             }
         }
-        for(int i = 0;i < pstack->count; i++)
-            pstack->sort(i,pstack->count);
     }
 
     for(int i = 0;i < pstack->count; i++) {
@@ -1344,8 +1343,7 @@ TOP:
 
     finish_search = false;
 
-    for(int i = 0;i < pstack->count; i++)
-        pstack->sort(i,pstack->count);
+    pstack->quick_sort(0, pstack->count - 1);
 }
 /*
 Find best move using alpha-beta or mcts
