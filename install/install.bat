@@ -138,6 +138,7 @@ SET egbbp=%CWD%%EGBB%
 SET egbbfp=%CWD%egbb
 SET EXE="%CWD%bin/Windows/scorpio.bat"
 
+SET nnuep=%CWD%nets-nnue/net-scorpio-k16.bin
 IF %GPUS% NEQ 0 (
   SET nnp=%CWD%nets-scorpio/ens-net-20x256.uff
   SET nnp_e=%CWD%nets-ender/ME.uff
@@ -223,6 +224,8 @@ for /F "delims=" %%A in (scorpio.ini) do (
      echo egbb_path                %egbbp%>> output.txt
    ) ELSE IF /i "!LMN:~0,15!"=="egbb_files_path" (
      echo egbb_files_path          %egbbfp%>> output.txt
+   ) ELSE IF /i "!LMN:~0,9!"=="nnue_path" (
+     echo nnue_path                %nnuep%>> output.txt
    ) ELSE IF /i "!LMN:~0,2!"=="mt" (
      echo mt                  %THREADS% >> output.txt
    ) ELSE IF /i "!LMN:~0,5!"=="delay" (

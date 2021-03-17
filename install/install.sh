@@ -145,6 +145,8 @@ PD=`echo $PD | sed 's/\/cygdrive//g'`
 PD=`echo $PD | sed 's/\/c\//c:\//g'`
 egbbp=${PD}/${EGBB}
 egbbfp=${PD}/egbb
+
+nnuep=${PD}/nets-nnue/net-scorpio-k16.bin
 if [ $DEV = "gpu" ]; then
     nnp=${PD}/nets-scorpio/ens-net-20x256.uff
     nnp_e=${PD}/nets-ender/ME.uff
@@ -223,12 +225,14 @@ egbbfp_=$(echo $egbbfp | sed 's_/_\\/_g')
 nnp_=$(echo $nnp | sed 's_/_\\/_g')
 nnp_e_=$(echo $nnp_e | sed 's_/_\\/_g')
 nnp_m_=$(echo $nnp_m | sed 's_/_\\/_g')
+nnuep_=$(echo $nnuep | sed 's_/_\\/_g')
 
 sed -i "s/^egbb_path.*/egbb_path                ${egbbp_}/g" scorpio.ini
 sed -i "s/^egbb_files_path.*/egbb_files_path          ${egbbfp_}/g" scorpio.ini
 sed -i "s/^delay.*/delay                    ${delay}/g" scorpio.ini
 sed -i "s/^float_type.*/float_type               ${PREC}/g" scorpio.ini
 sed -i "s/^mt.*/mt                  ${THREADS}/g" scorpio.ini
+sed -i "s/^nnue_path.*/nnue_path                ${nnuep_}/g" scorpio.ini
 
 if [ $DEV = "gpu" ]; then
     sed -i "s/^device_type.*/device_type              GPU/g" scorpio.ini
