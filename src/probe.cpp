@@ -701,47 +701,34 @@ int SEARCHER::compute_move_index(MOVE& m, int mnn_type) {
 #define invert_color(x)  (((x) > 6) ? ((x) - 6) : ((x) + 6))
 
 void fill_input_planes(
-    int player, int cast, int fifty, int hply, int epsquare, bool flip_h,
-    int hist, int* draw, int* piece, int* square, float* data, int nn_type_
+    int player, int cast, int fifty, int hply, int epsquare, bool flip_h, int hist,
+    int* const draw, int* const piece, int* const square, float* const data, int nn_type_
     ) {
     
     int pc, sq, to;
     const int CHANNELS = net_channels[nn_type_];
+    const bool use_chw = (is_trt || nn_type_ == LCZERO);
 
     /* 
        Add the attack map planes 
     */
-#define DHWC(sq,C)     data[rank(sq) * 8 * CHANNELS + file(sq) * CHANNELS + (C)]
-#define DCHW(sq,C)     data[(C) * 8 * 8 + SQ8864(sq)]
-#define D(sq,C)        ( (is_trt || (nn_type_ == LCZERO) ) ? DCHW(sq,C) : DHWC(sq,C) )
+#define HWC(sq,C)      (rank(sq) * 8 * CHANNELS + file(sq) * CHANNELS + (C))
+#define CHW(sq,C)      ((C) * 64 + SQ8864(sq))
+#define IDX(sq,C)      (use_chw ? CHW(sq,C) : HWC(sq,C))
+#define DHWC(sq,C)     data[HWC(sq,C)]
+#define DCHW(sq,C)     data[CHW(sq,C)]
+#define D(sq,C)        data[IDX(sq,C)]
 
-#define NK_MOVES(dir, off) {                    \
-        to = sq + dir;                          \
-        if(!(to & 0x88))                        \
-            D(to, off) = 1.0f;                  \
+#define SET(C,V)  {                         \
+    for(int i = 0; i < 64; i++)             \
+        data[(C) * 64 + i] = V;             \
 }
 
-#define BRQ_MOVES(dir, off) {                   \
-        to = sq + dir;                          \
-        while(!(to & 0x88)) {                   \
-            D(to, off) = 1.0f;                  \
-            if(board[to] != 0) break;           \
-            to += dir;                          \
-        }                                       \
-}
-
-#define SET(C,V)  {                             \
-    for(int i = 0; i < 64; i++)                 \
-        data[(C) * 64 + i] = V;                 \
-}
-
-    memset(data,  0, sizeof(float) * 8 * 8 * CHANNELS);
+    memset(data,  0, sizeof(float) * 64 * CHANNELS);
 
     if(nn_type_ == DEFAULT || nn_type_ == QLEARN) {
-
-        int board[128];
-
-        memset(board, 0, sizeof(int) * 128);
+        uint8_t board[128];
+        memset(board, 0, 128);
 
         for(int i = 0; (pc = piece[i]) != _EMPTY; i++) {
             sq = SQ6488(square[i]);
@@ -752,20 +739,28 @@ void fill_input_planes(
             if(flip_h) {
                 sq = MIRRORF(sq);
             }
-
+            piece[i] = pc;
+            square[i] = sq;
             board[sq] = pc;
         }
 
+#define NK_MOVES(dir, off) {                \
+    to = sq + dir;                          \
+    if(!(to & 0x88)) D(to, off) = 1.0f;     \
+}
+
+#define BRQ_MOVES(dir, off) {               \
+    to = sq + dir;                          \
+    while(!(to & 0x88)) {                   \
+        D(to, off) = 1.0f;                  \
+        if(board[to] != 0) break;           \
+        to += dir;                          \
+    }                                       \
+}
+
         for(int i = 0; (pc = piece[i]) != _EMPTY; i++) {
-            sq = SQ6488(square[i]);
-            if(player == _BLACK) {
-                sq = MIRRORR(sq);
-                pc = invert_color(pc);
-            }
-            if(flip_h) {
-                sq = MIRRORF(sq);
-            }
-            D(sq,(pc+11)) = 1.0f;
+            sq = square[i];
+            D(sq,pc+11) = 1.0f;
             switch(pc) {
                 case wking:
                     NK_MOVES(RU,0);
@@ -862,6 +857,9 @@ void fill_input_planes(
             }
         }
 
+#undef NK_MOVES
+#undef BRQ_MOVES
+
         /*castling, fifty and on-board mask channels*/
         if(epsquare > 0) {
             sq = epsquare;
@@ -944,9 +942,7 @@ void fill_input_planes(
         }
 
         //opponent
-        float* s_data = data;
-        data = data + (8 * 8 * CHANNELS);
-        memset(data,  0, sizeof(float) * 8 * 8 * CHANNELS);
+        memset(data + 64 * CHANNELS,  0, sizeof(float) * 64 * CHANNELS);
         {
             int pl = 1 - player;
             bool flip_rank = (pl == _BLACK);
@@ -968,10 +964,9 @@ void fill_input_planes(
                 if(flip_file) {
                     sq = MIRRORF(sq);
                 }
-                D(sq,(kindex*12+pc-1)) = 1.0f;
+                data[IDX(sq,kindex*12+pc-1) + 64 * CHANNELS] = 1.0f;
             }
         }
-        data = s_data;
 
     } else {
 
@@ -1034,8 +1029,9 @@ void fill_input_planes(
         fflush(stdout);
 #endif
 
-#undef NK_MOVES
-#undef BRQ_MOVES
+#undef HWC
+#undef CHW
+#undef IDX
 #undef DCHW
 #undef DHWC
 #undef D

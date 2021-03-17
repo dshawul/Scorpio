@@ -107,10 +107,13 @@ Byte swap
 */
 #if defined(__INTEL_COMPILER)
 #   define bswap32(x)  _bswap(x)
+#   define bswap64(x)  _bswap64(x)
 #elif defined(_MSC_VER)
 #   define bswap32(x)  _byteswap_ulong(x)
+#   define bswap64(x)  _byteswap_uint64(x)
 #elif defined(__GNUC__)
 #   define bswap32(x)  __builtin_bswap32(x)
+#   define bswap64(x)  __builtin_bswap64(x)
 #endif
 
 /*
