@@ -283,14 +283,14 @@ float Node::compute_Q(float fpu, unsigned int collision_lev, bool has_ab) {
     if(!visits) {
         uct = fpu;
     } else {
-#ifdef PARALLEL
-        unsigned int vvst = collision_lev * get_busy();
-#endif
         uct = 1 - score;
         if(uct >= winning_threshold)
             uct += 100;
+#ifdef PARALLEL
+        unsigned int vvst = collision_lev * get_busy();
         if(vvst)
             uct += (-uct * vvst) / (vvst + visits + 1);
+#endif
     }
     if(has_ab) {
         float uctp = 1 - prior;
@@ -1030,31 +1030,42 @@ void SEARCHER::play_simulation(Node* n, float& score, int& visits) {
     unsigned int nvisits = n->visits;
 #endif
 
-    /*Terminal node*/
+    /*Terminal nodes*/
     if(ply) {
-        /*Draw*/
-        if(draw()) {
-            if(rollout_type == MCTS)
-                score = 0.5;
-            else
-                score = ((scorpio == player) ? -contempt : contempt);
-            goto BACKUP_LEAF;
-        /*bitbases*/
-        } else if(bitbase_cutoff()) {
-            if(rollout_type == MCTS)
-                score = logistic(pstack->best_score);
-            else
-                score = pstack->best_score;
-            goto BACKUP_LEAF;
-        /*Reached max plies and depth*/
-        } else if(ply >= MAX_PLY - 1 || pstack->depth <= 0) {
-            score = n->score;
-            goto BACKUP_LEAF;
-        /*mate distance pruning*/
-        } else if(rollout_type == ALPHABETA 
-            && n->alpha > MATE_SCORE - WIN_PLY * (ply + 1)) {
-            score = n->alpha;
-            goto BACKUP_LEAF;
+        /*if node has children, it is not terminal*/
+        if(ply == 1 || !n->edges.count) {
+            /*Draw*/
+            if(draw()) {
+                if(rollout_type == MCTS)
+                    score = 0.5;
+                else
+                    score = ((scorpio == player) ? -contempt : contempt);
+                goto BACKUP_LEAF;
+            /*bitbases*/
+            } else if(bitbase_cutoff()) {
+                if(rollout_type == MCTS)
+                    score = logistic(pstack->best_score);
+                else
+                    score = pstack->best_score;
+                goto BACKUP_LEAF;
+            /*Reached max plies and depth*/
+            } else if(ply >= MAX_PLY - 1) {
+                score = n->score;
+                goto BACKUP_LEAF;
+            }
+        }
+        /*AB specific*/
+        if(rollout_type == ALPHABETA) {
+            /*max depth*/
+            if(pstack->depth <= 0) {
+                score = n->score;
+                goto BACKUP_LEAF;
+            }
+            /*mate distance pruning*/
+            if(n->alpha > MATE_SCORE - WIN_PLY * (ply + 1)) {
+                score = n->alpha;
+                goto BACKUP_LEAF;
+            }
         }
     }
 
