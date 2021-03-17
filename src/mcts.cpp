@@ -1390,36 +1390,39 @@ void SEARCHER::check_mcts_quit(bool single) {
     }
 
     /*determine time factor*/
-    float rscore = logit(root_node->score);
     time_factor = 1.0;
     if(bnval != bnvis)
         time_factor *= 1.3;
-    if(rscore <= -150)
-        time_factor *= 3.0;
-    else if(rscore <= -120)
-        time_factor *= 2.3;
-    else if(rscore <= -70)
-        time_factor *= 1.6;
-    else if(rscore <= -30)
-        time_factor *= 1.3;
-    else if(rscore >= 100)
-        time_factor *= 2.0;
-    else if(rscore >= 55)
-        time_factor *= 1.6;
-    else if(rscore >= 35)
-        time_factor *= 1.3;
-    else if(ABS(rscore - old_root_score) > 30)
-        time_factor *= 1.3;
-    else if(ABS(rscore) > 10)
-        time_factor *= 1.1;
+
+    float rscore = logit(root_node->score);
+    for(int i = 0; i < 2; i++) {
+        if(rscore <= -150)
+            time_factor *= 3.0;
+        else if(rscore <= -120)
+            time_factor *= 2.3;
+        else if(rscore <= -70)
+            time_factor *= 1.6;
+        else if(rscore <= -30)
+            time_factor *= 1.3;
+        else if(rscore >= 100)
+            time_factor *= 2.0;
+        else if(rscore >= 55)
+            time_factor *= 1.6;
+        else if(rscore >= 35)
+            time_factor *= 1.3;
+        else if(ABS(rscore) > 10)
+            time_factor *= 1.1;
+        rscore = rscore - old_root_score;
+    }
 
     /*calculate remain visits*/
     int remain_visits;
     if(chess_clock.max_visits == MAX_NUMBER) {
         int time_used = MAX(1,get_time() - start_time);
         int remain_time = time_factor * chess_clock.search_time - time_used;
+        float imf = insta_move_factor + (time_factor - 1.0) / 2;
         remain_visits = (remain_time / (double)time_used) * 
-            (root_node->visits - (root_node_reuse_visits * (insta_move_factor + (time_factor - 1.0) / 2)));
+            (root_node->visits - (root_node_reuse_visits * MIN(imf,1)));
         if(remain_visits < 0) remain_visits = 0;
     } else {
         remain_visits = chess_clock.max_visits - 

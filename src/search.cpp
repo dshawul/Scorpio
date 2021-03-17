@@ -1395,7 +1395,7 @@ MOVE SEARCHER::iterative_deepening() {
         
         has_ab = (frac_abprior > 0) &&
             !is_selfplay && (chess_clock.max_visits == MAX_NUMBER) &&
-            (all_man_c <= alphabeta_man_c || root_score >= 400);
+            ((all_man_c <= alphabeta_man_c && root_score >= -80) || root_score >= 400);
 
         manage_tree();
         Node::max_tree_depth = 0;
