@@ -3,6 +3,7 @@
 
 /*mcts parameters*/
 static unsigned int  cpuct_base = 19652;
+static float  cpuct_factor = 1.00;
 static float  cpuct_init = 1.25;
 static float  policy_temp = 2.35;
 static float  cpuct_init_m = 1.25;
@@ -422,7 +423,7 @@ float Node::compute_regularized_policy_reverseKL(Node* n, float factor, float fp
 Node* Node::ExactPi_select(Node* n, bool has_ab, int processor_id, int ply) {
     bool is_root = (ply == 0);
     float dCPUCT = cpuct_init * (is_root ? cpuct_init_root_factor : 1.0f) +
-                    logf((n->visits + cpuct_base + 1.0) / cpuct_base);
+                    cpuct_factor * logf((n->visits + cpuct_base + 1.0) / cpuct_base);
     float factor = dCPUCT * (float)(sqrt(double(n->visits))) / (n->edges.get_children() + n->visits);
 
     /*compute fpu*/
@@ -479,7 +480,7 @@ Node* Node::ExactPi_select(Node* n, bool has_ab, int processor_id, int ply) {
 Node* Node::Max_UCB_select(Node* n, bool has_ab, int processor_id, int ply) {
     bool is_root = (ply == 0);
     float dCPUCT = cpuct_init * (is_root ? cpuct_init_root_factor : 1.0f) +
-                    logf((n->visits + cpuct_base + 1.0) / cpuct_base);
+                    cpuct_factor * logf((n->visits + cpuct_base + 1.0) / cpuct_base);
     float factor;
 
     /*compute fpu*/
@@ -2608,6 +2609,8 @@ void SEARCHER::select_net() {
 bool check_mcts_params(char** commands,char* command,int& command_num) {
     if(!strcmp(command, "cpuct_base")) {
         cpuct_base = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "cpuct_factor")) {
+        cpuct_factor = atoi(commands[command_num++]) / 100.0;
 
     } else if(!strcmp(command, "cpuct_init")) {
         cpuct_init = atoi(commands[command_num++]) / 100.0;
@@ -2730,6 +2733,7 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
 }
 void print_mcts_params() {
     print_spin("cpuct_base",cpuct_base,0,100000000);
+    print_spin("cpuct_factor",int(cpuct_factor*100),0,1000);
 
     print_spin("cpuct_init",int(cpuct_init*100),0,1000);
     print_spin("policy_temp",int(policy_temp*100),0,1000);
