@@ -1,6 +1,6 @@
 #include "scorpio.h"
 
-#define VERSION "3.0.12"
+#define VERSION "3.0.12.1"
 
 /*
 all external variables declared here
@@ -949,12 +949,12 @@ int xboard_commands(char** commands,char* command,int& command_num,int& do_searc
     } else if(!strcmp(command,"level")) {
         SEARCHER::chess_clock.mps = atoi(commands[command_num++]);
         if(strstr(commands[command_num],":")) {
-            int mn,sec;
-            sscanf(commands[command_num],"%d:%d",&mn,&sec);
+            float mn,sec;
+            sscanf(commands[command_num],"%f:%f",&mn,&sec);
             SEARCHER::chess_clock.p_time = 60000 * mn + 1000 * sec;
             command_num++;
         } else {
-            SEARCHER::chess_clock.p_time = 60000 * atoi(commands[command_num++]);
+            SEARCHER::chess_clock.p_time = 60000 * atof(commands[command_num++]);
         }
         SEARCHER::chess_clock.p_inc = 1000 * atof(commands[command_num++]);
         SEARCHER::chess_clock.o_time = searcher.chess_clock.p_time;
