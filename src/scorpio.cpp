@@ -237,10 +237,15 @@ int CDECL main(int argc, char* argv[]) {
         while(true) {
             if(!read_line(buffer))
                 goto END;
-            if(PROTOCOL == UCI) {
+            if(PROTOCOL == CONSOLE || PROTOCOL == UCI) {
                 std::string s(buffer);
-                while (s.find("value") != std::string::npos)
-                    s.replace(s.find("value"), 5, " ");
+                size_t pos;
+
+                while((pos = s.find("setoption name")) != std::string::npos)
+                    s.replace(pos, 14, " ");
+                while((pos = s.find("value")) != std::string::npos)
+                    s.replace(pos, 5, " ");
+
                 strcpy(buffer,s.c_str());
             }
             commands[tokenize(buffer,commands)] = NULL;

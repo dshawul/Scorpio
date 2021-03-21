@@ -1495,10 +1495,13 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
     if(chess_clock.max_visits != MAX_NUMBER) {
         if(is_selfplay) visits_poll = 100;
         else visits_poll = chess_clock.max_visits / 40;
-    } else if(use_nn)
+    } else if(use_nn) {
         visits_poll = 4 * PROCESSOR::n_processors;
-    else
-        visits_poll = MAX(200, average_pps / 40);
+    } else {
+        int np = single ? 1 : PROCESSOR::n_processors;
+        visits_poll = MAX(200 * np, average_pps / 40);
+        visits_poll = MIN(1000 * np, visits_poll);
+    }
     prev_kld = -1;
 
     /*wait until all idle processors are awake*/
