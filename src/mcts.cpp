@@ -2,13 +2,11 @@
 #include "scorpio.h"
 
 /*mcts parameters*/
-static unsigned int  cpuct_base = 19652;
-static float  cpuct_factor = 1.00;
-static float  cpuct_init = 1.25;
+static unsigned int  cpuct_base = 75610;
+static float  cpuct_factor = 3.48;
+static float  cpuct_init = 0.84;
 static float  policy_temp = 2.35;
-static float  cpuct_init_m = 1.25;
 static float  policy_temp_m = 2.35;
-static float  cpuct_init_e = 1.25;
 static float  policy_temp_e = 2.35;
 static float  fpu_red = 0.33;
 static int    fpu_is_loss = 0;
@@ -2555,7 +2553,6 @@ void SEARCHER::worker_thread() {
 void SEARCHER::select_net() {
     static int nn_type_o = nn_type;
     static int wdl_head_o = wdl_head;
-    static float cpuct_init_o = cpuct_init;
     static float policy_temp_o = policy_temp;
     static float fpu_red_o = fpu_red;
     static int  fpu_is_loss_o = fpu_is_loss;
@@ -2563,7 +2560,6 @@ void SEARCHER::select_net() {
 #define SET(p) {                      \
     nn_type = nn_type_##p;            \
     wdl_head = wdl_head_##p;          \
-    cpuct_init = cpuct_init_##p;      \
     policy_temp = policy_temp_##p;    \
     fpu_red = fpu_red_##p;            \
     fpu_is_loss = fpu_is_loss_##p;    \
@@ -2614,9 +2610,9 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
         cpuct_base = atoi(commands[command_num++]);
     } else if(!strcmp(command, "cpuct_factor")) {
         cpuct_factor = atoi(commands[command_num++]) / 100.0;
-
     } else if(!strcmp(command, "cpuct_init")) {
         cpuct_init = atoi(commands[command_num++]) / 100.0;
+
     } else if(!strcmp(command, "policy_temp")) {
         policy_temp = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "fpu_red")) {
@@ -2624,8 +2620,6 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
     } else if(!strcmp(command, "fpu_is_loss")) {
         fpu_is_loss = atoi(commands[command_num++]);
 
-    } else if(!strcmp(command, "cpuct_init_m")) {
-        cpuct_init_m = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "policy_temp_m")) {
         policy_temp_m = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "fpu_red_m")) {
@@ -2633,8 +2627,6 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
     } else if(!strcmp(command, "fpu_is_loss_m")) {
         fpu_is_loss_m = atoi(commands[command_num++]);
 
-    } else if(!strcmp(command, "cpuct_init_e")) {
-        cpuct_init_e = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "policy_temp_e")) {
         policy_temp_e = atoi(commands[command_num++]) / 100.0;
     } else if(!strcmp(command, "fpu_red_e")) {
@@ -2737,18 +2729,16 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
 void print_mcts_params() {
     print_spin("cpuct_base",cpuct_base,0,100000000);
     print_spin("cpuct_factor",int(cpuct_factor*100),0,1000);
-
     print_spin("cpuct_init",int(cpuct_init*100),0,1000);
+
     print_spin("policy_temp",int(policy_temp*100),0,1000);
     print_spin("fpu_red",int(fpu_red*100),-1000,1000);
     print_spin("fpu_is_loss",fpu_is_loss,-1,1);
 
-    print_spin("cpuct_init_m",int(cpuct_init_m*100),0,1000);
     print_spin("policy_temp_m",int(policy_temp_m*100),0,1000);
     print_spin("fpu_red_m",int(fpu_red_m*100),-1000,1000);
     print_spin("fpu_is_loss_m",fpu_is_loss_m,-1,1);
 
-    print_spin("cpuct_init_e",int(cpuct_init_e*100),0,1000);
     print_spin("policy_temp_e",int(policy_temp_e*100),0,1000);
     print_spin("fpu_red_e",int(fpu_red_e*100),-1000,1000);
     print_spin("fpu_is_loss_e",fpu_is_loss_e,-1,1);
