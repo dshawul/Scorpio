@@ -1496,7 +1496,7 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
     } else if(use_nn) {
         visits_poll = 4 * PROCESSOR::n_processors;
     } else {
-        int np = single ? 1 : PROCESSOR::n_processors;
+        unsigned int np = single ? 1 : PROCESSOR::n_processors;
         visits_poll = MAX(200 * np, average_pps / 40);
         visits_poll = MIN(1000 * np, visits_poll);
     }

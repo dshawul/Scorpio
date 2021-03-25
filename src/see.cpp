@@ -46,7 +46,7 @@ int SEARCHER::see(MOVE move) {
     
     int list[32],n;
     int from = m_from(move),to = m_to(move),sq,score;
-    int w_atkers[16],b_atkers[16];
+    int w_atkers[17],b_atkers[17];
     int w_atks = 0,b_atks = 0;
     int w_count , b_count;
     int col,atkd_val;

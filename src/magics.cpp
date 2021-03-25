@@ -223,7 +223,7 @@ uint64_t initmagicmoves_Bmoves(const int square, const uint64_t occ) {
 void initmagicmoves(void) {
     int i,j;
 
-    CACHE_ALIGN int initmagicmoves_bitpos64_database[64] = {
+    int initmagicmoves_bitpos64_database[64] = {
         63,  0, 58,  1, 59, 47, 53,  2,
         60, 39, 48, 27, 54, 33, 42,  3,
         61, 51, 37, 40, 49, 18, 28, 20,
@@ -234,7 +234,7 @@ void initmagicmoves(void) {
         44, 24, 15,  8, 23,  7,  6,  5
     };
 
-    CACHE_ALIGN uint64_t* magicmoves_b_indices2[64] = {
+    uint64_t* magicmoves_b_indices2[64] = {
         magicmovesbdb+4992, magicmovesbdb+2624,  magicmovesbdb+256,  magicmovesbdb+896,
         magicmovesbdb+1280, magicmovesbdb+1664, magicmovesbdb+4800, magicmovesbdb+5120,
         magicmovesbdb+2560, magicmovesbdb+2656,  magicmovesbdb+288,  magicmovesbdb+928,
@@ -252,7 +252,7 @@ void initmagicmoves(void) {
         magicmovesbdb+5056, magicmovesbdb+2720,  magicmovesbdb+864, magicmovesbdb+1248,
         magicmovesbdb+1632, magicmovesbdb+2272, magicmovesbdb+4896, magicmovesbdb+5184
     };
-    CACHE_ALIGN uint64_t* magicmoves_r_indices2[64] = {
+    uint64_t* magicmoves_r_indices2[64] = {
         magicmovesrdb+86016, magicmovesrdb+73728, magicmovesrdb+36864, magicmovesrdb+43008,
         magicmovesrdb+47104, magicmovesrdb+51200, magicmovesrdb+77824, magicmovesrdb+94208,
         magicmovesrdb+69632, magicmovesrdb+32768, magicmovesrdb+38912, magicmovesrdb+10240,
