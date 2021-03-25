@@ -1343,7 +1343,7 @@ TOP:
 
     finish_search = false;
 
-    pstack->quick_sort(0, pstack->count - 1);
+    pstack->sort_all();
 }
 /*
 Find best move using alpha-beta or mcts

@@ -620,7 +620,7 @@ typedef struct STACK{
     MOVE bad_st[MAX_CAPS];
     MOVE pv[MAX_PLY];
     void sort_1(const int,const int);
-    void quick_sort(const int, const int);
+    void sort_all();
 } *PSTACK;
 
 struct SEARCHER;
@@ -1063,20 +1063,9 @@ FORCEINLINE void STACK::sort_1(const int start,const int end) {
     }
     SWAP(start,bi);
 }
-inline void STACK::quick_sort(const int start, const int end) {
-    if(start < end) {
-        int pivot = score_st[start + (end - start) / 2];
-        int startI = start - 1;
-        int endI = end + 1;
-        while(1) {
-            while(score_st[++startI] > pivot);
-            while(score_st[--endI] < pivot);
-            if(startI >= endI) break;
-            SWAP(startI, endI);
-        }
-        quick_sort(start, endI);
-        quick_sort(endI + 1, end);
-    }
+inline void STACK::sort_all() {
+    for(int i = 0; i < count; i++)
+        sort_1(i, count);
 }
 /*
 PROCESSOR
