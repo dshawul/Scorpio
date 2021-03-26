@@ -106,7 +106,7 @@ void print_std(const char* format,...) {
 
 #undef PRINT
 /*
-print elements of board
+move to string conversions
 */
 void sq_str(const int& sq,char* s) {
     *s++ = file_name[file(sq)];
@@ -223,6 +223,9 @@ void SEARCHER::str_mov(MOVE& move, char* s) {
     }
     str_movx(move,s);
 }
+/*
+Print elements of board
+*/
 void print_sq(const int& sq) {
     char f[6];
     sq_str(sq,f);
@@ -256,7 +259,6 @@ void print_bitboard(uint64_t b){
     strcat(hh,"\n");
     print(hh);
 }
-
 void SEARCHER::print_board() const {
     int i,j;
 
@@ -312,15 +314,13 @@ void SEARCHER::print_stack() {
         print("\n");
     }
 }
-
-void get_date(char* buffer) {
-  time_t rawtime;
-  struct tm * timeinfo;
-  time (&rawtime);
-  timeinfo = localtime(&rawtime);
-  strftime(buffer,80,"%d-%m-%Y %I:%M:%S",timeinfo);
+static void get_date(char* buffer) {
+    time_t rawtime;
+    struct tm * timeinfo;
+    time (&rawtime);
+    timeinfo = localtime(&rawtime);
+    strftime(buffer,80,"%d-%m-%Y %I:%M:%S",timeinfo);
 }
-
 void SEARCHER::print_game(int res, FILE* fw, const char* event, 
                 const char* whitep, const char* blackp, int Round) {
     int i = 0;
@@ -497,7 +497,9 @@ int SEARCHER::is_legal(MOVE& move) {
     }
     return false;
 }
-
+/*
+Print principal variation (PV)
+*/
 void SEARCHER::print_pv(int score) {
     if(pv_print_style != 0)
         return;
@@ -570,8 +572,9 @@ void SEARCHER::print_pv(int score) {
         else POP_NULL();
     }
 }
-
-/*repeatition inside tree and fifty move draws*/
+/*
+Check for repeatition inside tree and fifty move draws
+*/
 int SEARCHER::draw(int one_repeat) const {
 
     if(fifty >= 100) {
@@ -592,7 +595,9 @@ int SEARCHER::draw(int one_repeat) const {
 
     return false;
 }
-/*game result*/
+/*
+Check if game is finished and print result
+*/
 int SEARCHER::print_result(bool output) {
     bool legal_move = false;
 
@@ -650,7 +655,6 @@ int SEARCHER::print_result(bool output) {
     }
     return R_UNKNOWN;
 }  
-
 /*
 perft : search simulator for debuging purpose
 */
@@ -689,7 +693,9 @@ uint64_t SEARCHER::perft(int depth) {
 
     return nodes;
 }
-
+/*
+Initialize board data
+*/
 void SEARCHER::init_data() {
     int i,sq,pic;
 
@@ -757,23 +763,15 @@ void SEARCHER::init_data() {
         }
     }
 
-#if 0
-    print("==========\n");
-    for(int i = 0; i < 6; i++) {
-        print_sq(frc_squares[i]);
-        print(" ");
-    }
-    print("\n");
-    print("==========\n");
-#endif
-
     /*nnue*/
 #ifdef NNUE_INC
     if(use_nnue)
         nnue[hply].accumulator.computedAccumulation = 0;
 #endif
 }
-
+/*
+Set board from FEN string
+*/
 void SEARCHER::set_board(const char* fen_str) {
     int i,r,f,sq,move_number;
     int ksq[2];
@@ -934,7 +932,9 @@ void SEARCHER::get_fen(char* fen) const {
     sprintf(str," %d %d",fifty,move_number);
     strcat(fen,str);
 }
-
+/*
+new board
+*/
 void SEARCHER::new_board() {
     set_board(start_fen);
 }
@@ -1154,7 +1154,6 @@ int get_time() {
 /*
 input/output from pipe/consol
 */
-
 #ifdef _WIN32
 static HANDLE inh;
 static int pipe;
@@ -1283,7 +1282,9 @@ int get_number_of_cpus() {
     printf("Number of cores %d of %d\n",active,cores);
     return active;
 }
-
+/*
+Break down a string into tokens
+*/
 int tokenize(char *str, char** tokens, const char *str2) {
     int nu_tokens = 0;
     tokens[nu_tokens] = strtok_r(str, str2, &str);
@@ -1292,7 +1293,9 @@ int tokenize(char *str, char** tokens, const char *str2) {
     }
     return nu_tokens;
 }
-
+/*
+Chess Clock
+*/
 CHESS_CLOCK::CHESS_CLOCK() {
     mps = 10;
     p_inc = 0;
@@ -1688,9 +1691,221 @@ END:
     }
     return false;
 }
+static int compare(const void * a, const void * b) {
+    HASHKEY k1 = ((BOOK_E*)a)->hash_key;
+    HASHKEY k2 = ((BOOK_E*)b)->hash_key;
+    if(k1 > k2) return 1;
+    else if(k1 < k2) return -1;
+    else return 0;
+}
+bool SEARCHER::build_book(char* path,char* book,int BOOK_SIZE,int BOOK_DEPTH,int color) {
+    FILE* f = fopen(path,"rt");
+    if(!f) return false;
+
+    BOOK_E* entries[2];
+    int    n_entries[2];
+    char   buffer[MAX_FILE_STR];
+    char   *commands[MAX_STR],*command,*c;
+    int    i,result = 0,command_num;
+    int    comment = 0,line = 0,game = 0;
+    uint16_t weight;
+    MOVE   move;
+    char   fen[MAX_FEN_STR];
+    char* pc;
+    bool illegal = false;
+
+    for(i = 0;i < 2;i++) {
+        entries[i] = new BOOK_E[BOOK_SIZE];
+        n_entries[i] = 0;
+    }
+
+    while(fgets(buffer,MAX_FILE_STR,f)) {
+        line++;
+        if(buffer[0] == '[' && !comment) {
+            if(strncmp(buffer + 1, "Result ",7) == 0) {
+                if(!strncmp(buffer + 9,"1-0",3)) result = R_WWIN;
+                else if(!strncmp(buffer + 9,"0-1",3)) result = R_BWIN;
+                else if(!strncmp(buffer + 9,"1/2-1/2",7)) result = R_DRAW;
+                else result = R_UNKNOWN;
+                game++;
+                print("Game %d\t\r",game);
+                new_board();
+                illegal = false;
+
+            } else if(strncmp(buffer + 1, "FEN ",4) == 0) {
+                buffer[(strlen(buffer)-1-2)]=0;
+                strcpy(fen,buffer+6);
+                set_board(fen);
+            }
+            continue;
+        }
+        if(illegal) continue;
+        if(isspace(buffer[0])) continue;
+
+        commands[tokenize(buffer,commands," \n\r\t")] = NULL;
+        command_num = 0;
+        while((command = commands[command_num++]) != 0) {
+            if(strchr(command,'{')) comment++;
+            if(strchr(command,'}')) comment--;
+            else if(comment == 0) {
+                if((pc = strchr(command,'.')) != 0) {
+                    if(*(pc+1) == ' ' || *(pc+1) == 0 || *(pc+1) == '.') continue;
+                    else command = pc + 1;
+                }
+                if(strchr(command,'*')) continue;
+                if(strchr(command,'-') && strchr(command,'1')) continue;
+                /*move weight*/
+                weight = 1;
+                if((c = strchr(command,'?')) != 0) {
+                    *c = 0;
+                    weight >>= 2;
+                    while(*(++c) == '?') weight >>= 2;
+                }
+                if((c = strchr(command,'!')) != 0) {
+                    *c = 0;
+                    weight <<= 2;
+                    while(*(++c) == '!') weight <<= 2;
+                }
+                /*SAN move*/
+                if(!san_mov(move,command)) {
+                    print("Incorrect move %s at game %d line %d\n",command,game,line);
+                    print_board();
+                    illegal = true;
+                    break;
+                }
+                do_move(move);
+                ply++;
+
+                player = invert(player);
+                if(ply < BOOK_DEPTH && result != R_UNKNOWN && player != color) {
+                    for(i = 0;i < n_entries[player];i++) {
+                        if(entries[player][i].hash_key == hash_key)
+                            break;
+                    }
+                    if(i == n_entries[player]) {
+                        if(i < BOOK_SIZE) {
+                            n_entries[player]++;
+                            entries[player][i].hash_key = hash_key;
+                        } else {
+                            print("Book buffer overflow\n");
+                            return false;
+                        }
+                    }
+                    switch(result) {
+                    case R_WWIN: if(player == white) entries[player][i].wins++; 
+                                 else entries[player][i].losses++; 
+                                 break;
+                    case R_BWIN: if(player == black) entries[player][i].wins++; 
+                                 else entries[player][i].losses++; 
+                                 break;
+                    case R_DRAW: entries[player][i].draws++; 
+                        break;
+                    }
+                    entries[player][i].learn *= weight;
+                }
+                player = invert(player);
+            }
+        }
+    }
+
+    fclose(f);
+
+    f = fopen(book,"wb");
+    print("\nw_positions %d\nb_positions %d\n",n_entries[white],n_entries[black]);
+    print("Sorting...\n");
+    qsort(entries[white],n_entries[white],sizeof(BOOK_E),compare);
+    qsort(entries[black],n_entries[black],sizeof(BOOK_E),compare);
+    print("Writing...\n");
+    fwrite(&n_entries[white],sizeof(int),1,f);
+    fwrite(&n_entries[black],sizeof(int),1,f);
+    fwrite(entries[white],sizeof(BOOK_E),n_entries[white],f);
+    fwrite(entries[black],sizeof(BOOK_E),n_entries[black],f);
+    print("Finished\n");
+    fclose(f);
+
+    for(i = 0;i < 2;i++) 
+        delete[] entries[i];
+
+    return true;
+}
+void merge_books(char* path1,char* path2,char* path,double w1 = 1.0,double w2 = 1.0) {
+    FILE* f1 = fopen(path1,"rb");
+    FILE* f2 = fopen(path2,"rb");
+    FILE* f = fopen(path,"wb");
+    if(!f1 || !f2 || !f) return;
+
+    BOOK_E entry[2];
+    int c1[2],c2[2],c[2]={0},index[2],end[2],result;
+
+    print("Merging...\n");
+
+    fread(c1,sizeof(int),2,f1);
+    fread(c2,sizeof(int),2,f2);
+    fwrite(c,sizeof(int),2,f);
+
+    for(int i = 0;i < 2;i++) {
+        entry[0].hash_key = 0;
+        entry[1].hash_key = 0;
+        if(i == 0) {
+            c[0] = 0;
+            c[1] = 0;
+            index[0] = 0;
+            index[1] = 0;
+            end[0] = c1[0];
+            end[1] = c2[0];
+        } else {
+            index[0] = c1[0];
+            index[1] = c2[0];
+            end[0] = c1[0] + c1[1];
+            end[1] = c2[0] + c2[1];
+        }
+        result = 0;
+        while(true) {
+            if(index[0] < end[0] && (result <= 0 || index[1] == end[1])) { 
+                read_entry(&entry[0],index[0]++, f1);
+                entry[0].learn = uint16_t(entry[0].learn * w1);
+            }
+            if(index[1] < end[1] && (result >= 0 || index[0] == end[0])) {
+                read_entry(&entry[1],index[1]++, f2);
+                entry[1].learn = uint16_t(entry[1].learn * w2);
+            }
+            result = compare(&entry[0],&entry[1]);
+
+            if(result == 0) {
+                entry[0].wins += entry[1].wins;
+                entry[0].losses += entry[1].losses;
+                entry[0].draws += entry[1].draws;
+                entry[0].learn = uint16_t(entry[0].learn * w1 + entry[1].learn * w2);
+                fwrite(&entry[0],sizeof(BOOK_E),1,f); c[i]++;
+            } else {
+                if((result < 0 || index[1] == end[1]) && entry[0].hash_key) {
+                    fwrite(&entry[0],sizeof(BOOK_E),1,f); c[i]++;
+                }
+                if((result > 0 || index[0] == end[0]) && entry[1].hash_key) {
+                    fwrite(&entry[1],sizeof(BOOK_E),1,f); c[i]++;
+                } 
+            }
+            if(index[0] == end[0] && index[1] == end[1])
+                break;
+        }
+
+    }
+    rewind(f);
+    fwrite(c,sizeof(int),2,f);
+    print("%d %d positions from %s\n",c1[0],c1[1],path1);
+    print("%d %d positions from %s\n",c2[0],c2[1],path2);
+    print("%d %d positions  to  %s\n",c[0],c[1],path);
+    print("Finished\n");
+
+    fclose(f);
+    fclose(f1);
+    fclose(f2);
+}
+
+#   endif   //BOOK_CREATE
 
 /*
-PGN
+Process PGN/EPD in parallel
 */
 bool ParallelFile::open(const char* path, bool mem) {
     f = fopen(path,"r");
@@ -2047,222 +2262,6 @@ void SEARCHER::epd_to_nn(char* fen, FILE* fb, int task) {
 #undef TASK
 
 }
-/*
-Book
-*/
-static int compare(const void * a, const void * b) {
-    HASHKEY k1 = ((BOOK_E*)a)->hash_key;
-    HASHKEY k2 = ((BOOK_E*)b)->hash_key;
-    if(k1 > k2) return 1;
-    else if(k1 < k2) return -1;
-    else return 0;
-}
-bool SEARCHER::build_book(char* path,char* book,int BOOK_SIZE,int BOOK_DEPTH,int color) {
-    FILE* f = fopen(path,"rt");
-    if(!f) return false;
-
-    BOOK_E* entries[2];
-    int    n_entries[2];
-    char   buffer[MAX_FILE_STR];
-    char   *commands[MAX_STR],*command,*c;
-    int    i,result = 0,command_num;
-    int    comment = 0,line = 0,game = 0;
-    uint16_t weight;
-    MOVE   move;
-    char   fen[MAX_FEN_STR];
-    char* pc;
-    bool illegal = false;
-
-    for(i = 0;i < 2;i++) {
-        entries[i] = new BOOK_E[BOOK_SIZE];
-        n_entries[i] = 0;
-    }
-
-    while(fgets(buffer,MAX_FILE_STR,f)) {
-        line++;
-        if(buffer[0] == '[' && !comment) {
-            if(strncmp(buffer + 1, "Result ",7) == 0) {
-                if(!strncmp(buffer + 9,"1-0",3)) result = R_WWIN;
-                else if(!strncmp(buffer + 9,"0-1",3)) result = R_BWIN;
-                else if(!strncmp(buffer + 9,"1/2-1/2",7)) result = R_DRAW;
-                else result = R_UNKNOWN;
-                game++;
-                print("Game %d\t\r",game);
-                new_board();
-                illegal = false;
-
-            } else if(strncmp(buffer + 1, "FEN ",4) == 0) {
-                buffer[(strlen(buffer)-1-2)]=0;
-                strcpy(fen,buffer+6);
-                set_board(fen);
-            }
-            continue;
-        }
-        if(illegal) continue;
-        if(isspace(buffer[0])) continue;
-
-        commands[tokenize(buffer,commands," \n\r\t")] = NULL;
-        command_num = 0;
-        while((command = commands[command_num++]) != 0) {
-            if(strchr(command,'{')) comment++;
-            if(strchr(command,'}')) comment--;
-            else if(comment == 0) {
-                if((pc = strchr(command,'.')) != 0) {
-                    if(*(pc+1) == ' ' || *(pc+1) == 0 || *(pc+1) == '.') continue;
-                    else command = pc + 1;
-                }
-                if(strchr(command,'*')) continue;
-                if(strchr(command,'-') && strchr(command,'1')) continue;
-                /*move weight*/
-                weight = 1;
-                if((c = strchr(command,'?')) != 0) {
-                    *c = 0;
-                    weight >>= 2;
-                    while(*(++c) == '?') weight >>= 2;
-                }
-                if((c = strchr(command,'!')) != 0) {
-                    *c = 0;
-                    weight <<= 2;
-                    while(*(++c) == '!') weight <<= 2;
-                }
-                /*SAN move*/
-                if(!san_mov(move,command)) {
-                    print("Incorrect move %s at game %d line %d\n",command,game,line);
-                    print_board();
-                    illegal = true;
-                    break;
-                }
-                do_move(move);
-                ply++;
-                
-                player = invert(player);
-                if(ply < BOOK_DEPTH && result != R_UNKNOWN && player != color) {
-                    for(i = 0;i < n_entries[player];i++) {
-                        if(entries[player][i].hash_key == hash_key)
-                            break;
-                    }
-                    if(i == n_entries[player]) {
-                        if(i < BOOK_SIZE) {
-                            n_entries[player]++;
-                            entries[player][i].hash_key = hash_key;
-                        } else {
-                            print("Book buffer overflow\n");
-                            return false;
-                        }
-                    }
-                    switch(result) {
-                    case R_WWIN: if(player == white) entries[player][i].wins++; 
-                                 else entries[player][i].losses++; 
-                                 break;
-                    case R_BWIN: if(player == black) entries[player][i].wins++; 
-                                 else entries[player][i].losses++; 
-                                 break;
-                    case R_DRAW: entries[player][i].draws++; 
-                        break;
-                    }
-                    entries[player][i].learn *= weight;
-                }
-                player = invert(player);
-            }
-        }
-    }
-
-    fclose(f);
-
-    f = fopen(book,"wb");
-    print("\nw_positions %d\nb_positions %d\n",n_entries[white],n_entries[black]);
-    print("Sorting...\n");
-    qsort(entries[white],n_entries[white],sizeof(BOOK_E),compare);
-    qsort(entries[black],n_entries[black],sizeof(BOOK_E),compare);
-    print("Writing...\n");
-    fwrite(&n_entries[white],sizeof(int),1,f);
-    fwrite(&n_entries[black],sizeof(int),1,f);
-    fwrite(entries[white],sizeof(BOOK_E),n_entries[white],f);
-    fwrite(entries[black],sizeof(BOOK_E),n_entries[black],f);
-    print("Finished\n");
-    fclose(f);
-
-    for(i = 0;i < 2;i++) 
-        delete[] entries[i];
-
-    return true;
-}
-void merge_books(char* path1,char* path2,char* path,double w1 = 1.0,double w2 = 1.0) {
-    FILE* f1 = fopen(path1,"rb");
-    FILE* f2 = fopen(path2,"rb");
-    FILE* f = fopen(path,"wb");
-    if(!f1 || !f2 || !f) return;
-
-    BOOK_E entry[2];
-    int c1[2],c2[2],c[2]={0},index[2],end[2],result;
-
-    print("Merging...\n");
-
-    fread(c1,sizeof(int),2,f1);
-    fread(c2,sizeof(int),2,f2);
-    fwrite(c,sizeof(int),2,f);
-
-    for(int i = 0;i < 2;i++) {
-        entry[0].hash_key = 0;
-        entry[1].hash_key = 0;
-        if(i == 0) {
-            c[0] = 0;
-            c[1] = 0;
-            index[0] = 0;
-            index[1] = 0;
-            end[0] = c1[0];
-            end[1] = c2[0];
-        } else {
-            index[0] = c1[0];
-            index[1] = c2[0];
-            end[0] = c1[0] + c1[1];
-            end[1] = c2[0] + c2[1];
-        }
-        result = 0;
-        while(true) {
-            if(index[0] < end[0] && (result <= 0 || index[1] == end[1])) { 
-                read_entry(&entry[0],index[0]++, f1);
-                entry[0].learn = uint16_t(entry[0].learn * w1);
-            }
-            if(index[1] < end[1] && (result >= 0 || index[0] == end[0])) {
-                read_entry(&entry[1],index[1]++, f2);
-                entry[1].learn = uint16_t(entry[1].learn * w2);
-            }
-            result = compare(&entry[0],&entry[1]);
-
-            if(result == 0) {
-                entry[0].wins += entry[1].wins;
-                entry[0].losses += entry[1].losses;
-                entry[0].draws += entry[1].draws;
-                entry[0].learn = uint16_t(entry[0].learn * w1 + entry[1].learn * w2);
-                fwrite(&entry[0],sizeof(BOOK_E),1,f); c[i]++;
-            } else {
-                if((result < 0 || index[1] == end[1]) && entry[0].hash_key) {
-                    fwrite(&entry[0],sizeof(BOOK_E),1,f); c[i]++;
-                }
-                if((result > 0 || index[0] == end[0]) && entry[1].hash_key) {
-                    fwrite(&entry[1],sizeof(BOOK_E),1,f); c[i]++;
-                } 
-            }
-            if(index[0] == end[0] && index[1] == end[1])
-                break;
-        }
-
-    }
-    rewind(f);
-    fwrite(c,sizeof(int),2,f);
-    print("%d %d positions from %s\n",c1[0],c1[1],path1);
-    print("%d %d positions from %s\n",c2[0],c2[1],path2);
-    print("%d %d positions  to  %s\n",c[0],c[1],path);
-    print("Finished\n");
-
-    fclose(f);
-    fclose(f1);
-    fclose(f2);
-}
-
-#   endif   //BOOK_CREATE
-
 /*
 pseudo random numbers generated using rand();
 */
