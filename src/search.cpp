@@ -48,7 +48,7 @@ FORCEINLINE void SEARCHER::UPDATE_PV(MOVE move)  {
 /*
 * hashtable cutoff
 */
-bool SEARCHER::hash_cutoff() { 
+bool SEARCHER::hash_cutoff() {
     /*abdada*/
     bool exclusiveP = false;
 #ifdef PARALLEL
@@ -110,7 +110,7 @@ bool SEARCHER::hash_cutoff() {
     return false;
 }
 FORCEINLINE int SEARCHER::on_node_entry() {
-    
+
     /*qsearch?*/
     if(pstack->depth <= 0) {
         if(qsearch_level < 0)
@@ -173,7 +173,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
     pstack->singular = 0;
     pstack->all_done = true;
     pstack->second_pass = false;
-    
+
     if(pstack->node_type == PV_NODE) {
         pstack->next_node_type = PV_NODE;
     } else if(pstack->node_type == ALL_NODE) {
@@ -181,7 +181,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
     } else {
         pstack->next_node_type = ALL_NODE;
     }
-    
+
     /*root*/
     if(!ply) {
         pstack->gen_status = GEN_RESET;
@@ -229,7 +229,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
         message_check = nodes;
     }
 #   endif
-#endif   
+#endif
 
     /*probe hash table*/
     if(use_tt && hash_cutoff())
@@ -604,6 +604,7 @@ START:
                     && (score = (sb->eval(true) - sb->pstack->beta)) >= 0
                     ) {
                         sb->PUSH_NULL();
+                        sb->nodes++;
                         sb->pstack->extension = 0;
                         sb->pstack->reduction = 0;
                         sb->pstack->alpha = -(sb->pstack - 1)->beta;
@@ -664,7 +665,7 @@ START:
                                 ) {
                                     sb->pstack->legal_moves++;
                                     continue;
-			    }
+			                }
 #endif
                         }
 
@@ -1392,7 +1393,7 @@ MOVE SEARCHER::iterative_deepening() {
 
     /*AB prior search*/
     if(montecarlo) {
-        
+
         has_ab = (frac_abprior > 0) &&
             !is_selfplay && (chess_clock.max_visits == MAX_NUMBER) &&
             ((all_man_c <= alphabeta_man_c && root_score >= -80) || root_score >= 400);
@@ -1719,7 +1720,7 @@ MOVE SEARCHER::iterative_deepening() {
             for(int i = 0;i < pstack->count; i++) {
                 if(pstack->pv[0] == pstack->move_st[i]) {
                     bests = root_score_st[i];
-                    root_score_st[i] = MAX_UBMP64;
+                    root_score_st[i] = MAX_UINT64;
                 }
             }
             for(int i = 0;i < pstack->count; i++) {
@@ -1812,7 +1813,7 @@ MOVE SEARCHER::iterative_deepening() {
                   Node::total_nodes,Node::max_tree_depth,root_node->visits,vps,pps,
                    int(int64_t(nnecalls) / (time_used / 1000.0f)));
         }
-        
+
     } else {
 
 #ifdef CLUSTER
@@ -1826,10 +1827,10 @@ MOVE SEARCHER::iterative_deepening() {
 
     	/*print final pv*/
     	for (int j = ply; j > 0 ; j--) {
-                MOVE move = hstack[hply - 1].move;
-                if(move) POP_MOVE();
-                else POP_NULL();
-            }
+            MOVE move = hstack[hply - 1].move;
+            if(move) POP_MOVE();
+            else POP_NULL();
+        }
     	if(!pstack->pv_length)
     	    pstack->pv_length = 1;
     	print_pv(root_score);
@@ -1910,7 +1911,7 @@ MOVE SEARCHER::find_best() {
 
     /*selcet net*/
     select_net();
-    
+
     /*generate and score moves*/
     chess_clock.set_stime(hply,true);
     generate_and_score_moves(-MATE_SCORE,MATE_SCORE);
