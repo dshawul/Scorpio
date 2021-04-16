@@ -5,9 +5,9 @@
 static unsigned int  cpuct_base = 75610;
 static float  cpuct_factor = 3.48;
 static float  cpuct_init = 0.84;
-static float  policy_temp = 2.35;
-static float  policy_temp_m = 2.35;
-static float  policy_temp_e = 2.35;
+static float  policy_temp = 2.15;
+static float  policy_temp_m = 2.15;
+static float  policy_temp_e = 2.15;
 static float  fpu_red = 0.33;
 static int    fpu_is_loss = 0;
 static float  fpu_red_m = 0.33;
