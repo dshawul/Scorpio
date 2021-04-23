@@ -74,7 +74,7 @@ static VOLATILE int n_terminals = 0;
 
 /*Nodes and edges of tree*/
 std::vector<Node*> Node::mem_[MAX_CPUS];
-std::map<int, std::vector<int*> > Edges::mem_[MAX_CPUS];
+std::vector<int*>  Edges::mem_[MAX_CPUS][MAX_MOVES_NN >> 3];
 VOLATILE unsigned int Node::total_nodes = 0;
 unsigned int Node::max_tree_nodes = 0;
 unsigned int Node::max_tree_depth = 0;
@@ -108,20 +108,26 @@ void Node::reclaim(Node* n, int id) {
 }
 
 void Edges::allocate(Edges& edges, int id, int sz_) {
-    const int sz = (((sz_ - 1) >> 3) + 1) << 3;
+    const int szi = (((sz_ - 1) >> 3) + 1);
+    const int sz =  szi << 3;
 
-    if(mem_[id][sz].empty()) {
+    if(sz >= MAX_MOVES_NN) {
+        int64_t* n;
+        aligned_reserve<int64_t>(n, sz_);
+        edges._data = (int*)(n);
+        return;
+    } else if(mem_[id][szi].empty()) {
         int64_t* n;
         static const int MEM_INC = 128;
         aligned_reserve<int64_t>(n, sz * MEM_INC);
 
-        std::vector<int*>& vec = mem_[id][sz];
+        std::vector<int*>& vec = mem_[id][szi];
         vec.reserve(MEM_INC);
         for(int i = 0;i < MEM_INC;i++)
             vec.push_back((int*)(n) + i*sz*2);
     }
 
-    std::vector<int*>& vec = mem_[id][sz];
+    std::vector<int*>& vec = mem_[id][szi];
     edges._data = vec.back();
     vec.pop_back();
 }
@@ -129,9 +135,15 @@ void Edges::allocate(Edges& edges, int id, int sz_) {
 void Edges::reclaim(Edges& edges, int id) {
     if(!edges.count)
         return;
-    const int sz = (((edges.count - 1) >> 3) + 1) << 3;
-    std::vector<int*>& vec = mem_[id][sz];
-    vec.push_back(edges._data);
+    const int szi = (((edges.count - 1) >> 3) + 1);
+    const int sz =  szi << 3;
+    if(sz >= MAX_MOVES_NN) {
+        int64_t* n = (int64_t*)edges._data;
+        aligned_free<int64_t>(n);
+    } else {
+        std::vector<int*>& vec = mem_[id][szi];
+        vec.push_back(edges._data);
+    }
 }
 
 /*add child nodes*/

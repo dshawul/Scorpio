@@ -41,7 +41,6 @@ Some definitions to include/remove code
 #   include <sys/time.h>
 #endif
 #include <vector>
-#include <map>
 #ifdef CLUSTER
 #include <list>
 #  include "mpi.h"
@@ -418,7 +417,7 @@ struct Edges {
 
     static void allocate(Edges&, int, int);
     static void reclaim(Edges&, int);
-    static std::map<int, std::vector<int*> > mem_[MAX_CPUS];
+    static std::vector<int*> mem_[MAX_CPUS][MAX_MOVES_NN >> 3];
 };
 /*
 * Nodes of the tree
