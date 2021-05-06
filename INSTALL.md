@@ -1,7 +1,7 @@
 # Installation instructions
 
 The recommended way to install ScorpioNN is using install scripts, a batch file [install.bat](https://github.com/dshawul/Scorpio/releases/download/3.0/install.bat) for Windows 
-and a shell script [install.sh](https://github.com/dshawul/Scorpio/releases/download/3.0/install.sh) for Ubuntu Linux. You need to only download these scripts and nothing else.
+and a shell script [install.sh](https://github.com/dshawul/Scorpio/releases/download/3.0/install.sh) for Ubuntu Linux. You need to download only these scripts and nothing else.
 
       $ ./install.sh --help
       Usage: ./install.sh  
@@ -20,9 +20,13 @@ and a shell script [install.sh](https://github.com/dshawul/Scorpio/releases/down
       
       Example: ./install.sh -p INT8 -t 80
 
-If you execute the installer without any arguments, it will automatically determine how many GPUs you have,
-which precision to use, how many threads per GPU (minibatch size) to use etc. If you want to force the precision,
-and batch size pass those arguments.
+GPU version works only on NVIDIA GPUs, so you are out of luck if you have AMD GPUs.
+For older GPUs (older than 3080s), executing the installer without any arguments, as shown below
+   
+      $ ./install.sh
+
+will automatically determine how many GPUs you have, which precision to use, how many threads per GPU (minibatch size) to use etc.
+If you want to force the precision, and batch size pass those arguments.
 
 The version of Linux supported by the install script is Ubuntu 18.04, other versions probably won't work due to
 glibc issues. To run on other versions of Linux and also Mac, you can build docker containers of scorpio using Dockerfiles
@@ -32,7 +36,7 @@ described below.
 NN and NNUE versions of Scorpio are compiled with AVX2 support so if your machine does not support that, it will not work.
 AVX2 has been around since 2012 so your CPU most likely supports it unless it is older than that.
 
-For newer GPUs such as 3080s and 3090s, you would need to install cuda 11.1 and cudnn 8.
+For newer GPUs such as 3080s and 3090s, you would need to first install cuda 11.1 and cudnn 8.
 The later is too big to ship with Scorpio, so your system must have it.
 Then you can install scorpio as
 
@@ -110,6 +114,7 @@ If you want to use Scorpio as a NNUE engine, you have to edit scorpio.ini manual
 as a NN engines as described above. Scorpio comes with the dh-0.2.bin, as Stockfish style net, by default.
 So to use NNUE, we need to turn off NN usage and turn on NNUE usage
 
+      montecarlo 0      # Turn of montecarlo for NNUE
       mt         4      # If you have a 4 threads machine.
       use_nn     0      # Turn off NN
       use_nnue   1      # Turn on NNUE
