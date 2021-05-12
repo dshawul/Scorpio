@@ -2578,6 +2578,7 @@ void SEARCHER::select_net() {
 };
 
     ensemble = (ensemble_setting > 0) ? 1 : 0;
+    turn_off_ensemble = 0;
 
     if(all_man_c <= nn_man_e) {
         if(ensemble) return;
