@@ -1474,17 +1474,33 @@ void SEARCHER::gen_checks(){
     /*count*/
     pstack->count += int(pmove - spmove);
 }
+
+/*
+history score
+*/
+#define HISTORY(move) (history[m_piece(move)][SQ8864(m_to(move))])
+#define REFUTATION(move) (refutation[m_piece(move)][SQ8864(m_to(move))])
+#define REF_FUP_HISTORY(movec,move) (\
+            ref_fup_history[m_piece(movec)*64*14*64 + SQ8864(m_to(movec))*14*64 + \
+                            m_piece(move)*64 + SQ8864(m_to(move))])
+
+int SEARCHER::get_history_score(const MOVE& move) {
+    int score = HISTORY(move) - MAX_HIST + 400;
+    for(int i = 1; i <= 2 && hply >= i; i++) {
+        const MOVE& cMove = hstack[hply - i].move;
+        score += 4 * REF_FUP_HISTORY(cMove, move);
+    }
+    score += 2 * (pcsq[m_piece(move)][m_to(move)] - 
+                  pcsq[m_piece(move)][m_from(move)]);
+    return score;
+}
+
 /*
 incremental move generator
 */
-
-#define HISTORY(move) (history[m_piece(move)][SQ8864(m_to(move))])
-#define REFUTATION(move) (refutation[m_piece(move)][SQ8864(m_to(move))])
-
 MOVE SEARCHER::get_move() {
     MOVE move;
-    int i,start;
-    int* pscore;
+    int start;
 
     /*initialization*/
     if(pstack->gen_status == GEN_START) {
@@ -1517,9 +1533,9 @@ DO_AGAIN:
             if(ply && hply >= 1 && hstack[hply - 1].checks) {
                 gen_evasions();
                 pstack->sortm = 1;
-                for(i = 0; i < pstack->count;i++) {
+                for(int i = 0; i < pstack->count;i++) {
                     move = pstack->move_st[i];
-                    pscore = &pstack->score_st[i];
+                    int* pscore = &pstack->score_st[i];
                     
                     if(move == pstack->hash_move)
                         *pscore = 10000;
@@ -1532,9 +1548,8 @@ DO_AGAIN:
                     else if(is_cap_prom(move)) {
                         *pscore = see(move);
                         if(*pscore < 0) *pscore -= 2 * MAX_HIST;
-                    } else {
-                        *pscore = HISTORY(move) - MAX_HIST;
-                    }
+                    } else
+                        *pscore = get_history_score(move);
                 }
                 pstack->gen_status = GEN_END;
             } else {
@@ -1548,7 +1563,7 @@ DO_AGAIN:
             start = pstack->count;
             gen_caps();
             pstack->sortm = 1;
-            for(i = start; i < pstack->count;i++) {
+            for(int i = start; i < pstack->count;i++) {
                 move = pstack->move_st[i];
                 if(move == pstack->hash_move)
                     pstack->score_st[i] = -MAX_NUMBER;
@@ -1579,9 +1594,8 @@ DO_AGAIN:
             }
             pstack->refutation = 0;
             if(hply >= 1) {
-                move = hstack[hply - 1].move;
-                move = REFUTATION(move);
-                if(move 
+                move = REFUTATION(hstack[hply - 1].move);
+                if(move
                     && move != pstack->hash_move
                     && move != pstack->killer[0]
                     && move != pstack->killer[1]
@@ -1596,7 +1610,7 @@ DO_AGAIN:
             start = pstack->count;
             gen_noncaps();
             pstack->sortm = 2;
-            for(i = start; i < pstack->count;i++) {
+            for(int i = start; i < pstack->count;i++) {
                 move = pstack->move_st[i];
                 if(move == pstack->hash_move
                     || (move == pstack->killer[0]) 
@@ -1608,15 +1622,14 @@ DO_AGAIN:
                     if(is_castle(move)) {
                         pstack->score_st[i] = 1000;
                     } else {
-                        pstack->score_st[i] = HISTORY(move) - MAX_HIST + 
-                            400 + 2 * (pcsq[m_piece(move)][m_to(move)] - pcsq[m_piece(move)][m_from(move)]);
+                        pstack->score_st[i] = get_history_score(move);
                     }
                 }
             }
         } else if(pstack->gen_status == GEN_LOSCAPS) {
             pstack->sortm = 0;
             if(pstack->bad_index) { 
-                for(i = 0; i < pstack->bad_index; i++) {
+                for(int i = 0; i < pstack->bad_index; i++) {
                     pstack->move_st[pstack->count] = pstack->bad_st[i];
                     pstack->score_st[pstack->count] = 0;
                     pstack->count++;
@@ -1671,7 +1684,6 @@ qsearch move generator
 */
 MOVE SEARCHER::get_qmove() {
     MOVE move;
-    int* pscore;
 
     if(pstack->gen_status == GEN_START) {
         pstack->current_index = 0;
@@ -1690,17 +1702,16 @@ DO_AGAIN:
                 pstack->sortm = 1;
                 for(int i = 0; i < pstack->count;i++) {
                     move = pstack->move_st[i];
-                    pscore = &pstack->score_st[i];
-                    if(move == pstack->hash_move) {
+                    int* pscore = &pstack->score_st[i];
+                    if(move == pstack->hash_move)
                         *pscore = 10000;
-                    } else if(is_cap_prom(move)) {
+                    else if(is_cap_prom(move)) {
                         *pscore = see(move);
                         if(*pscore < 0) *pscore -= 2 * MAX_HIST;
-                    } else if(move == REFUTATION(move)) {
+                    } else if(move == REFUTATION(hstack[hply - 1].move))
                         *pscore = 70;
-                    } else {
-                        *pscore = HISTORY(move) - MAX_HIST;
-                    }
+                    else
+                        *pscore = get_history_score(move);
                 }
                 pstack->gen_status = GEN_END;
             } else {
@@ -1789,43 +1800,59 @@ void SEARCHER::gen_all_legal() {
 * History and killers
 */
 void SEARCHER::update_history(MOVE move) {
-    int i,j,temp,maxh,maxh1;
-    temp = (pstack->depth);
-    maxh = (HISTORY(move) += (temp * temp));
+    int temp = (pstack->depth * pstack->depth);
+    int maxh, maxh1;
+
+    maxh = (HISTORY(move) += temp);
     for(int i = 0; i < pstack->current_index - 1;i++) {
-        MOVE mv = pstack->move_st[i];
+        const MOVE& mv = pstack->move_st[i];
         if(!is_cap_prom(mv)) {
-            maxh1 = -(HISTORY(mv) -= (temp * temp));
+            maxh1 = -(HISTORY(mv) -= temp);
             if(maxh1 > maxh) maxh = maxh1;
         }
     }
+
     if(maxh >= MAX_HIST) {
-        for(i = 0;i < 14;i++)
-            for(j = 0;j < 64;j++)
+        for(int i = 0;i < 14;i++)
+            for(int j = 0;j < 64;j++)
                 history[i][j] >>= 1;
+        for(int i = 0;i < 14*64*14*64;i++)
+            ref_fup_history[i] >>= 1;
     }
+
     if(move != pstack->killer[0]) {
         pstack->killer[1] = pstack->killer[0];
         pstack->killer[0] = move;
     }
-    MOVE cMove;
-    if(hply >= 1 && (cMove = hstack[hply - 1].move) 
-        && pstack->depth > UNITDEPTH) {
-        REFUTATION(cMove) = move;
+
+    for(int i = 1; i <= 2 && hply >= i; i++) {
+        const MOVE& cMove = hstack[hply - i].move;
+        if(cMove) {
+            REF_FUP_HISTORY(cMove,move) += temp;
+            for(int i = 0; i < pstack->current_index - 1;i++) {
+                const MOVE& mv = pstack->move_st[i];
+                if(!is_cap_prom(mv))
+                    REF_FUP_HISTORY(cMove,mv) -= temp;
+            }
+        }
+        if(i == 1 && pstack->depth > UNITDEPTH)
+            REFUTATION(cMove) = move;
     }
 }
+void SEARCHER::allocate_history() {
+    memset(history,0,sizeof(history));
+    memset(refutation,0,sizeof(refutation));
+    aligned_reserve<int>(ref_fup_history, 14*64*14*64);
+    memset(ref_fup_history,0,sizeof(int)*14*64*14*64);
+}
 void SEARCHER::clear_history() {
-    if(first_search) {
-        memset(history,0,sizeof(history));
-        memset(refutation,0,sizeof(refutation));
-    } else {
-        for(int i = 0;i < 14;i++)
-            for(int j = 0;j < 64;j++)
-                history[i][j] >>= 2;
-    }
-    for(int i = 0;i < MAX_PLY;i++) {
+    for(int i = 0;i < 14;i++)
+        for(int j = 0;j < 64;j++)
+            history[i][j] >>= 2;
+    for(int i = 0;i < 14*64*14*64;i++)
+        ref_fup_history[i] >>= 2;
+    for(int i = 0;i < MAX_PLY;i++)
         stack[i].killer[0] = stack[i].killer[1] = 0;
-    }
 }
 
 #undef HISTORY

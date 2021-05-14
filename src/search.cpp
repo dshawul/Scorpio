@@ -1361,7 +1361,6 @@ MOVE SEARCHER::iterative_deepening() {
 #endif
     poll_nodes = 5000;
     PROCESSOR::age = (hply & AGE_MASK);
-    clear_history();
     show_full_pv = false;
     freeze_tree = false;
 
@@ -1901,6 +1900,7 @@ MOVE SEARCHER::find_best() {
 #ifdef PARALLEL
     PROCESSOR::set_num_searchers();
 #endif
+    clear_history();
 
     /*fen*/
     if(pv_print_style == 0) {

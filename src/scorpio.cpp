@@ -67,6 +67,7 @@ static global variables of SEARCHER
 uint64_t SEARCHER::root_score_st[MAX_MOVES];
 CACHE_ALIGN int SEARCHER::history[14][64];
 CACHE_ALIGN MOVE SEARCHER::refutation[14][64];
+int* SEARCHER::ref_fup_history = 0;
 CHESS_CLOCK SEARCHER::chess_clock;
 unsigned int SEARCHER::playouts;
 int SEARCHER::search_depth;
@@ -295,6 +296,7 @@ void init_game() {
     SEARCHER::pv_print_style = 0;
     SEARCHER::resign_value = 600;
     SEARCHER::resign_count = 0;
+    SEARCHER::allocate_history();
 #ifdef BOOK_PROBE
     load_book();
 #endif

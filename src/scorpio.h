@@ -814,8 +814,10 @@ typedef struct SEARCHER{
     bool  build_book(char*,char*,int,int,int);
     void  pgn_to_epd(char*,FILE*,int=0);
     void  epd_to_nn(char*,FILE*,int=0);
+    static void  allocate_history();
     void  update_history(MOVE);
     void  clear_history();
+    int   get_history_score(const MOVE&);
     int   search_ab();
     void  evaluate_moves(int);
     float  generate_and_score_moves(int,int);
@@ -903,6 +905,7 @@ typedef struct SEARCHER{
     static uint64_t root_score_st[MAX_MOVES];
     static int history[14][64];
     static MOVE refutation[14][64];
+    static int* ref_fup_history;
     /*
     Bitbases and neural network
     */
