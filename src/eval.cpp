@@ -52,6 +52,7 @@ static evaluator
 #define   MAX_MATERIAL    64
 
 int SEARCHER::eval(bool skip_nn_l) {
+    int actual_score;
 
     /*phase of the game*/
     int phase = piece_c[white] + piece_c[black];
@@ -61,8 +62,8 @@ int SEARCHER::eval(bool skip_nn_l) {
     
     /* check_eval hash table */
     if(!use_nn || (use_nn && !skip_nn && !skip_nn_l)) {
-        if(probe_eval_hash(hash_key,pstack->actual_score))
-            return pstack->actual_score;
+        if(probe_eval_hash(hash_key,actual_score))
+            return actual_score;
     }
 
     /*number of evaluation calls*/
@@ -71,9 +72,9 @@ int SEARCHER::eval(bool skip_nn_l) {
 #ifdef EGBB
     /* neural network evaluation */
     if(use_nn && !skip_nn && !skip_nn_l) {
-        pstack->actual_score = probe_neural();
-        record_eval_hash(hash_key,pstack->actual_score);
-        return pstack->actual_score;
+        actual_score = probe_neural();
+        record_eval_hash(hash_key,actual_score);
+        return actual_score;
     }
     /*nnue evaluation*/
     if(use_nnue) {
@@ -83,9 +84,9 @@ int SEARCHER::eval(bool skip_nn_l) {
         nnue_score = (nnue_score * (720 + (phase * PAWN_MG) / 32)) / 1024;
         nnue_score += TEMPO_BONUS + (phase * TEMPO_SLOPE) / MAX_MATERIAL;
 
-        pstack->actual_score = nnue_score;
-        record_eval_hash(hash_key,pstack->actual_score);
-        return pstack->actual_score;
+        actual_score = nnue_score;
+        record_eval_hash(hash_key,actual_score);
+        return actual_score;
     }
 #endif
 
@@ -729,33 +730,33 @@ int SEARCHER::eval(bool skip_nn_l) {
     adjust score and save in tt
     */
     if(player == white) {
-        pstack->actual_score = ((w_score.mid - b_score.mid) * (phase) +
+        actual_score = ((w_score.mid - b_score.mid) * (phase) +
                                (w_score.end - b_score.end) * (MAX_MATERIAL - phase)) / MAX_MATERIAL;
-        if(pstack->actual_score > 0) {
-            pstack->actual_score = (pstack->actual_score * w_win_chance) / 8;
+        if(actual_score > 0) {
+            actual_score = (actual_score * w_win_chance) / 8;
         } else {
-            pstack->actual_score = (pstack->actual_score * b_win_chance) / 8;
+            actual_score = (actual_score * b_win_chance) / 8;
         }
     } else {
-        pstack->actual_score = ((b_score.mid - w_score.mid) * (phase) +
+        actual_score = ((b_score.mid - w_score.mid) * (phase) +
                                (b_score.end - w_score.end) * (MAX_MATERIAL - phase)) / MAX_MATERIAL;
-        if(pstack->actual_score > 0) {
-            pstack->actual_score = (pstack->actual_score * b_win_chance) / 8;
+        if(actual_score > 0) {
+            actual_score = (actual_score * b_win_chance) / 8;
         } else {
-            pstack->actual_score = (pstack->actual_score * w_win_chance) / 8;
+            actual_score = (actual_score * w_win_chance) / 8;
         }
     }
 
     /*side to move*/
-    pstack->actual_score += (TEMPO_BONUS + (phase * TEMPO_SLOPE) / MAX_MATERIAL);
+    actual_score += (TEMPO_BONUS + (phase * TEMPO_SLOPE) / MAX_MATERIAL);
     
     /*save it in eval cache*/
 #ifndef TUNE
     if(!use_nn || (use_nn && !skip_nn && !skip_nn_l))
-        record_eval_hash(hash_key,pstack->actual_score);
+        record_eval_hash(hash_key,actual_score);
 #endif
     
-    return pstack->actual_score;
+    return actual_score;
 }
 /*
 piece square tables - middle/endgame 
@@ -1651,12 +1652,6 @@ static PARAM ELO_MODEL = 0;
 static int LR_FACTOR = 100;
 static const int nPadJac = 3;
 
-static inline double score_to_elo(double p) {
-    return 400.0 * log10(p / (1 - p));
-}
-static inline double gamma_to_elo(double g) {
-    return 400.0 * log10(g);
-}
 static inline double elo_to_gamma(double eloDelta) {
     return pow(10.0,eloDelta / 400.0);
 }
@@ -1690,7 +1685,7 @@ static double loss_prob(double eloDelta, int eloH, int eloD) {
 }
 static double get_scale(double eloD, double eloH) {
     const double K = log(10)/400.0;
-    double df;
+    double df = 0;
     if(ELO_MODEL == 0) {
         double f = 1.0 / (1 + exp(-K*(eloD - eloH)));
         df = f * (1 - f) * K;

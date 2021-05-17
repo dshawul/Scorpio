@@ -612,7 +612,6 @@ typedef struct STACK{
     MOVE killer[2];
     MOVE refutation;
     int qcheck_depth;
-    int actual_score;
     uint64_t start_nodes;
     MOVE move_st[MAX_MOVES];
     int score_st[MAX_MOVES];

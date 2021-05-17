@@ -1131,7 +1131,6 @@ void SEARCHER::COPY(SEARCHER* srcSearcher) {
         dstack->search_state = sstack->search_state;
         dstack->node_type = sstack->node_type;
         dstack->next_node_type = sstack->next_node_type;
-        dstack->actual_score = sstack->actual_score;
         dstack->o_alpha = sstack->o_alpha;
         dstack->o_beta = sstack->o_beta;
         dstack->o_depth = sstack->o_depth;
