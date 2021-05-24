@@ -1,14 +1,3 @@
-### Table of Contents
-1. [Scorpio](#scorpio)
-2. [Installation](#install)
-3. [Goals](#goals)
-4. [Parallel](#parallel)
-5. [MCTS](#mcts)
-6. [Neural Networks](#nns)
-7. [EGBB](#egbb)
-8. [Acknowledgement](#ackn)
-9. [Book](#book)
-
 <a name="scorpio"></a>
 ### Scorpio
 

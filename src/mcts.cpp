@@ -824,6 +824,7 @@ float Node::Avg_score_mem(Node* n, float score, int visits) {
     sc += double(score - sc) * visits / (n->visits + visits);
     return sc;
 }
+#if 1
 float Node::Rms_score_mem(Node* n, float score, int visits) {
 #define signof(x) (((x) > 0) ? 1 : -1)
     float sc, sc1;
@@ -842,6 +843,15 @@ float Node::Rms_score_mem(Node* n, float score, int visits) {
     return sc;
 #undef signof
 }
+#else
+float Node::Rms_score_mem(Node* n, float score, int visits) {
+    float sc = pow(n->score, rms_power);
+    float sc1 = pow(score, rms_power);
+    sc += double(sc1 - sc) * visits / (n->visits + visits);
+    sc = pow(sc, 1.0 / rms_power);
+    return sc;
+}
+#endif
 void Node::Backup(Node* n,float& score,int visits) {
     if(rollout_type == MCTS) {
         float pscore = score;

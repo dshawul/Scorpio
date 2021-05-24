@@ -111,12 +111,12 @@ better of with delay=1
 
 ## NNUE installation
 If you want to use Scorpio as a NNUE engine, you have to edit scorpio.ini manually after installing it
-as a NN engines as described above. Scorpio comes with the dh-0.2.bin, as Stockfish style net, by default.
-So to use NNUE, we need to turn off NN usage and turn on NNUE usage
+as a NN engines as described above. Scorpio comes with its own NNUE net (net-scorpio-k16.bin), DarkHorse net
+from dkappe (dh-0.2.bin), and latest Stockfish net. To use NNUE, we need to turn off NN usage and turn on NNUE usage
 
       montecarlo 0      # Turn of montecarlo for NNUE
       mt         4      # If you have a 4 threads machine.
       use_nn     0      # Turn off NN
       use_nnue   1      # Turn on NNUE
-      nnue_type  0      # This is default
-      nnue_scale 256    # dh-0.2 bin needs larger scaling than other SF style nets that need 128
+      nnue_type  1      # Set this to 0 for Stockfish style nets including dh-0.2
+      nnue_scale 256    # Use 256 for scorpio's own NNUE and dh-0.2, and 128 for Stockfish nets

@@ -419,10 +419,10 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
     */
     if(noncap_reduce && nmoves >= 2) {
         //by number of moves searched so far including current move
-        for(int i = 0;i < 8;i++) {
+        for(int i = 0; i < 8; i++) {
             if(nmoves >= lmr_count[i] && pstack->depth > UNITDEPTH) {
                 reduce(UNITDEPTH);
-            }
+            } else break;
         }
         //lets find more excuses to reduce
         //all and cut nodes

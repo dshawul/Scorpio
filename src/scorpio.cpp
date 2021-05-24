@@ -916,10 +916,10 @@ int xboard_commands(char** commands,char* command,int& command_num,int& do_searc
         print("feature smp=0 memory=0 debug=1\n");
         print_options();
         print_search_params();
+        print_mcts_params();
 #ifdef TUNE
         print_eval_params();
 #endif
-        print_mcts_params();
         print("feature done=1\n");
         command_num++;
     } else if (!strcmp(command, "computer")
