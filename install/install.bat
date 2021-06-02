@@ -114,9 +114,9 @@ powershell Expand-Archive -Force %CWD%%FILENAME% -DestinationPath %CWD%
 DEL %CWD%%FILENAME%
 
 REM --------- download networks
-SET NETS=
+SET NETS=nets-nnue.zip
 IF %ISCNET% NEQ 0 (
-   SET NETS=nets-scorpio.zip nets-nnue.zip
+   SET NETS=%NETS% nets-scorpio.zip
 )
 IF %GPUS% NEQ 0 (
     IF %ILCNET% NEQ 0 (
@@ -132,9 +132,11 @@ for %%N in ( %NETS% ) DO (
 cd %EGBB%
 icacls "*.*" /grant %USERNAME%:F
 cd ..
+MOVE "%EGBB%\*.*" "%CWD%bin/Windows"
+RMDIR /S /Q %EGBB%
 
 REM ---------- paths
-SET egbbp=%CWD%%EGBB%
+SET egbbp=%CWD%bin/Windows
 SET egbbfp=%CWD%egbb
 SET EXE="%CWD%bin/Windows/scorpio.bat"
 
@@ -226,6 +228,18 @@ for /F "delims=" %%A in (scorpio.ini) do (
      echo egbb_files_path          %egbbfp%>> output.txt
    ) ELSE IF /i "!LMN:~0,9!"=="nnue_path" (
      echo nnue_path                %nnuep%>> output.txt
+   ) ELSE IF /i "!LMN:~0,10!"=="montecarlo" (
+     IF %ISCNET% EQU 0 (
+        echo montecarlo          0 >> output.txt
+     ) ELSE (
+        echo montecarlo          1 >> output.txt
+     )
+   ) ELSE IF /i "!LMN:~0,7!"=="use_nn " (
+     IF %ISCNET% EQU 0 (
+        echo use_nn                   0 >> output.txt
+     ) ELSE (
+        echo use_nn                   1 >> output.txt
+     )
    ) ELSE IF /i "!LMN:~0,2!"=="mt" (
      echo mt                  %THREADS% >> output.txt
    ) ELSE IF /i "!LMN:~0,5!"=="delay" (
@@ -306,8 +320,6 @@ MOVE output.txt scorpio.ini
 ENDLOCAL
 
 REM ----------
-IF %ISCNET% NEQ 0 (
-   echo "Making a test run"
-   CALL %EXE% go quit
-)
+echo "Making a test run"
+CALL %EXE% go quit
 cd ..

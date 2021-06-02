@@ -28,10 +28,16 @@ VR=`echo $VERSION | tr -d '.'`
 
 # Autodetect operating system
 OS=windows
+exep=bin/Windows
 if [[ "$OSTYPE" == "linux-gnu" ]]; then
   OS=ubuntu
+  exep=bin/Linux
 elif [[ "$OSTYPE" == "darwin"* ]]; then
   OS=macosx
+  exep=bin/Macosx
+else
+  OS=android
+  exep=bin/Android
 fi
 
 # number of cores and gpus
@@ -110,9 +116,9 @@ wget --no-check-certificate ${LNK}/${VERSION}/${EGBB}.zip
 unzip -o ${EGBB}.zip
 
 # networks
-NET=
+NET="nets-nnue"
 if [ $ISCNET -eq 1 ]; then
-    NET="nets-scorpio nets-nnue"
+    NET="${NET} nets-scorpio"
 fi
 if [ $DEV = "gpu" ] && [ $ILCNET -eq 1 ]; then
     NET="${NET} nets-lczero nets-ender"
@@ -136,15 +142,19 @@ rm -rf *.zip
 chmod 755 ${EGBB}
 cd ${EGBB}
 chmod 755 *
-cd ../..
+cd ..
+mv ${EGBB}/* ${exep}
+rm -rf ${EGBB}
+cd ..
 
 #paths
 cd $SCORPIO
 PD=`pwd`
 PD=`echo $PD | sed 's/\/cygdrive//g'`
 PD=`echo $PD | sed 's/\/c\//c:\//g'`
-egbbp=${PD}/${EGBB}
+egbbp=${PD}/${exep}
 egbbfp=${PD}/egbb
+exep=${PD}/${exep}
 
 nnuep=${PD}/nets-nnue/net-scorpio-k16.bin
 if [ $DEV = "gpu" ]; then
@@ -171,13 +181,6 @@ else
     wdl_head=0
     wdl_head_e=0
     wdl_head_m=0
-fi
-if [ $OS = "windows" ]; then
-    exep=${PD}/bin/Windows
-elif [ $OS = "android" ]; then
-    exep=${PD}/bin/Android
-else
-    exep=${PD}/bin/Linux
 fi
 cd $exep
 
@@ -262,6 +265,10 @@ if [ $nn_type_e -ge 0 ]; then
       sed -i "s/^wdl_head_e.*/wdl_head_e               1/g" scorpio.ini
     fi
 fi
+if [ $ISCNET -eq 0 ]; then
+    sed -i "s/^montecarlo.*/montecarlo          0/g" scorpio.ini
+    sed -i "s/^use_nn .*/use_nn                   0/g" scorpio.ini
+fi
 
 # Prepare script for scorpio and set PATH env variable
 if [ $OS = "windows" ]; then
@@ -273,7 +280,5 @@ fi
 cd ../..
 
 # Test
-if [ $ISCNET -eq 1 ]; then
-   echo "Making a test run"
-   $exep/$EXE go quit
-fi
+echo "Making a test run"
+$exep/$EXE go quit
