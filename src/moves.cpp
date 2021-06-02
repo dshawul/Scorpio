@@ -1478,12 +1478,6 @@ void SEARCHER::gen_checks(){
 /*
 history score
 */
-#define HISTORY(move) (history[m_piece(move)][SQ8864(m_to(move))])
-#define REFUTATION(move) (refutation[m_piece(move)][SQ8864(m_to(move))])
-#define REF_FUP_HISTORY(movec,move) (\
-            ref_fup_history[m_piece(movec)*64*14*64 + SQ8864(m_to(movec))*14*64 + \
-                            m_piece(move)*64 + SQ8864(m_to(move))])
-
 int SEARCHER::get_history_score(const MOVE& move) {
     int score = HISTORY(move) - MAX_HIST + 400;
     for(int i = 1; i <= 2 && hply >= i; i++) {
@@ -1799,15 +1793,19 @@ void SEARCHER::gen_all_legal() {
 /*
 * History and killers
 */
+static FORCEINLINE int update_h(int& h, int temp) {
+    h += (temp << 5)  - ((h * ABS(temp)) >> 9);
+    return h;
+}
 void SEARCHER::update_history(MOVE move) {
-    int temp = (pstack->depth * pstack->depth);
+    int temp = MIN(361, pstack->depth * pstack->depth);
     int maxh, maxh1;
 
-    maxh = (HISTORY(move) += temp);
+    maxh = update_h(HISTORY(move),temp);
     for(int i = 0; i < pstack->current_index - 1;i++) {
         const MOVE& mv = pstack->move_st[i];
         if(!is_cap_prom(mv)) {
-            maxh1 = -(HISTORY(mv) -= temp);
+            maxh1 = -update_h(HISTORY(mv),-temp);
             if(maxh1 > maxh) maxh = maxh1;
         }
     }
@@ -1828,11 +1826,11 @@ void SEARCHER::update_history(MOVE move) {
     for(int i = 1; i <= 2 && hply >= i; i++) {
         const MOVE& cMove = hstack[hply - i].move;
         if(cMove) {
-            REF_FUP_HISTORY(cMove,move) += temp;
+            update_h(REF_FUP_HISTORY(cMove,move),temp);
             for(int i = 0; i < pstack->current_index - 1;i++) {
                 const MOVE& mv = pstack->move_st[i];
                 if(!is_cap_prom(mv))
-                    REF_FUP_HISTORY(cMove,mv) -= temp;
+                    update_h(REF_FUP_HISTORY(cMove,mv),-temp);
             }
         }
         if(i == 1 && pstack->depth > UNITDEPTH)
@@ -1855,6 +1853,4 @@ void SEARCHER::clear_history() {
         stack[i].killer[0] = stack[i].killer[1] = 0;
 }
 
-#undef HISTORY
-#undef REFUTATION
 

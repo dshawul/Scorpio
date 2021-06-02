@@ -1041,6 +1041,14 @@ FORCEINLINE void SEARCHER::POP_NULL() {
     undo_null();
 }
 /*
+history
+*/
+#define HISTORY(move) (history[m_piece(move)][SQ8864(m_to(move))])
+#define REFUTATION(move) (refutation[m_piece(move)][SQ8864(m_to(move))])
+#define REF_FUP_HISTORY(movec,move) (\
+            ref_fup_history[m_piece(movec)*64*14*64 + SQ8864(m_to(movec))*14*64 + \
+                            m_piece(move)*64 + SQ8864(m_to(move))])
+/*
 sort move list
 */
 #define SWAP(ii,jj) {                   \

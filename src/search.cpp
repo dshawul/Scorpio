@@ -28,13 +28,11 @@ int contempt = 10;
 
 static PARAM aspiration_window = 10;
 static PARAM futility_margin[] = {0, 143, 232, 307, 615, 703, 703, 960};
-static PARAM failhigh_margin[] = {0, 126, 304, 382, 620, 725, 1280, 0};
+static PARAM failhigh_margin[] = {0, 120, 240, 360, 480, 600, 720, 840};
 static PARAM razor_margin[] = {0, 136, 181, 494, 657, 0, 0, 0};
 static PARAM lmp_count[] = {0, 10, 10, 15, 21, 24, 44, 49};
 static PARAM lmr_count[] = {4, 6, 7, 8, 13, 20, 25, 31};
-static PARAM lmr_all_count = 3;
-static PARAM lmr_cut_count = 5;
-static PARAM lmr_root_count[] = {4, 8};
+static PARAM lmr_ntype_count[] = {17, 5, 5};
 
 /*
 * Update pv
@@ -82,14 +80,12 @@ bool SEARCHER::hash_cutoff() {
     }
 #endif
 
-#if 1
     /*legality checking*/
     if(pstack->hash_move
         && !is_legal_fast(pstack->hash_move)
         ) {
         pstack->hash_move = 0;
     }
-#endif
 
     /*cutoff*/
     if(pstack->singular && pstack->hash_flags != HASH_GOOD)
@@ -129,7 +125,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
     /*razoring & static pruning*/
     if(use_selective
         && all_man_c > MAX_EGBB
-        && pstack->depth <= 6 * UNITDEPTH
+        && pstack->depth <= 7 * UNITDEPTH
         && (pstack - 1)->search_state != NULL_MOVE
         && !pstack->extension
         && pstack->node_type != PV_NODE
@@ -243,7 +239,6 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 }
 
 FORCEINLINE int SEARCHER::on_qnode_entry() {
-    int score;
 
     /*prefetch*/
     prefetch_tt();
@@ -288,7 +283,7 @@ FORCEINLINE int SEARCHER::on_qnode_entry() {
 
     /*stand pat*/
     if((hply >= 1 && !hstack[hply - 1].checks) || !ply) {
-        score = eval();
+        int score = eval();
         pstack->best_score = score;
         if(score > pstack->alpha) {
             if(score >= pstack->beta)
@@ -303,9 +298,9 @@ FORCEINLINE int SEARCHER::on_qnode_entry() {
 int SEARCHER::is_pawn_push(MOVE move) const {
     if(PIECE(m_piece(move)) == pawn) {
         if(opponent == white) {
-            if(rank(m_from(move)) >= RANK5) return 1;
+            if(rank(m_from(move)) >= RANK6) return 1;
         } else {
-            if(rank(m_from(move)) <= RANK4) return 1;
+            if(rank(m_from(move)) <= RANK3) return 1;
         }
     }
     return 0;
@@ -333,14 +328,15 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
 
     /*root*/
     if(ply == 1) {
-        if(nmoves >= lmr_root_count[0]
-            && !hstack[hply - 1].checks
+        if(!hstack[hply - 1].checks
             && !is_cap_prom(move)
             && !is_pawn_push(move)
             ) {
-            reduce(UNITDEPTH);
-            if(nmoves >= lmr_root_count[1] && pstack->depth > UNITDEPTH)
-                reduce(UNITDEPTH);
+            for(int i = 0; i < 8; i++) {
+                if(nmoves >= lmr_count[i] && pstack->depth > UNITDEPTH) {
+                    reduce(UNITDEPTH);
+                } else break;
+            }
         }
         return false;
     }
@@ -399,7 +395,14 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
                 return true;
 
             //see
-            if(see(move) <= -100 * depth)
+            if(PIECE(m_piece(move)) != king
+                && piece_see_v[m_piece(move)] >= 100 * depth 
+                && see(move) <= -100 * depth)
+                return true;
+
+            //history prunining
+            const MOVE& cMove = hstack[hply - 2].move;
+            if(depth <= 3 && REF_FUP_HISTORY(cMove,move) <= -1024)
                 return true;
 
             //futility
@@ -426,18 +429,20 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
         }
         //lets find more excuses to reduce
         //all and cut nodes
-        if( ( (node_t == ALL_NODE && nmoves >= lmr_all_count) ||
-              (node_t == CUT_NODE && nmoves >= lmr_cut_count) )
+        if(nmoves >= lmr_ntype_count[node_t]
             && pstack->depth > UNITDEPTH
             ) { 
             reduce(UNITDEPTH);
-            if(nmoves >= 8 && pstack->depth > UNITDEPTH) { reduce(UNITDEPTH); }
         }
-        //pv is capture move
-        if((pstack-1)->hash_move == (pstack-1)->best_move &&
-            is_cap_prom((pstack-1)->hash_move) && pstack->depth > UNITDEPTH) {
-            reduce(UNITDEPTH);
-            if(nmoves >= 8 && pstack->depth > UNITDEPTH) { reduce(UNITDEPTH); }
+        //has tt move
+        if((pstack-1)->hash_move == (pstack-1)->best_move) {
+            //reduce early moves
+            if(nmoves < lmr_count[0] && pstack->depth > UNITDEPTH) { reduce(UNITDEPTH); }
+            //capture tt move
+            if(is_cap_prom((pstack-1)->hash_move)) {
+                if(pstack->depth > UNITDEPTH) { reduce(UNITDEPTH); }
+                if(nmoves >= 8 && pstack->depth > UNITDEPTH) { reduce(UNITDEPTH); }
+            }
         }
         //see reduction
         if(depth > 7 && pstack->depth > UNITDEPTH && see(move) < 0) {
@@ -2032,12 +2037,8 @@ bool check_search_params(char** commands,char* command,int& command_num) {
         lmp_count[atoi(&command[9])] = atoi(commands[command_num++]);
     } else if(!strncmp(command, "lmr_count",9)) {
         lmr_count[atoi(&command[9])] = atoi(commands[command_num++]);
-    } else if(!strncmp(command, "lmr_root_count",14)) {
-        lmr_root_count[atoi(&command[14])] = atoi(commands[command_num++]);
-    } else if(!strcmp(command, "lmr_all_count")) {
-        lmr_all_count = atoi(commands[command_num++]);
-    } else if(!strcmp(command, "lmr_cut_count")) {
-        lmr_cut_count = atoi(commands[command_num++]);
+    } else if(!strncmp(command, "lmr_ntype_count",15)) {
+        lmr_ntype_count[atoi(&command[15])] = atoi(commands[command_num++]);
     } else if(!strcmp(command, "aspiration_window")) {
         aspiration_window = atoi(commands[command_num++]);
 #endif
