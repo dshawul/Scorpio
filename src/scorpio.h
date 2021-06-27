@@ -393,14 +393,36 @@ typedef struct tagEVALHASH {
 /*
 * Edges of the tree
 */
+
+FORCEINLINE uint16_t get_halfp(int32_t p) {
+  p += ((1 << 11) - (3 << 28));
+  return (p < 0) ? 0 : (uint16_t)(p >> 12);
+}
+
+FORCEINLINE float get_float(uint16_t p) {
+  uint32_t r = ((uint32_t)(p) << 12) | (3 << 28);
+  return *((float*) &r);
+}
+
 struct Edges {
     int* _data;
     float score;
     VOLATILE unsigned short count;
-    VOLATILE unsigned short n_children; 
+    VOLATILE unsigned short n_children;
 
-    MOVE* const moves() { return (MOVE*)_data; };
-    float* const scores() { return (float*)(((MOVE*)_data) + count); };
+    MOVE get_move(int idx) const {
+        return ((MOVE*)_data)[idx];
+    }
+    void set_move(int idx, const MOVE& move) {
+        ((MOVE*)_data)[idx] = move;
+    }
+    float get_score(int idx) const {
+        uint16_t score = ((uint16_t*)(((MOVE*)_data) + count))[idx];
+        return get_float(score);
+    };
+    void set_score(int idx, int count_, int score) {
+        ((uint16_t*)(((MOVE*)_data) + count_))[idx] = get_halfp(score);
+    };
 
     enum { CREATE = (1 << 14) };
 

@@ -37,7 +37,7 @@ static float rand_temp_end = 0.0;
 static const float winning_threshold = 0.9;
 static const int low_visits_threshold = 100;
 static const int node_size = 
-    (sizeof(Node) + 32 * (sizeof(MOVE) + sizeof(float)));
+    (sizeof(Node) + 32 * (sizeof(MOVE) + sizeof(uint16_t)));
 static float min_policy_value = 1.0 / 100;
 static int playout_cap_rand = 1;
 static float frac_full_playouts = 0.25;
@@ -113,18 +113,18 @@ void Edges::allocate(Edges& edges, int id, int sz_) {
 
     if(sz >= MAX_MOVES_NN) {
         int64_t* n;
-        aligned_reserve<int64_t>(n, sz_);
+        aligned_reserve<int64_t>(n, (sz * 6) >> 3);
         edges._data = (int*)(n);
         return;
     } else if(mem_[id][szi].empty()) {
         int64_t* n;
         static const int MEM_INC = 128;
-        aligned_reserve<int64_t>(n, sz * MEM_INC);
+        aligned_reserve<int64_t>(n, (sz * 6 * MEM_INC) >> 3);
 
         std::vector<int*>& vec = mem_[id][szi];
         vec.reserve(MEM_INC);
         for(int i = 0;i < MEM_INC;i++)
-            vec.push_back((int*)(n) + i*sz*2);
+            vec.push_back((int*)(n) + 2 * i * ((sz * 6) >> 3));
     }
 
     std::vector<int*>& vec = mem_[id][szi];
@@ -390,7 +390,7 @@ float Node::compute_regularized_policy_reverseKL(Node* n, float factor, float fp
     if(idx < n->edges.count) {
         float a = fpu;
         float b = a + factor;
-        a += factor * n->edges.scores()[idx];
+        a += factor * n->edges.get_score(idx);
 
         if(a > alpha_min) alpha_min = a;
         if(b > alpha_max) alpha_max = b;
@@ -468,14 +468,14 @@ Node* Node::ExactPi_select(Node* n, bool has_ab, int processor_id, int ply) {
     if(n->edges.try_create()) {
         int idx = n->edges.get_children();
         if(idx < n->edges.count) {
-            uct = factor_unvisited * n->edges.scores()[idx];
+            uct = factor_unvisited * n->edges.get_score(idx);
             if(uct > bvalue) {
                 bnode = n->add_child(processor_id, idx,
-                    n->edges.moves()[idx],
-                    n->edges.scores()[idx],
+                    n->edges.get_move(idx),
+                    n->edges.get_score(idx),
                     1 - n->edges.score);
                 if(ply > 1)
-                    n->v_pol_sum += n->edges.scores()[idx];
+                    n->v_pol_sum += n->edges.get_score(idx);
                 n->edges.inc_children();
                 n->edges.clear_create();
                 return bnode;
@@ -544,16 +544,16 @@ Node* Node::Max_UCB_select(Node* n, bool has_ab, int processor_id, int ply) {
         int idx = n->edges.get_children();
         if(idx < n->edges.count) {
             if(select_formula == 0)
-                uct = fpu + factor * n->edges.scores()[idx];
+                uct = fpu + factor * n->edges.get_score(idx);
             else
-                uct = fpu + factor * sqrt(n->edges.scores()[idx]);
+                uct = fpu + factor * sqrt(n->edges.get_score(idx));
             if(uct > bvalue) {
                 bnode = n->add_child(processor_id, idx,
-                    n->edges.moves()[idx],
-                    n->edges.scores()[idx],
+                    n->edges.get_move(idx),
+                    n->edges.get_score(idx),
                     1 - n->edges.score);
                 if(ply > 1)
-                    n->v_pol_sum += n->edges.scores()[idx];
+                    n->v_pol_sum += n->edges.get_score(idx);
                 n->edges.inc_children();
                 n->edges.clear_create();
                 return bnode;
@@ -625,8 +625,8 @@ Node* Node::Max_AB_select(Node* n, int alpha, int beta, bool try_null,
             int idx = n->edges.get_children();
             if(idx < n->edges.count) {
                 bnode = n->add_child(processor_id, idx,
-                    n->edges.moves()[idx],
-                    n->edges.scores()[idx],
+                    n->edges.get_move(idx),
+                    n->edges.get_score(idx),
                     -n->edges.score);
                 n->edges.inc_children();
                 n->edges.clear_create();
@@ -948,10 +948,10 @@ void SEARCHER::create_children(Node* n) {
     n->edges.score = n->score;
     if(pstack->count) {
         Edges::allocate(n->edges, processor_id, pstack->count);
-        memcpy(n->edges.moves(), pstack->move_st,
-            pstack->count * sizeof(MOVE));
-        memcpy(n->edges.moves() + pstack->count, pstack->score_st,
-            pstack->count * sizeof(int));
+        for(int i = 0; i < pstack->count; i++) {
+            n->edges.set_move(i, pstack->move_st[i]);
+            n->edges.set_score(i, pstack->count, pstack->score_st[i]);
+        }
     }
 
     /*add children if we are at root node*/
@@ -1364,7 +1364,7 @@ double SEARCHER::compute_kld() {
     double kld = 0;
     while(current) {
         if(current->visits) {
-            float pre_noise_policy = root_node->edges.scores()[current->rank - 1];
+            float pre_noise_policy = root_node->edges.get_score(current->rank - 1);
             kld -= pre_noise_policy *
                   log(current->visits / ((pre_noise_policy + 1e-6) * root_node->visits));
         }
@@ -1847,8 +1847,8 @@ void SEARCHER::manage_tree(bool single) {
                 float rscore = (rollout_type == MCTS) ? 1 - n->edges.score : -n->edges.score;
                 for(int i = n->edges.n_children; i < n->edges.count; i++) {
                     n->add_child(processor_id, i,
-                        n->edges.moves()[i],
-                        n->edges.scores()[i],
+                        n->edges.get_move(i),
+                        n->edges.get_score(i),
                         rscore);
                     n->edges.inc_children();
                 }
