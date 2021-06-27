@@ -14,9 +14,8 @@ display_help() {
     echo "  --no-egbb          Do not install 5-men egbb."
     echo "  --no-lcnets        Do not install lczero nets."
     echo "  --no-scnets        Do not download scorpio nets."
-    echo "  --only-trt         Install only TensorRT and rely on system cuda and cudnn."
-    echo "                     72 needs cuda-11 and cudnn-8"
-    echo "                     60 needs cuda-10 and cudnn-7"
+    echo "  --trt              72 is for latest GPUs."
+    echo "                     60 is for older GPUs (default)."
     echo
     echo "Example: ./install.sh -p INT8 -t 80"
     echo
@@ -91,9 +90,9 @@ while ! [ -z "$1" ]; do
         --no-scnets )
             ISCNET=0
             ;;
-        --only-trt )
+        --trt )
             shift
-            TRT="-trt-$1"
+            [ "$1" = "72" ] && TRT="-trt-$1"
             ;;
         -h | --help)
             display_help

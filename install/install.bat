@@ -57,8 +57,10 @@ IF NOT "%1"=="" (
         SET ILCNET=0
     ) ELSE IF "%1"=="--no-scnets" (
         SET ISCNET=0
-    ) ELSE IF "%1"=="--only-trt" (
-        SET TRT="-trt-%2"
+    ) ELSE IF "%1"=="--trt" (
+        IF "%2"=="72" (
+            SET TRT="-trt-%2"
+        )
         SHIFT
     ) ELSE IF "%1"=="--help" (
         :usage
@@ -72,9 +74,8 @@ IF NOT "%1"=="" (
         echo   --no-egbb          Do not install 5-men egbb.
         echo   --no-lcnets        Do not install lczero nets.
         echo   --no-scnets        Do not install scorpio nets.
-        echo   --only-trt         Install only TensorRT and rely on system cuda and cudnn.
-        echo                      72 needs cuda-11 and cudnn-8
-        echo                      60 needs cuda-10 and cudnn-7
+        echo   --trt              72 is for latest GPUs.
+        echo                      60 is for older GPUs.
         echo
         echo Example: install.bat -p INT8 - t 80
         exit /b

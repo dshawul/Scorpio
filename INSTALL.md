@@ -14,9 +14,8 @@ and a shell script [install.sh](https://github.com/dshawul/Scorpio/releases/down
         --no-egbb          Do not install 5-men egbb.
         --no-lcnets        Do not install lczero nets.
         --no-scnets        Do not download scorpio nets.
-        --only-trt         Install only TensorRT and rely on system cuda and cudnn.
-                           72 needs cuda-11 and cudnn-8
-                           60 needs cuda-10 and cudnn-7
+        --trt              72 is for latest GPUs.
+                           60 is for older GPUs (default).
       
       Example: ./install.sh -p INT8 -t 80
 
@@ -38,11 +37,9 @@ described below.
 NN and NNUE versions of Scorpio are compiled with AVX2 support so if your machine does not support that, it will not work.
 AVX2 has been around since 2012 so your CPU most likely supports it unless it is older than that.
 
-For newer GPUs such as 3080s and 3090s, you would need to first install cuda 11.1 and cudnn 8.
-The later is too big to ship with Scorpio, so your system must have it.
-Then you can install scorpio as
+For newer GPUs such as 3080s and 3090s, you can install scorpio as
 
-      $ ./install.sh --only-trt 72
+      $ ./install.sh --trt 72
 
 This will install Scorpio with TensorRT 7.2 and use the cuda-11 and cudnn-8 on your system.
 
