@@ -1453,9 +1453,9 @@ void SEARCHER::check_mcts_quit(bool single) {
         int time_used = MAX(1,get_time() - start_time);
         int remain_time = time_factor * chess_clock.search_time - time_used;
         float imf = insta_move_factor + (time_factor - 1.0) / 2;
+        imf = MIN(imf, 0.9);
         remain_visits = (remain_time / (double)time_used) * 
-            (root_node->visits - (root_node_reuse_visits * MIN(imf,1)));
-        if(remain_visits < 0) remain_visits = 0;
+            (root_node->visits - (root_node_reuse_visits * imf));
     } else {
         remain_visits = chess_clock.max_visits - 
             (root_node->visits - (root_node_reuse_visits * insta_move_factor));
@@ -1632,7 +1632,7 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
                         }
                     }
                     
-                    if((is_selfplay || (frac >= 0.1)) && !chess_clock.infinite_mode)
+                    if((is_selfplay || (frac >= 0.2)) && !chess_clock.infinite_mode)
                         check_mcts_quit(single);
 
                     if(ensemble && (frac > ensemble_setting)) {
