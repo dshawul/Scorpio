@@ -4,6 +4,7 @@
 MAKE MOVE
 */
 void SEARCHER::do_move(const MOVE& move) {
+
     int from = m_from(move),to = m_to(move),sq,pic,pic1;
 
     /*save state*/
@@ -344,6 +345,40 @@ void SEARCHER::undo_null() {
     epsquare = phstack->epsquare;
     fifty = phstack->fifty;
     hash_key = phstack->hash_key;
+}
+/*
+encode/decode moves from 32 to 16 bit
+*/
+uint16_t SEARCHER::encode_move(MOVE move) {
+    uint16_t m = SQ8864(m_from(move)) | (SQ8864(m_to(move)) << 6);
+    if(is_prom(move))
+        m |= (PIECE(m_promote(move)) << 12);
+    else if(is_ep(move))
+        m |= (7 << 12);
+    else if(is_castle(move))
+        m |= (1 << 15);
+    return m;
+}
+MOVE SEARCHER::decode_move(uint16_t e) {
+    int from = SQ6488(e & 0x003f);
+    int to = SQ6488((e >> 6) & 0x003f);
+    int eprom = ((e >> 12) & 7);
+    int pic = board[from];
+    int cap = board[to];
+    int prom = 0;
+
+    if(eprom == 7)
+        cap = COMBINE(opponent,pawn);
+    else if(eprom > 0)
+        prom = COMBINE(player,eprom);
+
+    MOVE m = from | (to << 8) | (pic << 16) | 
+                    (cap << 20) | (prom << 24);
+    if(e & (1 << 15))
+        m |= CASTLE_FLAG;
+    else if(eprom == 7)
+        m |= EP_FLAG;
+    return m;
 }
 /*
 Generate captures

@@ -390,38 +390,44 @@ typedef struct tagEVALHASH {
     int16_t   score;
     int16_t   age;
 } EVALHASH,*PEVALHASH;
+
+struct SEARCHER;
+struct PROCESSOR;
 /*
 * Edges of the tree
 */
+class Edges {
+private:
+    uint16_t* data;
 
-FORCEINLINE uint16_t get_halfp(int32_t p) {
-  p += ((1 << 11) - (3 << 28));
-  return (p < 0) ? 0 : (uint16_t)(p >> 12);
-}
+    /*16-bit encoding of policy ala lc0*/
+    uint16_t get_halfp(int32_t p) const {
+      p += ((1 << 11) - (3 << 28));
+      return (p < 0) ? 0 : (uint16_t)(p >> 12);
+    }
 
-FORCEINLINE float get_float(uint16_t p) {
-  uint32_t r = ((uint32_t)(p) << 12) | (3 << 28);
-  return *((float*) &r);
-}
-
-struct Edges {
-    int* _data;
+    float get_float(uint16_t p) const {
+      uint32_t r = ((uint32_t)(p) << 12) | (3 << 28);
+      float ret;
+      memcpy(&ret, &r, sizeof(r));
+      return ret;
+    }
+public:
     float score;
     VOLATILE unsigned short count;
     VOLATILE unsigned short n_children;
 
-    MOVE get_move(int idx) const {
-        return ((MOVE*)_data)[idx];
+    uint16_t get_move(int idx) const {
+        return data[idx];
     }
-    void set_move(int idx, const MOVE& move) {
-        ((MOVE*)_data)[idx] = move;
+    void set_move(int idx, uint16_t move) {
+        data[idx] = move;
     }
     float get_score(int idx) const {
-        uint16_t score = ((uint16_t*)(((MOVE*)_data) + count))[idx];
-        return get_float(score);
+        return get_float(data[count + idx]);
     };
-    void set_score(int idx, int count_, int score) {
-        ((uint16_t*)(((MOVE*)_data) + count_))[idx] = get_halfp(score);
+    void set_score(int idx, int count_, int32_t score) {
+        data[count_ + idx] = get_halfp(score);
     };
 
     enum { CREATE = (1 << 14) };
@@ -433,13 +439,13 @@ struct Edges {
 
     void clear() {
         count = 0;
-        _data = 0;
+        data = 0;
         n_children = 0;
     }
 
     static void allocate(Edges&, int, int);
     static void reclaim(Edges&, int);
-    static std::vector<int*> mem_[MAX_CPUS][MAX_MOVES_NN >> 3];
+    static std::vector<uint16_t*> mem_[MAX_CPUS][MAX_MOVES_NN >> 3];
 };
 /*
 * Nodes of the tree
@@ -539,9 +545,9 @@ struct Node {
     static void  reset_bounds(Node*);
     static void  parallel_job(Node*, PTHREAD_PROC, bool = false);
     static Node* print_tree(Node*,bool,int = 0,int = 0);
-    static Node* Max_UCB_select(Node*,bool,int,int);
-    static Node* Max_AB_select(Node*,int,int,bool,bool,int);
-    static Node* ExactPi_select(Node*,bool,int,int);
+    static Node* Max_UCB_select(Node*,bool,SEARCHER*);
+    static Node* Max_AB_select(Node*,int,int,bool,bool,SEARCHER*);
+    static Node* ExactPi_select(Node*,bool,SEARCHER*);
     static Node* Best_select(Node*,bool);
     static Node* Random_select(Node*,int);
     static float Min_score(Node*);
@@ -643,8 +649,6 @@ typedef struct STACK{
     void sort_all();
 } *PSTACK;
 
-struct SEARCHER;
-struct PROCESSOR;
 /*
  * MESSAGES
  */
@@ -851,6 +855,8 @@ typedef struct SEARCHER{
     void  search_mc(bool=false, unsigned int = 0);
     void  print_status();
     void  idle_loop_main();
+    MOVE decode_move(uint16_t);
+    uint16_t encode_move(MOVE);
     /*counts*/
     uint64_t nodes;
     uint64_t qnodes;
