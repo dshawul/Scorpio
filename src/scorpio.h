@@ -432,13 +432,13 @@ struct Node {
     /*64 bytes data*/
     Node* child;
     Node* next;
+    Edges edges;
     MOVE move;
     float policy;
     union {
         float prior;
         float v_pol_sum;
     };
-    Edges edges;
     VOLATILE unsigned int visits;
     VOLATILE float score;
     VOLATILE unsigned short busy;
