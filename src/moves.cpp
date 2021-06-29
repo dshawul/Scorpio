@@ -372,12 +372,14 @@ MOVE SEARCHER::decode_move(uint16_t e) {
     else if(eprom > 0)
         prom = COMBINE(player,eprom);
 
-    MOVE m = from | (to << 8) | (pic << 16) | 
-                    (cap << 20) | (prom << 24);
-    if(e & (1 << 15))
+    MOVE m = 0;
+    if(e & (1 << 15)) {
         m |= CASTLE_FLAG;
-    else if(eprom == 7)
+        cap = 0;
+    } else if(eprom == 7)
         m |= EP_FLAG;
+    m |= from | (to << 8) | (pic << 16) | 
+                (cap << 20) | (prom << 24);
     return m;
 }
 /*
