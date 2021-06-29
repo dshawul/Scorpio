@@ -2033,6 +2033,8 @@ float SEARCHER::generate_and_score_moves(int alpha, int beta) {
             }
         } else {
             rscore = probe_neural();
+            if(rscore > 1.0) rscore = 1.0;
+            else if(rscore < 0.0) rscore = 0.0;
             if(rollout_type == ALPHABETA)
                 rscore = logit(rscore);
             n_collisions = 0;
