@@ -466,12 +466,14 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
             reduce(2 * UNITDEPTH);
         }
     }
+#if 0
     /* slow neural network pruning*/
     if(use_nn && !skip_nn && nmoves >= 3) {
         reduce(4 * UNITDEPTH);
         if(pstack->depth <= 0)
             return true;
     }
+#endif
     /*
     end
     */

@@ -1,8 +1,83 @@
 #include "scorpio.h"
  
+/* parameter */
+#ifdef TUNE
+#   define PARAM int
+#else
+#   define PARAM const int
+#endif
+
 /*
-masks
+* Tunable parameters
 */
+#define PARAMS_FILE "params.h"
+
+#include PARAMS_FILE
+
+/*material count*/
+#define   MAX_MATERIAL    64
+
+#ifdef TUNE
+static int material = 0;
+#endif
+
+/*
+static evaluator
+*/
+int SEARCHER::eval(bool skip_nn_l)
+{
+    int actual_score;
+    bool use_nn_hard = (use_nn && !skip_nn && !skip_nn_l);
+
+    /*phase of the game*/
+    int phase = piece_c[white] + piece_c[black];
+    phase = MIN(phase,MAX_MATERIAL);
+
+#ifndef TUNE
+    /* check_eval hash table */
+    if(!use_nn || use_nn_hard) {
+        if(probe_eval_hash(hash_key,actual_score))
+            return actual_score;
+    }
+#endif
+
+    /*number of evaluation calls*/
+    ecalls++;
+
+#ifdef EGBB
+    /* neural network evaluation */
+    if(use_nn_hard) {
+        actual_score = logit(probe_neural());
+    }
+    /*nnue evaluation*/
+    else if(use_nnue) {
+        int nnue_score;
+        nnue_score = probe_nnue();
+        nnue_score = (nnue_score * nnue_scale) / 128;
+        nnue_score = (nnue_score * (720 + (phase * PAWN_MG) / 32)) / 1024;
+        nnue_score += TEMPO_BONUS + (phase * TEMPO_SLOPE) / MAX_MATERIAL;
+        actual_score = nnue_score;
+    }
+#endif
+    /*hand-crafted evaluation*/
+    else {
+        actual_score = eval_hce();
+    }
+    /* save evaluation in hash table*/
+#ifndef TUNE
+    if(!use_nn || use_nn_hard) {
+        record_eval_hash(hash_key,actual_score);
+    }
+#endif
+    return actual_score;
+}
+
+/*
+Hand-crafted evaluation
+*/
+const uint64_t lsquares = UINT64(0x55aa55aa55aa55aa);
+const uint64_t dsquares = UINT64(0xaa55aa55aa55aa55);
+
 static const uint8_t  mask[8] = {
     1,  2,  4,  8, 16, 32, 64,128
 };
@@ -15,82 +90,23 @@ static const uint8_t  down_mask[8] = {
 static const uint8_t  updown_mask[8] = {
     254, 253, 251, 247, 239, 223, 191, 127
 };
-/* parameter */
-#ifdef TUNE
-#   define PARAM int
-#else
-#   define PARAM const int
-#endif
-/*
-* Tunable parameters
-*/
-#define PARAMS_FILE "params.h"
 
-#include PARAMS_FILE
-
-#ifdef TUNE
-static int material = 0;
-#endif
-
-const uint64_t lsquares = UINT64(0x55aa55aa55aa55aa);
-const uint64_t dsquares = UINT64(0xaa55aa55aa55aa55);
-/*
-king safety
-*/
-static int KING_ATTACK(int attack,int attackers,int tropism) {
+static int KING_ATTACK(int attack,int attackers,int tropism)
+{
     if(attackers == 0) return 0;
     int score = ((9 * ATTACK_WEIGHT * (attack >> 4) + 1 * TROPISM_WEIGHT * tropism) >> 4);
     if(attackers == 1) return (score >> 2);
     int geometric = 2 << (attackers - 2);
     return ((score) * (geometric - 1)) / geometric;
 }
-/*
-static evaluator
-*/
 
-/*max material count is 64 {actually 62}*/
-#define   MAX_MATERIAL    64
-
-int SEARCHER::eval(bool skip_nn_l) {
+int SEARCHER::eval_hce()
+{
     int actual_score;
 
     /*phase of the game*/
     int phase = piece_c[white] + piece_c[black];
     phase = MIN(phase,MAX_MATERIAL);
-
-#ifndef TUNE
-    
-    /* check_eval hash table */
-    if(!use_nn || (use_nn && !skip_nn && !skip_nn_l)) {
-        if(probe_eval_hash(hash_key,actual_score))
-            return actual_score;
-    }
-
-    /*number of evaluation calls*/
-    ecalls++;
-
-#ifdef EGBB
-    /* neural network evaluation */
-    if(use_nn && !skip_nn && !skip_nn_l) {
-        actual_score = probe_neural();
-        record_eval_hash(hash_key,actual_score);
-        return actual_score;
-    }
-    /*nnue evaluation*/
-    if(use_nnue) {
-        int nnue_score;
-        nnue_score = probe_nnue();
-        nnue_score = (nnue_score * nnue_scale) / 128;
-        nnue_score = (nnue_score * (720 + (phase * PAWN_MG) / 32)) / 1024;
-        nnue_score += TEMPO_BONUS + (phase * TEMPO_SLOPE) / MAX_MATERIAL;
-
-        actual_score = nnue_score;
-        record_eval_hash(hash_key,actual_score);
-        return actual_score;
-    }
-#endif
-
-#endif
 
     /*
     evaluate
@@ -749,13 +765,7 @@ int SEARCHER::eval(bool skip_nn_l) {
 
     /*side to move*/
     actual_score += (TEMPO_BONUS + (phase * TEMPO_SLOPE) / MAX_MATERIAL);
-    
-    /*save it in eval cache*/
-#ifndef TUNE
-    if(!use_nn || (use_nn && !skip_nn && !skip_nn_l))
-        record_eval_hash(hash_key,actual_score);
-#endif
-    
+
     return actual_score;
 }
 /*

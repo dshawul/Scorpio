@@ -813,6 +813,7 @@ typedef struct SEARCHER{
     void  check_mcts_quit(bool);
     double compute_kld();
     int   eval(bool = false);
+    int   eval_hce();
     void  eval_pawn_cover(int,int,uint8_t*,uint8_t*);
     SCORE eval_pawns(int,int,uint8_t*,uint8_t*);
     int   eval_passed_pawns(uint8_t*,uint8_t*,uint8_t&,const uint64_t&,const uint64_t&);
