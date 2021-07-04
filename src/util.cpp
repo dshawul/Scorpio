@@ -1383,7 +1383,7 @@ void CHESS_CLOCK::set_stime(int hply, bool output) {
     maximum_time -= 30;
 
     if(SEARCHER::first_search)
-        search_time = 3 * search_time / 2;
+        search_time = 1.5 * search_time;
 
     if(montecarlo)
         search_time = 1.3 * search_time;

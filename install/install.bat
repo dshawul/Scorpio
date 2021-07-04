@@ -121,7 +121,7 @@ IF %ISCNET% NEQ 0 (
 )
 IF %GPUS% NEQ 0 (
     IF %ILCNET% NEQ 0 (
-       SET NETS=%NETS% nets-lczero.zip nets-ender.zip
+       SET NETS=%NETS% nets-lczero.zip
     )
 )
 for %%N in ( %NETS% ) DO (
@@ -144,29 +144,18 @@ SET EXE="%CWD%bin/Windows/scorpio.bat"
 SET nnuep=%CWD%nets-nnue/net-scorpio-k16.bin
 IF %GPUS% NEQ 0 (
   SET nnp=%CWD%nets-scorpio/ens-net-20x256.uff
-  SET nnp_e=%CWD%nets-ender/ME.uff
-  SET nnp_m=
-  SET nn_type=0
-  IF %ILCNET% GEQ 1 (
-     SET nn_type_e=1
-  ) ELSE (
-     SET nn_type_e=-1
-  )
-  SET nn_type_m=-1
-  SET wdl_head=0
-  SET wdl_head_e=1
-  SET wdl_head_m=0
+  SET nnp_e=%CWD%nets-ender/ens-net-20x256.uff
 ) ELSE (
   SET nnp=%CWD%nets-scorpio/ens-net-12x128.pb
   SET nnp_e=%CWD%nets-scorpio/ens-net-12x128.pb
-  SET nnp_m=
-  SET nn_type=0
-  SET nn_type_e=-1
-  SET nn_type_m=-1
-  SET wdl_head=0
-  SET wdl_head_e=0
-  SET wdl_head_m=0
 )
+SET nnp_m=
+SET nn_type=0
+SET nn_type_e=-1
+SET nn_type_m=-1
+SET wdl_head=0
+SET wdl_head_e=0
+SET wdl_head_m=0
 
 REM --------- determine GPU props
 SET HAS=N

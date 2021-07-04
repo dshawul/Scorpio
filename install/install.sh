@@ -120,7 +120,7 @@ if [ $ISCNET -eq 1 ]; then
     NET="${NET} nets-scorpio"
 fi
 if [ $DEV = "gpu" ] && [ $ILCNET -eq 1 ]; then
-    NET="${NET} nets-lczero nets-ender"
+    NET="${NET} nets-lczero"
 fi
 for N in $NET; do
     wget --no-check-certificate ${LNK}/${VERSION}/$N.zip
@@ -158,29 +158,18 @@ exep=${PD}/${exep}
 nnuep=${PD}/nets-nnue/net-scorpio-k16.bin
 if [ $DEV = "gpu" ]; then
     nnp=${PD}/nets-scorpio/ens-net-20x256.uff
-    nnp_e=${PD}/nets-ender/ME.uff
-    nnp_m=
-    nn_type=0
-    if [ $ILCNET -ge 1 ]; then
-       nn_type_e=1
-    else
-       nn_type_e=-1
-    fi
-    nn_type_m=-1
-    wdl_head=0
-    wdl_head_e=1
-    wdl_head_m=0
+    nnp_e=${PD}/nets-ender/ens-net-20x256.uff
 else
     nnp=${PD}/nets-scorpio/ens-net-12x128.pb
     nnp_e=${PD}/nets-scorpio/ens-net-12x128.pb
-    nnp_m=
-    nn_type=0
-    nn_type_e=-1
-    nn_type_m=-1
-    wdl_head=0
-    wdl_head_e=0
-    wdl_head_m=0
 fi
+nnp_m=
+nn_type=0
+nn_type_e=-1
+nn_type_m=-1
+wdl_head=0
+wdl_head_e=0
+wdl_head_m=0
 cd $exep
 
 #determin GPU props
