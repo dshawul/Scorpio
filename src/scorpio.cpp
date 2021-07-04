@@ -280,7 +280,7 @@ void init_game() {
     l_create(lock_smp);
 #endif
     scorpio_start_time = get_time();
-    PROCESSOR::n_cores = get_number_of_cpus();
+    PROCESSOR::n_cores = 1;
     PROCESSOR::n_idle_processors = 0;
     PROCESSOR::n_processors = 1;
     PROCESSOR::set_main();
@@ -497,6 +497,15 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         /*
         parallel search
         */
+    } else if(!strcmp(command,"affinity")) {
+#ifdef PARALLEL
+        int affinity = atoi(commands[command_num]);
+        affinity = MIN(affinity, MAX_CPUS);
+        set_affinity(affinity);
+        if(affinity)
+            PROCESSOR::n_cores = MIN(PROCESSOR::n_cores,affinity); 
+#endif
+        command_num++;
     } else if(!strcmp(command,"mt") || !strcmp(command,"cores") || !strcmp(command,"Threads") ) {
 #ifdef PARALLEL
         if(strcmp(command,"mt") && montecarlo && SEARCHER::use_nn);

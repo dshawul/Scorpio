@@ -2595,7 +2595,8 @@ void SEARCHER::select_net() {
     if(all_man_c <= nn_man_e) {
         if(ensemble) return;
 
-        if(nn_type_e >= 0 ) {
+        if(nn_type_e >= 0) {
+            print_info("Switching to endgame net!\n");
             nn_id = 2;
             SET(e);
         } else {
@@ -2610,6 +2611,7 @@ void SEARCHER::select_net() {
         if(ensemble) return;
 
         if(nn_type_m >= 0) {
+            print_info("Switching to midgame net!\n");
             nn_id = 1;
             SET(m);
         } else {

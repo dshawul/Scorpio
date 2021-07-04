@@ -1252,34 +1252,61 @@ bool read_line(char* buffer) {
     return false;
 }
 /*
-Get number of physical/logical processors
+Set affinity and print number of physical/logical processors
 */
-int get_number_of_cpus() {
-    int cores, active;
+void set_affinity(int ncores) {
+    int cores,active;
 #ifdef _WIN32
     SYSTEM_INFO info;
     GetSystemInfo(&info);
     cores = info.dwNumberOfProcessors;
 
-    DWORD dwProcessAffinity, dwSystemAffinity;
-    GetProcessAffinityMask(GetCurrentProcess(), 
-        (DWORD_PTR*)&dwProcessAffinity, (DWORD_PTR*)&dwSystemAffinity);
-    active = 0;
-    for(int i = 0;i < cores; i++) {
-        if(dwProcessAffinity & (DWORD(1) << i))
-            active++;
-    }
+    if(ncores) {
+        DWORD_PTR dwProcessAffinity, dwSystemAffinity;
+        GetProcessAffinityMask(GetCurrentProcess(), 
+            &dwProcessAffinity, &dwSystemAffinity);
+
+        DWORD_PTR mask = 0;
+        int count = 0;
+        for(int i = 0; i < cores && count < ncores; i+=2) {
+            if(dwProcessAffinity & (DWORD_PTR(1) << i)) {
+                mask |= (DWORD_PTR(1) << i);
+                count++;
+            }
+        }
+        for(int i = 1; i < cores && count < ncores; i+=2) {
+            if(dwProcessAffinity & (DWORD_PTR(1) << i)) {
+                mask |= (DWORD_PTR(1) << i);
+                count++;
+            }
+        }
+        SetProcessAffinityMask(GetCurrentProcess(), mask);
+        active = count;
+    } else
+        active = cores;
 #elif defined(__ANDROID__) || defined(__APPLE__)
     cores = sysconf(_SC_NPROCESSORS_ONLN);
     active = cores;
 #else
-    cpu_set_t mask;
     cores = sysconf(_SC_NPROCESSORS_ONLN);
-    sched_getaffinity(0, sizeof(cpu_set_t), &mask);
-    active = CPU_COUNT(&mask);
+    if(ncores) {
+        cpu_set_t mask;
+        CPU_ZERO(&mask);
+        int count = 0;
+        for(int i = 0; i < cores && count < ncores; i+=2) {
+            CPU_SET(i, &mask);
+            count++;
+        }
+        for(int i = 1; i < cores && count < ncores; i+=2) {
+            CPU_SET(i, &mask);
+            count++;
+        }
+        sched_setaffinity(0, sizeof(cpu_set_t), &mask);
+        active = CPU_COUNT(&mask);
+    } else
+        active = cores;
 #endif
     printf("Number of cores %d of %d\n",active,cores);
-    return active;
 }
 /*
 Break down a string into tokens
