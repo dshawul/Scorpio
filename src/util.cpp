@@ -1415,8 +1415,15 @@ void CHESS_CLOCK::set_stime(int hply, bool output) {
     if(montecarlo)
         search_time = 1.3 * search_time;
 
+    int delta = (p_time - o_time) * 2 / moves_left;
     if(o_time < p_time)
-        search_time += (p_time - o_time) * 2 / moves_left;
+        search_time += delta;
+    else {
+        delta = -delta / 2;
+        if(delta > search_time / 2)
+            delta = search_time / 2;
+        search_time -= delta;
+    }
 
     p_time = pp_time;
 
