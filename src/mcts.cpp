@@ -1444,6 +1444,8 @@ void SEARCHER::check_mcts_quit(bool single) {
             time_factor *= 1.3;
         else if(ABS(rscore) > 10)
             time_factor *= 1.1;
+        if(first_search)
+            break;
         rscore = rscore - old_root_score;
     }
 
