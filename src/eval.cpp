@@ -63,7 +63,23 @@ int SEARCHER::eval(bool skip_nn_l)
     else {
         actual_score = eval_hce();
     }
-    /* save evaluation in hash table*/
+    /*scale some endgame evaluations*/
+    int w_win_chance = 8,b_win_chance = 8;
+    eval_win_chance(w_win_chance,b_win_chance);
+    if(player == white) {
+        if(actual_score > 0) {
+            actual_score = (actual_score * w_win_chance) / 8;
+        } else {
+            actual_score = (actual_score * b_win_chance) / 8;
+        }
+    } else {
+        if(actual_score > 0) {
+            actual_score = (actual_score * b_win_chance) / 8;
+        } else {
+            actual_score = (actual_score * w_win_chance) / 8;
+        }
+    }
+    /*save evaluation in hash table*/
 #ifndef TUNE
     if(!use_nn || use_nn_hard) {
         record_eval_hash(hash_key,actual_score);
@@ -116,7 +132,7 @@ int SEARCHER::eval_hce()
     int b_ksq = plist[bking]->sq;
     int fw_ksq = file(w_ksq), rw_ksq = rank(w_ksq);
     int fb_ksq = file(b_ksq), rb_ksq = rank(b_ksq);
-    int w_win_chance = 8,b_win_chance = 8,temp;
+    int temp;
 
 #ifdef TUNE
     material = phase;
@@ -124,7 +140,7 @@ int SEARCHER::eval_hce()
     /*
     evaluate winning chances for some endgames.
     */
-    eval_win_chance(w_score,b_score,w_win_chance,b_win_chance);
+    eval_imbalance(w_score,b_score);
 
     /*trapped bishop*/
     if((board[A7] == wbishop || (board[B8] == wbishop && board[C7] == bpawn))
@@ -743,24 +759,14 @@ int SEARCHER::eval_hce()
     }
 
     /*
-    adjust score and save in tt
+    scaled evaluation by phase
     */
     if(player == white) {
         actual_score = ((w_score.mid - b_score.mid) * (phase) +
-                               (w_score.end - b_score.end) * (MAX_MATERIAL - phase)) / MAX_MATERIAL;
-        if(actual_score > 0) {
-            actual_score = (actual_score * w_win_chance) / 8;
-        } else {
-            actual_score = (actual_score * b_win_chance) / 8;
-        }
+                        (w_score.end - b_score.end) * (MAX_MATERIAL - phase)) / MAX_MATERIAL;
     } else {
         actual_score = ((b_score.mid - w_score.mid) * (phase) +
-                               (b_score.end - w_score.end) * (MAX_MATERIAL - phase)) / MAX_MATERIAL;
-        if(actual_score > 0) {
-            actual_score = (actual_score * b_win_chance) / 8;
-        } else {
-            actual_score = (actual_score * w_win_chance) / 8;
-        }
+                        (b_score.end - w_score.end) * (MAX_MATERIAL - phase)) / MAX_MATERIAL;
     }
 
     /*side to move*/
@@ -1375,7 +1381,7 @@ int SEARCHER::eval_passed_pawns(uint8_t* wf_pawns,uint8_t* bf_pawns,uint8_t& all
 /*
 material score
 */
-void SEARCHER::eval_win_chance(SCORE& w_score,SCORE& b_score,int& w_win_chance,int& b_win_chance) {
+void SEARCHER::eval_imbalance(SCORE& w_score,SCORE& b_score) {
     int w_ksq = plist[wking]->sq;
     int b_ksq = plist[bking]->sq;
     int w_piece_value_c = piece_c[white];
@@ -1474,7 +1480,19 @@ void SEARCHER::eval_win_chance(SCORE& w_score,SCORE& b_score,int& w_win_chance,i
     if(!w_piece_value_c && !w_pawn_c && b_piece_value_c >= 5) {
         b_score.adde(500 - 10 * distance(w_ksq,b_ksq)); 
     }
-
+}
+/*
+winning chances
+*/
+void SEARCHER::eval_win_chance(int& w_win_chance,int& b_win_chance) {
+    int w_piece_value_c = piece_c[white];
+    int b_piece_value_c = piece_c[black];
+    int w_pawn_c = man_c[wpawn];
+    int b_pawn_c = man_c[bpawn];
+    int w_knight_c = man_c[wknight];
+    int b_knight_c = man_c[bknight];
+    int w_bishop_c = man_c[wbishop];
+    int b_bishop_c = man_c[bbishop];
     /*
     KBK,KNK,KNNK
     */

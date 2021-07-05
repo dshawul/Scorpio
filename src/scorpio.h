@@ -817,7 +817,8 @@ typedef struct SEARCHER{
     void  eval_pawn_cover(int,int,uint8_t*,uint8_t*);
     SCORE eval_pawns(int,int,uint8_t*,uint8_t*);
     int   eval_passed_pawns(uint8_t*,uint8_t*,uint8_t&,const uint64_t&,const uint64_t&);
-    void  eval_win_chance(SCORE&,SCORE&,int&,int&);
+    void  eval_imbalance(SCORE&,SCORE&);
+    void  eval_win_chance(int&,int&);
     static void  pre_calculate();
 #ifdef TUNE
     void  update_pcsq(int,int,int);
