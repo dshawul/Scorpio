@@ -79,6 +79,8 @@ int SEARCHER::eval(bool skip_nn_l)
             actual_score = (actual_score * w_win_chance) / 8;
         }
     }
+    /*scale by 50 move rule*/
+    actual_score = (actual_score * (100 - fifty)) / 100;
     /*save evaluation in hash table*/
 #ifndef TUNE
     if(!use_nn || use_nn_hard) {
