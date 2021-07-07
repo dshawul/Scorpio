@@ -1183,6 +1183,8 @@ SELECT:
 
         /*This could happen in parallel search*/
         if(!next) {
+            if(use_nn)
+                handle_terminals(n);
             score = n->score;
             goto FINISH;
         }
