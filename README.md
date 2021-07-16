@@ -1,3 +1,9 @@
+<p align="center">
+  <img width="230px" src="./ScorpioNN.png"/>
+</p>
+
+[![Scorpio](https://github.com/dshawul/Scorpio/actions/workflows/scorpio.yml/badge.svg)](https://github.com/dshawul/Scorpio/actions)
+
 <a name="scorpio"></a>
 ### Scorpio
 

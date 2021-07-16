@@ -1,0 +1,51 @@
+name: Scorpio
+on: [push, pull_request]
+jobs:
+  Scorpio:
+    name: ${{ matrix.config.name }}
+    runs-on: ${{ matrix.config.os }}
+    env:
+      COMPILER: ${{ matrix.config.compiler }}
+      COMP: ${{ matrix.config.comp }}
+      CXXFLAGS: "-Werror"
+    strategy:
+      matrix:
+        config:
+          - {
+              name: "Ubuntu 18.04 GCC",
+              os: ubuntu-18.04,
+              compiler: g++,
+              comp: gcc,
+            }
+          - {
+              name: "Ubuntu 18.04 Clang",
+              os: ubuntu-18.04,
+              compiler: clang++,
+              comp: clang,
+            }
+    defaults:
+      run:
+        working-directory: bin
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Check compiler
+        run: |
+          $COMPILER -v
+
+      - name: Make help
+        run: |
+          cd ../src
+          make help
+          cd -
+
+      - name: Test release
+        run: |
+          cd ..
+          ./build.sh COMP=$COMP
+          cd -
+          cd ../tests
+          ./run_tests.sh
+          cd -
