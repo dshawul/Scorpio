@@ -138,7 +138,6 @@ wget --no-check-certificate ${LNK}/${VERSION}/scorpio${VR}-mcts-nn.zip
 unzip -o scorpio${VR}-mcts-nn.zip
 
 rm -rf *.zip
-chmod 755 ${EGBB}
 cd ${EGBB}
 chmod 755 *
 cd ..

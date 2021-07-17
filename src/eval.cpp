@@ -64,19 +64,21 @@ int SEARCHER::eval(bool skip_nn_l)
         actual_score = eval_hce();
     }
     /*scale some endgame evaluations*/
-    int w_win_chance = 8,b_win_chance = 8;
-    eval_win_chance(w_win_chance,b_win_chance);
-    if(player == white) {
-        if(actual_score > 0) {
-            actual_score = (actual_score * w_win_chance) / 8;
+    if(all_man_c <= 18) {
+        int w_win_chance = 8,b_win_chance = 8;
+        eval_win_chance(w_win_chance,b_win_chance);
+        if(player == white) {
+            if(actual_score > 0) {
+                actual_score = (actual_score * w_win_chance) / 8;
+            } else {
+                actual_score = (actual_score * b_win_chance) / 8;
+            }
         } else {
-            actual_score = (actual_score * b_win_chance) / 8;
-        }
-    } else {
-        if(actual_score > 0) {
-            actual_score = (actual_score * b_win_chance) / 8;
-        } else {
-            actual_score = (actual_score * w_win_chance) / 8;
+            if(actual_score > 0) {
+                actual_score = (actual_score * b_win_chance) / 8;
+            } else {
+                actual_score = (actual_score * w_win_chance) / 8;
+            }
         }
     }
     /*scale by 50 move rule*/
