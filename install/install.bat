@@ -161,7 +161,7 @@ REM --------- determine GPU props
 SET HAS=N
 SETLOCAL ENABLEDELAYEDEXPANSION
 IF %GPUS% NEQ 0 (
-    cd %EGBB%
+    cd %egbbp%
     CALL device.exe
     FOR /F "tokens=* USEBACKQ" %%F IN (`device.exe -n`) DO (
        SET GPUS=%%F
