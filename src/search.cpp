@@ -1354,6 +1354,134 @@ TOP:
     pstack->sort_all();
 }
 /*
+Prior AB search
+*/
+void SEARCHER::search_ab_prior() {
+    /*
+      Do regular AB search and use subtree size of root moves
+      to set prior for the following montecarlo search
+    */
+#ifdef NODES_PRIOR
+    /*do ab search*/
+    montecarlo = 0;
+    use_nn = 0;
+
+    chess_clock.p_time *= frac_abprior;
+    chess_clock.p_inc *= frac_abprior;
+
+    MOVE bestm = iterative_deepening();
+#ifdef PARALLEL
+    t_sleep(30);
+#endif
+    chess_clock.p_time /= frac_abprior;
+    chess_clock.p_inc /= frac_abprior;
+
+    montecarlo = 1;
+    use_nn = save_use_nn;
+
+    while(ply > 0) {
+        if(hstack[hply - 1].move) POP_MOVE();
+        else POP_NULL();
+    }
+
+    /*nodes to prior*/
+    uint64_t maxn = 0;
+    int maxni = 0;
+    for(int i = 1; i < pstack->count; i++) {
+        uint64_t v = root_score_st[i];
+        if(v > maxn) { maxn = v; maxni = i; }
+    }
+
+    if(root_score_st[0] < 1.5 * root_score_st[maxni])
+        root_score_st[0] = 1.5 * root_score_st[maxni];
+
+    /*assign prior*/
+    Node* current = root_node->child;
+    while(current) {
+        for(int i = 0;i < pstack->count; i++) {
+            MOVE& move = pstack->move_st[i];
+            if(move == current->move) {
+                double v = sqrt(double(root_score_st[i]) / maxn);
+                current->prior = -(v - 0.5) * 100;
+                if(rollout_type == MCTS)
+                    current->prior = logistic(current->prior);
+                current->rank = i + 1;
+                if(move == bestm) current->policy += 0.1;
+#if 0
+                char mvs[16];
+                mov_str(move,mvs);
+                print("%2d. %6s %9.6f %9.6f " FMT64W " " FMT64W "\n", 
+                    current->rank, mvs, current->prior,
+                    v, root_score_st[i], maxn);
+#endif
+                break;
+            }
+        }
+        current = current->next;
+    }
+    /*
+      Evaluate each move separately. Slower than the above option
+    */
+#else
+    montecarlo = 0;
+    use_nn = 0;
+
+    chess_clock.p_time *= frac_abprior;
+    chess_clock.p_inc *= frac_abprior;
+    chess_clock.set_stime(hply,false);
+    chess_clock.p_time /= frac_abprior;
+    chess_clock.p_inc /= frac_abprior;
+
+    start_time = get_time();
+
+    for(int d = 2; d < MAX_PLY - 1 ; d++) {
+        stop_searcher = 0;
+        search_depth = d;
+        evaluate_moves(d);
+
+        int time_used = get_time() - start_time;
+        if(abort_search || time_used >= 0.75 * chess_clock.search_time)
+            break;
+        if(!easy 
+            && pstack->score_st[0] > pstack->score_st[1] + 175
+            && chess_clock.is_timed()
+            ) {
+            easy = true;
+            easy_move = pstack->move_st[0];
+            easy_score = pstack->score_st[0];
+        } else if(easy && 
+            (easy_move != pstack->pv[0] || pstack->score_st[0] <= easy_score - 60)) {
+            easy = false;
+        }
+    }
+
+    use_nn = save_use_nn;
+    montecarlo = 1;
+
+    while(ply > 0) {
+        if(hstack[hply - 1].move) POP_MOVE();
+        else POP_NULL();
+    }
+
+    /*assign prior*/
+    Node* current = root_node->child;
+    while(current) {
+        for(int i = 0;i < pstack->count; i++) {
+            MOVE& move = pstack->move_st[i];
+            if(move == current->move) {
+                current->prior = -pstack->score_st[i];
+                if(rollout_type == MCTS)
+                    current->prior = logistic(current->prior);
+                current->rank = i + 1;
+                if(i == 0) current->policy += 0.1;
+                break;
+            }
+        }
+        current = current->next;
+    }
+#endif
+}
+/*
 Find best move using alpha-beta or mcts
 */
 MOVE SEARCHER::iterative_deepening() {
@@ -1397,12 +1525,8 @@ MOVE SEARCHER::iterative_deepening() {
         chess_clock.search_time /= 4;
     }
 
-    /*AB prior search*/
+    /*prepare montecarlo search*/
     if(montecarlo) {
-
-        has_ab = (frac_abprior > 0) &&
-            !is_selfplay && (chess_clock.max_visits == MAX_NUMBER) &&
-            ((all_man_c <= alphabeta_man_c && root_score >= -80) || root_score >= 400);
 
         manage_tree();
         Node::max_tree_depth = 0;
@@ -1411,131 +1535,19 @@ MOVE SEARCHER::iterative_deepening() {
         if(chess_clock.maximum_time <= 2 * chess_clock.search_time)
             chess_clock.p_time -= (get_time() - start_time);
 
-        /*Alpha-beta prior search */
+        /*Prior Alpha-beta search */
+        has_ab = (frac_abprior > 0) &&
+            !is_selfplay && (chess_clock.max_visits == MAX_NUMBER) &&
+            ((all_man_c <= alphabeta_man_c && root_score >= -80) || root_score >= 400);
+
         if(has_ab) {
-
 #ifdef PARALLEL
-        for(int i = PROCESSOR::n_cores;i < PROCESSOR::n_processors;i++)
-            processors[i]->state = PARK;
+            /*park mcts threads*/
+            for(int i = PROCESSOR::n_cores;i < PROCESSOR::n_processors;i++)
+                processors[i]->state = PARK;
 #endif
-
-#ifdef NODES_PRIOR
-            /*do ab search*/
-            montecarlo = 0;
-            use_nn = 0;
-
-            chess_clock.p_time *= frac_abprior;
-            chess_clock.p_inc *= frac_abprior;
-
-            MOVE bestm = iterative_deepening();
-#ifdef PARALLEL
-            t_sleep(30);
-#endif
-            chess_clock.p_time /= frac_abprior;
-            chess_clock.p_inc /= frac_abprior;
-
-            montecarlo = 1;
-            use_nn = save_use_nn;
-
-            while(ply > 0) {
-                if(hstack[hply - 1].move) POP_MOVE();
-                else POP_NULL();
-            }
-
-            /*nodes to prior*/
-            uint64_t maxn = 0;
-            int maxni = 0;
-            for(int i = 1; i < pstack->count; i++) {
-                uint64_t v = root_score_st[i];
-                if(v > maxn) { maxn = v; maxni = i; }
-            }
-
-            if(root_score_st[0] < 1.5 * root_score_st[maxni])
-                root_score_st[0] = 1.5 * root_score_st[maxni];
-
-            /*assign prior*/
-            Node* current = root_node->child;
-            while(current) {
-                for(int i = 0;i < pstack->count; i++) {
-                    MOVE& move = pstack->move_st[i];
-                    if(move == current->move) {
-                        double v = sqrt(double(root_score_st[i]) / maxn);
-                        current->prior = -(v - 0.5) * 100;
-                        if(rollout_type == MCTS)
-                            current->prior = logistic(current->prior);
-                        current->rank = i + 1;
-                        if(move == bestm) current->policy += 0.1;
-#if 0
-                        char mvs[16];
-                        mov_str(move,mvs);
-                        print("%2d. %6s %9.6f %9.6f " FMT64W " " FMT64W "\n", 
-                            current->rank, mvs, current->prior,
-                            v, root_score_st[i], maxn);
-#endif
-                        break;
-                    }
-                }
-                current = current->next;
-            }
-#else
-            /*do ab search*/
-            montecarlo = 0;
-            use_nn = 0;
-
-            chess_clock.p_time *= frac_abprior;
-            chess_clock.p_inc *= frac_abprior;
-            chess_clock.set_stime(hply,false);
-            chess_clock.p_time /= frac_abprior;
-            chess_clock.p_inc /= frac_abprior;
-
-            start_time = get_time();
-
-            for(int d = 2; d < MAX_PLY - 1 ; d++) {
-                stop_searcher = 0;
-                search_depth = d;
-                evaluate_moves(d);
-
-                int time_used = get_time() - start_time;
-                if(abort_search || time_used >= 0.75 * chess_clock.search_time)
-                    break;
-                if(!easy 
-                    && pstack->score_st[0] > pstack->score_st[1] + 175
-                    && chess_clock.is_timed()
-                    ) {
-                    easy = true;
-                    easy_move = pstack->move_st[0];
-                    easy_score = pstack->score_st[0];
-                } else if(easy && 
-                    (easy_move != pstack->pv[0] || pstack->score_st[0] <= easy_score - 60)) {
-                    easy = false;
-                }
-            }
-
-            use_nn = save_use_nn;
-            montecarlo = 1;
-
-            while(ply > 0) {
-                if(hstack[hply - 1].move) POP_MOVE();
-                else POP_NULL();
-            }
-
-            /*assign prior*/
-            Node* current = root_node->child;
-            while(current) {
-                for(int i = 0;i < pstack->count; i++) {
-                    MOVE& move = pstack->move_st[i];
-                    if(move == current->move) {
-                        current->prior = -pstack->score_st[i];
-                        if(rollout_type == MCTS)
-                            current->prior = logistic(current->prior);
-                        current->rank = i + 1;
-                        if(i == 0) current->policy += 0.1;
-                        break;
-                    }
-                }
-                current = current->next;
-            }
-#endif
+            /*prior ab search*/
+            search_ab_prior();
 
             /* No further search in these cases */
             if(root_score >= 700 ||
@@ -1549,8 +1561,8 @@ MOVE SEARCHER::iterative_deepening() {
             abort_search = 0;
             search_depth = MIN(search_depth + mcts_strategy_depth, MAX_PLY - 2);
             
-            /* wake mcts threads*/
 #ifdef PARALLEL
+            /* wake mcts threads*/
             for(int i = PROCESSOR::n_cores;i < PROCESSOR::n_processors;i++)
                 processors[i]->state = WAIT;
 #endif

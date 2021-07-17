@@ -846,6 +846,7 @@ typedef struct SEARCHER{
     void  clear_history();
     int   get_history_score(const MOVE&);
     int   search_ab();
+    void  search_ab_prior();
     void  evaluate_moves(int);
     float  generate_and_score_moves(int,int);
     int   Random_select_ab();
