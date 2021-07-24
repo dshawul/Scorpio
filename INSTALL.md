@@ -27,12 +27,11 @@ For older GPUs (older than 3080s), executing the installer without any arguments
       $ ./install.sh
 
 will automatically determine how many GPUs you have, which precision to use, how many threads per GPU (minibatch size) to use etc.
-If you want to force the precision, and batch size pass those arguments.
+If you want to force the precision, and batch size pass the corresponding arguments.
 
 The version of Linux supported by the install script is Ubuntu 18.04, other versions probably won't work due to
 glibc issues. To run on other versions of Linux and also Mac, you can build docker containers of scorpio using Dockerfiles
-provided [here](https://github.com/dshawul/Scorpio/tree/master/install). Installation on Windows may pose some difficulties
-described below.
+provided [here](https://github.com/dshawul/Scorpio/tree/master/install).
 
 NN and NNUE versions of Scorpio are compiled with AVX2 support so if your machine does not support that, it will not work.
 AVX2 has been around since 2012 so your CPU most likely supports it unless it is older than that.
@@ -41,15 +40,15 @@ For newer GPUs such as 3080s and 3090s, you can install scorpio as
 
       $ ./install.sh --trt 72
 
-This will install Scorpio with TensorRT 7.2 and use the cuda-11 and cudnn-8 on your system.
+This will install Scorpio with TensorRT 7.2.
 
 ## NNUE installation
 
-If you want to install Scorpio purely as a NNUE engine i.e. not using any NN do this instead
+If you want to install Scorpio purely as a NNUE engine running on CPU i.e. not using any NN do this instead
 
       $ ./install.sh --cpu --no-scnets --no-lcnets --no-egbb
 
-Here I am forcing installation for CPU even if you have GPU, not downloading any Scorpio or LC0 nets
+Here I am forcing installation for CPU even if you may have GPU, not downloading any Scorpio or LC0 nets
 and also no egbb files if you already have them. If you execute the exact commands above, it should give 
 you a pure Scorpio NNUE installion with no need to edit scorpio.ini, except to set the number of threads.
 By default the installation uses all your cores, if you want it to use just 1 core set
