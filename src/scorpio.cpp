@@ -501,9 +501,7 @@ bool internal_commands(char** commands,char* command,int& command_num) {
 #ifdef PARALLEL
         int affinity = atoi(commands[command_num]);
         affinity = MIN(affinity, MAX_CPUS);
-        set_affinity(affinity);
-        if(affinity)
-            PROCESSOR::n_cores = MIN(PROCESSOR::n_cores,affinity); 
+        PROCESSOR::n_cores = set_affinity(affinity);
 #endif
         command_num++;
     } else if(!strcmp(command,"mt") || !strcmp(command,"cores") || !strcmp(command,"Threads") ) {

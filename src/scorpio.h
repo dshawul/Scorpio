@@ -1288,7 +1288,7 @@ int   bios_key(void);
 void  load_book();
 bool  parse_commands(char**);
 void  merge_books(char*,char*,char*,double,double);
-void  set_affinity(int);
+int   set_affinity(int);
 bool  check_search_params(char**,char*,int&);
 void  print_search_params();
 bool  check_mcts_params(char**,char*,int&);

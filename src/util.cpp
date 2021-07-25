@@ -1254,7 +1254,7 @@ bool read_line(char* buffer) {
 /*
 Set affinity and print number of physical/logical processors
 */
-void set_affinity(int ncores) {
+int set_affinity(int ncores) {
     int cores,active;
 #ifdef _WIN32
     SYSTEM_INFO info;
@@ -1307,6 +1307,7 @@ void set_affinity(int ncores) {
         active = cores;
 #endif
     printf("Number of cores %d of %d\n",active,cores);
+    return cores;
 }
 /*
 Break down a string into tokens
