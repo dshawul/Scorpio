@@ -201,36 +201,32 @@ int CDECL main(int argc, char* argv[]) {
     load_ini();
 
     /*
+     * Parse commands from the command line
+     */
+    strcpy(buffer,"");
+    for(int i = 1;i < argc;i++) {
+        strcat(buffer," ");
+        strcat(buffer,argv[i]);
+    }
+    print_log("<COMMAND LINE>%s\n",buffer);
+
+    commands[tokenize(buffer,commands)] = NULL;
+    if(!parse_commands(commands))
+        goto END;
+
+    /* remove log file if not set*/
+    if(!log_on)
+        remove_log_file();
+
+    /* start loading egbbs */
+    load_egbbs();
+
+    /*
      * Host 0 processes command line
      */
 #ifdef CLUSTER
     if(PROCESSOR::host_id == 0) {
 #endif
-        /*
-         * Parse commands from the command line
-         */
-        strcpy(buffer,"");
-        for(int i = 1;i < argc;i++) {
-            strcat(buffer," ");
-            strcat(buffer,argv[i]);
-        }
-        print_log("<COMMAND LINE>%s\n",buffer);
-
-        commands[tokenize(buffer,commands)] = NULL;
-        if(!parse_commands(commands))
-            goto END;
-
-        /* 
-         * If log=off in ini and log=off from command line, delete log file.
-         * If log=off in ini and log=on  from command line, only rank=0 will have log file.
-         * If log=on  in ini,then each processor will have separate log files.
-         */
-        if(!log_on)
-            remove_log_file();
-
-        /* start loading egbbs */
-        load_egbbs();
-
         /*
          * Parse commands from stdin.
          */
@@ -255,12 +251,6 @@ int CDECL main(int argc, char* argv[]) {
         }
 #ifdef  CLUSTER
     } else {
-        /* Delete the log file.*/
-        if(!log_on)
-            remove_log_file();
-
-        /* start loading egbbs */
-        load_egbbs();
 
         /* goto wait mode */
         processors[0]->state = PARK;
@@ -851,6 +841,10 @@ bool internal_commands(char** commands,char* command,int& command_num) {
     } else if(!strcmp(command,"randomize")) {
         is_selfplay = true;
     } else if(!strcmp(command,"quit")) {
+#ifdef CLUSTER
+        if(PROCESSOR::host_id != 0)
+            return 2;
+#endif
         print("Bye Bye\n");
         PROCESSOR::exit_scorpio(EXIT_SUCCESS);
     } else if (!strcmp(command, "variant")) {
@@ -1296,7 +1290,12 @@ bool parse_commands(char** commands) {
             if(ret == 1) return true;
             else if(ret == 0) return false;
         }
-        
+
+        /*skip "go" instruction for all other hosts than 0*/
+#ifdef CLUSTER
+        if(PROCESSOR::host_id != 0)
+            continue;
+#endif
         /********************************
          * Commands have been processed.
          * Now do one of the following: 
