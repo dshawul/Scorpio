@@ -75,7 +75,7 @@ parallel search options
 #   define NUMA_TT_TYPE              0
 #endif
 #if !defined(CLUSTER_TT_TYPE)
-#   define CLUSTER_TT_TYPE           1
+#   define CLUSTER_TT_TYPE           2
 #endif
 
 /*typedefs*/

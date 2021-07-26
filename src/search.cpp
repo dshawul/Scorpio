@@ -1990,7 +1990,7 @@ MOVE SEARCHER::find_best() {
     park hosts
     */
 #ifdef CLUSTER
-    if(PROCESSOR::host_id == 0 && use_abdada_cluster) {
+    if(PROCESSOR::host_id == 0 && (use_abdada_cluster || montecarlo)) {
         for(int i = 1;i < PROCESSOR::n_hosts;i++)
             PROCESSOR::ISend(i,PROCESSOR::QUIT);
     }

@@ -33,15 +33,13 @@ void remove_log_file() {
     fflush(pf);                 \
 }
 void print(const char* format,...) {
-    
-#ifndef MYDEBUG
-    CLUSTER_CODE(if(PROCESSOR::host_id != 0) return;)
-#endif
-        
     l_lock(lock_io);
         
     va_list ap;
-    PRINT(stdout,format);
+    CLUSTER_CODE(if(PROCESSOR::host_id == 0))
+    {
+        PRINT(stdout,format);
+    }
     if(log_on && log_file)
         PRINT(log_file,format); 
 
@@ -73,15 +71,16 @@ void print_info(const char* format,...) {
     l_lock(lock_io);
         
     va_list ap;
-    PRINT(stdout,str);
+    CLUSTER_CODE(if(PROCESSOR::host_id == 0))
+    {
+        PRINT(stdout,str);
+    }
     if(log_on && log_file)
         PRINT(log_file,str);    
 
     l_unlock(lock_io);
 }
 void print_log(const char* format,...) {
-    
-    CLUSTER_CODE(if(PROCESSOR::host_id != 0) return;)
         
     if(!log_on || !log_file) return;
     
