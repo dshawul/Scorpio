@@ -977,8 +977,8 @@ IDLE_START:
                     else SMP_CODE(if(!use_abdada_smp || !sb->processor_id))
                         sb->print_pv(sb->pstack->best_score);
 
-                    if(!sb->chess_clock.infinite_mode && !sb->chess_clock.pondering)
-                        sb->root_score = score;
+                    if(!sb->chess_clock.pondering)
+                        SEARCHER::root_score = score;
 
                     if(score <= sb->pstack->alpha) {
                         SEARCHER::root_failed_low = 3;
@@ -1834,15 +1834,6 @@ MOVE SEARCHER::iterative_deepening() {
 
     } else {
 
-#ifdef CLUSTER
-        /*total nps*/
-        if(use_abdada_cluster) {
-            uint64_t tnodes;
-            PROCESSOR::Sum(&nodes, &tnodes);
-            nodes = (uint64_t)tnodes;
-        }
-#endif
-
     	/*print final pv*/
     	for (int j = ply; j > 0 ; j--) {
             MOVE move = hstack[hply - 1].move;
@@ -1986,13 +1977,81 @@ MOVE SEARCHER::find_best() {
         processors[i]->state = PARK;
 #endif
 
-    /*
-    park hosts
-    */
 #ifdef CLUSTER
+    /*quit hosts as soon as host 0 finishes*/
     if(PROCESSOR::host_id == 0 && (use_abdada_cluster || montecarlo)) {
         for(int i = 1;i < PROCESSOR::n_hosts;i++)
             PROCESSOR::ISend(i,PROCESSOR::QUIT);
+    }
+
+    /* merge search results of all cluster nodes*/
+    if(use_abdada_cluster) {
+
+        MOVE move_st[MAX_MOVES];
+        float score_st[MAX_MOVES];
+        float sum_score_st[MAX_MOVES];
+        int n_root_moves = stack[0].count;
+
+        /*score root moves*/
+        if(montecarlo) {
+            int idx = 0;
+            Node* current = root_node->child;
+            while(current) {
+                char mv_str[16];
+                mov_str(current->move,mv_str);
+                move_st[idx] = current->move;
+                score_st[idx] = double(current->visits) / root_node->visits;
+                idx++;
+                current = current->next;
+            }
+        } else {
+            float factor = (root_score >= 500) ? 10 : 1;
+            if(n_root_moves > 1)
+                root_score_st[0] = MAX(root_score_st[0], 1.5 * root_score_st[1]);
+            for(int i = 0; i < n_root_moves; i++) {
+                move_st[i] = stack[0].move_st[i];
+                score_st[i] = factor * sqrt(double(root_score_st[i]) / nodes);
+            }
+        }
+
+        /*score by move*/
+        for(int i = 0;i < n_root_moves; i++) {
+            for(int j = i + 1;j < n_root_moves;j++) {
+                if(move_st[i] < move_st[j]) {
+                    MOVE tempm = move_st[i];
+                    move_st[i] = move_st[j];
+                    move_st[j] = tempm;
+                    float temps = score_st[i];
+                    score_st[i] = score_st[j];
+                    score_st[j] = temps;
+                }
+            }
+        }
+
+#if 0
+        for(int i = 0; i < n_root_moves; i++) {
+            char mv_str[16];
+            mov_str(move_st[i],mv_str);
+            printH(" %d. %s %9.3f\n",i+1,mv_str,score_st[i]);
+        }
+#endif
+        /*reduce*/
+        PROCESSOR::Sum(score_st,sum_score_st,n_root_moves);
+
+        if(PROCESSOR::host_id == 0) {
+            float bests = -1;
+            for(int i = 0; i < n_root_moves; i++) {
+                if(sum_score_st[i] > bests) {
+                    bests = sum_score_st[i];
+                    bmove = move_st[i];
+                }
+            }
+
+            char mv_str[16];
+            mov_str(bmove,mv_str);
+            print("Voted best move: %s\n",mv_str);
+        }
+
     }
 #endif
 

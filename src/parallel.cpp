@@ -85,8 +85,8 @@ void PROCESSOR::Wait(MPI_Request* rqst) {
 void PROCESSOR::Barrier() {
     MPI_Barrier(MPI_COMM_WORLD);
 }
-void PROCESSOR::Sum(uint64_t* sendbuf,uint64_t* recvbuf) {
-    MPI_Reduce(sendbuf,recvbuf,1,MPI_LONG_LONG_INT,MPI_SUM,0,MPI_COMM_WORLD);
+void PROCESSOR::Sum(float* sendbuf,float* recvbuf,int count) {
+    MPI_Reduce(sendbuf,recvbuf,count,MPI_FLOAT,MPI_SUM,0,MPI_COMM_WORLD);
 }
 bool PROCESSOR::IProbe(int& source,int& message_id) {
     static MPI_Status mpi_status;

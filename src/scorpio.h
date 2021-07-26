@@ -1162,7 +1162,7 @@ typedef struct PROCESSOR {
     static bool IProbe(int& dest,int& message_id);
     static void Wait(MPI_Request*);
     static void Barrier();
-    static void Sum(uint64_t* sendbuf,uint64_t* recvbuf);
+    static void Sum(float* sendbuf,float* recvbuf, int);
     static void handle_message(int dest,int message_id);
     static void offer_help();
 #endif

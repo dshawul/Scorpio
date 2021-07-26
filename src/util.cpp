@@ -1163,7 +1163,7 @@ void init_io() {
     setbuf(stdout,NULL);
     setbuf(stdin,NULL);
     signal(SIGINT,SIG_IGN);
-    srand((unsigned)time(NULL));
+    srand((unsigned)time(NULL) CLUSTER_CODE(+ PROCESSOR::host_id));
     rand();
     
 #ifdef PARALLEL
