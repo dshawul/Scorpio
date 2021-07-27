@@ -563,7 +563,11 @@ void SEARCHER::print_pv(int score) {
     }
     /*print it now*/
     strcat(pv,"\n");
-    print(pv);
+    l_lock(lock_io);
+    printf("%s",pv);
+    if(log_on && log_file)
+        fprintf(log_file,"%s",pv);
+    l_unlock(lock_io);
     /*undo moves*/
     for (int j = 0; j < i ; j++) {
         move = hstack[hply - 1].move;
