@@ -12,16 +12,15 @@ HPP = scorpio.h my_types.h params.h
 # Some options
 # ------------
 #
+#  DPARALLEL       --  Compile parallel search code.
 #  DARC_64BIT      --  Is system 64 bit.
 #  DHAS_POPCNT     --  Use Intrinsic PopCnt. [HIGHLY recommeneded] 
 #  DHAS_PREFETCH   --  Prefetch hash table entries [Recommeneded] 
-#  DPARALLEL       --  Compile parallel search code.
 #  DUSE_SPINLOCK   --  Use spin locks.
 #  DCLUSTER        --  Compile MPI cluster code.
+#  DCLUSTER_TT_TYPE=n  --  Distributed transposition table type (0 - global, 1 - distributed, 2 - local) default=2
 #  DMAX_CPUS=n     --  Compile for maximum of n cpus. Default is 32                 
 #  DYBW            --  Compile with YBW
-#  DSMP_TT_TYPE=n  --  Shared memory transposition table type (0 - global, 1 - distributed, 2 - local) default=0
-#  DDST_TT_TYPE=n  --  Distributed   transposition table type (0 - global, 1 - distributed, 2 - local) default=1
 #  DTUNE           --  Compile evaluation tuning code. [NOT recommended to turn on]
 #  DTHREAD_POLLING --  Poll for MPI message using a thread. 
 #  DMYDEBUG        --  Turn on some MPI debugging
@@ -60,24 +59,29 @@ COMP=gcc
 STRIP=strip
 
 ifeq ($(COMP),gcc-cluster)
-	CXX="mpic++"
+	CXX=MPICH_CXX=g++ mpicxx
 	override COMP=gcc
 	DEFINES += -DCLUSTER
+else ifeq ($(COMP),clang-cluster)
+	CXX=MPICH_CXX=clang++ mpicxx
+	override COMP=clang
+	DEFINES += -DCLUSTER
 else ifeq ($(COMP),icpc-cluster)
-	CXX="mpic++"
+	CXX=MPICH_CXX=icpc mpicxx
 	override COMP=icpc
 	DEFINES += -DCLUSTER
 else ifeq ($(COMP),pgcc-cluster)
-	CXX="mpic++"
+	CXX=MPICH_CXX=pgc++ mpicxx
 	override COMP=pgcc
-else ifeq ($(COMP),pgcc)
-	CXX=pgc++
+	DEFINES += -DCLUSTER
 else ifeq ($(COMP),gcc)
 	CXX=g++
 else ifeq ($(COMP),clang)
 	CXX=clang++
 else ifeq ($(COMP),icpc)
 	CXX=icpc
+else ifeq ($(COMP),pgcc)
+	CXX=pgc++
 else ifeq ($(COMP),arm)
 	CXX=arm-linux-androideabi-g++
 	STRIP=arm-linux-androideabi-strip
@@ -205,10 +209,13 @@ help:
 	@echo "	3: Prepare for PGO"
 	@echo ""
 	@echo "  c ="
-	@echo "	gcc    :  g++ compiler"
+	@echo "	gcc    :  gnu compiler"
+	@echo "	clang  :  clang compiler"
 	@echo "	icpc   :  intel compiler"
+	@echo "	pgcc   :  portland group compiler"
 	@echo "	arm    :  arm android compiler"
-	@echo "	cluster:  mpiC++ compiler"
+	@echo "	win    :  windows cross compiler"
+	@echo "	[]-cluster:  mpicxx wrapper compiler"
 	@echo ""
 	@echo "2. make clean - removes all files but source code"
 	@echo "3. make strip - strips executable of debugging/profiling data"
