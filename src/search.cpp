@@ -1490,10 +1490,6 @@ MOVE SEARCHER::iterative_deepening() {
     MOVE easy_move = 0;
 
     search_depth = 1;
-#ifdef CLUSTER
-    if(PROCESSOR::n_hosts > 1 && use_abdada_cluster) 
-        search_depth = 1 - (PROCESSOR::host_id & 1);
-#endif
     poll_nodes = 5000;
     PROCESSOR::age = (hply & AGE_MASK);
     show_full_pv = false;
@@ -1609,11 +1605,7 @@ MOVE SEARCHER::iterative_deepening() {
 
         /*search with the current depth*/
         search_depth++;
-#ifdef CLUSTER
-        if(use_abdada_cluster && PROCESSOR::n_hosts > 1 && 
-           search_depth < chess_clock.max_sd) 
-            search_depth++;
-#endif
+
         /*egbb ply limit*/
         if(!montecarlo)
             SEARCHER::egbb_ply_limit = 
@@ -1687,18 +1679,10 @@ MOVE SEARCHER::iterative_deepening() {
             WINDOW = MIN(200, 3 * WINDOW / 2);
             alpha = MAX(-MATE_SCORE,score - WINDOW);
             search_depth--;
-#ifdef CLUSTER
-            if(use_abdada_cluster && PROCESSOR::n_hosts > 1) 
-                search_depth--;
-#endif
         } else if (score >= beta){
             WINDOW = MIN(200, 3 * WINDOW / 2);
             beta = MIN(MATE_SCORE,score + WINDOW);
             search_depth--;
-#ifdef CLUSTER
-            if(use_abdada_cluster && PROCESSOR::n_hosts > 1) 
-                search_depth--;
-#endif
         } else {
             WINDOW = aspiration_window;
             alpha = score - WINDOW;
