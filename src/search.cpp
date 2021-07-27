@@ -1870,6 +1870,9 @@ MOVE SEARCHER::find_best() {
             }
         }
     }
+    if(use_abdada_cluster || montecarlo) {
+        PROCESSOR::Barrier();
+    }
 #endif
 
     /*init*/

@@ -1305,7 +1305,7 @@ int set_affinity(int ncores) {
     } else
         active = cores;
 #endif
-    printf("Number of cores %d of %d\n",active,cores);
+    print("Number of cores %d of %d\n",active,cores);
     return cores;
 }
 /*
