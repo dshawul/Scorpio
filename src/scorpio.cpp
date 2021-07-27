@@ -201,6 +201,18 @@ int CDECL main(int argc, char* argv[]) {
     load_ini();
 
     /*
+     * Host 0 waits until all helpers are ready
+     */
+#ifdef CLUSTER
+    if(use_abdada_cluster && (PROCESSOR::host_id == 0)) {
+        while(PROCESSOR::available_host_workers.size() + 1 < 
+            (unsigned)PROCESSOR::n_hosts) {
+            t_sleep(30);
+        }
+    }
+#endif
+
+    /*
      * Parse commands from the command line
      */
     strcpy(buffer,"");
@@ -220,6 +232,15 @@ int CDECL main(int argc, char* argv[]) {
 
     /* start loading egbbs */
     load_egbbs();
+
+    /*
+     * Hosts other than 0 send ready message
+     */
+#ifdef CLUSTER
+    if((PROCESSOR::host_id != 0) && use_abdada_cluster) {
+        PROCESSOR::ISend(0,PROCESSOR::HELP);
+    }
+#endif
 
     /*
      * Host 0 processes command line

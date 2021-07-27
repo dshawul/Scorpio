@@ -59,19 +59,19 @@ COMP=gcc
 STRIP=strip
 
 ifeq ($(COMP),gcc-cluster)
-	CXX=MPICH_CXX=g++ mpicxx
+	CXX=mpicxx -cxx=g++
 	override COMP=gcc
 	DEFINES += -DCLUSTER
 else ifeq ($(COMP),clang-cluster)
-	CXX=MPICH_CXX=clang++ mpicxx
+	CXX=mpicxx -cxx=clang++
 	override COMP=clang
 	DEFINES += -DCLUSTER
 else ifeq ($(COMP),icpc-cluster)
-	CXX=MPICH_CXX=icpc mpicxx
+	CXX=mpicxx -cxx=icpc
 	override COMP=icpc
 	DEFINES += -DCLUSTER
 else ifeq ($(COMP),pgcc-cluster)
-	CXX=MPICH_CXX=pgc++ mpicxx
+	CXX=mpicxx -cxx=pgc++
 	override COMP=pgcc
 	DEFINES += -DCLUSTER
 else ifeq ($(COMP),gcc)
