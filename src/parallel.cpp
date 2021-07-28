@@ -668,6 +668,7 @@ void SEARCHER::get_init_pos(INIT_MESSAGE* init) {
     /*undo to last fifty move*/       
     len = fifty + 1;
     for(i = 0;i < len && hply > 0;i++) {
+        if(hstack[hply - 1].hash_key == 0) break;
         if(hstack[hply - 1].move) undo_move();
         else undo_null();
     }
@@ -682,6 +683,7 @@ void SEARCHER::get_init_pos(INIT_MESSAGE* init) {
         if(move) do_move(move);
         else do_null();
     }
+
 }
 #endif
 

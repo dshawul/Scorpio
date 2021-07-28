@@ -727,6 +727,10 @@ bool internal_commands(char** commands,char* command,int& command_num) {
                !strcmp(command,"epd_run_search") ||
                !strcmp(command,"epd_run_perft")
         ) {
+#ifdef CLUSTER
+        if(PROCESSOR::host_id != 0)
+            return 2;
+#endif
         load_egbbs();
         wait_for_egbb();
 
