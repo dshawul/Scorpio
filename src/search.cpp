@@ -1785,66 +1785,6 @@ MOVE SEARCHER::iterative_deepening() {
         /*end*/
     }
 
-    /*search info*/
-    if(montecarlo) {
-
-        /*search has ended. display some info*/
-        int time_used = MAX(1,get_time() - start_time);
-        int time_used_o = MAX(1,get_time() - start_time_o);
-        unsigned int pps = int(playouts / (time_used / 1000.0f));
-        unsigned int vps = int(root_node->visits / (time_used / 1000.0f));
-        if(average_pps > 0 && pps >= 5 * average_pps);
-        else average_pps = pps;
-
-        if(pv_print_style == 1) {
-            print(" %21d %8.2f %10d %10d\n",
-                root_node->visits,float(time_used) / 1000,pps,
-                int(int64_t(nnecalls) / (time_used / 1000.0f)));
-        } else if(pv_print_style == 0) {
-            /*print tree*/
-            if(multipv)
-                Node::print_tree(root_node,has_ab,MAX_PLY);
-
-            /* print result*/
-            print_info("Stat: nodes " FMT64 " <%d%% qnodes> tbhits %d qcalls %d scalls %d time %dms nps %d eps %d\n",nodes,
-                int(int64_t(qnodes) / (int64_t(nodes) / 100.0f)),
-                egbb_probes,qsearch_calls,search_calls,
-                time_used_o,int(int64_t(nodes) / (time_used_o / 1000.0f)),
-                int(int64_t(ecalls) / (time_used_o / 1000.0f)));
-            print_info("Tree: nodes %d depth %d visits %d Rate: vps %d pps %d nneps %d\n",
-                  Node::total_nodes,Node::max_tree_depth,root_node->visits,vps,pps,
-                   int(int64_t(nnecalls) / (time_used / 1000.0f)));
-        }
-
-    } else {
-
-    	/*print final pv*/
-    	for (int j = ply; j > 0 ; j--) {
-            MOVE move = hstack[hply - 1].move;
-            if(move) POP_MOVE();
-            else POP_NULL();
-        }
-    	if(!pstack->pv_length)
-    	    pstack->pv_length = 1;
-    	print_pv(root_score);
-
-        /*search has ended. display some info*/
-        int time_used = get_time() - start_time;
-        if(!time_used) time_used = 1;
-        if(pv_print_style == 1) {
-            print(" " FMT64W " %8.2f %10d %8d %8d\n",nodes,float(time_used) / 1000,
-                int(int64_t(nodes) / (time_used / 1000.0f)),splits,bad_splits);
-        } else if(pv_print_style == 0) {
-            print_info("Stat: nodes " FMT64 " <%d%% qnodes> tbhits %d splits %d badsplits %d time %dms nps %d eps %d nneps %d\n",nodes,
-                int(int64_t(qnodes) / (int64_t(nodes) / 100.0f)),
-                egbb_probes,splits,bad_splits,
-                time_used,int(int64_t(nodes) / (time_used / 1000.0f)),
-                int(int64_t(ecalls) / (time_used / 1000.0f)),
-                int(int64_t(nnecalls) / (time_used / 1000.0f)));
-        }
-
-    }
-
     return stack[0].pv[0];
 }
 /*
@@ -1961,13 +1901,89 @@ MOVE SEARCHER::find_best() {
         processors[i]->state = PARK;
 #endif
 
+    /*
+    Print search result info
+    */
+
+    /*print final pv*/
+    if(!montecarlo) {
+        for (int j = ply; j > 0 ; j--) {
+            MOVE move = hstack[hply - 1].move;
+            if(move) POP_MOVE();
+            else POP_NULL();
+        }
+        if(!pstack->pv_length)
+            pstack->pv_length = 1;
+        print_pv(root_score);
+    }
+
 #ifdef CLUSTER
     /*quit hosts as soon as host 0 finishes*/
     if(PROCESSOR::host_id == 0 && (use_abdada_cluster || montecarlo)) {
         for(int i = 1;i < PROCESSOR::n_hosts;i++)
             PROCESSOR::ISend(i,PROCESSOR::QUIT);
     }
+    /*synchronize*/
+    if(use_abdada_cluster && PROCESSOR::n_hosts > 1) {
+        PROCESSOR::Barrier();
+    }
+#endif
 
+    /*search info*/
+    if(montecarlo) {
+
+        /*search has ended. display some info*/
+        int time_used = MAX(1,get_time() - start_time);
+        int time_used_o = MAX(1,get_time() - start_time_o);
+        unsigned int pps = int(playouts / (time_used / 1000.0f));
+        unsigned int vps = int(root_node->visits / (time_used / 1000.0f));
+        if(average_pps > 0 && pps >= 5 * average_pps);
+        else average_pps = pps;
+
+        if(pv_print_style == 1) {
+            print(" %21d %8.2f %10d %10d\n",
+                root_node->visits,float(time_used) / 1000,pps,
+                int(int64_t(nnecalls) / (time_used / 1000.0f)));
+        } else if(pv_print_style == 0) {
+            /*print tree*/
+            if(multipv)
+                Node::print_tree(root_node,has_ab,MAX_PLY);
+
+            /* print result*/
+            print_info("Stat: nodes " FMT64 " <%d%% qnodes> tbhits %d qcalls %d scalls %d time %dms nps %d eps %d\n",nodes,
+                int(int64_t(qnodes) / (int64_t(nodes) / 100.0f)),
+                egbb_probes,qsearch_calls,search_calls,
+                time_used_o,int(int64_t(nodes) / (time_used_o / 1000.0f)),
+                int(int64_t(ecalls) / (time_used_o / 1000.0f)));
+            print_info("Tree: nodes %d depth %d visits %d Rate: vps %d pps %d nneps %d\n",
+                  Node::total_nodes,Node::max_tree_depth,root_node->visits,vps,pps,
+                   int(int64_t(nnecalls) / (time_used / 1000.0f)));
+        }
+
+    } else {
+
+        /*search has ended. display some info*/
+        int time_used = get_time() - start_time;
+        if(!time_used) time_used = 1;
+        if(pv_print_style == 1) {
+            print(" " FMT64W " %8.2f %10d %8d %8d\n",nodes,float(time_used) / 1000,
+                int(int64_t(nodes) / (time_used / 1000.0f)),splits,bad_splits);
+        } else if(pv_print_style == 0) {
+            print_info("Stat: nodes " FMT64 " <%d%% qnodes> tbhits %d splits %d badsplits %d time %dms nps %d eps %d nneps %d\n",nodes,
+                int(int64_t(qnodes) / (int64_t(nodes) / 100.0f)),
+                egbb_probes,splits,bad_splits,
+                time_used,int(int64_t(nodes) / (time_used / 1000.0f)),
+                int(int64_t(ecalls) / (time_used / 1000.0f)),
+                int(int64_t(nnecalls) / (time_used / 1000.0f)));
+        }
+
+    }
+
+    /*
+    Voting from different processes
+    */
+
+#ifdef CLUSTER
     /* merge search results of all cluster nodes*/
     if(use_abdada_cluster && PROCESSOR::n_hosts > 1) {
 
@@ -1985,7 +2001,7 @@ MOVE SEARCHER::find_best() {
                 char mv_str[16];
                 mov_str(current->move,mv_str);
                 move_st[idx] = current->move;
-                score_st[idx] = factor * double(current->visits) / root_node->visits;
+                score_st[idx] = factor * (double(current->visits) / root_node->visits);
                 idx++;
                 current = current->next;
             }
@@ -2042,14 +2058,21 @@ MOVE SEARCHER::find_best() {
                     float temps = score_st[i];
                     score_st[i] = score_st[j];
                     score_st[j] = temps;
+                    if(PROCESSOR::host_id == 0) {
+                        float temps = sum_score_st[i];
+                        sum_score_st[i] = sum_score_st[j];
+                        sum_score_st[j] = temps;
+                    }
                 }
             }
         }
 
         /*print best 5 moves vote weights*/
+        PROCESSOR::Barrier();
+
         char info[1024];
         sprintf(info,"# [%d] vote:",PROCESSOR::host_id);
-        for(int i = 0; i < n_root_moves && i < 5; i++) {
+        for(int i = 0; i < n_root_moves && i < 8; i++) {
             char mv_str[16];
             mov_str(move_st[i],mv_str);
             sprintf(info,"%s%5s %5.3f",info,mv_str,score_st[i]);
@@ -2057,13 +2080,37 @@ MOVE SEARCHER::find_best() {
         strcat(info,"\n");
         print_all(info);
 
-        /*print voted best move*/
         PROCESSOR::Barrier();
 
+        /*print voted best move*/
         if(PROCESSOR::host_id == 0) {
+
+            for(int i = 0;i < n_root_moves; i++) {
+                for(int j = i + 1;j < n_root_moves;j++) {
+                    if(sum_score_st[i] < sum_score_st[j]) {
+                        MOVE tempm = move_st[i];
+                        move_st[i] = move_st[j];
+                        move_st[j] = tempm;
+                        float temps = sum_score_st[i];
+                        sum_score_st[i] = sum_score_st[j];
+                        sum_score_st[j] = temps;
+                    }
+                }
+            }
+
+            char info[1024];
+            sprintf(info,"# [%d] sum :",PROCESSOR::host_id);
+            for(int i = 0; i < n_root_moves && i < 8; i++) {
+                char mv_str[16];
+                mov_str(move_st[i],mv_str);
+                sprintf(info,"%s%5s %5.3f",info,mv_str,sum_score_st[i]);
+            }
+            strcat(info,"\n");
+            print_all(info);
+
             char mv_str[16];
             mov_str(bmove,mv_str);
-            print("Voted best move: %s\n",mv_str);
+            print("# Voted best move: %s\n",mv_str);
         }
 
     }
