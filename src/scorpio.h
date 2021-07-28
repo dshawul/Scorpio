@@ -1142,6 +1142,7 @@ typedef struct PROCESSOR {
     static void quit_hosts();
     static int MESSAGE_POLL_NODES;
     static int CLUSTER_SPLIT_DEPTH;
+    static int vote_weight;
 #endif
 
     /*functions*/
@@ -1269,7 +1270,7 @@ int   get_time();
 void  init_io();
 void  remove_log_file();
 void  print(const char* format,...);
-void  printH(const char* format,...);
+void  print_all(const char* format,...);
 void  print_log(const char* format,...);
 void  print_std(const char* format,...);
 void  print_info(const char* format,...);

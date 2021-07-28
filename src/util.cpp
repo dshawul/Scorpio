@@ -32,6 +32,7 @@ void remove_log_file() {
     va_end(ap);                 \
     fflush(pf);                 \
 }
+
 void print(const char* format,...) {
     l_lock(lock_io);
         
@@ -45,19 +46,13 @@ void print(const char* format,...) {
 
     l_unlock(lock_io);
 }
-void printH(const char* format,...) {
-#ifdef CLUSTER
-    char str[1024];
-    sprintf(str,"[%d]%s",PROCESSOR::host_id,format);
-#else
-    const char* str = format;
-#endif
+void print_all(const char* format,...) {
     l_lock(lock_io);
         
     va_list ap;
-    PRINT(stdout,str);
+    PRINT(stdout,format);
     if(log_on && log_file)
-        PRINT(log_file,str);    
+        PRINT(log_file,format);    
 
     l_unlock(lock_io);
 }
@@ -71,10 +66,7 @@ void print_info(const char* format,...) {
     l_lock(lock_io);
         
     va_list ap;
-    CLUSTER_CODE(if(PROCESSOR::host_id == 0))
-    {
-        PRINT(stdout,str);
-    }
+    PRINT(stdout,str);
     if(log_on && log_file)
         PRINT(log_file,str);    
 
@@ -563,11 +555,7 @@ void SEARCHER::print_pv(int score) {
     }
     /*print it now*/
     strcat(pv,"\n");
-    l_lock(lock_io);
-    printf("%s",pv);
-    if(log_on && log_file)
-        fprintf(log_file,"%s",pv);
-    l_unlock(lock_io);
+    print_all(pv);
     /*undo moves*/
     for (int j = 0; j < i ; j++) {
         move = hstack[hply - 1].move;

@@ -1870,9 +1870,6 @@ MOVE SEARCHER::find_best() {
             }
         }
     }
-    if(use_abdada_cluster || montecarlo) {
-        PROCESSOR::Barrier();
-    }
 #endif
 
     /*init*/
@@ -1972,7 +1969,7 @@ MOVE SEARCHER::find_best() {
     }
 
     /* merge search results of all cluster nodes*/
-    if(use_abdada_cluster) {
+    if(use_abdada_cluster && PROCESSOR::n_hosts > 1) {
 
         MOVE move_st[MAX_MOVES];
         float score_st[MAX_MOVES];
@@ -1980,6 +1977,7 @@ MOVE SEARCHER::find_best() {
         int n_root_moves = stack[0].count;
 
         /*score root moves*/
+        float factor = PROCESSOR::vote_weight / 100.0f;
         if(montecarlo) {
             int idx = 0;
             Node* current = root_node->child;
@@ -1987,21 +1985,27 @@ MOVE SEARCHER::find_best() {
                 char mv_str[16];
                 mov_str(current->move,mv_str);
                 move_st[idx] = current->move;
-                score_st[idx] = double(current->visits) / root_node->visits;
+                score_st[idx] = factor * double(current->visits) / root_node->visits;
                 idx++;
                 current = current->next;
             }
         } else {
-            float factor = (root_score >= 500) ? 10 : 1;
+            if(root_score >= 500)
+                factor *= 10;
             if(n_root_moves > 1)
                 root_score_st[0] = MAX(root_score_st[0], 1.5 * root_score_st[1]);
+
+            uint64_t total_nodes = 0;
+            for(int i = 0; i < n_root_moves; i++)
+                total_nodes += root_score_st[i];
+
             for(int i = 0; i < n_root_moves; i++) {
                 move_st[i] = stack[0].move_st[i];
-                score_st[i] = factor * sqrt(double(root_score_st[i]) / nodes);
+                score_st[i] = factor * sqrt(double(root_score_st[i]) / total_nodes);
             }
         }
 
-        /*score by move*/
+        /*sort by move*/
         for(int i = 0;i < n_root_moves; i++) {
             for(int j = i + 1;j < n_root_moves;j++) {
                 if(move_st[i] < move_st[j]) {
@@ -2015,13 +2019,6 @@ MOVE SEARCHER::find_best() {
             }
         }
 
-#if 0
-        for(int i = 0; i < n_root_moves; i++) {
-            char mv_str[16];
-            mov_str(move_st[i],mv_str);
-            printH(" %d. %s %9.3f\n",i+1,mv_str,score_st[i]);
-        }
-#endif
         /*reduce*/
         PROCESSOR::Sum(score_st,sum_score_st,n_root_moves);
 
@@ -2033,7 +2030,37 @@ MOVE SEARCHER::find_best() {
                     bmove = move_st[i];
                 }
             }
+        }
 
+        /*sort by score*/
+        for(int i = 0;i < n_root_moves; i++) {
+            for(int j = i + 1;j < n_root_moves;j++) {
+                if(score_st[i] < score_st[j]) {
+                    MOVE tempm = move_st[i];
+                    move_st[i] = move_st[j];
+                    move_st[j] = tempm;
+                    float temps = score_st[i];
+                    score_st[i] = score_st[j];
+                    score_st[j] = temps;
+                }
+            }
+        }
+
+        /*print best 5 moves vote weights*/
+        char info[1024];
+        sprintf(info,"# [%d] vote:",PROCESSOR::host_id);
+        for(int i = 0; i < n_root_moves && i < 5; i++) {
+            char mv_str[16];
+            mov_str(move_st[i],mv_str);
+            sprintf(info,"%s%5s %5.3f",info,mv_str,score_st[i]);
+        }
+        strcat(info,"\n");
+        print_all(info);
+
+        /*print voted best move*/
+        PROCESSOR::Barrier();
+
+        if(PROCESSOR::host_id == 0) {
             char mv_str[16];
             mov_str(bmove,mv_str);
             print("Voted best move: %s\n",mv_str);

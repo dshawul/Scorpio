@@ -55,6 +55,7 @@ char PROCESSOR::host_name[256];
 std::list<int> PROCESSOR::available_host_workers;
 int PROCESSOR::help_messages = 0;
 int PROCESSOR::prev_dest = -1;
+int PROCESSOR::vote_weight = 100;
 const char *const PROCESSOR::message_str[] = {
     "QUIT","INIT","HELP","CANCEL","SPLIT","MERGE","PING","PONG",
     "GOROOT","RECORD_TT","PROBE_TT","PROBE_TT_RESULT"
@@ -474,6 +475,7 @@ static void print_options() {
     print_spin("nnue_type",SEARCHER::nnue_type,0,1);
     print_spin("batch_size_factor",SEARCHER::batch_size_factor,0,12);
     print_combo("scheduling",sched,SEARCHER::batch_size_factor,2);
+    CLUSTER_CODE(print_spin("vote_weight",PROCESSOR::vote_weight,0,1000));
 }
 /**
 * Internal scorpio commands
@@ -533,6 +535,11 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         }
 #endif
         command_num++;
+#ifdef CLUSTER
+    } else if(!strcmp(command, "vote_weight")) {
+        PROCESSOR::vote_weight = atoi(commands[command_num]);
+        command_num++;
+#endif
         /*
         egbb
         */
