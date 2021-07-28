@@ -1785,6 +1785,18 @@ MOVE SEARCHER::iterative_deepening() {
         /*end*/
     }
 
+    /*print final pv*/
+    if(!montecarlo) {
+        for (int j = ply; j > 0 ; j--) {
+            MOVE move = hstack[hply - 1].move;
+            if(move) POP_MOVE();
+            else POP_NULL();
+        }
+        if(!pstack->pv_length)
+            pstack->pv_length = 1;
+        print_pv(root_score);
+    }
+
     return stack[0].pv[0];
 }
 /*
@@ -1901,22 +1913,6 @@ MOVE SEARCHER::find_best() {
         processors[i]->state = PARK;
 #endif
 
-    /*
-    Print search result info
-    */
-
-    /*print final pv*/
-    if(!montecarlo) {
-        for (int j = ply; j > 0 ; j--) {
-            MOVE move = hstack[hply - 1].move;
-            if(move) POP_MOVE();
-            else POP_NULL();
-        }
-        if(!pstack->pv_length)
-            pstack->pv_length = 1;
-        print_pv(root_score);
-    }
-
 #ifdef CLUSTER
     /*quit hosts as soon as host 0 finishes*/
     if(PROCESSOR::host_id == 0 && (use_abdada_cluster || montecarlo)) {
@@ -1928,6 +1924,10 @@ MOVE SEARCHER::find_best() {
         PROCESSOR::Barrier();
     }
 #endif
+
+    /*
+    Print search result info
+    */
 
     /*search info*/
     if(montecarlo) {

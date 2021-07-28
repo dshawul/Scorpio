@@ -352,7 +352,8 @@ static const char *const commands_recognized[] = {
     "moves -- Debugging command to print all possible moves for the current board.",
     "mt/cores   <N>      -- Set the number of parallel threads of execution to N.",
     "          auto      -- Set to available logical cores.",
-    "          auto-<R>  -- Set to (auto - R) logical cores.",
+    "          auto-<R>  -- Set to (logical cores - R).",
+    "          auto/<R>  -- Set to (logical cores / R).",
     "name -- Tell scorpio who you are.",
     "new -- Reset the board to the standard chess starting position.",
     "nopost -- do not show thinking.",
@@ -527,6 +528,9 @@ bool internal_commands(char** commands,char* command,int& command_num) {
             else if(!strncmp(commands[command_num],"auto-",5)) {
                 int r = atoi(&commands[command_num][5]);
                 mt = PROCESSOR::n_cores - r;
+            } else if(!strncmp(commands[command_num],"auto/",5)) {
+                int r = atoi(&commands[command_num][5]);
+                mt = PROCESSOR::n_cores / r;
             } else
                 mt = atoi(commands[command_num]);
             mt = MIN(mt, MAX_CPUS);
