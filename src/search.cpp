@@ -1994,7 +1994,18 @@ MOVE SEARCHER::find_best() {
 
         /*score root moves*/
         float factor = PROCESSOR::vote_weight / 100.0f;
-        if(montecarlo) {
+        if(root_score >= 500)
+            factor *= 5;
+        else if(root_score >= 400)
+            factor *= 3;
+        else if(root_score >= 300)
+            factor *= 2;
+        else if(root_score >= 150)
+            factor *= 1.5;
+        else if(root_score >= 100)
+            factor *= 1.2;
+
+        if(montecarlo && Node::max_tree_depth) {
             int idx = 0;
             Node* current = root_node->child;
             while(current) {
@@ -2006,8 +2017,12 @@ MOVE SEARCHER::find_best() {
                 current = current->next;
             }
         } else {
-            if(root_score >= 500)
+            if(root_score >= 600)
                 factor *= 10;
+            else if(root_score >= 400)
+                factor *= 4;
+            else if(root_score >= 200)
+                factor *= 2;
             if(n_root_moves > 1)
                 root_score_st[0] = MAX(root_score_st[0], 1.5 * root_score_st[1]);
 
