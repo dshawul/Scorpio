@@ -1386,14 +1386,13 @@ void SEARCHER::search_ab_prior() {
 
     /*nodes to prior*/
     uint64_t maxn = 0;
-    int maxni = 0;
     for(int i = 1; i < pstack->count; i++) {
         uint64_t v = root_score_st[i];
-        if(v > maxn) { maxn = v; maxni = i; }
+        if(v > maxn) maxn = v;
     }
 
-    if(root_score_st[0] < 1.5 * root_score_st[maxni])
-        root_score_st[0] = 1.5 * root_score_st[maxni];
+    if(root_score_st[0] < 1.5 * maxn)
+        root_score_st[0] = 1.5 * maxn;
 
     /*assign prior*/
     Node* current = root_node->child;
@@ -1861,6 +1860,8 @@ MOVE SEARCHER::find_best() {
     /*generate and score moves*/
     chess_clock.set_stime(hply,true);
     generate_and_score_moves(-MATE_SCORE,MATE_SCORE);
+    for(int i = 0; i < pstack->count; i++)
+        root_score_st[i] = 0;
 
     /*no move*/
     if(pstack->count == 0) {
@@ -2023,8 +2024,14 @@ MOVE SEARCHER::find_best() {
                 factor *= 4;
             else if(root_score >= 200)
                 factor *= 2;
-            if(n_root_moves > 1)
-                root_score_st[0] = MAX(root_score_st[0], 1.5 * root_score_st[1]);
+
+            uint64_t maxn = 0;
+            for(int i = 1; i < n_root_moves; i++) {
+                uint64_t v = root_score_st[i];
+                if(v > maxn) maxn = v;
+            }
+            if(root_score_st[0] < 1.5 * maxn)
+                root_score_st[0] = 1.5 * maxn;
 
             uint64_t total_nodes = 0;
             for(int i = 0; i < n_root_moves; i++)
@@ -2083,18 +2090,18 @@ MOVE SEARCHER::find_best() {
         }
 
         /*print best 5 moves vote weights*/
-        PROCESSOR::Barrier();
-
         char info[1024];
         sprintf(info,"# [%d] vote:",PROCESSOR::host_id);
         for(int i = 0; i < n_root_moves && i < 8; i++) {
-            char mv_str[16];
+            char mv_str[16], str[32];
             mov_str(move_st[i],mv_str);
-            sprintf(info,"%s%5s %5.3f",info,mv_str,score_st[i]);
+            sprintf(str, "%5s %5.3f", mv_str, score_st[i]);
+            strcat(info,str);
         }
         strcat(info,"\n");
-        print_all(info);
 
+        PROCESSOR::Barrier();
+        print_all(info);
         PROCESSOR::Barrier();
 
         /*print voted best move*/
@@ -2113,19 +2120,19 @@ MOVE SEARCHER::find_best() {
                 }
             }
 
-            char info[1024];
-            sprintf(info,"# [%d] sum :",PROCESSOR::host_id);
+            strcpy(info,"#     sum :");
             for(int i = 0; i < n_root_moves && i < 8; i++) {
-                char mv_str[16];
+                char mv_str[16], str[32];
                 mov_str(move_st[i],mv_str);
-                sprintf(info,"%s%5s %5.3f",info,mv_str,sum_score_st[i]);
+                sprintf(str, "%5s %5.3f", mv_str, sum_score_st[i]);
+                strcat(info,str);
             }
             strcat(info,"\n");
             print_all(info);
 
             char mv_str[16];
             mov_str(bmove,mv_str);
-            print("# Voted best move: %s\n",mv_str);
+            print("# voted best move: %s\n",mv_str);
         }
 
     }
