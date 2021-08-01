@@ -1375,6 +1375,29 @@ double SEARCHER::compute_kld() {
     return kld;
 }
 
+void SEARCHER::compute_time_factor(int rscore) {
+    for(int i = 0; i < 2; i++) {
+        if(rscore <= -150)
+            time_factor *= 3.0;
+        else if(rscore <= -120)
+            time_factor *= 2.3;
+        else if(rscore <= -70)
+            time_factor *= 1.6;
+        else if(rscore <= -30)
+            time_factor *= 1.3;
+        else if(rscore >= 100)
+            time_factor *= 2.0;
+        else if(rscore >= 55)
+            time_factor *= 1.6;
+        else if(rscore >= 35)
+            time_factor *= 1.3;
+        else if(ABS(rscore) > 10)
+            time_factor *= 1.1;
+        if(first_search)
+            break;
+        rscore = rscore - old_root_score;
+    }
+}
 void SEARCHER::check_mcts_quit(bool single) {
 
     /*only mcts*/
@@ -1427,29 +1450,8 @@ void SEARCHER::check_mcts_quit(bool single) {
     time_factor = 1.0;
     if(bnval != bnvis)
         time_factor *= 1.3;
-
-    float rscore = logit(root_node->score);
-    for(int i = 0; i < 2; i++) {
-        if(rscore <= -150)
-            time_factor *= 3.0;
-        else if(rscore <= -120)
-            time_factor *= 2.3;
-        else if(rscore <= -70)
-            time_factor *= 1.6;
-        else if(rscore <= -30)
-            time_factor *= 1.3;
-        else if(rscore >= 100)
-            time_factor *= 2.0;
-        else if(rscore >= 55)
-            time_factor *= 1.6;
-        else if(rscore >= 35)
-            time_factor *= 1.3;
-        else if(ABS(rscore) > 10)
-            time_factor *= 1.1;
-        if(first_search)
-            break;
-        rscore = rscore - old_root_score;
-    }
+    int rscore = logit(root_node->score);
+    compute_time_factor(rscore);
 
     /*calculate remain visits*/
     int remain_visits;

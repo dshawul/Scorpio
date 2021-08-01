@@ -807,6 +807,7 @@ typedef struct SEARCHER{
     int   print_result(bool);
     void  check_quit();
     void  check_mcts_quit(bool);
+    void  compute_time_factor(int);
     double compute_kld();
     int   eval(bool = false);
     int   eval_hce();

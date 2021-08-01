@@ -1641,6 +1641,10 @@ MOVE SEARCHER::iterative_deepening() {
                 root_failed_low--;
         }
 
+        /*determine time factor*/
+        time_factor = 1.0;
+        compute_time_factor(root_score);
+
         /*check if "easy" move is really easy*/
         if(easy && (easy_move != pstack->pv[0] || score <= easy_score - 60)) {
             easy = false;
@@ -1678,8 +1682,8 @@ MOVE SEARCHER::iterative_deepening() {
             if(!root_failed_low && chess_clock.is_timed()) {
                 int time_used = get_time() - start_time;
                 double ratio = double(root_score_st[0]) / root_score_st[1];
-                if((time_used >= 0.75 * chess_clock.search_time) || 
-                   (time_used >= 0.5 * chess_clock.search_time && ratio >= 2.0)  ) {
+                if((time_used >= 0.75 * time_factor * chess_clock.search_time) || 
+                   (time_used >= 0.5 * time_factor * chess_clock.search_time && ratio >= 2.0)  ) {
                     abort_search = 1;
                     break;
                 }
@@ -1728,7 +1732,7 @@ MOVE SEARCHER::iterative_deepening() {
             if(rollout_type == ALPHABETA) {
                 if(!root_failed_low && chess_clock.is_timed()) {
                     int time_used = get_time() - start_time;
-                    if(time_used >= 0.75 * chess_clock.search_time) {
+                    if(time_used >= 0.75 * time_factor * chess_clock.search_time) {
                         abort_search = 1;
                         break;
                     }
