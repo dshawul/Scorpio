@@ -1066,10 +1066,7 @@ Back up to previous ply
 */
 #define GOBACK_Q(save) {                                            \
     if(use_tt && save && !abort_search && !stop_searcher) {         \
-        int depth = 0;                                              \
-        if( (hply >= 1 && hstack[hply - 1].checks) ||               \
-             pstack->qcheck_depth > 0) depth = UNITDEPTH;           \
-        RECORD_HASH(player,hash_key,depth,ply,pstack->flag,         \
+        RECORD_HASH(player,hash_key,0,ply,pstack->flag,             \
                     pstack->best_score,pstack->best_move,0,0);      \
     }                                                               \
     goto POP_Q;                                                     \
