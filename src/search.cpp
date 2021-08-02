@@ -102,6 +102,14 @@ bool SEARCHER::hash_cutoff() {
         }
         pstack->best_move = pstack->hash_move;
         pstack->best_score = pstack->hash_score;
+        /*update history*/
+        if(!is_cap_prom(pstack->hash_move)) {
+            pstack->current_index = 1;
+            if(pstack->hash_flags == LOWER)
+                update_history(pstack->hash_move);
+            else if(pstack->hash_flags == UPPER)
+                update_history(pstack->hash_move,true);
+        }
         return true;
     }
 

@@ -838,7 +838,7 @@ typedef struct SEARCHER{
     void  pgn_to_epd(char*,FILE*,int=0);
     void  epd_to_nn(char*,FILE*,int=0);
     static void  allocate_history();
-    void  update_history(MOVE);
+    void  update_history(MOVE,bool=false);
     void  clear_history();
     int   get_history_score(const MOVE&);
     int   search_ab();

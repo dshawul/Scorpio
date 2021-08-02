@@ -1834,9 +1834,11 @@ static FORCEINLINE int update_h(int& h, int temp) {
     h += (temp << 5)  - ((h * ABS(temp)) >> 9);
     return h;
 }
-void SEARCHER::update_history(MOVE move) {
+void SEARCHER::update_history(MOVE move, bool penalize) {
     int temp = MIN(361, pstack->depth * pstack->depth);
     int maxh, maxh1;
+
+    if(penalize) temp = -temp;
 
     maxh = update_h(HISTORY(move),temp);
     for(int i = 0; i < pstack->current_index - 1;i++) {
@@ -1855,7 +1857,7 @@ void SEARCHER::update_history(MOVE move) {
             ref_fup_history[i] >>= 1;
     }
 
-    if(move != pstack->killer[0]) {
+    if(!penalize && move != pstack->killer[0]) {
         pstack->killer[1] = pstack->killer[0];
         pstack->killer[0] = move;
     }
@@ -1870,7 +1872,7 @@ void SEARCHER::update_history(MOVE move) {
                     update_h(REF_FUP_HISTORY(cMove,mv),-temp);
             }
         }
-        if(i == 1 && pstack->depth > 1)
+        if(!penalize && i == 1 && pstack->depth > 1)
             REFUTATION(cMove) = move;
     }
 }
