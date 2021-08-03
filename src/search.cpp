@@ -27,9 +27,9 @@ int contempt = 10;
 #endif
 
 static PARAM aspiration_window = 10;
-static PARAM futility_margin[] = {0, 143, 232, 307, 615, 703, 703, 960};
-static PARAM failhigh_margin[] = {0, 120, 240, 360, 480, 600, 720, 840};
-static PARAM razor_margin[] = {0, 136, 181, 494, 657, 0, 0, 0};
+static PARAM failhigh_margin = 120;
+static PARAM razor_margin = 120;
+static PARAM futility_margin = 120;
 static PARAM lmp_count[] = {0, 10, 10, 15, 21, 24, 44, 49};
 static PARAM lmr_count[] = {4, 6, 7, 8, 13, 20, 25, 31};
 static PARAM lmr_ntype_count[] = {17, 5, 5};
@@ -125,14 +125,13 @@ FORCEINLINE int SEARCHER::on_node_entry() {
     /*razoring & static pruning*/
     if(use_selective
         && all_man_c > MAX_EGBB
-        && pstack->depth <= 7 * UNITDEPTH
         && (pstack - 1)->search_state != NULL_MOVE
         && !pstack->extension
         && pstack->node_type != PV_NODE
         ) {
             int score = eval(true);
-            int rmargin = razor_margin[DEPTH(pstack->depth)];
-            int fhmargin = failhigh_margin[DEPTH(pstack->depth)];
+            int rmargin = razor_margin * DEPTH(pstack->depth);
+            int fhmargin = failhigh_margin * DEPTH(pstack->depth);
 
             if(score + rmargin <= pstack->alpha
                 && pstack->depth <= 4 * UNITDEPTH
@@ -383,15 +382,14 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
     /*
     pruning
     */
-    if(depth <= 7
-        && all_man_c > MAX_EGBB
+    if(all_man_c > MAX_EGBB
         && !pstack->extension
         && noncap_reduce
         && node_t != PV_NODE
         && ABS((pstack - 1)->best_score) != MATE_SCORE
         ) {
             //late move
-            if(nmoves >= lmp_count[depth])
+            if(depth <= 7 && nmoves >= lmp_count[depth])
                 return true;
 
             //see
@@ -406,7 +404,7 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
                 return true;
 
             //futility
-            int margin = futility_margin[depth];
+            int margin = futility_margin * depth;
             margin = MAX(margin / 4, margin - 10 * nmoves);
             score = -eval(true);
             if(score + margin < (pstack - 1)->alpha) {
@@ -2180,20 +2178,20 @@ bool check_search_params(char** commands,char* command,int& command_num) {
     } else if(!strcmp(command, "multipv")) {
         multipv = is_checked(commands[command_num++]);
 #ifdef TUNE
-    } else if(!strncmp(command, "futility_margin",15)) {
-        futility_margin[atoi(&command[15])] = atoi(commands[command_num++]);
-    } else if(!strncmp(command, "razor_margin",12)) {
-        razor_margin[atoi(&command[12])] = atoi(commands[command_num++]);
-    } else if(!strncmp(command, "failhigh_margin",15)) {
-        failhigh_margin[atoi(&command[15])] = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "aspiration_window")) {
+        aspiration_window = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "razor_margin")) {
+        razor_margin = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "failhigh_margin")) {
+        failhigh_margin = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "futility_margin")) {
+        futility_margin = atoi(commands[command_num++]);
     } else if(!strncmp(command, "lmp_count",9)) {
         lmp_count[atoi(&command[9])] = atoi(commands[command_num++]);
     } else if(!strncmp(command, "lmr_count",9)) {
         lmr_count[atoi(&command[9])] = atoi(commands[command_num++]);
     } else if(!strncmp(command, "lmr_ntype_count",15)) {
         lmr_ntype_count[atoi(&command[15])] = atoi(commands[command_num++]);
-    } else if(!strcmp(command, "aspiration_window")) {
-        aspiration_window = atoi(commands[command_num++]);
 #endif
     } else if(!strcmp(command, "contempt")) {
         contempt = atoi(commands[command_num++]);
