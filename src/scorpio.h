@@ -200,11 +200,7 @@ enum square_names {
 #define WSLC_FLAG           3
 #define BSLC_FLAG          12
 #define WBC_FLAG           15
-/*
-Depth
-*/
-#define UNITDEPTH           1
-#define DEPTH(x)            (x)
+
 /*
 Scorpio moves are 32bit long
 */

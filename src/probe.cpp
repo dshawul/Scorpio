@@ -358,8 +358,8 @@ int SEARCHER::probe_bitbases(int& score) {
 bool SEARCHER::bitbase_cutoff() {
 #ifdef EGBB
     int score;
-    int dlimit = egbb_depth_limit * UNITDEPTH;
-    int plimit = (all_man_c <= MAX_EGBB) ? egbb_ply_limit : egbb_ply_limit / 2;
+    int dlimit = egbb_depth_limit;
+    int plimit = egbb_ply_limit;
     if( egbb_is_loaded                                   //must be loaded
         && all_man_c <= MAX_EGBB                         //maximum 6 pieces
         && (pstack->depth >= dlimit || all_man_c <= 4 )  //hard depth limit

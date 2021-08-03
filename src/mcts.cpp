@@ -1105,7 +1105,7 @@ void SEARCHER::play_simulation(Node* n, float& score, int& visits) {
              (
              Node::total_nodes  + MAX_MOVES >= Node::max_tree_nodes       
              || freeze_tree
-             || pstack->depth <= alphabeta_depth * UNITDEPTH
+             || pstack->depth <= alphabeta_depth
              )
             ) {
             if(Node::total_nodes  + MAX_MOVES >= Node::max_tree_nodes &&
@@ -1167,7 +1167,7 @@ SELECT:
         Node* next = 0;
         if(rollout_type == ALPHABETA) {
             bool try_null = pstack->node_type != PV_NODE
-                            && pstack->depth >= 4 * UNITDEPTH 
+                            && pstack->depth >= 4
                             && n->score >= pstack->beta;
             bool search_by_rank = (pstack->node_type == PV_NODE);
 
@@ -1221,7 +1221,7 @@ SELECT:
             /*Make move*/
             PUSH_MOVE(next->move);
 RESEARCH:
-            pstack->depth = (pstack - 1)->depth - UNITDEPTH;
+            pstack->depth = (pstack - 1)->depth - 1;
             pstack->search_state = NULL_MOVE;
 
             if(rollout_type == ALPHABETA) {
@@ -1305,9 +1305,9 @@ RESEARCH:
             pstack->node_type = next_node_t;
             pstack->search_state = NORMAL_MOVE;
             /*Next ply depth*/
-            pstack->depth = (pstack - 1)->depth - 3 * UNITDEPTH - 
+            pstack->depth = (pstack - 1)->depth - 3 - 
                             (pstack - 1)->depth / 4 -
-                            (MIN(3 , (n->score - (pstack - 1)->beta) / 128) * UNITDEPTH);
+                            (MIN(3 , (n->score - (pstack - 1)->beta) / 128));
             /*Simulate nullmove*/
             play_simulation(next,score,visits);
 
@@ -1541,7 +1541,7 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
     }
 
     /*Set alphabeta rollouts depth*/
-    int ablimit = DEPTH((1 - frac_abrollouts) * pstack->depth);
+    int ablimit = (1 - frac_abrollouts) * pstack->depth;
     if(ablimit > alphabeta_depth)
         alphabeta_depth = ablimit;
 
@@ -2446,7 +2446,7 @@ void SEARCHER::self_play_thread() {
                 manage_tree(true);
                 SEARCHER::egbb_ply_limit = 8;
                 stop_searcher = 0;
-                pstack->depth = search_depth * UNITDEPTH;
+                pstack->depth = search_depth;
 
                 /*katago's playout cap randomization*/
                 if(playout_cap_rand && chess_clock.max_visits >= 800) {

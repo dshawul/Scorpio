@@ -457,7 +457,7 @@ void SEARCHER::RECORD_HASH(
                  ) {
 #ifdef CLUSTER
 #   if CLUSTER_TT_TYPE == 1
-    bool local = (DEPTH(depth) <= PROCESSOR::CLUSTER_SPLIT_DEPTH);
+    bool local = (depth <= PROCESSOR::CLUSTER_SPLIT_DEPTH);
     int dest;
     if(!local) {
         dest = ((hash_key >> 48) * PROCESSOR::n_hosts) >> 16;
@@ -496,7 +496,7 @@ int SEARCHER::PROBE_HASH(
                ) {
 #ifdef CLUSTER
 #   if CLUSTER_TT_TYPE == 1
-    bool local = (DEPTH(depth) <= PROCESSOR::CLUSTER_SPLIT_DEPTH);
+    bool local = (depth <= PROCESSOR::CLUSTER_SPLIT_DEPTH);
     int dest = 0;
     if(!local) {
         dest = ((hash_key >> 48) * PROCESSOR::n_hosts) >> 16;
@@ -607,7 +607,7 @@ TOP:
     PUSH_MOVE(pstack->current_move);
 
     /*set next ply's depth and be selective*/           
-    pstack->depth = (pstack - 1)->depth - UNITDEPTH;
+    pstack->depth = (pstack - 1)->depth - 1;
     if(be_selective((pstack - 1)->legal_moves, false)) {
         POP_MOVE();
         goto TOP;
@@ -847,9 +847,9 @@ void SEARCHER::update_master(int skip) {
 */
 int SEARCHER::check_split() {
     int i;
-    if(((DEPTH(pstack->depth) > PROCESSOR::SMP_SPLIT_DEPTH && PROCESSOR::n_idle_processors > 0)
+    if(((pstack->depth > PROCESSOR::SMP_SPLIT_DEPTH && PROCESSOR::n_idle_processors > 0)
         CLUSTER_CODE( || 
-        (DEPTH(pstack->depth) > PROCESSOR::CLUSTER_SPLIT_DEPTH && PROCESSOR::available_host_workers.size() > 0)))
+        (pstack->depth > PROCESSOR::CLUSTER_SPLIT_DEPTH && PROCESSOR::available_host_workers.size() > 0)))
         && !stop_searcher
         && ((stop_ply != ply) || (!master))
         && pstack->gen_status < GEN_END
@@ -860,7 +860,7 @@ int SEARCHER::check_split() {
             
 #ifdef CLUSTER
             /*attach helper hosts*/
-            if(DEPTH(pstack->depth) > PROCESSOR::CLUSTER_SPLIT_DEPTH 
+            if(pstack->depth > PROCESSOR::CLUSTER_SPLIT_DEPTH 
                 && !use_abdada_cluster
                 && PROCESSOR::available_host_workers.size() > 0
                 ) {
@@ -884,7 +884,7 @@ int SEARCHER::check_split() {
 #endif
             
             /*attach helper threads*/
-            if(DEPTH(pstack->depth) > PROCESSOR::SMP_SPLIT_DEPTH 
+            if(pstack->depth > PROCESSOR::SMP_SPLIT_DEPTH 
                 && PROCESSOR::n_idle_processors > 0
                 ) {
                     for(i = 0;i < PROCESSOR::n_processors && i < PROCESSOR::n_cores && n_workers < MAX_CPUS_PER_SPLIT - 1;i++) {
@@ -892,7 +892,7 @@ int SEARCHER::check_split() {
                             attach_processor(i);
                             /*if depth greater than cluster_split_depth, attach only one thread*/
                             CLUSTER_CODE(
-                                if(!use_abdada_cluster && DEPTH(pstack->depth) > PROCESSOR::CLUSTER_SPLIT_DEPTH) break;
+                                if(!use_abdada_cluster && pstack->depth > PROCESSOR::CLUSTER_SPLIT_DEPTH) break;
                             )
                         }
                     }

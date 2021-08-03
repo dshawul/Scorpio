@@ -2063,7 +2063,7 @@ void SEARCHER::pgn_to_epd(char* pgn, FILE* fb, int task) {
         generate_and_score_moves(-MATE_SCORE, MATE_SCORE);      \
         manage_tree(true);                                      \
         SEARCHER::egbb_ply_limit = 8;                           \
-        pstack->depth = search_depth * UNITDEPTH;               \
+        pstack->depth = search_depth;                           \
         search_mc(true);                                        \
         get_train_data(score,nmoves,moves,probs,scores,bestm);  \
         l_lock(lock_io);                                        \
@@ -2221,7 +2221,7 @@ void SEARCHER::epd_to_nn(char* fen, FILE* fb, int task) {
         generate_and_score_moves(-MATE_SCORE, MATE_SCORE);      \
         manage_tree(true);                                      \
         SEARCHER::egbb_ply_limit = 8;                           \
-        pstack->depth = search_depth * UNITDEPTH;               \
+        pstack->depth = search_depth;                           \
         search_mc(true);                                        \
         get_train_data(score,nmoves,moves,probs,scores,bestm);  \
         l_lock(lock_io);                                        \

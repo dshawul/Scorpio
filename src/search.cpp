@@ -1,25 +1,21 @@
 #include "scorpio.h"
 
-static const int CHECK_DEPTH = UNITDEPTH;
-static int use_probcut = 0;
-static int use_singular = 1;
-static int singular_margin = 32;
-static int probcut_margin = 195;
-static int prev_pv_length;
-static int alphabeta_man_c = 6;
-static int multipv = 0;
-int qsearch_level = 0;
-
 /* search options */
+int contempt = 10;
+static int alphabeta_man_c = 12;
+static int multipv = 0;
+
+/* search features */
 const int use_nullmove = 1;
 const int use_selective = 1;
 const int use_tt = 1;
 const int use_aspiration = 1;
 const int use_iid = 1;
 const int use_pvs = 1;
-int contempt = 10;
+const int use_probcut = 0;
+const int use_singular = 1;
 
-/* parameter */
+/* tunable search parameters */
 #ifdef TUNE
 #   define PARAM int
 #else
@@ -29,10 +25,16 @@ int contempt = 10;
 static PARAM aspiration_window = 10;
 static PARAM failhigh_margin = 120;
 static PARAM razor_margin = 120;
-static PARAM futility_margin = 120;
+static PARAM futility_margin = 130;
+static PARAM singular_margin = 32;
+static PARAM probcut_margin = 195;
 static PARAM lmp_count[] = {0, 10, 10, 15, 21, 24, 44, 49};
 static PARAM lmr_count[] = {4, 6, 7, 8, 13, 20, 25, 31};
 static PARAM lmr_ntype_count[] = {17, 5, 5};
+
+/* shared variables */
+static int prev_pv_length = 0;
+int qsearch_level = 0;
 
 /*
 * Update pv
@@ -52,7 +54,7 @@ bool SEARCHER::hash_cutoff() {
 #ifdef PARALLEL
     if(!montecarlo && (use_abdada_smp == 1) && ply > 1
         && PROCESSOR::n_processors > 1
-        && DEPTH((pstack - 1)->depth) > PROCESSOR::SMP_SPLIT_DEPTH
+        && (pstack - 1)->depth > PROCESSOR::SMP_SPLIT_DEPTH
         && !(pstack - 1)->second_pass
         && (pstack - 1)->legal_moves > 1
         ) {
@@ -112,9 +114,9 @@ FORCEINLINE int SEARCHER::on_node_entry() {
         if(qsearch_level < 0)
             pstack->qcheck_depth = 0;
         else if(pstack->node_type == PV_NODE) 
-            pstack->qcheck_depth = 2 * CHECK_DEPTH; 
+            pstack->qcheck_depth = 2; 
         else 
-            pstack->qcheck_depth = CHECK_DEPTH;
+            pstack->qcheck_depth = 1;
         qsearch_nn();
         return true;
     }
@@ -130,13 +132,13 @@ FORCEINLINE int SEARCHER::on_node_entry() {
         && pstack->node_type != PV_NODE
         ) {
             int score = eval(true);
-            int rmargin = razor_margin * DEPTH(pstack->depth);
-            int fhmargin = failhigh_margin * DEPTH(pstack->depth);
+            int rmargin = razor_margin * pstack->depth;
+            int fhmargin = failhigh_margin * pstack->depth;
 
             if(score + rmargin <= pstack->alpha
-                && pstack->depth <= 4 * UNITDEPTH
+                && pstack->depth <= 4
                 ) {
-                pstack->qcheck_depth = CHECK_DEPTH;
+                pstack->qcheck_depth = 1;
                 /*do qsearch with shifted-down window*/
                 {
                     int palpha = pstack->alpha;
@@ -319,7 +321,7 @@ int SEARCHER::is_pawn_push(MOVE move) const {
 /*selective search*/
 int SEARCHER::be_selective(int nmoves, bool mc) {
     MOVE move = hstack[hply - 1].move; 
-    int extension = 0,score,depth = DEPTH((pstack - 1)->depth);
+    int extension = 0,score,depth = (pstack - 1)->depth;
     int node_t = (pstack - 1)->node_type;
 
     pstack->extension = 0;
@@ -332,8 +334,8 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
             && !is_pawn_push(move)
             ) {
             for(int i = 0; i < 8; i++) {
-                if(nmoves >= lmr_count[i] && pstack->depth > UNITDEPTH) {
-                    reduce(UNITDEPTH);
+                if(nmoves >= lmr_count[i] && pstack->depth > 1) {
+                    reduce(1);
                 } else break;
             }
         }
@@ -360,7 +362,7 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
     extend
     */
     if(hstack[hply - 1].checks) {
-        if(node_t == PV_NODE) { extend(UNITDEPTH); }
+        if(node_t == PV_NODE) { extend(1); }
         else { extend(0); }
     }
     if(is_pawn_push(move)) { 
@@ -370,13 +372,13 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
         && piece_c[white] + piece_c[black] == 0
         && PIECE(m_capture(move)) != pawn
         ) {
-        extend(UNITDEPTH);
+        extend(1);
     }
     if((pstack - 1)->singular && nmoves == 1) {
-        extend(UNITDEPTH);
+        extend(1);
     }
-    if(extension > UNITDEPTH)
-        extension = UNITDEPTH;
+    if(extension > 1)
+        extension = 1;
 
     pstack->depth += extension; 
     /*
@@ -421,31 +423,31 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
     if(noncap_reduce && nmoves >= 2) {
         //by number of moves searched so far including current move
         for(int i = 0; i < 8; i++) {
-            if(nmoves >= lmr_count[i] && pstack->depth > UNITDEPTH) {
-                reduce(UNITDEPTH);
+            if(nmoves >= lmr_count[i] && pstack->depth > 1) {
+                reduce(1);
             } else break;
         }
         //lets find more excuses to reduce
         //all and cut nodes
         if(nmoves >= lmr_ntype_count[node_t]
-            && pstack->depth > UNITDEPTH
+            && pstack->depth > 1
             ) { 
-            reduce(UNITDEPTH);
+            reduce(1);
         }
         //has tt move
         if((pstack-1)->hash_move == (pstack-1)->best_move) {
             //reduce early moves
-            if(nmoves < lmr_count[0] && pstack->depth > UNITDEPTH) { reduce(UNITDEPTH); }
+            if(nmoves < lmr_count[0] && pstack->depth > 1) { reduce(1); }
             //capture tt move
             if(is_cap_prom((pstack-1)->hash_move)) {
-                if(pstack->depth > UNITDEPTH) { reduce(UNITDEPTH); }
-                if(nmoves >= 8 && pstack->depth > UNITDEPTH) { reduce(UNITDEPTH); }
+                if(pstack->depth > 1) { reduce(1); }
+                if(nmoves >= 8 && pstack->depth > 1) { reduce(1); }
             }
         }
         //see reduction
-        if(depth > 7 && pstack->depth > UNITDEPTH && see(move) < 0) {
-            reduce(UNITDEPTH);
-            if(nmoves >= 8 && pstack->depth > UNITDEPTH) { reduce(UNITDEPTH); }
+        if(depth > 7 && pstack->depth > 1 && see(move) < 0) {
+            reduce(1);
+            if(nmoves >= 8 && pstack->depth > 1) { reduce(1); }
         }
         //reduce extended moves less
         if(pstack->extension) {
@@ -455,19 +457,19 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
     /*losing captures*/
     if(loscap_reduce && nmoves >= 2) {
         if(pstack->extension) {
-            reduce(UNITDEPTH);
-        } else if(pstack->depth <= 2 * UNITDEPTH)
+            reduce(1);
+        } else if(pstack->depth <= 2)
             return true;
-        else if(pstack->depth > 4 * UNITDEPTH) {
+        else if(pstack->depth > 4) {
             reduce(pstack->depth / 2);
         } else {
-            reduce(2 * UNITDEPTH);
+            reduce(2);
         }
     }
 #if 0
     /* slow neural network pruning*/
     if(use_nn && !skip_nn && nmoves >= 3) {
-        reduce(4 * UNITDEPTH);
+        reduce(4);
         if(pstack->depth <= 0)
             return true;
     }
@@ -536,7 +538,7 @@ START:
             switch(sb->pstack->search_state) {
             case PROBCUT_SEARCH:
                 if(use_probcut
-                    && sb->pstack->depth >= 6 * UNITDEPTH
+                    && sb->pstack->depth >= 6
                     && sb->pstack->node_type != PV_NODE
                     ) {
                     sb->pstack->o_alpha = sb->pstack->alpha;
@@ -547,7 +549,7 @@ START:
                     else
                         sb->pstack->alpha = sb->pstack->alpha - probcut_margin;
                     sb->pstack->beta = sb->pstack->alpha + 1;
-                    sb->pstack->depth -= 4 * UNITDEPTH;
+                    sb->pstack->depth -= 4;
                     sb->pstack->search_state |= NORMAL_MOVE; 
                 } else {
                     sb->pstack->search_state = IID_SEARCH;
@@ -558,15 +560,15 @@ START:
                 if(use_iid
                     && sb->pstack->node_type != ALL_NODE
                     && !sb->pstack->hash_move
-                    && sb->pstack->depth >= 6 * UNITDEPTH
+                    && sb->pstack->depth >= 6
                     ) {
                     sb->pstack->o_alpha = sb->pstack->alpha;
                     sb->pstack->o_beta = sb->pstack->beta;
                     sb->pstack->o_depth = sb->pstack->depth;
                     if(sb->pstack->node_type == PV_NODE) 
-                        sb->pstack->depth -= 2 * UNITDEPTH;
+                        sb->pstack->depth -= 2;
                     else 
-                        sb->pstack->depth -= 4 * UNITDEPTH;
+                        sb->pstack->depth -= 4;
                     sb->pstack->search_state |= NORMAL_MOVE; 
                 } else {
                     sb->pstack->search_state = SINGULAR_SEARCH;
@@ -577,7 +579,7 @@ START:
                 if(use_singular 
                     && sb->pstack->node_type != ALL_NODE
                     && sb->pstack->hash_move 
-                    && sb->pstack->depth >= 8 * UNITDEPTH
+                    && sb->pstack->depth >= 8
                     && sb->pstack->hash_flags == HASH_GOOD
                     && !sb->pstack->singular
                     ) {
@@ -586,7 +588,7 @@ START:
                         sb->pstack->o_depth = sb->pstack->depth;
                         sb->pstack->alpha = sb->pstack->hash_score - singular_margin;
                         sb->pstack->beta = sb->pstack->alpha + 1;
-                        sb->pstack->depth -= 6 * UNITDEPTH;
+                        sb->pstack->depth -= 6;
                         sb->pstack->search_state |= NORMAL_MOVE; 
                 } else {
                     sb->pstack->search_state = NORMAL_MOVE;
@@ -603,7 +605,7 @@ START:
                 if(use_nullmove
                     && !sb->hstack[sb->hply - 1].checks
                     && sb->pstack->hash_flags != AVOID_NULL
-                    && sb->pstack->depth >= 4 * UNITDEPTH
+                    && sb->pstack->depth >= 4
                     && sb->pstack->node_type != PV_NODE
                     && sb->piece_c[sb->player]
                     && (score = (sb->eval(true) - sb->pstack->beta)) >= 0
@@ -616,9 +618,9 @@ START:
                         sb->pstack->beta = -(sb->pstack - 1)->beta + 1;
                         sb->pstack->node_type = (sb->pstack - 1)->next_node_type;
                         /* Smooth scaling from Dann Corbit based on score and depth*/
-                        sb->pstack->depth = (sb->pstack - 1)->depth - 3 * UNITDEPTH - 
+                        sb->pstack->depth = (sb->pstack - 1)->depth - 3 - 
                                             (sb->pstack - 1)->depth / 4 -
-                                            (MIN(3 , score / 128) * UNITDEPTH);
+                                            (MIN(3 , score / 128));
                         /*search normal move after null*/
                         sb->pstack->search_state = NORMAL_MOVE;
                         goto NEW_NODE;
@@ -692,7 +694,7 @@ START:
                     sb->nodes++;
 
                     /*set next ply's depth and be selective*/           
-                    sb->pstack->depth = (sb->pstack - 1)->depth - UNITDEPTH;
+                    sb->pstack->depth = (sb->pstack - 1)->depth - 1;
                     if(use_selective && sb->be_selective((sb->pstack - 1)->legal_moves,false)) {
                         sb->POP_MOVE();
                         continue;
@@ -898,8 +900,8 @@ IDLE_START:
             if(sb->pstack->reduction > 0
                 && score > (sb->pstack - 1)->alpha
                 ) {
-                    sb->pstack->depth += UNITDEPTH;
-                    sb->pstack->reduction -= UNITDEPTH;
+                    sb->pstack->depth++;
+                    sb->pstack->reduction--;
                     sb->pstack->alpha = -(sb->pstack - 1)->alpha - 1;
                     sb->pstack->beta = -(sb->pstack - 1)->alpha;
                     sb->pstack->node_type = CUT_NODE;
@@ -944,7 +946,7 @@ IDLE_START:
             if(!sb->ply && !single) {
 
                 l_lock(lock_smp);
-                sb->root_score_st[sb->pstack->current_index - 1] 
+                SEARCHER::root_score_st[sb->pstack->current_index - 1] 
                       += (sb->nodes - sb->pstack->start_nodes);
                 l_unlock(lock_smp);
 
@@ -1098,9 +1100,9 @@ void SEARCHER::qsearch() {
             /*next ply's window and depth*/ 
             pstack->alpha = -(pstack - 1)->beta;
             pstack->beta = -(pstack - 1)->alpha;
-            pstack->depth = (pstack - 1)->depth - UNITDEPTH;
+            pstack->depth = (pstack - 1)->depth - 1;
             pstack->node_type = (pstack - 1)->next_node_type;
-            pstack->qcheck_depth = (pstack - 1)->qcheck_depth - UNITDEPTH;
+            pstack->qcheck_depth = (pstack - 1)->qcheck_depth - 1;
             /*end*/
 
 NEW_NODE_Q:     
@@ -1307,7 +1309,7 @@ TOP:
             pstack->beta = -alpha;
             pstack->node_type = CUT_NODE;
         }
-        pstack->depth = newd * UNITDEPTH;
+        pstack->depth = newd;
         pstack->search_state = NULL_MOVE;
 
         if(depth == -4) {
@@ -1608,7 +1610,7 @@ MOVE SEARCHER::iterative_deepening() {
             SEARCHER::egbb_ply_limit = 8;
 
         /*Set bounds and search.*/
-        pstack->depth = search_depth * UNITDEPTH;
+        pstack->depth = search_depth;
         pstack->alpha = alpha;
         pstack->beta = beta;
 
@@ -1660,29 +1662,6 @@ MOVE SEARCHER::iterative_deepening() {
             }
         }
 #endif
-        
-        /*aspiration search*/
-        if(!use_aspiration || 
-            ABS(score) >= 1000 || 
-            search_depth <= 3
-            ) {
-            alpha = -MATE_SCORE;
-            beta = MATE_SCORE;
-            prev_pv_length = stack[0].pv_length;
-        } else if(score <= alpha) {
-            WINDOW = MIN(200, 3 * WINDOW / 2);
-            alpha = MAX(-MATE_SCORE,score - WINDOW);
-            search_depth--;
-        } else if (score >= beta){
-            WINDOW = MIN(200, 3 * WINDOW / 2);
-            beta = MIN(MATE_SCORE,score + WINDOW);
-            search_depth--;
-        } else {
-            WINDOW = aspiration_window;
-            alpha = score - WINDOW;
-            beta = score + WINDOW;
-            prev_pv_length = stack[0].pv_length;
-        }
 
         /*sort moves*/
         if(!montecarlo) {
@@ -1757,7 +1736,7 @@ MOVE SEARCHER::iterative_deepening() {
                     rollout_type = MCTS;
                     use_nn = save_use_nn;
                     search_depth = MIN(search_depth + mcts_strategy_depth, MAX_PLY - 2);
-                    pstack->depth = search_depth * UNITDEPTH;
+                    pstack->depth = search_depth;
                     root_failed_low = 0;
                     freeze_tree = false;
                 }
@@ -1766,6 +1745,29 @@ MOVE SEARCHER::iterative_deepening() {
                 root_node->beta = beta;
                 Node::parallel_job(root_node,rank_reset_thread_proc,true);
             }
+        }
+
+        /*aspiration window search*/
+        if(!use_aspiration || 
+            ABS(score) >= 1000 || 
+            search_depth <= 3
+            ) {
+            alpha = -MATE_SCORE;
+            beta = MATE_SCORE;
+            prev_pv_length = stack[0].pv_length;
+        } else if(score <= alpha) {
+            WINDOW = MIN(200, 3 * WINDOW / 2);
+            alpha = MAX(-MATE_SCORE,score - WINDOW);
+            search_depth--;
+        } else if (score >= beta){
+            WINDOW = MIN(200, 3 * WINDOW / 2);
+            beta = MIN(MATE_SCORE,score + WINDOW);
+            search_depth--;
+        } else {
+            WINDOW = aspiration_window;
+            alpha = score - WINDOW;
+            beta = score + WINDOW;
+            prev_pv_length = stack[0].pv_length;
         }
 
         /*check time*/
@@ -1818,7 +1820,9 @@ MOVE SEARCHER::find_best() {
     }
 #endif
 
-    /*init*/
+    /*
+    initialize search
+    */
     ply = 0;
     pstack = stack + 0;
     stop_searcher = 0;
@@ -2165,14 +2169,8 @@ void SEARCHER::print_status() {
 * Search parameters
 */
 bool check_search_params(char** commands,char* command,int& command_num) {
-    if(!strcmp(command, "use_singular")) {
-        use_singular = is_checked(commands[command_num++]);
-    } else if(!strcmp(command, "use_probcut")) {
-        use_probcut = is_checked(commands[command_num++]);
-    } else if(!strcmp(command, "singular_margin")) {
-        singular_margin = atoi(commands[command_num++]);
-    } else if(!strcmp(command, "probcut_margin")) {
-        probcut_margin = atoi(commands[command_num++]);
+    if(!strcmp(command, "contempt")) {
+        contempt = atoi(commands[command_num++]);
     } else if(!strcmp(command, "alphabeta_man_c")) {
         alphabeta_man_c = atoi(commands[command_num++]);
     } else if(!strcmp(command, "multipv")) {
@@ -2186,6 +2184,10 @@ bool check_search_params(char** commands,char* command,int& command_num) {
         failhigh_margin = atoi(commands[command_num++]);
     } else if(!strcmp(command, "futility_margin")) {
         futility_margin = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "singular_margin")) {
+        singular_margin = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "probcut_margin")) {
+        probcut_margin = atoi(commands[command_num++]);
     } else if(!strncmp(command, "lmp_count",9)) {
         lmp_count[atoi(&command[9])] = atoi(commands[command_num++]);
     } else if(!strncmp(command, "lmr_count",9)) {
@@ -2193,8 +2195,6 @@ bool check_search_params(char** commands,char* command,int& command_num) {
     } else if(!strncmp(command, "lmr_ntype_count",15)) {
         lmr_ntype_count[atoi(&command[15])] = atoi(commands[command_num++]);
 #endif
-    } else if(!strcmp(command, "contempt")) {
-        contempt = atoi(commands[command_num++]);
     } else if(!strcmp(command, "smp_type")) {
         command = commands[command_num++];
 #ifdef PARALLEL
@@ -2230,10 +2230,6 @@ void print_search_params() {
     CLUSTER_CODE(print_combo("cluster_type",parallelt,use_abdada_cluster,3));
     CLUSTER_CODE(print_spin("cluster_depth",PROCESSOR::CLUSTER_SPLIT_DEPTH,1,16));
     CLUSTER_CODE(print_spin("message_poll_nodes",PROCESSOR::MESSAGE_POLL_NODES,10,20000));
-    print_check("use_singular",use_singular);
-    print_check("use_probcut",use_probcut);
-    print_spin("singular_margin",singular_margin,0,1000);
-    print_spin("probcut_margin",probcut_margin,0,1000);
     print_spin("contempt",contempt,0,100);
     print_spin("alphabeta_man_c",alphabeta_man_c,0,32);
     print_check("multipv",multipv);

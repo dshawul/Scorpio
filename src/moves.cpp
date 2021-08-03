@@ -1757,7 +1757,7 @@ DO_AGAIN:
         } else if(pstack->gen_status == GEN_CAPS) {
             const int cutoff_depth = (qsearch_level < -1) ? 1 : 4;
             const bool recap = (hply >= 1 && 
-                pstack->qcheck_depth <= -cutoff_depth * UNITDEPTH);
+                pstack->qcheck_depth <= -cutoff_depth);
             gen_caps(recap);
             pstack->sortm = 1;
             for(int i = 0; i < pstack->count;i++) {
@@ -1870,7 +1870,7 @@ void SEARCHER::update_history(MOVE move) {
                     update_h(REF_FUP_HISTORY(cMove,mv),-temp);
             }
         }
-        if(i == 1 && pstack->depth > UNITDEPTH)
+        if(i == 1 && pstack->depth > 1)
             REFUTATION(cMove) = move;
     }
 }

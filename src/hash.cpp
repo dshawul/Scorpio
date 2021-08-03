@@ -111,7 +111,7 @@ void SEARCHER::record_hash(
             break;
         } else {
             sc = (slot.flags & ~7)                     //8 * age   {larger weight}
-                +  DEPTH(slot.depth)                   //depth     {non-fractional depth}
+                +  slot.depth                          //depth     {non-fractional depth}
                 + ((slot.flags & 3) ? 0 : (4 << 3));   //8 * 4     {EXACT score goes 4 ages up}
             if(sc < max_sc) {
                 pr_slot = pslot;
@@ -168,11 +168,11 @@ int SEARCHER::probe_hash(
                 }
             } 
 
-            if(depth - 4 * UNITDEPTH <= h_depth 
+            if(depth - 4 <= h_depth 
                 && (flags == UPPER && score < beta))
                 return AVOID_NULL;
 
-            if(depth - 4 * UNITDEPTH <= h_depth
+            if(depth - 4 <= h_depth
                 && ( (flags == EXACT && score > alpha) 
                   || (flags == LOWER && score >= beta)))
                 return HASH_GOOD;
