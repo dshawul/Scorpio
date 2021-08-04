@@ -631,6 +631,8 @@ typedef struct STACK{
     int flag;
     int search_state;
     int noncap_start;
+    int static_eval;
+    bool improving;
     bool all_done;
     bool second_pass;
     MOVE killer[2];

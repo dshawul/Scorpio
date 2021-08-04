@@ -132,6 +132,16 @@ FORCEINLINE int SEARCHER::on_node_entry() {
     /*prefetch*/
     prefetch_tt();
 
+    /*static evaluation of position*/
+    if(!hstack[hply - 1].checks) {
+        pstack->static_eval = eval(true);
+        pstack->improving = 
+            (ply < 2 || pstack->static_eval >= (pstack - 2)->static_eval);
+    } else {
+        pstack->static_eval = -MATE_SCORE;
+        pstack->improving = true;
+    }
+
     /*razoring & static pruning*/
     if(use_selective
         && all_man_c > MAX_EGBB
@@ -139,7 +149,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
         && !hstack[hply - 1].checks
         && pstack->node_type != PV_NODE
         ) {
-            int score = eval(true);
+            int score = pstack->static_eval;
             int rmargin = razor_margin * pstack->depth;
             int fhmargin = failhigh_margin * pstack->depth;
 
@@ -193,19 +203,22 @@ FORCEINLINE int SEARCHER::on_node_entry() {
         return false;
     }
 
+    /*mate distance prunining*/
     if(pstack->alpha > MATE_SCORE - WIN_PLY * (ply)) {
         pstack->best_score = pstack->alpha;
         return true; 
     }
 
+    /*3-fold and 50 mr*/
     if(draw()) {
         pstack->best_score = 
             ((scorpio == player) ? -contempt : contempt);
         return true;
     }
 
+    /*ply limit*/
     if(ply >= MAX_PLY - 1) {
-        pstack->best_score = eval();
+        pstack->best_score = pstack->static_eval;
         return true;
     }
 
@@ -270,19 +283,16 @@ FORCEINLINE int SEARCHER::on_qnode_entry() {
         pstack->next_node_type = ALL_NODE;
     }
 
+    /*mate distance prunining*/
     if(pstack->alpha > MATE_SCORE - WIN_PLY * ply) {
         pstack->best_score = pstack->alpha;
         return true; 
     }
 
+    /*3-fold and 50 mr*/
     if(draw()) {
         pstack->best_score = 
             ((scorpio == player) ? -contempt : contempt);
-        return true;
-    }
-
-    if(ply >= MAX_PLY - 1) {
-        pstack->best_score = eval();
         return true;
     }
 
@@ -290,9 +300,22 @@ FORCEINLINE int SEARCHER::on_qnode_entry() {
     if(use_tt && hash_cutoff())
         return true;
 
+    /*static evaluation of position*/
+    if(hply >= 1 && !hstack[hply - 1].checks) {
+        pstack->static_eval = eval();
+    } else {
+        pstack->static_eval = -MATE_SCORE;
+    }
+
+    /*ply limit*/
+    if(ply >= MAX_PLY - 1) {
+        pstack->best_score = pstack->static_eval;
+        return true;
+    }
+
     /*stand pat*/
     if((hply >= 1 && !hstack[hply - 1].checks) || !ply) {
-        int score = eval();
+        int score = pstack->static_eval;
         pstack->best_score = score;
         if(score > pstack->alpha) {
             if(score >= pstack->beta)
@@ -331,6 +354,7 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
     MOVE move = hstack[hply - 1].move; 
     int extension = 0,score,depth = (pstack - 1)->depth;
     int node_t = (pstack - 1)->node_type;
+    bool improving = (pstack - 1)->improving;
 
     pstack->extension = 0;
     pstack->reduction = 0;
@@ -398,7 +422,8 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
         && ABS((pstack - 1)->best_score) != MATE_SCORE
         ) {
             //late move
-            if(depth <= 7 && nmoves >= lmp_count[depth])
+            int clmp = (improving ? lmp_count[depth] : lmp_count[depth] / 2);
+            if(depth <= 7 && nmoves >= clmp)
                 return true;
 
             //see
@@ -456,6 +481,9 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
             reduce(1);
             if(nmoves >= 8 && pstack->depth > 1) { reduce(1); }
         }
+        //eval not improving
+        if(!improving && pstack->depth > 1)
+            reduce(1);
         //reduce extended moves less
         if(pstack->extension) {
             reduce(-pstack->reduction / 2);
@@ -615,7 +643,7 @@ START:
                     && sb->pstack->depth >= 4
                     && sb->pstack->node_type != PV_NODE
                     && sb->piece_c[sb->player]
-                    && (score = (sb->eval(true) - sb->pstack->beta)) >= 0
+                    && (score = (sb->pstack->static_eval - sb->pstack->beta)) >= 0
                     ) {
                         sb->PUSH_NULL();
                         sb->nodes++;

@@ -1125,6 +1125,8 @@ void SEARCHER::COPY(SEARCHER* srcSearcher) {
         dstack->o_alpha = sstack->o_alpha;
         dstack->o_beta = sstack->o_beta;
         dstack->o_depth = sstack->o_depth;
+        dstack->static_eval = sstack->static_eval;
+        dstack->improving = sstack->improving;
     }
 }
 /*
