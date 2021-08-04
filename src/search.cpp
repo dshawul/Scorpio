@@ -136,7 +136,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
     if(use_selective
         && all_man_c > MAX_EGBB
         && (pstack - 1)->search_state != NULL_MOVE
-        && !pstack->extension
+        && !hstack[hply - 1].checks
         && pstack->node_type != PV_NODE
         ) {
             int score = eval(true);
@@ -393,9 +393,8 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
     pruning
     */
     if(all_man_c > MAX_EGBB
-        && !pstack->extension
+        && !hstack[hply - 1].checks
         && noncap_reduce
-        && node_t != PV_NODE
         && ABS((pstack - 1)->best_score) != MATE_SCORE
         ) {
             //late move
