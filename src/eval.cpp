@@ -37,7 +37,7 @@ int SEARCHER::eval(bool skip_nn_l)
     /* check_eval hash table */
     if(!use_nn || use_nn_hard) {
         if(probe_eval_hash(hash_key,actual_score))
-            return actual_score;
+            goto END_EVAL;
     }
 #endif
 
@@ -81,14 +81,16 @@ int SEARCHER::eval(bool skip_nn_l)
             }
         }
     }
-    /*scale by 50 move rule*/
-    actual_score = (actual_score * (100 - fifty)) / 100;
     /*save evaluation in hash table*/
 #ifndef TUNE
     if(!use_nn || use_nn_hard) {
         record_eval_hash(hash_key,actual_score);
     }
 #endif
+
+END_EVAL:
+    /*scale by 50 move rule*/
+    actual_score = (actual_score * (100 - fifty)) / 100;
     return actual_score;
 }
 
