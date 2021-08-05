@@ -367,8 +367,6 @@ typedef struct tagPAWNREC {
     uint8_t  b_pawn_f;
     uint8_t  w_ksq;
     uint8_t  b_ksq;
-    int8_t   w_evaled;
-    int8_t   b_evaled;
     uint8_t  w_attack;
     uint8_t  b_attack;
     int8_t   w_s_attack;
@@ -376,15 +374,14 @@ typedef struct tagPAWNREC {
 } PAWNREC,*PPAWNREC;
 
 typedef struct tagPAWNHASH {
-    HASHKEY hash_key;
+    uint16_t check_sum;
     SCORE   score;
     PAWNREC pawnrec;
 } PAWNHASH, *PPAWNHASH;
 
 typedef struct tagEVALHASH {
-    uint32_t  check_sum;
+    uint16_t  check_sum;
     int16_t   score;
-    int16_t   age;
 } EVALHASH,*PEVALHASH;
 
 struct SEARCHER;

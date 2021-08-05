@@ -202,7 +202,7 @@ void SEARCHER::record_pawn_hash(const HASHKEY& hash_key,const SCORE& score,const
     uint32_t key = uint32_t(hash_key & PROCESSOR::pawn_hash_tab_mask);
     PPAWNHASH pawn_hash = proc->pawn_hash_tab + key; 
     
-    pawn_hash->hash_key = hash_key;
+    pawn_hash->check_sum = (uint16_t)(hash_key >> 32);
     pawn_hash->score = score;
     pawn_hash->pawnrec = pawnrec;
 }
@@ -211,7 +211,7 @@ int SEARCHER::probe_pawn_hash(const HASHKEY& hash_key,SCORE& score,PAWNREC& pawn
     uint32_t key = uint32_t(hash_key & PROCESSOR::pawn_hash_tab_mask);
     PPAWNHASH pawn_hash = proc->pawn_hash_tab + key; 
     
-    if(pawn_hash->hash_key == hash_key) {
+    if(pawn_hash->check_sum == (uint16_t)(hash_key >> 32)) {
         score = pawn_hash->score;
         pawnrec = pawn_hash->pawnrec;
         return 1;
@@ -226,7 +226,7 @@ void SEARCHER::record_eval_hash(const HASHKEY& hash_key,int score) {
     uint32_t key = uint32_t(hash_key & PROCESSOR::eval_hash_tab_mask);
     PEVALHASH pslot = proc->eval_hash_tab[player] + key; 
 
-    pslot->check_sum = (uint32_t)(hash_key >> 32);
+    pslot->check_sum = (uint16_t)(hash_key >> 32);
     pslot->score = (int16_t)score;
 }
 int SEARCHER::probe_eval_hash(const HASHKEY& hash_key,int& score) {
@@ -234,7 +234,7 @@ int SEARCHER::probe_eval_hash(const HASHKEY& hash_key,int& score) {
     uint32_t key = uint32_t(hash_key & PROCESSOR::eval_hash_tab_mask);
     PEVALHASH pslot = proc->eval_hash_tab[player] + key; 
 
-    if(pslot->check_sum == (uint32_t)(hash_key >> 32)) {
+    if(pslot->check_sum == (uint16_t)(hash_key >> 32)) {
         score = pslot->score;
         return 1;
     }

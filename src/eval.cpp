@@ -840,7 +840,7 @@ void SEARCHER::eval_pawn_cover(int eval_w_attack,int eval_b_attack,
     */
     if(eval_b_attack) {
         
-        pawnrec.b_evaled = 1;
+        pawnrec.b_ksq |= 0x80;
         pawnrec.b_s_attack = 0;
         
         defence = 0;
@@ -931,7 +931,7 @@ void SEARCHER::eval_pawn_cover(int eval_w_attack,int eval_b_attack,
     */
     if(eval_w_attack) {
 
-        pawnrec.w_evaled = 1;
+        pawnrec.w_ksq |= 0x80;
         pawnrec.w_s_attack = 0;
         defence = 0;
         hopen = 0;
@@ -1026,17 +1026,17 @@ SCORE SEARCHER::eval_pawns(int eval_w_attack,int eval_b_attack,
     SCORE score;
     PLIST pawnl;
 
-    pawnrec.w_evaled = 0;
-    pawnrec.b_evaled = 0;
+    pawnrec.w_ksq = 0;
+    pawnrec.b_ksq = 0;
 
 #ifndef TUNE
     if(probe_pawn_hash(pawn_hash_key,score,pawnrec)) {
         /*evaluate pawn cover*/
         if(eval_w_attack || eval_b_attack) {
-            if(    pawnrec.w_ksq == plist[wking]->sq 
-                && pawnrec.b_ksq == plist[bking]->sq
-                && pawnrec.w_evaled >= eval_w_attack
-                && pawnrec.b_evaled >= eval_b_attack );
+            if(    (pawnrec.w_ksq & 0x7f) == plist[wking]->sq 
+                && (pawnrec.b_ksq & 0x7f) == plist[bking]->sq
+                && (pawnrec.w_ksq >> 7) >= eval_w_attack
+                && (pawnrec.b_ksq >> 7) >= eval_b_attack );
             else  {
                 eval_pawn_cover(eval_w_attack,eval_b_attack,wf_pawns,bf_pawns);
             }
@@ -1213,6 +1213,7 @@ SCORE SEARCHER::eval_pawns(int eval_w_attack,int eval_b_attack,
 
 #ifndef TUNE
         /*store in hash table*/
+
         record_pawn_hash(pawn_hash_key,score,pawnrec);
     }
 #endif
