@@ -203,6 +203,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 
     /*razoring & static pruning*/
     if(use_selective
+        && pstack->depth <= 7
         && all_man_c > MAX_EGBB
         && (pstack - 1)->search_state != NULL_MOVE
         && !hstack[hply - 1].checks
@@ -440,12 +441,12 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
         && noncap_reduce
         && ABS((pstack - 1)->best_score) != MATE_SCORE
         ) {
-            //late move
+            //late move prunining
             int clmp = (improving ? lmp_count[depth] : lmp_count[depth] / 2);
             if(depth <= 7 && nmoves >= clmp)
                 return true;
 
-            //see
+            //see prunining
             if(PIECE(m_piece(move)) != king
                 && piece_see_v[m_piece(move)] >= 100 * depth 
                 && see(move) <= -100 * depth)
@@ -456,16 +457,16 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
             if(depth <= 3 && REF_FUP_HISTORY(cMove,move) <= -1024)
                 return true;
 
-            //futility
-            int margin = futility_margin * depth;
-            margin = MAX(margin / 4, margin - 10 * nmoves);
-            score = -eval(true);
-            if(score + margin < (pstack - 1)->alpha) {
-                if(score > (pstack - 1)->best_score) {
-                    (pstack - 1)->best_score = score;
-                    (pstack - 1)->best_move = move;
+            //futility prunining
+            if(depth <= 7) { 
+                score = (pstack - 1)->static_eval;
+                if(score + futility_margin * depth < (pstack - 1)->alpha) {
+                    if(score > (pstack - 1)->best_score) {
+                        (pstack - 1)->best_score = score;
+                        (pstack - 1)->best_move = move;
+                    }
+                    return true;
                 }
-                return true;
             }
     }
     /*
