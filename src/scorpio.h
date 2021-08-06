@@ -1189,6 +1189,7 @@ typedef struct PROCESSOR {
     void  reset_eval_hash_tab(uint32_t = 0);
     void  delete_hash_tables();
     static void  clear_hash_tables();
+    static int hashfull();
 
     /*constructor*/
     PROCESSOR() {

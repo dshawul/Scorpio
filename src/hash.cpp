@@ -59,6 +59,7 @@ void PROCESSOR::delete_hash_tables() {
     aligned_free<EVALHASH>(eval_hash_tab[black]);
     aligned_free<PAWNHASH>(pawn_hash_tab);
 }
+
 /* 
  Distributed hashtable on NUMA machines
  */
@@ -113,9 +114,9 @@ void SEARCHER::record_hash(
             pr_slot = pslot;
             break;
         } else {
-            sc = (slot.flags & ~7)                     //8 * age   {larger weight}
-                +  slot.depth                          //depth     {non-fractional depth}
-                + ((slot.flags & 3) ? 0 : (4 << 3));   //8 * 4     {EXACT score goes 4 ages up}
+            sc = (slot.flags & 0xf0)                   //16 * age  {largest weight}
+                +  slot.depth                          //depth
+                + ((slot.flags & 3) ? 0 : (4 << 4));   //16 * 4    {EXACT score goes 4 ages up}
             if(sc < max_sc) {
                 pr_slot = pslot;
                 max_sc = sc;
@@ -203,6 +204,19 @@ int SEARCHER::probe_hash(
     }
 
     return UNKNOWN;
+}
+/*
+Compute how full the main hash table is
+*/
+int PROCESSOR::hashfull() {
+    int count = 0;
+    PHASH addr = processors[0]->hash_tab[0];
+    for(int i = 0; i < 1000; i++) {
+        if(addr[i].check_sum != 0 && 
+            (addr[i].flags >> 4) == PROCESSOR::age)
+            count++;
+    }
+    return count;
 }
 /*
 Pawn hash tables
