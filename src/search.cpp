@@ -296,6 +296,12 @@ FORCEINLINE int SEARCHER::on_qnode_entry() {
         return true;
     }
 
+    /*ply limit*/
+    if(ply >= MAX_PLY - 1) {
+        pstack->best_score = eval();
+        return true;
+    }
+
     /*probe hash table*/
     if(use_tt && hash_cutoff())
         return true;
@@ -305,12 +311,6 @@ FORCEINLINE int SEARCHER::on_qnode_entry() {
         pstack->static_eval = eval();
     } else {
         pstack->static_eval = -MATE_SCORE;
-    }
-
-    /*ply limit*/
-    if(ply >= MAX_PLY - 1) {
-        pstack->best_score = pstack->static_eval;
-        return true;
     }
 
     /*stand pat*/
