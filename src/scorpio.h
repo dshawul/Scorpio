@@ -348,29 +348,30 @@ typedef struct SCORE {
 hash tables
 */
 typedef struct tagHASH {
-    HASHKEY hash_key;
+    uint32_t check_sum;
+    int32_t eval;
+    MOVE move;
     union {
-        HASHKEY data_key;
+        uint32_t data;
         struct {
-            MOVE      move;
-            int16_t   score;
-            uint8_t   depth;
-            uint8_t   flags;
+            int16_t score;
+            uint8_t depth;
+            uint8_t flags;
         };
     };
-}HASH,*PHASH;
+} HASH,*PHASH;
 
 typedef struct tagPAWNREC {
-    uint8_t  w_passed;
-    uint8_t  b_passed;
-    uint8_t  w_pawn_f;
-    uint8_t  b_pawn_f;
-    uint8_t  w_ksq;
-    uint8_t  b_ksq;
-    uint8_t  w_attack;
-    uint8_t  b_attack;
-    int8_t   w_s_attack;
-    int8_t   b_s_attack;
+    uint8_t w_passed;
+    uint8_t b_passed;
+    uint8_t w_pawn_f;
+    uint8_t b_pawn_f;
+    uint8_t w_ksq;
+    uint8_t b_ksq;
+    uint8_t w_attack;
+    uint8_t b_attack;
+    int8_t w_s_attack;
+    int8_t b_s_attack;
 } PAWNREC,*PPAWNREC;
 
 typedef struct tagPAWNHASH {
@@ -612,6 +613,7 @@ typedef struct STACK{
     int hash_flags;
     int hash_depth;
     int hash_score;
+    int hash_eval;
     int extension;
     int reduction;
     int mate_threat;
@@ -821,10 +823,10 @@ typedef struct SEARCHER{
     void  update_pcsq_val(int,int,int);
     void  tune(int,char*);
 #endif
-    void  record_hash(int,const HASHKEY&,int,int,int,int,MOVE,int,int);
-    int   probe_hash(int,const HASHKEY&,int,int,int&,MOVE&,int,int,int&,int&,int&,bool);
-    void  RECORD_HASH(int,const HASHKEY&,int,int,int,int,MOVE,int,int);
-    int   PROBE_HASH(int,const HASHKEY&,int,int,int&,MOVE&,int,int,int&,int&,int&,bool);
+    void  record_hash(int,const HASHKEY&,int,int,int,int,int,MOVE,int,int);
+    void  RECORD_HASH(int,const HASHKEY&,int,int,int,int,int,MOVE,int,int);
+    int   probe_hash(int,const HASHKEY&,int,int,int&,int&,MOVE&,int,int,int&,int&,int&,bool);
+    int   PROBE_HASH(int,const HASHKEY&,int,int,int&,int&,MOVE&,int,int,int&,int&,int&,bool);
     void  record_pawn_hash(const HASHKEY&,const SCORE&,const PAWNREC&);
     int   probe_pawn_hash(const HASHKEY&,SCORE&,PAWNREC&);
     void  record_eval_hash(const HASHKEY&,int);
@@ -1253,7 +1255,6 @@ extern VOLATILE int turn_off_ensemble;
 /** search options */
 extern const int use_nullmove;
 extern const int use_selective;
-extern const int use_tt;
 extern const int use_aspiration;
 extern const int use_iid;
 extern const int use_pvs;

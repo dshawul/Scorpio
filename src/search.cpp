@@ -8,7 +8,6 @@ static int multipv = 0;
 /* search features */
 const int use_nullmove = 1;
 const int use_selective = 1;
-const int use_tt = 1;
 const int use_aspiration = 1;
 const int use_iid = 1;
 const int use_pvs = 1;
@@ -63,8 +62,10 @@ bool SEARCHER::hash_cutoff() {
 #endif
 
     /*probe*/
-    pstack->hash_flags = PROBE_HASH(player,hash_key,pstack->depth,ply,pstack->hash_score,
-        pstack->hash_move,pstack->alpha,pstack->beta,pstack->mate_threat,
+    pstack->hash_move = 0;
+    pstack->hash_eval = -MATE_SCORE;
+    pstack->hash_flags = PROBE_HASH(player,hash_key,pstack->depth,ply,pstack->hash_eval,
+        pstack->hash_score,pstack->hash_move,pstack->alpha,pstack->beta,pstack->mate_threat,
         pstack->singular,pstack->hash_depth,exclusiveP);
 
 #ifdef PARALLEL
@@ -77,7 +78,7 @@ bool SEARCHER::hash_cutoff() {
             /*we had a hit and replaced the flag with load of CRAP (depth=255)*/
         } else if(pstack->hash_flags == UNKNOWN) {
             /*store new crap*/
-            RECORD_HASH(player,hash_key,255,0,CRAP,0,0,0,0);
+            RECORD_HASH(player,hash_key,255,0,CRAP,0,0,0,0,0);
         }
     }
 #endif
@@ -131,57 +132,12 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 
     /*prefetch*/
     prefetch_tt();
+    pstack->static_eval = -MATE_SCORE;
 
-    /*static evaluation of position*/
-    if(!hstack[hply - 1].checks) {
-        pstack->static_eval = eval(true);
-        pstack->improving = 
-            (ply < 2 || pstack->static_eval >= (pstack - 2)->static_eval);
-    } else {
-        pstack->static_eval = -MATE_SCORE;
-        pstack->improving = true;
-    }
-
-    /*razoring & static pruning*/
-    if(use_selective
-        && all_man_c > MAX_EGBB
-        && (pstack - 1)->search_state != NULL_MOVE
-        && !hstack[hply - 1].checks
-        && pstack->node_type != PV_NODE
-        ) {
-            int score = pstack->static_eval;
-            int rmargin = razor_margin * pstack->depth;
-            int fhmargin = failhigh_margin * pstack->depth;
-
-            if(score + rmargin <= pstack->alpha
-                && pstack->depth <= 4
-                ) {
-                pstack->qcheck_depth = 1;
-                /*do qsearch with shifted-down window*/
-                {
-                    int palpha = pstack->alpha;
-                    int pbeta = pstack->beta;
-                    pstack->alpha -= rmargin;
-                    pstack->beta = pstack->alpha + 1;
-                    qsearch_nn();
-                    pstack->alpha = palpha;
-                    pstack->beta = pbeta;
-                }
-                score = pstack->best_score;
-                if(score + rmargin <= pstack->alpha)
-                    return true;
-            } else if(score - fhmargin >= pstack->beta) {
-                pstack->best_score = score - fhmargin;
-                return true;
-            }
-    }
-
-    /*initialize node*/
     pstack->gen_status = GEN_START;
     pstack->flag = UPPER;
     pstack->pv_length = ply;
     pstack->legal_moves = 0;
-    pstack->hash_move = 0;
     pstack->best_score = -MATE_SCORE;
     pstack->best_move = 0;
     pstack->mate_threat = 0;
@@ -218,8 +174,75 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 
     /*ply limit*/
     if(ply >= MAX_PLY - 1) {
-        pstack->best_score = pstack->static_eval;
+        pstack->best_score = eval();
         return true;
+    }
+
+    /*probe hash table*/
+    if(hash_cutoff())
+        return true;
+
+    /*bitbase cutoff*/
+    if(bitbase_cutoff())
+        return true;
+
+    /*static evaluation of position*/
+    if(hply >= 1 && !hstack[hply - 1].checks) {
+        if(pstack->hash_flags != UNKNOWN
+            && pstack->hash_flags != CRAP
+            && pstack->hash_eval != -MATE_SCORE
+            ) {
+            pstack->static_eval = pstack->hash_eval;
+        } else
+            pstack->static_eval = eval();
+
+        pstack->improving = 
+            (ply < 2 || pstack->static_eval >= (pstack - 2)->static_eval);
+    } else
+        pstack->improving = true;
+
+    /*razoring & static pruning*/
+    if(use_selective
+        && all_man_c > MAX_EGBB
+        && (pstack - 1)->search_state != NULL_MOVE
+        && !hstack[hply - 1].checks
+        && pstack->node_type != PV_NODE
+        ) {
+            int score = pstack->static_eval;
+            int rmargin = razor_margin * pstack->depth;
+            int fhmargin = failhigh_margin * pstack->depth;
+
+            if(score + rmargin <= pstack->alpha
+                && pstack->depth <= 4
+                ) {
+                pstack->qcheck_depth = 1;
+                /*do qsearch with shifted-down window*/
+                {
+                    int palpha = pstack->alpha;
+                    int pbeta = pstack->beta;
+                    pstack->alpha -= rmargin;
+                    pstack->beta = pstack->alpha + 1;
+                    qsearch_nn();
+                    pstack->alpha = palpha;
+                    pstack->beta = pbeta;
+                }
+                /*pruning*/
+                score = pstack->best_score;
+                if(score + rmargin <= pstack->alpha)
+                    return true;
+                /*re-initialize node*/
+                {
+                    pstack->gen_status = GEN_START;
+                    pstack->flag = UPPER;
+                    pstack->pv_length = ply;
+                    pstack->legal_moves = 0;
+                    pstack->best_score = -MATE_SCORE;
+                    pstack->best_move = 0;
+                }
+            } else if(score - fhmargin >= pstack->beta) {
+                pstack->best_score = score - fhmargin;
+                return true;
+            }
     }
 
     /*
@@ -249,14 +272,6 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 #   endif
 #endif
 
-    /*probe hash table*/
-    if(use_tt && hash_cutoff())
-        return true;
-
-    /*bitbase cutoff*/
-    if(bitbase_cutoff())
-        return true;
-
     return false;
 }
 
@@ -272,8 +287,8 @@ FORCEINLINE int SEARCHER::on_qnode_entry() {
     pstack->best_score = -MATE_SCORE;
     pstack->best_move = 0;
     pstack->legal_moves = 0;
-    pstack->hash_move = 0;
     pstack->flag = UPPER;
+    pstack->static_eval = -MATE_SCORE;
 
     if(pstack->node_type == PV_NODE) {
         pstack->next_node_type = PV_NODE;
@@ -303,14 +318,18 @@ FORCEINLINE int SEARCHER::on_qnode_entry() {
     }
 
     /*probe hash table*/
-    if(use_tt && hash_cutoff())
+    if(hash_cutoff())
         return true;
 
     /*static evaluation of position*/
     if(hply >= 1 && !hstack[hply - 1].checks) {
-        pstack->static_eval = eval();
-    } else {
-        pstack->static_eval = -MATE_SCORE;
+        if(pstack->hash_flags != UNKNOWN
+            && pstack->hash_flags != CRAP
+            && pstack->hash_eval != -MATE_SCORE
+            ) {
+            pstack->static_eval = pstack->hash_eval;
+        } else
+            pstack->static_eval = eval();
     }
 
     /*stand pat*/
@@ -519,10 +538,11 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
 Back up to previous ply
 */
 #define GOBACK(save) {                                                                                          \
-    if(use_tt && save && !sb->abort_search && !sb->stop_searcher &&                                             \
+    if(save && !sb->abort_search && !sb->stop_searcher &&                                                       \
         ((sb->pstack->search_state & ~MOVE_MASK) != SINGULAR_SEARCH)) {                                         \
-        sb->RECORD_HASH(sb->player,sb->hash_key,sb->pstack->depth,sb->ply,sb->pstack->flag,                     \
-        sb->pstack->best_score,sb->pstack->best_move,sb->pstack->mate_threat,sb->pstack->singular);             \
+        sb->RECORD_HASH(                                                                                        \
+            sb->player,sb->hash_key,sb->pstack->depth,sb->ply,sb->pstack->flag,sb->pstack->static_eval,         \
+            sb->pstack->best_score,sb->pstack->best_move,sb->pstack->mate_threat,sb->pstack->singular);         \
     }                                                                                                           \
     if(sb->pstack->search_state & ~MOVE_MASK) goto SPECIAL;                                                     \
     goto POP;                                                                                                   \
@@ -1100,9 +1120,10 @@ SPECIAL:
 Back up to previous ply
 */
 #define GOBACK_Q(save) {                                            \
-    if(use_tt && save && !abort_search && !stop_searcher) {         \
+    if(save && !abort_search && !stop_searcher) {                   \
         RECORD_HASH(player,hash_key,0,ply,pstack->flag,             \
-                    pstack->best_score,pstack->best_move,0,0);      \
+                    pstack->static_eval,pstack->best_score,         \
+                    pstack->best_move,0,0);                         \
     }                                                               \
     goto POP_Q;                                                     \
 };
@@ -1720,7 +1741,7 @@ MOVE SEARCHER::iterative_deepening() {
             first incase it was overwritten*/
             if(pstack->pv_length) {
                 for(int i = 0;i < stack[0].pv_length;i++) {
-                    RECORD_HASH(player,hash_key,0,0,HASH_HIT,0,stack[0].pv[i],0,0);
+                    RECORD_HASH(player,hash_key,0,0,HASH_HIT,0,0,stack[0].pv[i],0,0);
                     PUSH_MOVE(stack[0].pv[i]);
                 }
                 for(int i = 0;i < stack[0].pv_length;i++)

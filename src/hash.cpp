@@ -82,20 +82,23 @@ Main hash table
 #define HPROBES 4
 
 void SEARCHER::record_hash(
-                 int col,const HASHKEY& hash_key,int depth,int ply,
-                 int flags,int score,MOVE move,int mate_threat,int singular
+                 int col,const HASHKEY& hash_key,int depth,int ply,int flags,
+                 int eval,int score,MOVE move,int mate_threat,int singular
                  ) {
     TT_KEY;
     PHASH addr,pslot,pr_slot = 0;
     HASH slot;
-    int sc,max_sc = MAX_NUMBER;
+    int sc, max_sc = MAX_NUMBER;
+    uint32_t check_sum = (uint32_t)(hash_key >> 32), s_data;
 
     addr = proc->hash_tab[col];
 
     for(int i = 0; i < HPROBES; i++) {
         pslot = (addr + (key ^ i));    //H.G trick to follow most probable path
         slot = *pslot;
-        if(!slot.hash_key || (slot.hash_key ^ slot.data_key) == hash_key) {
+        s_data = (slot.move ^ slot.eval ^ slot.data);
+
+        if(!slot.check_sum || (slot.check_sum ^ s_data) == check_sum) {
             if(flags == HASH_HIT && slot.move == move) 
                 return;
             if((slot.depth > depth) && flags != CRAP && ((slot.flags & 3) + EXACT != CRAP))
@@ -119,17 +122,20 @@ void SEARCHER::record_hash(
             }
         }
     }
+
     if(flags == HASH_HIT) flags = CRAP;
     slot.move  = MOVE(move);
     slot.score = int16_t(score);
     slot.depth = uint8_t(depth);
     slot.flags = uint8_t((flags - EXACT) | (mate_threat << 2) | (singular << 3) | (PROCESSOR::age << 4));
-    slot.hash_key = (hash_key ^ slot.data_key);
+    slot.eval = int32_t(eval);
+    s_data = (slot.move ^ slot.eval ^ slot.data);
+    slot.check_sum = (check_sum ^ s_data);
     *pr_slot = slot;
 }
 
 int SEARCHER::probe_hash(
-               int col,const HASHKEY& hash_key,int depth,int ply,int& score,
+               int col,const HASHKEY& hash_key,int depth,int ply,int& eval,int& score,
                MOVE& move,int alpha,int beta,int& mate_threat,int& singular,int& h_depth,
                bool exclusiveP
                ) {
@@ -137,24 +143,31 @@ int SEARCHER::probe_hash(
     PHASH addr,pslot;
     HASH slot;
     int flags;
+    uint32_t check_sum = (uint32_t)(hash_key >> 32), s_data;
 
     addr = proc->hash_tab[col];
     
     for(int i = 0; i < HPROBES; i++) {
         pslot = addr + (key ^ i);
         slot = *pslot;
-        if((slot.hash_key ^ slot.data_key) == hash_key) {
+        s_data = (slot.move ^ slot.eval ^ slot.data);
+
+        if((slot.check_sum ^ s_data) == check_sum) {
             score = slot.score;
             if(score > WIN_SCORE) 
                 score -= WIN_PLY * (ply + 1);
             else if(score < -WIN_SCORE) 
                 score += WIN_PLY * (ply + 1);
             
+            eval = slot.eval;
             move = slot.move;
             mate_threat |= ((slot.flags >> 2) & 1);
             singular = ((slot.flags >> 3) & 1);
             flags = (slot.flags & 3) + EXACT;
             h_depth = slot.depth;
+
+            if(flags == CRAP)
+                return CRAP;
             
             if(h_depth >= depth) {
                 if(flags == EXACT) {
@@ -177,14 +190,11 @@ int SEARCHER::probe_hash(
                   || (flags == LOWER && score >= beta)))
                 return HASH_GOOD;
 
-            if(flags == CRAP)
-                return CRAP;
-
             if(exclusiveP) {
-                slot.hash_key ^= slot.data_key;
+                slot.check_sum ^= slot.data;
                 slot.flags |= (CRAP - EXACT);
                 slot.depth = 255;
-                slot.hash_key ^= slot.data_key;
+                slot.check_sum ^= slot.data;
                 *pslot = slot;
             }
 

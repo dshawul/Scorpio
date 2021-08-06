@@ -452,8 +452,8 @@ void PROCESSOR::message_idle_loop() {
 * Record hashtable entry in distributed system
 */
 void SEARCHER::RECORD_HASH(
-                 int col,const HASHKEY& hash_key,int depth,int ply,
-                 int flags,int score,MOVE move,int mate_threat,int singular
+                 int col,const HASHKEY& hash_key,int depth,int ply,int flags,
+                 int eval,int score,MOVE move,int mate_threat,int singular
                  ) {
 #ifdef CLUSTER
 #   if CLUSTER_TT_TYPE == 1
@@ -483,14 +483,14 @@ void SEARCHER::RECORD_HASH(
 #   endif
 #endif
     {
-        record_hash(col,hash_key,depth,ply,flags,score,move,mate_threat,singular);
+        record_hash(col,hash_key,depth,ply,flags,eval,score,move,mate_threat,singular);
     }
 }
 /**
 * Read hashtable entry in distributed system
 */
 int SEARCHER::PROBE_HASH(
-               int col,const HASHKEY& hash_key,int depth,int ply,int& score,
+               int col,const HASHKEY& hash_key,int depth,int ply,int& eval, int& score,
                MOVE& move,int alpha,int beta,int& mate_threat,int& singular,int& h_depth,
                bool exclusiveP
                ) {
@@ -535,7 +535,7 @@ int SEARCHER::PROBE_HASH(
 #   endif
 #endif
     {
-        return probe_hash(col,hash_key,depth,ply,score,move,alpha,beta,
+        return probe_hash(col,hash_key,depth,ply,eval,score,move,alpha,beta,
                 mate_threat,singular,h_depth,exclusiveP);
     }
 }

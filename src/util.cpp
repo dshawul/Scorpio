@@ -540,7 +540,7 @@ void SEARCHER::print_pv(int score) {
     int dummy;
     while(ply < MAX_PLY - 1) {
         move = 0;
-        probe_hash(player,hash_key,0,0,dummy,move,
+        PROBE_HASH(player,hash_key,0,0,dummy,dummy,move,
             -MATE_SCORE,MATE_SCORE,dummy,dummy,dummy,0);
         if(!move || !is_legal_fast(move) || draw())
             break;
@@ -1109,6 +1109,7 @@ void SEARCHER::COPY(SEARCHER* srcSearcher) {
         dstack->hash_flags = sstack->hash_flags;
         dstack->hash_depth = sstack->hash_depth;
         dstack->hash_score = sstack->hash_score;
+        dstack->hash_eval = sstack->hash_eval;
         dstack->extension = sstack->extension;
         dstack->reduction = sstack->reduction;
         dstack->mate_threat = sstack->mate_threat;
