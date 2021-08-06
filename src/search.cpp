@@ -1167,8 +1167,10 @@ NEW_NODE_Q:
             */
             if( (!finish_search &&
                 (stop_searcher || abort_search) ) ||
-                on_qnode_entry() )
+                on_qnode_entry() ) {
+                seldepth = MAX(seldepth, unsigned(ply));
                 goto POP_Q;
+            }
         }
 POP_Q:
         if( (!finish_search &&
@@ -1899,6 +1901,7 @@ MOVE SEARCHER::find_best() {
     search_calls = 0;
     qsearch_calls = 0;
     egbb_probes = 0;
+    seldepth = 0;
     prev_pv_length = 0;
     old_root_score = root_score;
 #ifdef PARALLEL

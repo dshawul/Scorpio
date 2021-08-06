@@ -805,6 +805,7 @@ void SEARCHER::update_master(int skip) {
     master->splits += splits;
     master->bad_splits += bad_splits;
     master->egbb_probes += egbb_probes;
+    master->seldepth = MAX(master->seldepth, seldepth);
 
     if(!skip) {
         /*update stuff at split point. First FIX the stack location because 
@@ -988,6 +989,7 @@ void SEARCHER::clear_block() {
     splits = 0;
     bad_splits = 0;
     egbb_probes = 0;
+    seldepth = 0;
 }
 
 /**

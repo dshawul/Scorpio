@@ -870,6 +870,7 @@ typedef struct SEARCHER{
     uint32_t splits;
     uint32_t bad_splits;
     uint32_t egbb_probes;
+    uint32_t seldepth;
     VOLATILE int stop_searcher;
     bool finish_search;
     bool skip_nn;
