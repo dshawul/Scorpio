@@ -530,6 +530,7 @@ struct Node {
     static VOLATILE unsigned int total_nodes;
     static unsigned int max_tree_nodes;
     static unsigned int max_tree_depth;
+    static unsigned int sum_tree_depth;
     static std::vector<Node*> mem_[MAX_CPUS];
     static Node* allocate(int);
     static void  split(Node*, std::vector<Node*>*, const int, int&);

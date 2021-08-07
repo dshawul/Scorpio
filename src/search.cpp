@@ -1580,7 +1580,6 @@ MOVE SEARCHER::iterative_deepening() {
     if(montecarlo) {
 
         manage_tree();
-        Node::max_tree_depth = 0;
 
         /*Take out so far spent time in the last move*/
         if(chess_clock.maximum_time <= 2 * chess_clock.search_time)
@@ -2019,8 +2018,9 @@ MOVE SEARCHER::find_best() {
                 egbb_probes,qsearch_calls,search_calls,
                 time_used_o,int(int64_t(nodes) / (time_used_o / 1000.0f)),
                 int(int64_t(ecalls) / (time_used_o / 1000.0f)));
-            print_info("Tree: nodes %d depth %d visits %d Rate: vps %d pps %d nneps %d\n",
-                  Node::total_nodes,Node::max_tree_depth,root_node->visits,vps,pps,
+            print_info("Tree: nodes %d depth %d seldepth %d visits %d Rate: vps %d pps %d nneps %d\n",
+                  Node::total_nodes, (Node::sum_tree_depth + 1) / (root_node->visits + 1),
+                  Node::max_tree_depth,root_node->visits,vps,pps,
                    int(int64_t(nnecalls) / (time_used / 1000.0f)));
         }
 

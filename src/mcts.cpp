@@ -78,6 +78,7 @@ std::vector<uint16_t*>  Edges::mem_[MAX_CPUS][MAX_MOVES_NN >> 3];
 VOLATILE unsigned int Node::total_nodes = 0;
 unsigned int Node::max_tree_nodes = 0;
 unsigned int Node::max_tree_depth = 0;
+unsigned int Node::sum_tree_depth = 0;
 
 Node* Node::allocate(int id) {
     Node* n;
@@ -940,6 +941,7 @@ void SEARCHER::create_children(Node* n) {
     /*maximum tree depth*/
     if(ply > (int)Node::max_tree_depth)
         Node::max_tree_depth = ply;
+    Node::sum_tree_depth += ply;
 
     /*generate and score moves*/
     n->score = generate_and_score_moves(-MATE_SCORE,MATE_SCORE);
@@ -1797,9 +1799,11 @@ void Node::parallel_job(Node* n, PTHREAD_PROC func, bool recursive) {
 Manage search tree
 */
 void SEARCHER::manage_tree(bool single) {
+    unsigned int prev_root_visits = 0;
     if(root_node) {
 
         unsigned int s_total_nodes = Node::total_nodes;
+        prev_root_visits = root_node->visits;
 
         /*find root node*/
         int idx = 0;
@@ -1893,12 +1897,15 @@ void SEARCHER::manage_tree(bool single) {
         print_log("# [Tree-not-found]\n");
         root_node = Node::allocate(processor_id);
         root_node_reuse_visits = 0;
+        Node::sum_tree_depth = 0;
     } else {
         print_log("# [Tree-found : visits %d score %f]\n",
             root_node->visits,root_node->score);
 
         root_node_reuse_visits = root_node->visits;
+        Node::sum_tree_depth *= (double(root_node->visits) / prev_root_visits);
         playouts += root_node->visits;
+
 
         /*remove null move from root*/
         Node* current = root_node->child;
@@ -1907,6 +1914,9 @@ void SEARCHER::manage_tree(bool single) {
             Node::reclaim(current,0);
         }
     }
+
+    Node::max_tree_depth = 0;
+
     /*no alphabeta*/
     if(frac_alphabeta == 0) {
         rollout_type = MCTS;

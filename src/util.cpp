@@ -509,13 +509,16 @@ void SEARCHER::print_pv(int score) {
     unsigned tm = (get_time() - start_time);
     uint64_t nds = (montecarlo && root_node) ? playouts : nodes;
     unsigned nps = 1000 * ((double)nds / tm);
+    int depth = (montecarlo ?
+        ((Node::sum_tree_depth + 1) / (root_node->visits + 1)) :
+        search_depth);
     int seld = (montecarlo ? Node::max_tree_depth : seldepth);
     int hashfull = ((!montecarlo && tm > 1000) ? PROCESSOR::hashfull() : 0);
 
     if(PROTOCOL == UCI) {
         sprintf(pv,"info depth %d seldepth %d score cp %d time %d "
             "nodes " FMT64 " nps %d hashfull %d tbhits %d pv",
-            search_depth,
+            depth,
             seld,
             score,
             tm,
@@ -525,7 +528,7 @@ void SEARCHER::print_pv(int score) {
             egbb_probes);
     } else {
         sprintf(pv,"%d %d %d " FMT64 " %d %d %d %d",
-            search_depth,
+            depth,
             score,
             tm/10,
             (long long)nds,
