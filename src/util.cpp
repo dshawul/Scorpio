@@ -509,7 +509,7 @@ void SEARCHER::print_pv(int score) {
     unsigned tm = (get_time() - start_time);
     uint64_t nds = (montecarlo && root_node) ? playouts : nodes;
     unsigned nps = 1000 * ((double)nds / tm);
-    int depth = (montecarlo ?
+    int depth = ((montecarlo && rollout_type == MCTS) ?
         ((Node::sum_tree_depth + 1) / (root_node->visits + 1)) :
         search_depth);
     int seld = (montecarlo ? Node::max_tree_depth : seldepth);

@@ -2060,7 +2060,7 @@ MOVE SEARCHER::find_best() {
         float sum_score_st[MAX_MOVES];
         int n_root_moves = stack[0].count;
 
-        /*score root moves*/
+        /*scale factor based on score*/
         float factor = PROCESSOR::vote_weight / 100.0f;
         if(root_score >= 500)
             factor *= 5;
@@ -2073,6 +2073,7 @@ MOVE SEARCHER::find_best() {
         else if(root_score >= 100)
             factor *= 1.2;
 
+        /*score root moves*/
         if(montecarlo && !montecarlo_skipped) {
             int idx = 0;
             Node* current = root_node->child;
@@ -2080,11 +2081,12 @@ MOVE SEARCHER::find_best() {
                 char mv_str[16];
                 mov_str(current->move,mv_str);
                 move_st[idx] = current->move;
-                score_st[idx] = factor * (double(current->visits) / root_node->visits);
+                score_st[idx] = factor * sqrt(double(current->visits) / root_node->visits);
                 idx++;
                 current = current->next;
             }
         } else {
+            /*weight winning AB scores more*/
             if(root_score >= 600)
                 factor *= 10;
             else if(root_score >= 400)
