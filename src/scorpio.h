@@ -794,7 +794,7 @@ typedef struct SEARCHER{
     void  gen_all_legal();
     int   draw(int = 0) const;
     MOVE  find_best();
-    MOVE  iterative_deepening();
+    MOVE  iterative_deepening(bool&);
     int   be_selective(int,bool);
     int   on_node_entry();
     int   on_qnode_entry();

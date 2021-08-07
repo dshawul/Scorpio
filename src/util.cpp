@@ -527,7 +527,7 @@ void SEARCHER::print_pv(int score) {
             hashfull,
             egbb_probes);
     } else {
-        sprintf(pv,"%d %d %d " FMT64 " %d %d %d %d",
+        sprintf(pv,"%02d %d %d " FMT64 " %d %d %d %d",
             depth,
             score,
             tm/10,

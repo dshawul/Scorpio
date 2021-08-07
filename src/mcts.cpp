@@ -938,11 +938,6 @@ void Node::BackupLeaf(Node* n,float& score) {
 
 void SEARCHER::create_children(Node* n) {
 
-    /*maximum tree depth*/
-    if(ply > (int)Node::max_tree_depth)
-        Node::max_tree_depth = ply;
-    Node::sum_tree_depth += ply;
-
     /*generate and score moves*/
     n->score = generate_and_score_moves(-MATE_SCORE,MATE_SCORE);
 
@@ -1045,6 +1040,7 @@ void SEARCHER::play_simulation(Node* n, float& score, int& visits) {
 
     nodes++;
     visits = 1;
+    bool leaf = true;
 
     /*set busy flag*/
     n->inc_busy();
@@ -1158,6 +1154,7 @@ void SEARCHER::play_simulation(Node* n, float& score, int& visits) {
         }
 
 BACKUP_LEAF:
+
         Node::BackupLeaf(n,score);
         if(use_nn)
             handle_terminals(n);
@@ -1333,6 +1330,7 @@ RESEARCH:
         }
 BACKUP:
         /*Backup score and bounds*/
+        leaf = false;
         Node::Backup(n,score,visits);
 
         if(rollout_type == ALPHABETA) {
@@ -1357,8 +1355,15 @@ BACKUP:
     }
 
 FINISH:
-    if(visits > 0)
+    if(visits > 0) {
         n->update_visits(visits);
+        /*update depth stats*/
+        if(leaf) {
+            if(ply > (int)Node::max_tree_depth)
+                Node::max_tree_depth = (ply + 1);
+            Node::sum_tree_depth += (ply + 1);
+        }
+    }
     n->dec_busy();
 }
 
@@ -1903,9 +1908,8 @@ void SEARCHER::manage_tree(bool single) {
             root_node->visits,root_node->score);
 
         root_node_reuse_visits = root_node->visits;
-        Node::sum_tree_depth *= (double(root_node->visits) / prev_root_visits);
+        Node::sum_tree_depth *= (0.5 * double(root_node->visits) / prev_root_visits);
         playouts += root_node->visits;
-
 
         /*remove null move from root*/
         Node* current = root_node->child;
@@ -1914,7 +1918,6 @@ void SEARCHER::manage_tree(bool single) {
             Node::reclaim(current,0);
         }
     }
-
     Node::max_tree_depth = 0;
 
     /*no alphabeta*/

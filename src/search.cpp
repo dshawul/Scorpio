@@ -1425,7 +1425,9 @@ void SEARCHER::search_ab_prior() {
     chess_clock.p_time *= frac_abprior;
     chess_clock.p_inc *= frac_abprior;
 
-    MOVE bestm = iterative_deepening();
+    bool dummy;
+    MOVE bestm = iterative_deepening(dummy);
+
 #ifdef PARALLEL
     t_sleep(30);
 #endif
@@ -1539,7 +1541,7 @@ void SEARCHER::search_ab_prior() {
 /*
 Find best move using alpha-beta or mcts
 */
-MOVE SEARCHER::iterative_deepening() {
+MOVE SEARCHER::iterative_deepening(bool& montecarlo_skipped) {
     int score;
     int easy = false,easy_score = 0;
     MOVE easy_move = 0;
@@ -1602,9 +1604,10 @@ MOVE SEARCHER::iterative_deepening() {
             /* No further search in these cases */
             if(root_score >= 700 ||
                 search_depth >= MAX_PLY - 4 ||
-                frac_abprior >= 0.95
-                )
+                frac_abprior >= 0.95) {
+                montecarlo_skipped = true;
                 return stack[0].pv[0];
+            }
 
             /*reset flags for mcts*/
             stop_searcher = 0;
@@ -1968,7 +1971,8 @@ MOVE SEARCHER::find_best() {
     t_sleep(30);
 #endif
 
-    bmove = iterative_deepening();
+    bool montecarlo_skipped = false;
+    bmove = iterative_deepening(montecarlo_skipped);
 
 #ifdef PARALLEL
     /*park threads*/
@@ -1993,7 +1997,7 @@ MOVE SEARCHER::find_best() {
     */
 
     /*search info*/
-    if(montecarlo) {
+    if(montecarlo && !montecarlo_skipped) {
 
         /*search has ended. display some info*/
         int time_used = MAX(1,get_time() - start_time);
@@ -2069,7 +2073,7 @@ MOVE SEARCHER::find_best() {
         else if(root_score >= 100)
             factor *= 1.2;
 
-        if(montecarlo && Node::max_tree_depth) {
+        if(montecarlo && !montecarlo_skipped) {
             int idx = 0;
             Node* current = root_node->child;
             while(current) {
