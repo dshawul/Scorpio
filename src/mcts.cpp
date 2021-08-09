@@ -206,7 +206,7 @@ void Node::rank_children(Node* n) {
         if(current->move) {
             double val = -current->score;
             if(current->is_pvmove())
-                val += MAX_HIST;
+                val += MAX_NUMBER;
 
             /*find rank of current child*/
             int rank = 1;
@@ -215,7 +215,7 @@ void Node::rank_children(Node* n) {
                 if(cur->move && cur != current) {
                     double val1 = -cur->score;
                     if(cur->is_pvmove())
-                        val1 += MAX_HIST;
+                        val1 += MAX_NUMBER;
 
                     if(val1 > val ||
                         (val1 == val && cur->rank < current->rank) ||

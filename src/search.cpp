@@ -454,7 +454,7 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
 
             //history prunining
             const MOVE& cMove = hstack[hply - 2].move;
-            if(depth <= 3 && REF_FUP_HISTORY(cMove,move) <= -1024)
+            if(depth <= 3 && REF_FUP_HISTORY(cMove,move) <= -(MAX_HIST >> 4))
                 return true;
 
             //futility prunining
@@ -1813,19 +1813,18 @@ MOVE SEARCHER::iterative_deepening(bool& montecarlo_skipped) {
         }
 
         /*aspiration window search*/
-        if(!use_aspiration || 
-            ABS(score) >= 1000 || 
+        if(!use_aspiration ||
             search_depth <= 3
             ) {
             alpha = -MATE_SCORE;
             beta = MATE_SCORE;
             prev_pv_length = stack[0].pv_length;
         } else if(score <= alpha) {
-            WINDOW = MIN(200, 3 * WINDOW / 2);
+            WINDOW = 3 * WINDOW / 2;
             alpha = MAX(-MATE_SCORE,score - WINDOW);
             search_depth--;
         } else if (score >= beta){
-            WINDOW = MIN(200, 3 * WINDOW / 2);
+            WINDOW = 3 * WINDOW / 2;
             beta = MIN(MATE_SCORE,score + WINDOW);
             search_depth--;
         } else {

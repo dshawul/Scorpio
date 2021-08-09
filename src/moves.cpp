@@ -1515,8 +1515,10 @@ void SEARCHER::gen_checks(){
 /*
 history score
 */
+#define HIST_OFFSET  4178944
+
 int SEARCHER::get_history_score(const MOVE& move) {
-    int score = HISTORY(move) - MAX_HIST + 400;
+    int score = HISTORY(move) - HIST_OFFSET + 400;
     for(int i = 1; i <= 2 && hply >= i; i++) {
         const MOVE& cMove = hstack[hply - i].move;
         score += 4 * REF_FUP_HISTORY(cMove, move);
@@ -1578,7 +1580,7 @@ DO_AGAIN:
                         *pscore = 70;
                     else if(is_cap_prom(move)) {
                         *pscore = see(move);
-                        if(*pscore < 0) *pscore -= 2 * MAX_HIST;
+                        if(*pscore < 0) *pscore -= 2 * HIST_OFFSET;
                     } else
                         *pscore = get_history_score(move);
                 }
@@ -1738,7 +1740,7 @@ DO_AGAIN:
                         *pscore = 10000;
                     else if(is_cap_prom(move)) {
                         *pscore = see(move);
-                        if(*pscore < 0) *pscore -= 2 * MAX_HIST;
+                        if(*pscore < 0) *pscore -= 2 * HIST_OFFSET;
                     } else if(move == REFUTATION(hstack[hply - 1].move))
                         *pscore = 70;
                     else
@@ -1784,10 +1786,14 @@ DO_AGAIN:
     if(ply && hply >= 1 && hstack[hply - 1].checks) {
     } else {
         move = pstack->move_st[pstack->current_index];
+
+        /*illegal move*/
         if(in_check(move)) {
             pstack->current_index++;
             goto DO_AGAIN;
         }
+
+        /*see pruning*/
         if(pstack->gen_status - 1 == GEN_CAPS) {
             if(piece_see_v[m_capture(move)] >= piece_see_v[m_piece(move)]);
             else {
@@ -1830,31 +1836,19 @@ void SEARCHER::gen_all_legal() {
 /*
 * History and killers
 */
-static FORCEINLINE int update_h(int& h, int temp) {
-    h += (temp << 5)  - ((h * ABS(temp)) >> 9);
-    return h;
+static FORCEINLINE void update_h(int& h, int score) {
+    h += (score << 5)  - ((h * ABS(score)) >> 9);
 }
 void SEARCHER::update_history(MOVE move, bool penalize) {
-    int temp = MIN(361, pstack->depth * pstack->depth);
-    int maxh, maxh1;
+    int score = MIN(361, pstack->depth * pstack->depth);
 
-    if(penalize) temp = -temp;
+    if(penalize) score = -score;
 
-    maxh = update_h(HISTORY(move),temp);
+    update_h(HISTORY(move),score);
     for(int i = 0; i < pstack->current_index - 1;i++) {
         const MOVE& mv = pstack->move_st[i];
-        if(!is_cap_prom(mv)) {
-            maxh1 = -update_h(HISTORY(mv),-temp);
-            if(maxh1 > maxh) maxh = maxh1;
-        }
-    }
-
-    if(maxh >= MAX_HIST) {
-        for(int i = 0;i < 14;i++)
-            for(int j = 0;j < 64;j++)
-                history[i][j] >>= 1;
-        for(int i = 0;i < 14*64*14*64;i++)
-            ref_fup_history[i] >>= 1;
+        if(!is_cap_prom(mv))
+            update_h(HISTORY(mv),-score);
     }
 
     if(!penalize && move != pstack->killer[0]) {
@@ -1865,11 +1859,11 @@ void SEARCHER::update_history(MOVE move, bool penalize) {
     for(int i = 1; i <= 2 && hply >= i; i++) {
         const MOVE& cMove = hstack[hply - i].move;
         if(cMove) {
-            update_h(REF_FUP_HISTORY(cMove,move),temp);
+            update_h(REF_FUP_HISTORY(cMove,move),score);
             for(int i = 0; i < pstack->current_index - 1;i++) {
                 const MOVE& mv = pstack->move_st[i];
                 if(!is_cap_prom(mv))
-                    update_h(REF_FUP_HISTORY(cMove,mv),-temp);
+                    update_h(REF_FUP_HISTORY(cMove,mv),-score);
             }
         }
         if(!penalize && i == 1 && pstack->depth > 1)

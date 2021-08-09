@@ -189,7 +189,7 @@ enum square_names {
 #define WIN_SCORE         3000
 #define WIN_PLY             20
 #define MAX_NUMBER    16777216
-#define MAX_HIST       8388608
+#define MAX_HIST         16384
 #define MAX_UINT64   uint64_t(0xffffffffffffffff)
 #define MAX_EGBB             6
 
