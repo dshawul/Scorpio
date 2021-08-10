@@ -321,6 +321,10 @@ FORCEINLINE int SEARCHER::on_qnode_entry() {
     if(hash_cutoff())
         return true;
 
+    /*bitbase cutoff*/
+    if(bitbase_cutoff())
+        return true;
+
     /*static evaluation of position*/
     if(hply >= 1 && !hstack[hply - 1].checks) {
         if(pstack->hash_flags != UNKNOWN

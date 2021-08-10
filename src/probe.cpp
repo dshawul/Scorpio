@@ -362,7 +362,7 @@ bool SEARCHER::bitbase_cutoff() {
     int plimit = egbb_ply_limit;
     if( egbb_is_loaded                                   //must be loaded
         && all_man_c <= MAX_EGBB                         //maximum 6 pieces
-        && (pstack->depth >= dlimit || all_man_c <= 4 )  //hard depth limit
+        && (pstack->depth >= dlimit || all_man_c <= 5 )  //hard depth limit
         && (ply >= plimit || fifty == 0)                 //ply above threshold or caps/pawn push
         && probe_bitbases(score)
         ) {
