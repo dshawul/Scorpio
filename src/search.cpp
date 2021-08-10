@@ -25,7 +25,6 @@ static PARAM aspiration_window = 10;
 static PARAM failhigh_margin = 120;
 static PARAM razor_margin = 120;
 static PARAM futility_margin = 130;
-static PARAM singular_margin = 32;
 static PARAM probcut_margin = 195;
 static PARAM lmp_count[] = {0, 10, 10, 15, 21, 24, 44, 49};
 static PARAM lmr_count[] = {4, 6, 7, 8, 13, 20, 25, 31};
@@ -632,9 +631,8 @@ START:
                 }
                 break;
             case SINGULAR_SEARCH:
-                if(use_singular 
-                    && sb->pstack->node_type != ALL_NODE
-                    && sb->pstack->hash_move 
+                if(use_singular
+                    && sb->pstack->hash_move
                     && sb->pstack->depth >= 8
                     && sb->pstack->hash_flags == HASH_GOOD
                     && !sb->pstack->singular
@@ -642,9 +640,9 @@ START:
                         sb->pstack->o_alpha = sb->pstack->alpha;
                         sb->pstack->o_beta = sb->pstack->beta;
                         sb->pstack->o_depth = sb->pstack->depth;
-                        sb->pstack->alpha = sb->pstack->hash_score - singular_margin;
+                        sb->pstack->alpha = sb->pstack->hash_score - sb->pstack->depth;
                         sb->pstack->beta = sb->pstack->alpha + 1;
-                        sb->pstack->depth -= 6;
+                        sb->pstack->depth /= 2;
                         sb->pstack->search_state |= NORMAL_MOVE; 
                 } else {
                     sb->pstack->search_state = NORMAL_MOVE;
@@ -2253,8 +2251,6 @@ bool check_search_params(char** commands,char* command,int& command_num) {
         failhigh_margin = atoi(commands[command_num++]);
     } else if(!strcmp(command, "futility_margin")) {
         futility_margin = atoi(commands[command_num++]);
-    } else if(!strcmp(command, "singular_margin")) {
-        singular_margin = atoi(commands[command_num++]);
     } else if(!strcmp(command, "probcut_margin")) {
         probcut_margin = atoi(commands[command_num++]);
     } else if(!strncmp(command, "lmp_count",9)) {
