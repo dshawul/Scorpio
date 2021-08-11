@@ -445,9 +445,11 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
         && ABS((pstack - 1)->best_score) != MATE_SCORE
         ) {
             //late move prunining
-            int clmp = (improving ? lmp_count[depth] : lmp_count[depth] / 2);
-            if(depth <= 7 && nmoves >= clmp)
-                return true;
+            if(depth <= 7) {
+                int clmp = (improving ? lmp_count[depth] : lmp_count[depth] / 2);
+                if(nmoves >= clmp)
+                    return true;
+            }
 
             //see prunining
             if(PIECE(m_piece(move)) != king

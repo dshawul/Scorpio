@@ -1787,6 +1787,11 @@ DO_AGAIN:
     } else {
         move = pstack->move_st[pstack->current_index];
 
+        /*late move pruning*/
+        if(pstack->gen_status - 1 == GEN_CAPS && pstack->qcheck_depth <= 0) {
+            if(pstack->legal_moves > 3)
+                return 0;
+        }
         /*illegal move*/
         if(in_check(move)) {
             pstack->current_index++;
