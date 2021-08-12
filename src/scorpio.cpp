@@ -22,7 +22,7 @@ const int piece_mask[14] = {
     0,KM,QM,RM,BM,NM,WPM,KM,QM,RM,BM,NM,BPM,0
 };
 
-CACHE_ALIGN int pcsq[14][0x80];
+CACHE_ALIGN int16_t pcsq[14][0x80];
 bool book_loaded = false;
 bool log_on = false;
 int scorpio_start_time;
@@ -66,9 +66,9 @@ int use_abdada_cluster = 0;
 static global variables of SEARCHER
 */
 uint64_t SEARCHER::root_score_st[MAX_MOVES];
-CACHE_ALIGN int SEARCHER::history[14][64];
+CACHE_ALIGN int16_t SEARCHER::history[14][64];
 CACHE_ALIGN MOVE SEARCHER::refutation[14][64];
-int* SEARCHER::ref_fup_history = 0;
+int16_t* SEARCHER::ref_fup_history = 0;
 CHESS_CLOCK SEARCHER::chess_clock;
 unsigned int SEARCHER::playouts;
 int SEARCHER::search_depth;

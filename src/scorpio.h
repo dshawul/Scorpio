@@ -932,9 +932,9 @@ typedef struct SEARCHER{
     static unsigned int average_pps;
     static CHESS_CLOCK chess_clock;
     static uint64_t root_score_st[MAX_MOVES];
-    static int history[14][64];
+    static int16_t history[14][64];
     static MOVE refutation[14][64];
-    static int* ref_fup_history;
+    static int16_t* ref_fup_history;
     /*
     Bitbases and neural network
     */
@@ -1231,7 +1231,7 @@ extern const int piece_see_v[14];
 extern const int pic_tab[14];
 extern const int pawn_dir[2];
 extern const int piece_mask[14];
-extern int pcsq[14][0x80];
+extern int16_t pcsq[14][0x80];
 extern bool book_loaded;
 extern bool log_on;
 extern int scorpio_start_time;

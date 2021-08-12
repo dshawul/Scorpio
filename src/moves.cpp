@@ -1841,7 +1841,7 @@ void SEARCHER::gen_all_legal() {
 /*
 * History and killers
 */
-static FORCEINLINE void update_h(int& h, int score) {
+static FORCEINLINE void update_h(int16_t& h, int score) {
     h += (score << 5)  - ((h * ABS(score)) >> 9);
 }
 void SEARCHER::update_history(MOVE move, bool penalize) {
@@ -1878,8 +1878,8 @@ void SEARCHER::update_history(MOVE move, bool penalize) {
 void SEARCHER::allocate_history() {
     memset(history,0,sizeof(history));
     memset(refutation,0,sizeof(refutation));
-    aligned_reserve<int>(ref_fup_history, 14*64*14*64);
-    memset(ref_fup_history,0,sizeof(int)*14*64*14*64);
+    aligned_reserve<int16_t>(ref_fup_history, 14*64*14*64);
+    memset(ref_fup_history,0,sizeof(int16_t)*14*64*14*64);
 }
 void SEARCHER::clear_history() {
     for(int i = 0;i < 14;i++)
