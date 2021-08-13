@@ -109,10 +109,57 @@ static void init_game();
 static int self_play();
 
 /*
+hash tables
+*/
+static void reset_ht() {
+    if(montecarlo && frac_abprior == 0)
+        return;
+    uint32_t size = 1,size_max = ht * ((1024 * 1024) / (2 * sizeof(HASH)));
+    while(2 * size <= size_max) size *= 2;
+    for(int i = 0;i < PROCESSOR::n_processors;i++) {
+        if(i < PROCESSOR::n_cores)
+            processors[i]->reset_hash_tab(i,size);
+        else
+            processors[i]->reset_hash_tab(i,0);
+    }
+    print("ht %d X %d = %.1f MB\n",2 * size,sizeof(HASH),(2 * size * sizeof(HASH)) / double(1024 * 1024));
+}
+static void reset_eht() {
+    if(montecarlo && frac_abprior == 0)
+        return;
+    uint32_t size = 1,size_max = eht * ((1024 * 1024) / (2 * sizeof(EVALHASH)));
+    while(2 * size <= size_max) size *= 2;
+    for(int i = 0;i < PROCESSOR::n_processors;i++) {
+        if(i < PROCESSOR::n_cores)
+            processors[i]->reset_eval_hash_tab(size);
+        else
+            processors[i]->reset_eval_hash_tab(0);
+    }
+    int np = MIN(PROCESSOR::n_cores, PROCESSOR::n_processors);
+    print("eht %d X %d X %d = %.1f MB\n",size,sizeof(EVALHASH), np,
+        np * (2 * size * sizeof(EVALHASH)) / double(1024 * 1024));
+}
+static void reset_pht() {
+    if(SEARCHER::use_nnue)
+        return;
+    uint32_t size = 1,size_max = pht * ((1024 * 1024) / (sizeof(PAWNHASH)));
+    while(2 * size <= size_max) size *= 2;
+    for(int i = 0;i < PROCESSOR::n_processors;i++) {
+        if(i < PROCESSOR::n_cores)
+            processors[i]->reset_pawn_hash_tab(size);
+        else
+            processors[i]->reset_pawn_hash_tab(0);
+    }
+    int np = MIN(PROCESSOR::n_cores, PROCESSOR::n_processors);
+    print("pht %d X %d X %d = %.1f MB\n",size,sizeof(PAWNHASH), np,
+        np * (size * sizeof(PAWNHASH)) / double(1024 * 1024));
+}
+/*
 load egbbs with a separate thread
 */
 static VOLATILE bool egbb_is_loading = false;
 static bool egbb_setting_changed = false;
+static bool ht_setting_changed = false;
 
 static void wait_for_egbb() {
     while(egbb_is_loading) t_sleep(100);
@@ -133,46 +180,13 @@ static void load_egbbs() {
         t_create(dummy,egbb_thread_proc,0);
         (void)dummy;
     }
-}
-/*
-hash tables
-*/
-static void reset_ht() {
-    uint32_t size = 1,size_max = ht * ((1024 * 1024) / (2 * sizeof(HASH)));
-    while(2 * size <= size_max) size *= 2;
-    for(int i = 0;i < PROCESSOR::n_processors;i++) {
-        if(i < PROCESSOR::n_cores)
-            processors[i]->reset_hash_tab(i,size);
-        else
-            processors[i]->reset_hash_tab(i,0);
+    /*reset hash tables*/
+    if(ht_setting_changed) {
+        reset_ht();
+        reset_eht();
+        reset_pht();
+        ht_setting_changed = false;
     }
-    print("ht %d X %d = %.1f MB\n",2 * size,sizeof(HASH),(2 * size * sizeof(HASH)) / double(1024 * 1024));
-}
-static void reset_eht() {
-    uint32_t size = 1,size_max = eht * ((1024 * 1024) / (2 * sizeof(EVALHASH)));
-    while(2 * size <= size_max) size *= 2;
-    for(int i = 0;i < PROCESSOR::n_processors;i++) {
-        if(i < PROCESSOR::n_cores)
-            processors[i]->reset_eval_hash_tab(size);
-        else
-            processors[i]->reset_eval_hash_tab(0);
-    }
-    int np = MIN(PROCESSOR::n_cores, PROCESSOR::n_processors);
-    print("eht %d X %d X %d = %.1f MB\n",size,sizeof(EVALHASH), np,
-        np * (2 * size * sizeof(EVALHASH)) / double(1024 * 1024));
-}
-static void reset_pht() {
-    uint32_t size = 1,size_max = pht * ((1024 * 1024) / (sizeof(PAWNHASH)));
-    while(2 * size <= size_max) size *= 2;
-    for(int i = 0;i < PROCESSOR::n_processors;i++) {
-        if(i < PROCESSOR::n_cores)
-            processors[i]->reset_pawn_hash_tab(size);
-        else
-            processors[i]->reset_pawn_hash_tab(0);
-    }
-    int np = MIN(PROCESSOR::n_cores, PROCESSOR::n_processors);
-    print("pht %d X %d X %d = %.1f MB\n",size,sizeof(PAWNHASH), np,
-        np * (size * sizeof(PAWNHASH)) / double(1024 * 1024));
 }
 /*
 main
@@ -501,13 +515,13 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         */
     } else if(!strcmp(command,"ht")) {
         ht = atoi(commands[command_num++]);
-        reset_ht();
+        ht_setting_changed = true;
     } else if(!strcmp(command,"pht")) {
         pht = atoi(commands[command_num++]);
-        reset_pht();
+        ht_setting_changed = true;
     } else if(!strcmp(command,"eht")) {
         eht = atoi(commands[command_num++]);
-        reset_eht();
+        ht_setting_changed = true;
         /*
         parallel search
         */
@@ -536,6 +550,7 @@ bool internal_commands(char** commands,char* command,int& command_num) {
             mt = MIN(mt, MAX_CPUS);
             init_smp(mt);
             print("processors [%d]\n",PROCESSOR::n_processors);
+            ht_setting_changed = true;
         }
 #endif
         command_num++;

@@ -742,9 +742,6 @@ void CDECL thread_proc(void* id) {
     PPROCESSOR proc = new PROCESSOR();
     proc->searcher = NULL;
     proc->state = PARK;
-    proc->reset_hash_tab(tid,0);
-    proc->reset_eval_hash_tab();
-    proc->reset_pawn_hash_tab();
     processors[tid] = proc;
     search((PPROCESSOR)proc);
 }
