@@ -551,8 +551,10 @@ void SEARCHER::print_pv(int score) {
     int dummy;
     while(ply < MAX_PLY - 1) {
         move = 0;
-        PROBE_HASH(player,hash_key,0,0,dummy,dummy,move,
-            -MATE_SCORE,MATE_SCORE,dummy,dummy,dummy,0);
+        if(!(montecarlo && frac_abprior == 0)) {
+            PROBE_HASH(player,hash_key,0,0,dummy,dummy,move,
+                -MATE_SCORE,MATE_SCORE,dummy,dummy,dummy,0);
+        }
         if(!move || !is_legal_fast(move) || draw())
             break;
 
