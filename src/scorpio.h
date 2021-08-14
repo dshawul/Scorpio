@@ -1186,7 +1186,7 @@ typedef struct PROCESSOR {
     static uint32_t eval_hash_tab_mask;
     static int age;
 
-    void  reset_hash_tab(int id,uint32_t);
+    void  reset_hash_tab(int id,uint32_t = 0);
     void  reset_pawn_hash_tab(uint32_t = 0);
     void  reset_eval_hash_tab(uint32_t = 0);
     void  delete_hash_tables();
@@ -1210,8 +1210,8 @@ extern PPROCESSOR processors[MAX_CPUS];
 /*
 multi processors
 */
-#ifdef PARALLEL
 void init_smp(int);
+#ifdef PARALLEL
 extern LOCK  lock_smp;
 extern LOCK  lock_io;
 extern int use_abdada_smp;

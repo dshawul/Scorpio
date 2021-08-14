@@ -103,57 +103,12 @@ static int result = R_UNKNOWN;
 static int ht = 64;
 static int eht = 8;
 static int pht = 1;
+static int mt = 1;
 
 static bool load_ini();
 static void init_game();
 static int self_play();
 
-/*
-hash tables
-*/
-static void reset_ht() {
-    if(montecarlo && frac_abprior == 0)
-        return;
-    uint32_t size = 1,size_max = ht * ((1024 * 1024) / (2 * sizeof(HASH)));
-    while(2 * size <= size_max) size *= 2;
-    for(int i = 0;i < PROCESSOR::n_processors;i++) {
-        if(i < PROCESSOR::n_cores)
-            processors[i]->reset_hash_tab(i,size);
-        else
-            processors[i]->reset_hash_tab(i,0);
-    }
-    print("ht %d X %d = %.1f MB\n",2 * size,sizeof(HASH),(2 * size * sizeof(HASH)) / double(1024 * 1024));
-}
-static void reset_eht() {
-    if(montecarlo && frac_abprior == 0)
-        return;
-    uint32_t size = 1,size_max = eht * ((1024 * 1024) / (2 * sizeof(EVALHASH)));
-    while(2 * size <= size_max) size *= 2;
-    for(int i = 0;i < PROCESSOR::n_processors;i++) {
-        if(i < PROCESSOR::n_cores)
-            processors[i]->reset_eval_hash_tab(size);
-        else
-            processors[i]->reset_eval_hash_tab(0);
-    }
-    int np = MIN(PROCESSOR::n_cores, PROCESSOR::n_processors);
-    print("eht %d X %d X %d = %.1f MB\n",size,sizeof(EVALHASH), np,
-        np * (2 * size * sizeof(EVALHASH)) / double(1024 * 1024));
-}
-static void reset_pht() {
-    if(SEARCHER::use_nnue)
-        return;
-    uint32_t size = 1,size_max = pht * ((1024 * 1024) / (sizeof(PAWNHASH)));
-    while(2 * size <= size_max) size *= 2;
-    for(int i = 0;i < PROCESSOR::n_processors;i++) {
-        if(i < PROCESSOR::n_cores)
-            processors[i]->reset_pawn_hash_tab(size);
-        else
-            processors[i]->reset_pawn_hash_tab(0);
-    }
-    int np = MIN(PROCESSOR::n_cores, PROCESSOR::n_processors);
-    print("pht %d X %d X %d = %.1f MB\n",size,sizeof(PAWNHASH), np,
-        np * (size * sizeof(PAWNHASH)) / double(1024 * 1024));
-}
 /*
 load egbbs with a separate thread
 */
@@ -172,6 +127,42 @@ static void CDECL egbb_thread_proc(void*) {
     egbb_is_loading = false;
 }
 static void load_egbbs() {
+    /*reset hash tables*/
+    if(ht_setting_changed) {
+        uint32_t size, size_max;
+        int np = MIN(PROCESSOR::n_cores, mt);
+
+        print("--------------------------\n");
+        if(!(montecarlo && frac_abprior == 0)) {
+            size = 1;
+            size_max = ht * ((1024 * 1024) / (2 * sizeof(HASH)));
+            while(2 * size <= size_max) size *= 2;
+            PROCESSOR::hash_tab_mask = size - 1;
+            print("ht %d X %d = %.1f MB\n",2 * size,sizeof(HASH),
+                (2 * size * sizeof(HASH)) / double(1024 * 1024));
+
+            size = 1;
+            size_max = eht * ((1024 * 1024) / (2 * sizeof(EVALHASH)));
+            while(2 * size <= size_max) size *= 2;
+            PROCESSOR::eval_hash_tab_mask = size - 1;
+            print("eht %d X %d X %d = %.1f MB\n",size,sizeof(EVALHASH), np,
+            np * (2 * size * sizeof(EVALHASH)) / double(1024 * 1024));
+        }
+        if(!SEARCHER::use_nnue) {
+            size = 1;
+            size_max = pht * ((1024 * 1024) / (sizeof(PAWNHASH)));
+            while(2 * size <= size_max) size *= 2;
+            PROCESSOR::pawn_hash_tab_mask = size - 1;
+            print("pht %d X %d X %d = %.1f MB\n",size,sizeof(PAWNHASH), np,
+                np * (size * sizeof(PAWNHASH)) / double(1024 * 1024));
+        }
+
+        init_smp(mt);
+        print("processors [%d]\n",PROCESSOR::n_processors);
+        print("--------------------------\n");
+
+        ht_setting_changed = false;
+    }
     /*Wait if we are still loading EGBBs*/
     if(egbb_setting_changed && !SEARCHER::egbb_is_loaded) {
         egbb_setting_changed = false;
@@ -179,13 +170,6 @@ static void load_egbbs() {
         pthread_t dummy;
         t_create(dummy,egbb_thread_proc,0);
         (void)dummy;
-    }
-    /*reset hash tables*/
-    if(ht_setting_changed) {
-        reset_ht();
-        reset_eht();
-        reset_pht();
-        ht_setting_changed = false;
     }
 }
 /*
@@ -536,7 +520,6 @@ bool internal_commands(char** commands,char* command,int& command_num) {
 #ifdef PARALLEL
         if(strcmp(command,"mt") && montecarlo && SEARCHER::use_nn);
         else {
-            int mt;
             if(!strcmp(commands[command_num],"auto"))
                 mt = PROCESSOR::n_cores;
             else if(!strncmp(commands[command_num],"auto-",5)) {
@@ -548,8 +531,6 @@ bool internal_commands(char** commands,char* command,int& command_num) {
             } else
                 mt = atoi(commands[command_num]);
             mt = MIN(mt, MAX_CPUS);
-            init_smp(mt);
-            print("processors [%d]\n",PROCESSOR::n_processors);
             ht_setting_changed = true;
         }
 #endif

@@ -737,12 +737,24 @@ int SEARCHER::get_smp_move() {
 /**
 * Create/kill search thread
 */
+static void reset_tables(PPROCESSOR proc, int tid) {
+    if(tid < PROCESSOR::n_cores) {
+        if(!(montecarlo && frac_abprior == 0)) {
+            proc->reset_hash_tab(tid);
+            proc->reset_eval_hash_tab();
+        }
+        if(!SEARCHER::use_nnue) {
+            proc->reset_pawn_hash_tab();
+        }
+    }
+}
 void CDECL thread_proc(void* id) {
     long tid = *((long*)id);
     PPROCESSOR proc = new PROCESSOR();
     proc->searcher = NULL;
     proc->state = PARK;
     processors[tid] = proc;
+    reset_tables(proc,tid);
     search((PPROCESSOR)proc);
 }
 void PROCESSOR::create(int id) {
@@ -988,16 +1000,19 @@ void SEARCHER::clear_block() {
     egbb_probes = 0;
     seldepth = 0;
 }
+#endif
 
 /**
 * Initialize mt number of threads by creating/deleting 
 * threads from the pool of processors.
 */
 void init_smp(int mt) {
-    int i;
+    PPROCESSOR proc = processors[0];
+    reset_tables(proc,0);
 
+#ifdef PARALLEL
     if(PROCESSOR::n_processors < mt) {
-        for(i = 1; i < MAX_CPUS;i++) {
+        for(int i = 1; i < MAX_CPUS;i++) {
             if(PROCESSOR::n_processors < mt) {
                 if(processors[i] == 0) {
                     PROCESSOR::create(i);
@@ -1006,7 +1021,7 @@ void init_smp(int mt) {
             } 
         }
     } else if(PROCESSOR::n_processors > mt) {
-        for(i = MAX_CPUS - 1; i >= 1;i--) {
+        for(int i = MAX_CPUS - 1; i >= 1;i--) {
             if(PROCESSOR::n_processors > mt) {
                 if(processors[i] != 0) {
                     PROCESSOR::kill(i);
@@ -1015,8 +1030,9 @@ void init_smp(int mt) {
             }
         }
     }
-}
 #endif
+}
+
 /**
 * Set main search thread
 */
@@ -1026,8 +1042,5 @@ void PROCESSOR::set_main() {
     proc->searcher->used = true;
     proc->searcher->processor_id = 0;
     proc->state = GO;
-    proc->reset_hash_tab(0,0);
-    proc->reset_eval_hash_tab();
-    proc->reset_pawn_hash_tab();
     processors[0] = proc;
 }
