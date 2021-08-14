@@ -738,7 +738,7 @@ int SEARCHER::get_smp_move() {
 * Create/kill search thread
 */
 static void reset_tables(PPROCESSOR proc, int tid) {
-    if(tid < PROCESSOR::n_cores) {
+    if(tid < PROCESSOR::n_cores || !(montecarlo && SEARCHER::use_nn)) {
         if(!(montecarlo && frac_abprior == 0)) {
             proc->reset_hash_tab(tid);
             proc->reset_eval_hash_tab();

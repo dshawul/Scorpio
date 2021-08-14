@@ -130,7 +130,7 @@ static void load_egbbs() {
     /*reset hash tables*/
     if(ht_setting_changed) {
         uint32_t size, size_max;
-        int np = MIN(PROCESSOR::n_cores, mt);
+        int np = (montecarlo && SEARCHER::use_nn) ? PROCESSOR::n_cores : mt;
 
         print("--------------------------\n");
         if(!(montecarlo && frac_abprior == 0)) {
