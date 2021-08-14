@@ -16,10 +16,15 @@ void PROCESSOR::reset_hash_tab(int id,uint32_t size) {
 #endif
     if(size) hash_tab_mask = size - 1;
     else size = hash_tab_mask + 1;
+    /*page size*/
+#if defined(__ANDROID__) || defined(_WIN32)
+    static const int alignment = 4096;
+#else
+    static const int alignment = 2 * 1024 * 1024;
+#endif
     aligned_free<HASH>(hash_tab[white]);
-    aligned_free<HASH>(hash_tab[black]);
-    aligned_reserve<HASH>(hash_tab[white],size);
-    aligned_reserve<HASH>(hash_tab[black],size);
+    aligned_reserve<HASH,alignment,true>(hash_tab[white],2*size);
+    hash_tab[black] = hash_tab[white] + size;
 }
 
 void PROCESSOR::reset_pawn_hash_tab(uint32_t size) {
@@ -33,23 +38,18 @@ void PROCESSOR::reset_eval_hash_tab(uint32_t size) {
     if(size) eval_hash_tab_mask = size - 1;
     else size = eval_hash_tab_mask + 1;
     aligned_free<EVALHASH>(eval_hash_tab[white]);
-    aligned_free<EVALHASH>(eval_hash_tab[black]);
-    aligned_reserve<EVALHASH>(eval_hash_tab[white],size);
-    aligned_reserve<EVALHASH>(eval_hash_tab[black],size);
+    aligned_reserve<EVALHASH>(eval_hash_tab[white],2*size);
+    eval_hash_tab[black] = eval_hash_tab[white] + size;
 }
 
 void PROCESSOR::clear_hash_tables() {
     PPROCESSOR proc;
     for(int i = 0;i < n_processors;i++) {
         proc = processors[i];
-        if(proc->hash_tab[white]) {
-            memset(proc->hash_tab[white],0,(hash_tab_mask + 1) * sizeof(HASH));
-            memset(proc->hash_tab[black],0,(hash_tab_mask + 1) * sizeof(HASH));
-        }
-        if(proc->eval_hash_tab[white]) {
-            memset(proc->eval_hash_tab[white],0,(eval_hash_tab_mask + 1) * sizeof(EVALHASH));
-            memset(proc->eval_hash_tab[black],0,(eval_hash_tab_mask + 1) * sizeof(EVALHASH));
-        }
+        if(proc->hash_tab[white])
+            memset(proc->hash_tab[white],0,2 * (hash_tab_mask + 1) * sizeof(HASH));
+        if(proc->eval_hash_tab[white])
+            memset(proc->eval_hash_tab[white],0,2 * (eval_hash_tab_mask + 1) * sizeof(EVALHASH));
         if(proc->pawn_hash_tab)
             memset((void*)proc->pawn_hash_tab,0,(pawn_hash_tab_mask + 1) * sizeof(PAWNHASH));
     }
@@ -57,9 +57,7 @@ void PROCESSOR::clear_hash_tables() {
 
 void PROCESSOR::delete_hash_tables() {
     aligned_free<HASH>(hash_tab[white]);
-    aligned_free<HASH>(hash_tab[black]);
     aligned_free<EVALHASH>(eval_hash_tab[white]);
-    aligned_free<EVALHASH>(eval_hash_tab[black]);
     aligned_free<PAWNHASH>(pawn_hash_tab);
 }
 

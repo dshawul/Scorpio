@@ -33,6 +33,7 @@ Os stuff
 #else
 #    include <unistd.h>
 #    include <sys/syscall.h>
+#    include <sys/mman.h>
 #    define CDECL
 #    define GETPID()  getpid()
 #    define GETTID()  syscall(SYS_gettid)
@@ -133,14 +134,16 @@ void aligned_free(T*& mem) {
     mem = 0;
 }
 
-template<typename T>
+template<typename T, int ALIGNMENT = CACHE_LINE_SIZE, bool large_pages = false>
 void aligned_reserve(T*& mem,const size_t& size) {
 #ifdef __ANDROID__
-    mem = (T*) memalign(CACHE_LINE_SIZE,size * sizeof(T));
+    mem = (T*) memalign(ALIGNMENT,size * sizeof(T));
 #elif defined(_WIN32)
-    mem = (T*)_aligned_malloc(size * sizeof(T),CACHE_LINE_SIZE);
+    mem = (T*)_aligned_malloc(size * sizeof(T),ALIGNMENT);
 #else
-    posix_memalign((void**)&mem,CACHE_LINE_SIZE,size * sizeof(T));
+    posix_memalign((void**)&mem,ALIGNMENT,size * sizeof(T));
+    if(large_pages)
+        madvise(mem,size * sizeof(T),MADV_HUGEPAGE);
 #endif
 }
 
