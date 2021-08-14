@@ -509,6 +509,9 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
         //eval not improving
         if(!improving && pstack->depth > 1)
             reduce(1);
+        //reduce killers less
+        if(pstack->reduction && (pstack - 1)->gen_status - 1 == GEN_KILLERS)
+            reduce(-1);
         //reduce extended moves less
         if(pstack->extension) {
             reduce(-pstack->reduction / 2);
