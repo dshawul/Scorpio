@@ -1,5 +1,5 @@
 #!/bin/bash
-set -ax          
+set -aex
 
 cd ../bin
 
@@ -12,7 +12,7 @@ cd ../bin
 #perft
 ./scorpio.sh use_nn 0 use_nnue 0 epd_run_perft ../tests/standard.epd quit | tee output
 [ ! -z `grep Error output` ] && exit 1
-./scorpio.sh variant fischerandom use_nn 0 use_nnue 0 epd_run_perft ../tests/fischer.epd quit | tee log
+./scorpio.sh variant fischerandom use_nn 0 use_nnue 0 epd_run_perft ../tests/fischer.epd quit | tee output
 [ ! -z `grep Error output` ] && exit 1
 rm -rf output
 
