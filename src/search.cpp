@@ -1552,6 +1552,7 @@ MOVE SEARCHER::iterative_deepening(bool& montecarlo_skipped) {
     int score;
     int easy = false,easy_score = 0;
     MOVE easy_move = 0;
+    bool opponent_move_expected = (hply >= 1 && expected_move == hstack[hply - 1].move);
 
     search_depth = 1;
     poll_nodes = 5000;
@@ -1704,6 +1705,13 @@ MOVE SEARCHER::iterative_deepening(bool& montecarlo_skipped) {
         /*determine time factor*/
         time_factor = 1.0;
         compute_time_factor(root_score);
+
+        if(!montecarlo && opponent_move_expected) {
+            float factor = (1 - MIN(0.9, (time_factor - 1.0) / 3));
+            if(chess_clock.p_time >= 0.8 * chess_clock.o_time)
+                factor = MIN(1.0, factor + 0.2);
+            time_factor *= factor;
+        }
 
         /*check if "easy" move is really easy*/
         if(easy && (easy_move != pstack->pv[0] || score <= easy_score - 60)) {
@@ -1979,6 +1987,8 @@ MOVE SEARCHER::find_best() {
 
     bool montecarlo_skipped = false;
     bmove = iterative_deepening(montecarlo_skipped);
+    if(!SEARCHER::chess_clock.pondering)
+        SEARCHER::expected_move = stack[0].pv[1];
 
 #ifdef PARALLEL
     /*park threads*/

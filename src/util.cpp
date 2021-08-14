@@ -558,6 +558,7 @@ void SEARCHER::print_pv(int score) {
         if(!move || !is_legal_fast(move) || draw())
             break;
 
+        stack[0].pv[i] = move;
         strcpy(mv_str,"");
         mov_str(move,mv_str);
         strcat(pv, " ");

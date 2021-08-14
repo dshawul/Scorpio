@@ -1284,12 +1284,11 @@ static bool send_bestmove(MOVE move) {
     main_searcher->mov_str(move,mv_str);
     print_log("<%012d>",get_time() - scorpio_start_time);
     if(PROTOCOL == UCI) {
-        if(main_searcher->stack[0].pv_length > 1) {
+        if(SEARCHER::expected_move) {
             char mv_ponder_str[10];
-            MOVE move_ponder = main_searcher->stack[0].pv[1];
+            MOVE move_ponder = SEARCHER::expected_move;
             main_searcher->mov_str(move_ponder,mv_ponder_str);
             print("bestmove %s ponder %s\n",mv_str, mv_ponder_str);
-            SEARCHER::expected_move = move;
         } else
             print("bestmove %s\n",mv_str);
     } else {
