@@ -67,18 +67,14 @@ void PROCESSOR::delete_hash_tables() {
  Distributed hashtable on NUMA machines
  */
 #if NUMA_TT_TYPE == 0
-#define TT_KEY \
-    static const PPROCESSOR proc = processors[0];\
-    uint32_t key = uint32_t(hash_key & PROCESSOR::hash_tab_mask);
+#define TT_PROC \
+    static const PPROCESSOR proc = processors[0];
 #elif NUMA_TT_TYPE == 1
-#define TT_KEY \
-    int proc_id = ((hash_key >> 48) * PROCESSOR::n_processors) >> 16;\
-    PPROCESSOR proc = processors[proc_id];\
-    uint32_t key = uint32_t(hash_key & PROCESSOR::hash_tab_mask);
+#define TT_PROC \
+    PPROCESSOR proc = processors[((hash_key >> 48) * PROCESSOR::n_processors) >> 16];
 #else
-#define TT_KEY \
-    PPROCESSOR proc = processors[processor_id];\
-    uint32_t key = uint32_t(hash_key & PROCESSOR::hash_tab_mask);
+#define TT_PROC \
+    PPROCESSOR proc = processors[processor_id];
 #endif
 /*
 Main hash table
@@ -89,11 +85,12 @@ void SEARCHER::record_hash(
                  int col,const HASHKEY& hash_key,int depth,int ply,int flags,
                  int eval,int score,MOVE move,int mate_threat,int singular
                  ) {
-    TT_KEY;
+    TT_PROC;
     PHASH addr,pslot,pr_slot = 0;
     HASH slot;
     int sc, max_sc = MAX_NUMBER;
     uint32_t check_sum = (uint32_t)(hash_key >> 32), s_data;
+    uint32_t key = uint32_t(hash_key & PROCESSOR::hash_tab_mask);
 
     addr = proc->hash_tab[col];
 
@@ -143,11 +140,12 @@ int SEARCHER::probe_hash(
                MOVE& move,int alpha,int beta,int& mate_threat,int& singular,int& h_depth,
                bool exclusiveP
                ) {
-    TT_KEY;
+    TT_PROC;
     PHASH addr,pslot;
     HASH slot;
     int flags;
     uint32_t check_sum = (uint32_t)(hash_key >> 32), s_data;
+    uint32_t key = uint32_t(hash_key & PROCESSOR::hash_tab_mask);
 
     addr = proc->hash_tab[col];
     
@@ -272,7 +270,8 @@ prefetch tt
 */
 void SEARCHER::prefetch_tt() {
 #ifdef HAS_PREFETCH
-    TT_KEY;
+    TT_PROC;
+    uint32_t key = uint32_t(hash_key & PROCESSOR::hash_tab_mask);
     PREFETCH_T0(proc->hash_tab[player] + key);
 #endif
 }

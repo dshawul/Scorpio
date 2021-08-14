@@ -135,11 +135,16 @@ static void load_egbbs() {
         print("--------------------------\n");
         if(!(montecarlo && frac_abprior == 0)) {
             size = 1;
-            size_max = ht * ((1024 * 1024) / (2 * sizeof(HASH)));
+#if NUMA_TT_TYPE == 0
+            int factor = 1;
+#else
+            int factor = np;
+#endif
+            size_max = ht * ((1024 * 1024) / (factor * 2 * sizeof(HASH)));
             while(2 * size <= size_max) size *= 2;
             PROCESSOR::hash_tab_mask = size - 1;
-            print("ht %d X %d = %.1f MB\n",2 * size,sizeof(HASH),
-                (2 * size * sizeof(HASH)) / double(1024 * 1024));
+            print("ht %d X %d X %d = %.1f MB\n",2 * size,sizeof(HASH), factor,
+                (factor * 2 * size * sizeof(HASH)) / double(1024 * 1024));
 
             size = 1;
             size_max = eht * ((1024 * 1024) / (2 * sizeof(EVALHASH)));
