@@ -728,6 +728,7 @@ bool internal_commands(char** commands,char* command,int& command_num) {
                !strcmp(command,"epd_to_score") ||
                !strcmp(command,"epd_to_nn") ||
                !strcmp(command,"epd_to_dat") ||
+               !strcmp(command,"epd_to_quiet") ||
                !strcmp(command,"epd_check_eval") ||
                !strcmp(command,"epd_run_search") ||
                !strcmp(command,"epd_run_perft")
@@ -755,20 +756,22 @@ bool internal_commands(char** commands,char* command,int& command_num) {
             task = 5;
         else if(!strcmp(command,"epd_to_dat"))
             task = 6;
-        else if(!strcmp(command,"epd_check_eval"))
+        else if(!strcmp(command,"epd_to_quiet"))
             task = 7;
-        else if(!strcmp(command,"epd_run_search"))
+        else if(!strcmp(command,"epd_check_eval"))
             task = 8;
-        else
+        else if(!strcmp(command,"epd_run_search"))
             task = 9;
+        else
+            task = 10;
 
         char source[1024],dest[1024];
         strcpy(source,commands[command_num++]);
-        if(task < 7)
+        if(task < 8)
             strcpy(dest,commands[command_num++]);
 
         /*header*/
-        if(task == 8) {
+        if(task == 9) {
             if(SEARCHER::pv_print_style == 0) 
                 print("******************************************\n");
             else if(SEARCHER::pv_print_style == 1) {
@@ -786,7 +789,7 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         FILE* fb = 0;
         if(task == 3 || task == 6)
             fb = fopen(dest,"wb");
-        else if(task < 7)
+        else if(task < 8)
             fb = fopen(dest,"w");
 
         main_searcher->COPY(&searcher);
@@ -803,7 +806,7 @@ bool internal_commands(char** commands,char* command,int& command_num) {
             epd.close();
         }
 
-        if(task < 7)
+        if(task < 8)
             fclose(fb);
 #endif
 #ifdef TUNE

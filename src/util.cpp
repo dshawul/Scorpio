@@ -2259,6 +2259,22 @@ void SEARCHER::epd_to_nn(char* fen, FILE* fb, int task) {
         write_input_planes(fb);                                 \
         l_unlock(lock_io);                                      \
     } else if(task == 3) {                                      \
+        char *p = strrchr(epd, ' ');                            \
+        if(p && *(p + 1)) {                                     \
+            MOVE move;                                          \
+            str_mov(move,p + 1);                                \
+            *p = 0;                                             \
+            int pksq = plist[COMBINE(player,king)]->sq;         \
+            if(is_legal(move)                                   \
+                && !is_cap_prom(move)                           \
+                && !attacks(opponent,pksq)                      \
+            ) {                                                 \
+                l_lock(lock_io);                                \
+                fprintf(fb,"%s\n", epd);                        \
+                l_unlock(lock_io);                              \
+            }                                                   \
+        }                                                       \
+    } else if(task == 4) {                                      \
         int sc = eval();                                        \
         mirror();                                               \
         int sce = eval();                                       \
@@ -2268,7 +2284,7 @@ void SEARCHER::epd_to_nn(char* fen, FILE* fb, int task) {
             print("[ %s ] \nsc = %6d sc1 = %6d\n",fen,sc,sce);  \
             print("**********************\n");                  \
         }                                                       \
-    } else if(task == 4) {                                      \
+    } else if(task == 5) {                                      \
         PROCESSOR::clear_hash_tables();                         \
         SEARCHER::first_search = true;                          \
         SEARCHER::old_root_score = 0;                           \
@@ -2280,7 +2296,7 @@ void SEARCHER::epd_to_nn(char* fen, FILE* fb, int task) {
         COPY(&cp);                                              \
         if(SEARCHER::pv_print_style == 0)                       \
             print("**********************\n");                  \
-    } else if(task == 5) {                                      \
+    } else if(task == 6) {                                      \
         char word[32] = {0};                                    \
         print("%s",epd);                                        \
         for(int d = 1; d <= 5; d++) {                           \
