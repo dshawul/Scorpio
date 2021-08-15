@@ -833,7 +833,6 @@ typedef struct SEARCHER{
     void  record_eval_hash(const HASHKEY&,int);
     int   probe_eval_hash(const HASHKEY&,int&);
     void  prefetch_tt();
-    void  prefetch_qtt();
     bool  san_mov(MOVE& move,char* s);
     void  str_mov(MOVE& move,char* s);
     void  mov_str(const MOVE& move,char* s);

@@ -131,8 +131,8 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 
     /*prefetch*/
     prefetch_tt();
-    pstack->static_eval = -MATE_SCORE;
 
+    /*initialize node*/
     pstack->gen_status = GEN_START;
     pstack->flag = UPPER;
     pstack->pv_length = ply;
@@ -143,6 +143,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
     pstack->singular = 0;
     pstack->all_done = true;
     pstack->second_pass = false;
+    pstack->static_eval = -MATE_SCORE;
 
     if(pstack->node_type == PV_NODE) {
         pstack->next_node_type = PV_NODE;
@@ -279,7 +280,6 @@ FORCEINLINE int SEARCHER::on_qnode_entry() {
 
     /*prefetch*/
     prefetch_tt();
-    prefetch_qtt();
 
     /*initialize node*/
     pstack->gen_status = GEN_START;

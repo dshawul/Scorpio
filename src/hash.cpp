@@ -66,7 +66,7 @@ void PROCESSOR::delete_hash_tables() {
  */
 #if NUMA_TT_TYPE == 0
 #define TT_PROC \
-    static const PPROCESSOR proc = processors[0];
+    PPROCESSOR proc = processors[0];
 #elif NUMA_TT_TYPE == 1
 #define TT_PROC \
     PPROCESSOR proc = processors[((hash_key >> 48) * PROCESSOR::n_processors) >> 16];
@@ -269,17 +269,19 @@ prefetch tt
 void SEARCHER::prefetch_tt() {
 #ifdef HAS_PREFETCH
     TT_PROC;
-    uint32_t key = uint32_t(hash_key & PROCESSOR::hash_tab_mask);
-    PREFETCH_T0(proc->hash_tab[player] + key);
-#endif
-}
-void SEARCHER::prefetch_qtt() {
-#ifdef HAS_PREFETCH
-    PPROCESSOR proc = processors[processor_id];
-    uint32_t key;
-    key = uint32_t(pawn_hash_key & PROCESSOR::pawn_hash_tab_mask);
-    PREFETCH_T0(proc->pawn_hash_tab + key);
-    key = uint32_t(hash_key & PROCESSOR::eval_hash_tab_mask);
-    PREFETCH_T0(proc->eval_hash_tab + key); 
+    if(proc->hash_tab[white]) {
+        uint32_t key = uint32_t(hash_key & PROCESSOR::hash_tab_mask);
+        PREFETCH_T0(proc->hash_tab[player] + key);
+    }
+    /*eval/pawn hashtable*/
+    proc = processors[processor_id];
+    if(proc->pawn_hash_tab) {
+        uint32_t key = uint32_t(pawn_hash_key & PROCESSOR::pawn_hash_tab_mask);
+        PREFETCH_T0(proc->pawn_hash_tab + key);
+    }
+    if(proc->hash_tab[white]) {
+        uint32_t key = uint32_t(hash_key & PROCESSOR::eval_hash_tab_mask);
+        PREFETCH_T0(proc->eval_hash_tab + key);
+    }
 #endif
 }
