@@ -142,8 +142,10 @@ void aligned_reserve(T*& mem,const size_t& size) {
     mem = (T*)_aligned_malloc(size * sizeof(T),ALIGNMENT);
 #else
     posix_memalign((void**)&mem,ALIGNMENT,size * sizeof(T));
+#if defined(MADV_HUGEPAGE)
     if(large_pages)
         madvise(mem,size * sizeof(T),MADV_HUGEPAGE);
+#endif
 #endif
 }
 
