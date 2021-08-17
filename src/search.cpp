@@ -103,7 +103,7 @@ bool SEARCHER::hash_cutoff() {
         pstack->best_move = pstack->hash_move;
         pstack->best_score = pstack->hash_score;
         /*update history*/
-        if(!is_cap_prom(pstack->hash_move)) {
+        if(pstack->hash_move && !is_cap_prom(pstack->hash_move)) {
             pstack->current_index = 1;
             if(pstack->hash_flags == LOWER)
                 update_history(pstack->hash_move);
