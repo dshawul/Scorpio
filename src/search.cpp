@@ -1108,6 +1108,8 @@ SPECIAL:
         case SINGULAR_SEARCH:
             if(sb->pstack->flag == UPPER)
                 sb->pstack->singular = 1;
+            else if(sb->pstack->beta >= sb->pstack->o_beta)
+                goto POP;
             sb->pstack->search_state = NORMAL_MOVE;
             sb->pstack->gen_status = GEN_START;
             break;
