@@ -27,7 +27,7 @@ static PARAM razor_margin = 120;
 static PARAM futility_margin = 130;
 static PARAM probcut_margin = 195;
 static PARAM lmp_count[] = {0, 10, 10, 15, 21, 24, 44, 49};
-static PARAM lmr_count[] = {4, 6, 7, 8, 13, 20, 25, 31};
+static PARAM lmr_count[2][8] = {{4, 6, 7, 8, 16, 32, 48, 64},{1, 2, 3, 4, 8, 16, 24, 32}};
 static PARAM lmr_ntype_count[] = {17, 5, 5};
 
 /* shared variables */
@@ -389,7 +389,7 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
             && !is_pawn_push(move)
             ) {
             for(int i = 0; i < 8; i++) {
-                if(nmoves >= lmr_count[i] && pstack->depth > 1) {
+                if(nmoves >= lmr_count[0][i] && pstack->depth > 1) {
                     reduce(1);
                 } else break;
             }
@@ -480,7 +480,9 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
     if(noncap_reduce && nmoves >= 2) {
         //by number of moves searched so far including current move
         for(int i = 0; i < 8; i++) {
-            if(nmoves >= lmr_count[i] && pstack->depth > 1) {
+            int lim = ((64 - depth) * lmr_count[0][i] + 
+                       (depth -  0) * lmr_count[1][i]) >> 6;
+            if(nmoves >= lim && pstack->depth > 1) {
                 reduce(1);
             } else break;
         }
@@ -494,7 +496,7 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
         //has tt move
         if((pstack-1)->hash_move == (pstack-1)->best_move) {
             //reduce early moves
-            if(nmoves < lmr_count[0] && pstack->depth > 1) { reduce(1); }
+            if(nmoves < lmr_count[0][0] && pstack->depth > 1) { reduce(1); }
             //capture tt move
             if(is_cap_prom((pstack-1)->hash_move)) {
                 if(pstack->depth > 1) { reduce(1); }
@@ -1353,12 +1355,12 @@ void SEARCHER::evaluate_moves(int depth) {
         pstack->reduction = 0;
         if(depth > 0) {
             for(int j = 0;j < 8;j++) {
-                if(i >= lmr_count[j] && newd > 1) {
+                if(i >= lmr_count[0][j] && newd > 1) {
                     newd--;
                     pstack->reduction++;
                 }
             }
-            if(i > lmr_count[0]) {
+            if(i > lmr_count[0][0]) {
                 if(hstack[hply - 1].checks) {
                     newd++;
                     pstack->extension++;
@@ -2277,7 +2279,8 @@ bool check_search_params(char** commands,char* command,int& command_num) {
     } else if(!strncmp(command, "lmp_count",9)) {
         lmp_count[atoi(&command[9])] = atoi(commands[command_num++]);
     } else if(!strncmp(command, "lmr_count",9)) {
-        lmr_count[atoi(&command[9])] = atoi(commands[command_num++]);
+        int* lmr = &lmr_count[0][0];
+        lmr[atoi(&command[9])] = atoi(commands[command_num++]);
     } else if(!strncmp(command, "lmr_ntype_count",15)) {
         lmr_ntype_count[atoi(&command[15])] = atoi(commands[command_num++]);
 #endif
