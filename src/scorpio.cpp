@@ -1,6 +1,6 @@
 #include "scorpio.h"
 
-#define VERSION "3.0.13"
+#define VERSION "3.0.14"
 
 /*
 all external variables declared here

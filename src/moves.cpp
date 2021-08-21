@@ -1870,9 +1870,9 @@ void SEARCHER::update_history(MOVE move, bool penalize) {
                 if(!is_cap_prom(mv))
                     update_h(REF_FUP_HISTORY(cMove,mv),-score);
             }
+            if(!penalize && i == 1 && pstack->depth > 1)
+                REFUTATION(cMove) = move;
         }
-        if(!penalize && i == 1 && pstack->depth > 1)
-            REFUTATION(cMove) = move;
     }
 }
 void SEARCHER::allocate_history() {
