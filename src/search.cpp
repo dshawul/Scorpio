@@ -1986,6 +1986,9 @@ MOVE SEARCHER::find_best() {
     /*wakeup threads*/
     for(int i = 1;i < PROCESSOR::n_processors;i++)
         processors[i]->state = WAIT;
+#if defined(CLUSTER)
+    PROCESSOR::set_mt_state(WAIT);
+#endif
     t_sleep(30);
 #endif
 
@@ -1998,6 +2001,9 @@ MOVE SEARCHER::find_best() {
     /*park threads*/
     for(int i = 1;i < PROCESSOR::n_processors;i++)
         processors[i]->state = PARK;
+#if defined(CLUSTER)
+    PROCESSOR::set_mt_state(PARK);
+#endif
 #endif
 
 #ifdef CLUSTER

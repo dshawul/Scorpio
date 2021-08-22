@@ -23,6 +23,11 @@ static void CDECL check_messages(void*) {
     PROCESSOR::message_idle_loop();
 }
 #endif
+static VOLATILE int message_thread_state = PARK;
+void PROCESSOR::set_mt_state(int state) {
+    message_thread_state = state;
+}
+
 /**
 * Initialize MPI
 */
@@ -385,10 +390,9 @@ void PROCESSOR::handle_message(int source,int message_id) {
         } else if(message_id == GOROOT) {
             message_available = 0;
             SEARCHER::chess_clock.infinite_mode = true;
-            int save = processors[0]->state;
             processors[0]->state = GO;
             psb->find_best();
-            processors[0]->state = save;
+            processors[0]->state = PARK;
         } else if(message_id == PING) {
             ISend(source,PONG);
         }
@@ -443,7 +447,13 @@ void PROCESSOR::message_idle_loop() {
             }
         }
         offer_help();
-        t_yield();
+        if(message_thread_state == PARK) {
+            t_sleep(30);
+        } else {
+            t_yield();
+            if(SEARCHER::use_nn) 
+                t_sleep(SEARCHER::delay);
+        }
     }
 }
 

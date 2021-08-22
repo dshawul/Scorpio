@@ -1142,6 +1142,7 @@ typedef struct PROCESSOR {
     static int MESSAGE_POLL_NODES;
     static int CLUSTER_SPLIT_DEPTH;
     static int vote_weight;
+    static void set_mt_state(int);
 #endif
 
     /*functions*/
