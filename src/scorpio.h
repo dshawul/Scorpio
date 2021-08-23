@@ -1194,6 +1194,18 @@ typedef struct PROCESSOR {
     static void  clear_hash_tables();
     static int hashfull();
 
+    /*conditional wait*/
+    MUTEX wait_lock;
+    COND  wait_cond;
+    void signal() {
+        std::unique_lock<std::mutex> lk(wait_lock);
+        c_signal(wait_cond);
+    }
+    void wait() {
+        std::unique_lock<std::mutex> lk(wait_lock);
+        c_wait(wait_cond,lk);
+    }
+
     /*constructor*/
     PROCESSOR() {
         state = KILL;
@@ -1204,6 +1216,7 @@ typedef struct PROCESSOR {
         eval_hash_tab[black] = 0;
         pawn_hash_tab = 0;
     }
+
 } *PPROCESSOR;
 
 extern PPROCESSOR processors[MAX_CPUS];

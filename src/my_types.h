@@ -165,6 +165,7 @@ Prefetch
 #include<chrono>
 #include<atomic>
 #include<mutex>
+#include<condition_variable>
 
 #define t_create(f,p)    std::thread(f,p)
 #define t_join(h)        h.join()
@@ -188,6 +189,17 @@ Prefetch
 #   define l_and(x,v) x.fetch_and(v)
 #   define l_or(x,v) x.fetch_or(v)
 #   define l_barrier()
+//conditional variable
+#   define COND std::condition_variable
+#   define c_create(x)
+#   define c_signal(x)   x.notify_one()
+#   define c_wait(x,l)   x.wait(l)
+//mutex
+#   define MUTEX std::mutex
+#   define m_create(x)
+#   define m_try_lock(x) x.trylock()
+#   define m_lock(x)     x.lock()
+#   define m_unlock(x)   x.unlock()
 //spinlock
 #   ifdef USE_SPINLOCK
 #       define LOCK std::atomic_int
@@ -196,11 +208,11 @@ Prefetch
 #       define l_lock(x)     while(l_try_lock(x)) {while((x) != 0) t_pause();}
 #       define l_unlock(x)   ((x) = 0)
 #   else
-#       define LOCK std::mutex
-#       define l_create(x)
-#       define l_try_lock(x) x.trylock()
-#       define l_lock(x)     x.lock()
-#       define l_unlock(x)   x.unlock()
+#       define LOCK MUTEX
+#       define l_create(x)   m_create(x)
+#       define l_try_lock(x) m_try_lock(x)
+#       define l_lock(x)     m_lock(x)
+#       define l_unlock(x)   m_unlock(x)
 #   endif
 #else
 //atomic ops
@@ -209,6 +221,17 @@ Prefetch
 #   define l_and(x,v) ((x) &= v)
 #   define l_or(x,v)  ((x) |= v)
 #   define l_barrier()
+//conditional variable
+#   define COND int
+#   define c_create(x)
+#   define c_signal(x)
+#   define c_wait(x,l)
+//mutex
+#   define MUTEX int
+#   define m_create(x)
+#   define m_lock(x)
+#   define m_try_lock(x) (1)
+#   define m_unlock(x)
 //locks
 #   define LOCK int
 #   define l_create(x)

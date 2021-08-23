@@ -329,8 +329,10 @@ void PROCESSOR::handle_message(int source,int message_id) {
         }
 #ifdef PARALLEL
         /*wakeup processors*/
-        for(i = 0;i < n_processors;i++)
+        for(i = 0;i < n_processors;i++) {
             processors[i]->state = WAIT;
+            processors[i]->signal();
+        }
 #endif
         /***********************************
         * Distributed transposition table
@@ -561,7 +563,7 @@ void PROCESSOR::idle_loop() {
     bool skip_message = ((this != processors[0]) || (n_hosts == 1));
     do {
         if(state == PARK) {
-            t_sleep(30);
+            wait();
         } else if(state == WAIT) {
             t_yield();
             if(SEARCHER::use_nn) 
@@ -592,8 +594,10 @@ void PROCESSOR::idle_loop() {
 exit scorpio 
 */
 void PROCESSOR::exit_scorpio(int status) {
-    for(int  i = 1; i < PROCESSOR::n_processors; i++)
+    for(int  i = 1; i < PROCESSOR::n_processors; i++) {
+        processors[i]->signal();
         PROCESSOR::kill(i);
+    }
     CLUSTER_CODE(message_thread_state = KILL;)
 
     if(!log_on)
@@ -808,6 +812,7 @@ void SEARCHER::attach_processor(int new_proc_id) {
         psearcher->master = this;
         psearcher->processor_id = new_proc_id;
         processors[new_proc_id]->searcher = psearcher;
+        processors[new_proc_id]->signal();
         workers[new_proc_id] = psearcher;
         n_workers++;
     }

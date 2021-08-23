@@ -1984,8 +1984,10 @@ MOVE SEARCHER::find_best() {
 
 #ifdef PARALLEL
     /*wakeup threads*/
-    for(int i = 1;i < PROCESSOR::n_processors;i++)
+    for(int i = 1;i < PROCESSOR::n_processors;i++) {
         processors[i]->state = WAIT;
+        processors[i]->signal();
+    }
 #if defined(CLUSTER)
     PROCESSOR::set_mt_state(WAIT);
 #endif
