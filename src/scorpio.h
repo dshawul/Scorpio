@@ -408,8 +408,8 @@ private:
     }
 public:
     float score;
-    VOLATILE unsigned short count;
-    VOLATILE unsigned short n_children;
+    std::atomic_ushort count;
+    std::atomic_ushort n_children;
 
     uint16_t get_move(int idx) const {
         return data[idx];
@@ -426,9 +426,9 @@ public:
 
     enum { CREATE = (1 << 14) };
 
-    bool try_create() { return !(l_or16(n_children,CREATE) & CREATE); }
-    void clear_create() { l_and16(n_children,~CREATE); };
-    void inc_children() { l_add16(n_children,1); };
+    bool try_create() { return !(l_or(n_children,CREATE) & CREATE); }
+    void clear_create() { l_and(n_children,~CREATE); };
+    void inc_children() { l_add(n_children,1); };
     unsigned short get_children() { return (n_children & ~CREATE); }
 
     void clear() {
@@ -461,18 +461,18 @@ struct Node {
         float prior;
         float v_pol_sum;
     };
-    VOLATILE unsigned int visits;
-    VOLATILE float score;
-    VOLATILE unsigned short busy;
-    VOLATILE unsigned char flag;
+    std::atomic_uint visits;
+    std::atomic<float> score;
+    std::atomic_ushort busy;
+    std::atomic_uchar flag;
     unsigned char rank;
     union {
-        VOLATILE int alpha;
-        VOLATILE float reg_policy;
+        std::atomic_int alpha;
+        std::atomic<float> reg_policy;
     };
     union {
-        VOLATILE int beta;
-        VOLATILE float Q;
+        std::atomic_int beta;
+        std::atomic<float> Q;
     };
 
     /*accessors*/
@@ -480,24 +480,24 @@ struct Node {
         SCOUTF = 1, PVMOVE = 2, CREATE = 4, DEAD = 8
     };
     
-    void inc_busy() { l_add16(busy,1); }
-    void dec_busy() { l_add16(busy,-1); }
+    void inc_busy() { l_add(busy,1); }
+    void dec_busy() { l_add(busy,-1); }
     int  get_busy() { return busy; }
 
-    void set_pvmove() { l_or8(flag,PVMOVE); }
-    void clear_pvmove() { l_and8(flag,~PVMOVE); }
+    void set_pvmove() { l_or(flag,PVMOVE); }
+    void clear_pvmove() { l_and(flag,~PVMOVE); }
     bool is_pvmove() { return (flag & PVMOVE); }
 
-    void set_dead() { l_or8(flag,DEAD); }
-    void clear_dead() { l_and8(flag,~DEAD); }
+    void set_dead() { l_or(flag,DEAD); }
+    void clear_dead() { l_and(flag,~DEAD); }
     bool is_dead() { return (flag & DEAD); }
 
-    bool try_failed_scout() { return !(l_or8(flag,SCOUTF) & SCOUTF); }
-    void clear_failed_scout() { l_and8(flag,~SCOUTF); }
+    bool try_failed_scout() { return !(l_or(flag,SCOUTF) & SCOUTF); }
+    void clear_failed_scout() { l_and(flag,~SCOUTF); }
     bool is_failed_scout() { return (flag & SCOUTF); }
 
-    bool try_create() { return !(l_or8(flag,CREATE) & CREATE); }
-    void clear_create() { l_and8(flag,~CREATE); }
+    bool try_create() { return !(l_or(flag,CREATE) & CREATE); }
+    void clear_create() { l_and(flag,~CREATE); }
     bool is_create() { return (flag & CREATE); }
 
     void set_bounds(int a,int b) {
@@ -527,7 +527,7 @@ struct Node {
         beta = MATE_SCORE;
         edges.clear();
     }
-    static VOLATILE unsigned int total_nodes;
+    static std::atomic_uint total_nodes;
     static unsigned int max_tree_nodes;
     static unsigned int max_tree_depth;
     static unsigned int sum_tree_depth;
@@ -871,7 +871,7 @@ typedef struct SEARCHER{
     uint32_t bad_splits;
     uint32_t egbb_probes;
     uint32_t seldepth;
-    VOLATILE int stop_searcher;
+    std::atomic_int stop_searcher;
     bool finish_search;
     bool skip_nn;
     /*
@@ -886,8 +886,8 @@ typedef struct SEARCHER{
 #endif
 #ifdef PARALLEL
     LOCK lock;
-    VOLATILE int n_workers;
-    SEARCHER* VOLATILE workers[MAX_CPUS];
+    std::atomic_int n_workers;
+    std::atomic<SEARCHER*> workers[MAX_CPUS];
 
     int get_smp_move();
     int check_split();
@@ -896,7 +896,7 @@ typedef struct SEARCHER{
     void stop_workers();
 #endif
 #ifdef CLUSTER
-    VOLATILE int n_host_workers;
+    std::atomic_int n_host_workers;
     std::list<int> host_workers;
     int get_cluster_move(SPLIT_MESSAGE*,bool=false);
     void get_init_pos(INIT_MESSAGE*);
@@ -910,7 +910,7 @@ typedef struct SEARCHER{
     /*
     things that are shared among multiple searchers.
     */
-    static unsigned int playouts;
+    static std::atomic_uint playouts;
     static int search_depth;
     static int start_time;
     static int start_time_o;
@@ -1116,12 +1116,12 @@ typedef struct PROCESSOR {
     /*searchers*/
     SEARCHER searchers[MAX_SEARCHERS_PER_CPU];
     PSEARCHER searcher;
-    VOLATILE int state;
+    std::atomic_int state;
 
     /*processor count*/
     static int n_processors;
     static int n_cores;
-    static VOLATILE int n_idle_processors;
+    static std::atomic_int n_idle_processors;
     static int n_hosts;
 
     /*cluster*/
@@ -1136,7 +1136,7 @@ typedef struct PROCESSOR {
     static int help_messages;
     static int prev_dest;
     static std::list<int> available_host_workers;
-    static VOLATILE int message_available;
+    static std::atomic_int message_available;
     static void cancel_idle_hosts();
     static void quit_hosts();
     static int MESSAGE_POLL_NODES;
@@ -1179,7 +1179,7 @@ typedef struct PROCESSOR {
     PPAWNHASH pawn_hash_tab;
 #ifdef CLUSTER
     TT_MESSAGE ttmsg;
-    VOLATILE bool ttmsg_recieved;
+    std::atomic_bool ttmsg_recieved;
 #endif
     static uint32_t hash_tab_mask;
     static uint32_t pawn_hash_tab_mask;
@@ -1253,7 +1253,7 @@ extern int draw_weight;
 extern int loss_weight;
 extern int ensemble;
 extern int ensemble_type;
-extern VOLATILE int turn_off_ensemble;
+extern std::atomic_int turn_off_ensemble;
 
 /** search options */
 extern const int use_nullmove;

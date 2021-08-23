@@ -68,14 +68,14 @@ float frac_alphabeta = 0.0;
 int ensemble = 0;
 static float ensemble_setting = 0;
 int ensemble_type = 0;
-VOLATILE int turn_off_ensemble = 0;
-static VOLATILE int n_collisions = 0;
-static VOLATILE int n_terminals = 0;
+std::atomic_int turn_off_ensemble = {0};
+static std::atomic_int n_collisions = {0};
+static std::atomic_int n_terminals = {0};
 
 /*Nodes and edges of tree*/
 std::vector<Node*> Node::mem_[MAX_CPUS];
 std::vector<uint16_t*>  Edges::mem_[MAX_CPUS][MAX_MOVES_NN >> 3];
-VOLATILE unsigned int Node::total_nodes = 0;
+std::atomic_uint Node::total_nodes = {0};
 unsigned int Node::max_tree_nodes = 0;
 unsigned int Node::max_tree_depth = 0;
 unsigned int Node::sum_tree_depth = 0;
@@ -1095,8 +1095,8 @@ void SEARCHER::play_simulation(Node* n, float& score, int& visits) {
         if(rollout_type == MCTS
             && Node::total_nodes  + MAX_MOVES >= Node::max_tree_nodes
             ) {
-            if(l_set(abort_search,1) == 0)
-                print_info("Maximum number of nodes reached.\n");
+            abort_search = 1;
+            print_info("Maximum number of nodes reached.\n");
             visits = 0;
             goto FINISH;
         } else if(rollout_type == ALPHABETA && 
@@ -1539,7 +1539,7 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
 
     /*wait until all idle processors are awake*/
     if(!single) {
-        static VOLATILE int t_count = 0;
+        static std::atomic_int t_count = {0};
         int p_t_count = l_add(t_count,1);
         if(p_t_count == PROCESSOR::n_processors - 1)
             t_count = 0;
@@ -1763,7 +1763,7 @@ void Node::parallel_job(Node* n, PTHREAD_PROC func, bool recursive) {
     Node::split(n, gc, S, T);
 
     int* seid = new int[2 * ncores];
-    pthread_t* tid = new pthread_t[ncores];
+    std::thread* tid = new std::thread[ncores];
 
     if(!recursive)
         gc[0].push_back(n);
@@ -1771,14 +1771,14 @@ void Node::parallel_job(Node* n, PTHREAD_PROC func, bool recursive) {
         gc[nprocs].push_back(n);
         seid[0] = nprocs;
         seid[1] = nprocs + 1;
-        t_create(tid[0],*func,&seid[0]);
+        tid[0] = t_create(*func,&seid[0]);
         t_join(tid[0]);
     }
 
     for(int i = 0; i < ncores; i++) {
         seid[2*i+0] = i * V;
         seid[2*i+1] = (i == ncores - 1) ? nprocs : ((i + 1) * V);
-        t_create(tid[i],*func,&seid[2*i]);
+        tid[i] = t_create(*func,&seid[2*i]);
     }
     for(int i = 0; i < ncores; i++)
         t_join(tid[i]);
@@ -1905,7 +1905,7 @@ void SEARCHER::manage_tree(bool single) {
         Node::sum_tree_depth = 0;
     } else {
         print_log("# [Tree-found : visits %d score %f]\n",
-            root_node->visits,root_node->score);
+            unsigned(root_node->visits),float(root_node->score));
 
         root_node_reuse_visits = root_node->visits;
         Node::sum_tree_depth *= (0.5 * double(root_node->visits) / prev_root_visits);
@@ -2373,7 +2373,7 @@ void print_train(int res, char* buffer, PTRAIN trn, PSEARCHER sb) {
 
 /*job for selfplay thread*/
 void SEARCHER::self_play_thread() {
-    static VOLATILE int wins = 0, losses = 0, draws = 0;
+    static std::atomic_int wins = {0}, losses = {0}, draws = {0};
     static const int vlimit = chess_clock.max_visits * frac_sv_low, phply = ply;
     MOVE move;
     char* buffer = new char[4096 * MAX_HSTACK];
@@ -2411,7 +2411,7 @@ void SEARCHER::self_play_thread() {
                 else if(res == R_BWIN) l_add(losses,1);
                 int ngames = wins+losses+draws;
                 print("[%d] Games %d: + %d - %d = %d\n",GETPID(),
-                    ngames,wins,losses,draws);
+                    ngames,int(wins),int(losses),int(draws));
 
                 /*save pgn*/
                 print_game(

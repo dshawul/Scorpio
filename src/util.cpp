@@ -374,7 +374,8 @@ void Node::print_xml(Node* n,int depth) {
 
     print_log("<node depth=\"%d\" move=\"%s\" alpha=\"%d\" beta=\"%d\" "
         "visits=\"%d\" policy=\"%.2f\" score=\"%.2f\" prior=\"%.2f\">\n",
-        depth,mvstr,n->alpha,n->beta,n->visits,n->policy,n->score,n->prior);
+        depth,mvstr,int(n->alpha),int(n->beta),unsigned(n->visits),
+        n->policy,float(n->score),n->prior);
 
     Node* current = n->child;
     while(current) {
@@ -435,7 +436,7 @@ Node* Node::print_tree(Node* root,bool has_ab_, int max_depth,int depth) {
                         uctp,
                         avg,
                         100*current->policy,
-                        current->visits,
+                        unsigned(current->visits),
                         str
                         );
                 } else {
@@ -445,7 +446,7 @@ Node* Node::print_tree(Node* root,bool has_ab_, int max_depth,int depth) {
                         total+1,
                         uct,
                         100*current->policy,
-                        current->visits,
+                        unsigned(current->visits),
                         str
                         );
                 }
@@ -507,7 +508,7 @@ void SEARCHER::print_pv(int score) {
 
     /*print what we have*/
     unsigned tm = (get_time() - start_time);
-    uint64_t nds = (montecarlo && root_node) ? playouts : nodes;
+    uint64_t nds = (montecarlo && root_node) ? unsigned(playouts) : nodes;
     unsigned nps = 1000 * ((double)nds / tm);
     int depth = ((montecarlo && rollout_type == MCTS) ?
         ((Node::sum_tree_depth + 1) / (root_node->visits + 1)) :

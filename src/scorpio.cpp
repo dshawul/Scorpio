@@ -36,7 +36,7 @@ parallel search
 PPROCESSOR processors[MAX_CPUS] = {0};
 int PROCESSOR::n_processors;
 int PROCESSOR::n_cores;
-VOLATILE int PROCESSOR::n_idle_processors;
+std::atomic_int PROCESSOR::n_idle_processors;
 int PROCESSOR::n_hosts = 1;
 
 #ifdef PARALLEL
@@ -47,7 +47,7 @@ int use_abdada_smp = 0;
 #endif
 
 #ifdef CLUSTER
-VOLATILE int PROCESSOR::message_available = 0;
+std::atomic_int PROCESSOR::message_available = {0};
 int PROCESSOR::MESSAGE_POLL_NODES = 200;
 int PROCESSOR::CLUSTER_SPLIT_DEPTH = 8;
 int PROCESSOR::host_id;
@@ -70,7 +70,7 @@ CACHE_ALIGN int16_t SEARCHER::history[14][64];
 CACHE_ALIGN MOVE SEARCHER::refutation[14][64];
 int16_t* SEARCHER::ref_fup_history = 0;
 CHESS_CLOCK SEARCHER::chess_clock;
-unsigned int SEARCHER::playouts;
+std::atomic_uint SEARCHER::playouts;
 int SEARCHER::search_depth;
 int SEARCHER::start_time;
 int SEARCHER::start_time_o;
@@ -112,14 +112,15 @@ static int self_play();
 /*
 load egbbs with a separate thread
 */
-static VOLATILE bool egbb_is_loading = false;
+static std::thread egbb_thread;
+static std::atomic_bool egbb_is_loading = {false};
 static bool egbb_setting_changed = false;
 static bool ht_setting_changed = false;
 
 static void wait_for_egbb() {
     while(egbb_is_loading) t_sleep(100);
 }
-static void CDECL egbb_thread_proc(void*) {
+static void egbb_thread_proc(void*) {
     int start = get_time();
     LoadEgbbLibrary(SEARCHER::egbb_path);
     int end = get_time();
@@ -172,9 +173,7 @@ static void load_egbbs() {
     if(egbb_setting_changed && !SEARCHER::egbb_is_loaded) {
         egbb_setting_changed = false;
         egbb_is_loading = true;
-        pthread_t dummy;
-        t_create(dummy,egbb_thread_proc,0);
-        (void)dummy;
+        egbb_thread = t_create(egbb_thread_proc,(void*)0);
     }
 }
 /*
@@ -284,6 +283,8 @@ int CDECL main(int argc, char* argv[]) {
 #endif
 
 END:
+    if(egbb_thread.joinable())
+        egbb_thread.join();
     PROCESSOR::exit_scorpio(EXIT_SUCCESS);
     return 0;
 }
@@ -484,7 +485,7 @@ static void print_options() {
 /**
 * Internal scorpio commands
 */
-bool internal_commands(char** commands,char* command,int& command_num) {
+int internal_commands(char** commands,char* command,int& command_num) {
     if (!strcmp(command, "xboard")) {
         PROTOCOL = XBOARD;
     } else if(!strcmp(command,"uci")) {
@@ -886,7 +887,7 @@ bool internal_commands(char** commands,char* command,int& command_num) {
             return 2;
 #endif
         print("Bye Bye\n");
-        PROCESSOR::exit_scorpio(EXIT_SUCCESS);
+        return 3;
     } else if (!strcmp(command, "variant")) {
         if(!strcmp(commands[command_num++], "fischerandom"))
             variant = 1;
@@ -941,9 +942,9 @@ bool internal_commands(char** commands,char* command,int& command_num) {
         fclose(fw);
         fclose(fw2);
     } else {
-        return false;
+        return 0;
     }
-    return true;
+    return 1;
 }
 /**
  * xboard protocol
@@ -1319,9 +1320,11 @@ bool parse_commands(char** commands) {
         * process commands
         */
         do_search = false;
-        if(internal_commands(commands,command,command_num)) {
-        } else {
-            int ret = 0;
+        int ret = internal_commands(commands,command,command_num);
+        if(ret == 3) {
+            return false;
+        } else if(!ret) {
+            ret = 0;
             if(PROTOCOL == XBOARD || PROTOCOL == CONSOLE) 
                 ret = xboard_commands(commands,command,command_num,do_search);
             else if(PROTOCOL == UCI)

@@ -2035,7 +2035,7 @@ MOVE SEARCHER::find_best() {
 
         if(pv_print_style == 1) {
             print(" %21d %8.2f %10d %10d\n",
-                root_node->visits,float(time_used) / 1000,pps,
+                unsigned(root_node->visits),float(time_used) / 1000,pps,
                 int(int64_t(nnecalls) / (time_used / 1000.0f)));
         } else if(pv_print_style == 0) {
             /*print tree*/
@@ -2049,8 +2049,8 @@ MOVE SEARCHER::find_best() {
                 time_used_o,int(int64_t(nodes) / (time_used_o / 1000.0f)),
                 int(int64_t(ecalls) / (time_used_o / 1000.0f)));
             print_info("Tree: nodes %d depth %d seldepth %d visits %d Rate: vps %d pps %d nneps %d\n",
-                  Node::total_nodes, (Node::sum_tree_depth + 1) / (root_node->visits + 1),
-                  Node::max_tree_depth,root_node->visits,vps,pps,
+                  unsigned(Node::total_nodes), (Node::sum_tree_depth + 1) / (root_node->visits + 1),
+                  Node::max_tree_depth,unsigned(root_node->visits),vps,pps,
                    int(int64_t(nnecalls) / (time_used / 1000.0f)));
         }
 
@@ -2253,7 +2253,7 @@ void SEARCHER::print_status() {
                 mv_str);
         } else {
             mov_str(stack[0].pv[0],mv_str);
-            print("stat01: %d " FMT64 " %d %d %d %s\n",time_used / 10,playouts,
+            print("stat01: %d " FMT64 " %d %d %d %s\n",time_used / 10,unsigned(playouts),
                 stack[0].pv_length,
                 0,
                 1,

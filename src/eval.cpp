@@ -1817,7 +1817,6 @@ void allocate_jacobian(int npos) {
             double(numbytes)/(1024*1024));
     } else {
         print("Not enough memory.");
-        PROCESSOR::exit_scorpio(0);
     }
 }
 

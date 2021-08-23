@@ -6,20 +6,20 @@ Platform specific defines for Windows
 For others, they are set in Makefile
 */
 #ifdef _MSC_VER
-#define ARC_64BIT
-#define HAS_POPCNT
-#define HAS_PREFETCH
-#define PARALLEL
-#define USE_SPINLOCK
+#   define ARC_64BIT
+#   define HAS_POPCNT
+#   define HAS_PREFETCH
+#   define PARALLEL
+#   define USE_SPINLOCK
 #endif
 #ifdef HAS_BSF
-#define HAS_BSF
+#   define HAS_BSF
 #endif
 
 /*
 int types
 */
-#    include <stdint.h>
+#include <stdint.h>
 
 /*
 Os stuff
@@ -161,105 +161,60 @@ Prefetch
 /*
 * Threads
 */
+#include<thread>
+#include<chrono>
+#include<atomic>
+#include<mutex>
+
+#define t_create(f,p)    std::thread(f,p)
+#define t_join(h)        h.join()
+#define t_sleep(x)       std::this_thread::sleep_for(std::chrono::milliseconds(x))
+#define t_yield()        std::this_thread::yield()
+
 #if defined _WIN32
-#   include <process.h>
-#   define pthread_t HANDLE
-#   define t_create(h,f,p)  h=(HANDLE)_beginthread(f,0,(void*)p)
-#   define t_join(h)      WaitForSingleObject(h,INFINITE)
-#   define t_sleep(x)     Sleep(x)
-#   define t_yield()      SwitchToThread()
-#   define t_pause()      YieldProcessor()
-#else
-#   include <pthread.h>
-#   define t_create(h,f,p)  pthread_create(&h,0,(void*(*)(void*))&f,(void*)p)
-#   define t_join(h)      pthread_join((pthread_t)h,0)
-#   define t_sleep(x)     usleep((x) * 1000)
-#   define t_yield()      sched_yield()
-#   define t_pause()      asm volatile("pause\n": : :"memory")
-#endif
-#if defined __ANDROID__
-#   undef t_pause
+#   define t_pause()  YieldProcessor()
+#elif defined __ANDROID__
 #   define t_pause()
+#else
+#   define t_pause()  asm volatile("pause\n": : :"memory")
 #endif
 /*
 *locks
 */
 #if defined PARALLEL
-#    define VOLATILE volatile
-#    if defined _MSC_VER
-#       define l_set(x,v) InterlockedExchange((unsigned*)&(x),v)
-#       define l_add(x,v) InterlockedExchangeAdd((unsigned*)&(x),v)
-#       define l_set16(x,v) InterlockedExchange16((short*)&(x),v)
-#       define l_add16(x,v) InterlockedExchangeAdd16((short*)&(x),v)
-#       define l_and16(x,v) InterlockedAnd16((short*)&(x),v)
-#       define l_or16(x,v) InterlockedOr16((short*)&(x),v)
-#       define l_set8(x,v) InterlockedExchange8((char*)&(x),v)
-#       define l_add8(x,v) InterlockedExchangeAdd8((char*)&(x),v)
-#       define l_and8(x,v) InterlockedAnd8((char*)&(x),v)
-#       define l_or8(x,v) InterlockedOr8((char*)&(x),v)
-#    else
-#       define l_set(x,v) __sync_lock_test_and_set(&(x),v)
-#       define l_add(x,v) __sync_fetch_and_add(&(x),v)
-#       define l_set16(x,v) __sync_lock_test_and_set((short*)&(x),v)
-#       define l_add16(x,v) __sync_fetch_and_add((short*)&(x),v)
-#       define l_and16(x,v) __sync_fetch_and_and((short*)&(x),v)
-#       define l_or16(x,v) __sync_fetch_and_or((short*)&(x),v)
-#       define l_set8(x,v) __sync_lock_test_and_set((char*)&(x),v)
-#       define l_add8(x,v) __sync_fetch_and_add((char*)&(x),v)
-#       define l_and8(x,v) __sync_fetch_and_and((char*)&(x),v)
-#       define l_or8(x,v) __sync_fetch_and_or((char*)&(x),v)
-#    endif
-#    if defined OMP
-#       include <omp.h>
-#       define LOCK          omp_lock_t
-#       define l_create(x)   omp_init_lock(&x)
-#       define l_try_lock(x) omp_set_lock(&x)
-#       define l_lock(x)     omp_test_lock(&x)
-#       define l_unlock(x)   omp_unset_lock(&x)
-inline void l_barrier() { 
-#       pragma omp barrier 
-}
-#    else
-#       ifdef USE_SPINLOCK
-#           define LOCK VOLATILE int
-#           define l_create(x)   ((x) = 0)
-#           define l_try_lock(x) (l_set(x,1) != 0)
-#           define l_lock(x)     while(l_try_lock(x)) {while((x) != 0) t_pause();}
-#           define l_unlock(x)   ((x) = 0)
-#       else
-#           if defined _WIN32
-#               define LOCK CRITICAL_SECTION
-#               define l_create(x)   InitializeCriticalSection(&x)
-#               define l_try_lock(x) TryEnterCriticalSection(&x)
-#               define l_lock(x)     EnterCriticalSection(&x)
-#               define l_unlock(x)   LeaveCriticalSection(&x)  
-#           else
-#               define LOCK pthread_mutex_t
-#               define l_create(x)   pthread_mutex_init(&(x),0)
-#               define l_try_lock(x) pthread_mutex_trylock(&(x))
-#               define l_lock(x)     pthread_mutex_lock(&(x))
-#               define l_unlock(x)   pthread_mutex_unlock(&(x))
-#           endif
-#       endif
-#    endif
+//atomic ops
+#   define l_set(x,v) x.exchange(v)
+#   define l_add(x,v) x.fetch_add(v)
+#   define l_and(x,v) x.fetch_and(v)
+#   define l_or(x,v) x.fetch_or(v)
+#   define l_barrier()
+//spinlock
+#   ifdef USE_SPINLOCK
+#       define LOCK std::atomic_int
+#       define l_create(x)   ((x) = 0)
+#       define l_try_lock(x) (l_set(x,1) != 0)
+#       define l_lock(x)     while(l_try_lock(x)) {while((x) != 0) t_pause();}
+#       define l_unlock(x)   ((x) = 0)
+#   else
+#       define LOCK std::mutex
+#       define l_create(x)
+#       define l_try_lock(x) x.trylock()
+#       define l_lock(x)     x.lock()
+#       define l_unlock(x)   x.unlock()
+#   endif
 #else
-#    define VOLATILE
-#    define LOCK int
-#    define l_create(x)
-#    define l_lock(x)
-#    define l_try_lock(x) (1)
-#    define l_unlock(x)
-#    define l_barrier()
-#    define l_set(x,v) ((x) = v)
-#    define l_add(x,v) ((x) += v)
-#    define l_set16(x,v) ((x) = v)
-#    define l_add16(x,v) ((x) += v)
-#    define l_and16(x,v) ((x) &= v)
-#    define l_or16(x,v) ((x) |= v)
-#    define l_set8(x,v) ((x) = v)
-#    define l_add8(x,v) ((x) += v)
-#    define l_and8(x,v) ((x) &= v)
-#    define l_or8(x,v) ((x) |= v)
+//atomic ops
+#   define l_set(x,v) ((x) = v)
+#   define l_add(x,v) ((x) += v)
+#   define l_and(x,v) ((x) &= v)
+#   define l_or(x,v)  ((x) |= v)
+#   define l_barrier()
+//locks
+#   define LOCK int
+#   define l_create(x)
+#   define l_lock(x)
+#   define l_try_lock(x) (1)
+#   define l_unlock(x)
 #endif
 /*
 * Performance counters

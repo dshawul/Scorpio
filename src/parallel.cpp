@@ -9,11 +9,14 @@
 *    at each node will create enough threads to engage all its processors.
 */
 
+static std::thread threads[MAX_CPUS];
+
 #ifdef CLUSTER
 
+static std::thread message_thread;
+static std::atomic_int g_message_id;
+static std::atomic_int g_source_id;
 static SPLIT_MESSAGE* global_split;
-static VOLATILE int g_message_id;
-static VOLATILE int g_source_id;
 
 /**
 * Message polling thread for cluster
@@ -23,7 +26,7 @@ static void CDECL check_messages(void*) {
     PROCESSOR::message_idle_loop();
 }
 #endif
-static VOLATILE int message_thread_state = PARK;
+static std::atomic_int message_thread_state = {PARK};
 void PROCESSOR::set_mt_state(int state) {
     message_thread_state = state;
 }
@@ -56,11 +59,8 @@ void PROCESSOR::init(int argc, char* argv[]) {
     /*global split point*/
     global_split = new SPLIT_MESSAGE[n_hosts];
 #ifdef THREAD_POLLING
-    if(n_hosts > 1) {
-        pthread_t dummy;
-        t_create(dummy,check_messages,0);
-        (void)dummy;
-    }
+    if(n_hosts > 1)
+        message_thread = t_create(check_messages,(void*)0);
 #endif
 }
 /*
@@ -430,10 +430,9 @@ void PROCESSOR::offer_help() {
 /**
 * idle loop for message processing thread
 */
-static VOLATILE bool scorpio_ending = false;
 void PROCESSOR::message_idle_loop() {
     int message_id,source;
-    while(!scorpio_ending) {
+    while(true) {
         while(IProbe(source,message_id)) {
             g_message_id = message_id;
             g_source_id = source;
@@ -449,6 +448,8 @@ void PROCESSOR::message_idle_loop() {
         offer_help();
         if(message_thread_state == PARK) {
             t_sleep(30);
+        } else if(message_thread_state == KILL) {
+            break;
         } else {
             t_yield();
             if(SEARCHER::use_nn) 
@@ -588,14 +589,21 @@ void PROCESSOR::idle_loop() {
 exit scorpio 
 */
 void PROCESSOR::exit_scorpio(int status) {
+    for(int  i = 1; i < PROCESSOR::n_processors; i++)
+        PROCESSOR::kill(i);
+    CLUSTER_CODE(message_thread_state = KILL;)
+
     if(!log_on)
         remove_log_file();
+
+    for(int  i = 1; i < PROCESSOR::n_processors; i++)
+        threads[i].join();
+    CLUSTER_CODE(if(message_thread.joinable()) message_thread.join();)
+
 #ifdef CLUSTER
     print("Process [%d/%d] terminated.\n",host_id,n_hosts);
-    scorpio_ending = true;
-    MPI_Abort(MPI_COMM_WORLD,status);
 #else
-    exit(status);
+    print("Process terminated.\n");
 #endif
 }
 #ifdef CLUSTER
@@ -768,10 +776,8 @@ void CDECL thread_proc(void* id) {
     search((PPROCESSOR)proc);
 }
 void PROCESSOR::create(int id) {
-    pthread_t dummy;
     long tid = id;
-    t_create(dummy,thread_proc,&tid);
-    (void)dummy;
+    threads[id] = t_create(thread_proc,(void*)&tid);
     int nidx = n_idle_processors;
     while(n_idle_processors == nidx) 
         t_yield();
@@ -941,10 +947,11 @@ int SEARCHER::check_split() {
 void SEARCHER::stop_workers() {
     l_lock(lock);
     for(int i = 0; i < PROCESSOR::n_processors; i++) {
-        if(workers[i]) {
-            if(workers[i]->n_workers) 
-                workers[i]->stop_workers();
-            workers[i]->stop_searcher = 1;
+        SEARCHER* pworker = workers[i].load();
+        if(pworker) {
+            if(pworker->n_workers) 
+                pworker->stop_workers();
+            pworker->stop_searcher = 1;
         }
     }
 #ifdef CLUSTER
