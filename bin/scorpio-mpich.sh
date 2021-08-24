@@ -8,5 +8,5 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$NDIR
 
 cd $WDIR >/dev/null 2>&1
 exec mpirun \
-    -np 1 ./scorpio-mpich vote_weight 200 pvstyle 0 frac_abprior 0 "$@" : \
+    -np 1 ./scorpio-mpich vote_weight 300 pvstyle 0 frac_abprior 0 "$@" : \
     -np 1 ./scorpio-mpich vote_weight 100 pvstyle 0 use_nn 0 montecarlo 0 mt auto/2 "$@"
