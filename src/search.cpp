@@ -1886,24 +1886,6 @@ MOVE SEARCHER::find_best() {
     start_time = start_time_o = get_time();
 
     /*
-    send initial position to helper hosts
-    */
-#ifdef CLUSTER
-    if(PROCESSOR::host_id == 0) {
-        INIT_MESSAGE init;
-        get_init_pos(&init);
-        for(int i = 0;i < PROCESSOR::n_hosts;i++) {
-            if(i != PROCESSOR::host_id) {
-                PROCESSOR::ISend(i,PROCESSOR::INIT,&init,INIT_MESSAGE_SIZE(init));
-                /*start iterative deepening searcher for ABDADA/SHT*/
-                if(use_abdada_cluster || montecarlo)
-                    PROCESSOR::ISend(i,PROCESSOR::GOROOT);
-            }
-        }
-    }
-#endif
-
-    /*
     initialize search
     */
     ply = 0;
@@ -1975,7 +1957,25 @@ MOVE SEARCHER::find_best() {
 #endif
 
     stack[0].pv[0] = pstack->move_st[0];
-    
+
+    /*
+    send initial position to helper hosts
+    */
+#ifdef CLUSTER
+    if(PROCESSOR::host_id == 0) {
+        INIT_MESSAGE init;
+        get_init_pos(&init);
+        for(int i = 0;i < PROCESSOR::n_hosts;i++) {
+            if(i != PROCESSOR::host_id) {
+                PROCESSOR::ISend(i,PROCESSOR::INIT,&init,INIT_MESSAGE_SIZE(init));
+                /*start iterative deepening searcher for ABDADA/SHT*/
+                if(use_abdada_cluster || montecarlo)
+                    PROCESSOR::ISend(i,PROCESSOR::GOROOT);
+            }
+        }
+    }
+#endif
+
     /*
     Iterative deepening
     */
@@ -2009,8 +2009,7 @@ MOVE SEARCHER::find_best() {
 #ifdef CLUSTER
     /*quit hosts as soon as host 0 finishes*/
     if(PROCESSOR::host_id == 0 && (use_abdada_cluster || montecarlo)) {
-        for(int i = 1;i < PROCESSOR::n_hosts;i++)
-            PROCESSOR::ISend(i,PROCESSOR::QUIT);
+        CLUSTER_CODE(PROCESSOR::quit_hosts());
     }
     /*print pv with max score to avoid early adjuncation*/
     if(use_abdada_cluster && PROCESSOR::n_hosts > 1) {
