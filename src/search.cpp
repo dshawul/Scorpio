@@ -2159,6 +2159,7 @@ MOVE SEARCHER::find_best() {
         /*reduce*/
         PROCESSOR::Sum(score_st,sum_score_st,n_root_moves);
 
+        MOVE l_bmove = bmove;
         if(PROCESSOR::host_id == 0) {
             float bests = -1;
             for(int i = 0; i < n_root_moves; i++) {
@@ -2231,7 +2232,14 @@ MOVE SEARCHER::find_best() {
 
             char mv_str[16];
             mov_str(bmove,mv_str);
-            print("# voted best move: %s\n",mv_str);
+            if(bmove == l_bmove)
+                print("# voted best move: %s\n",mv_str);
+            else {
+                char mv_str2[16];
+                mov_str(l_bmove,mv_str2);
+                print("# voted best move: %s dis-agreement with %s\n",
+                    mv_str, mv_str2);
+            }
         }
 
     }
