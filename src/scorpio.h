@@ -1164,6 +1164,7 @@ typedef struct PROCESSOR {
     static void Wait(MPI_Request*);
     static void Barrier();
     static void Sum(float* sendbuf,float* recvbuf, int);
+    static void Max(int* sendbuf,int* recvbuf, int);
     static void handle_message(int dest,int message_id);
     static void offer_help();
 #endif

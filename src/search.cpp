@@ -2012,9 +2012,12 @@ MOVE SEARCHER::find_best() {
         for(int i = 1;i < PROCESSOR::n_hosts;i++)
             PROCESSOR::ISend(i,PROCESSOR::QUIT);
     }
-    /*synchronize*/
+    /*print pv with max score to avoid early adjuncation*/
     if(use_abdada_cluster && PROCESSOR::n_hosts > 1) {
-        PROCESSOR::Barrier();
+        int max_root_score;
+        PROCESSOR::Max(&root_score,&max_root_score,1);
+        if(PROCESSOR::host_id == 0)
+            print_pv(max_root_score);
     }
 #endif
 
