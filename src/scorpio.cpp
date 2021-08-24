@@ -256,7 +256,7 @@ int CDECL main(int argc, char* argv[]) {
          */
         print_log("==============================\n");
         while(true) {
-            if(!read_line(buffer))
+            if((SEARCHER::abort_search == 2) || !read_line(buffer))
                 goto END;
             if(PROTOCOL == CONSOLE || PROTOCOL == UCI) {
                 std::string s(buffer);
