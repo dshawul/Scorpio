@@ -10,12 +10,12 @@ Allocate tables
     -Main hash table is shared.
     -The rest is allocated for each thread.
 */
-void PROCESSOR::reset_hash_tab(int id,uint32_t size) {
+void PROCESSOR::reset_hash_tab(int id,size_t size) {
 #if NUMA_TT_TYPE == 0
     if(id != 0) return;
 #endif
     if(size) hash_tab_mask = size - 1;
-    else size = hash_tab_mask + 1;
+    else size = size_t(hash_tab_mask) + 1;
     /*page size*/
 #if defined(__ANDROID__) || defined(_WIN32)
     static const int alignment = 4096;
@@ -27,16 +27,16 @@ void PROCESSOR::reset_hash_tab(int id,uint32_t size) {
     hash_tab[black] = hash_tab[white] + size;
 }
 
-void PROCESSOR::reset_pawn_hash_tab(uint32_t size) {
+void PROCESSOR::reset_pawn_hash_tab(size_t size) {
     if(size) pawn_hash_tab_mask = size - 1;
-    else size = pawn_hash_tab_mask + 1;
+    else size = size_t(pawn_hash_tab_mask) + 1;
     aligned_free<PAWNHASH>(pawn_hash_tab);
     aligned_reserve<PAWNHASH>(pawn_hash_tab,size);
 }
 
-void PROCESSOR::reset_eval_hash_tab(uint32_t size) {
+void PROCESSOR::reset_eval_hash_tab(size_t size) {
     if(size) eval_hash_tab_mask = size - 1;
-    else size = eval_hash_tab_mask + 1;
+    else size = size_t(eval_hash_tab_mask) + 1;
     aligned_free<EVALHASH>(eval_hash_tab[white]);
     aligned_reserve<EVALHASH>(eval_hash_tab[white],2*size);
     eval_hash_tab[black] = eval_hash_tab[white] + size;
@@ -47,11 +47,11 @@ void PROCESSOR::clear_hash_tables() {
     for(int i = 0;i < n_processors;i++) {
         proc = processors[i];
         if(proc->hash_tab[white])
-            memset(proc->hash_tab[white],0,2 * (hash_tab_mask + 1) * sizeof(HASH));
+            memset(proc->hash_tab[white],0,2 * (size_t(hash_tab_mask) + 1) * sizeof(HASH));
         if(proc->eval_hash_tab[white])
-            memset(proc->eval_hash_tab[white],0,2 * (eval_hash_tab_mask + 1) * sizeof(EVALHASH));
+            memset(proc->eval_hash_tab[white],0,2 * (size_t(eval_hash_tab_mask) + 1) * sizeof(EVALHASH));
         if(proc->pawn_hash_tab)
-            memset((void*)proc->pawn_hash_tab,0,(pawn_hash_tab_mask + 1) * sizeof(PAWNHASH));
+            memset((void*)proc->pawn_hash_tab,0,(size_t(pawn_hash_tab_mask) + 1) * sizeof(PAWNHASH));
     }
 }
 
@@ -92,7 +92,7 @@ void SEARCHER::record_hash(
 
     addr = proc->hash_tab[col];
 
-    for(int i = 0; i < HPROBES; i++) {
+    for(uint32_t i = 0; i < HPROBES; i++) {
         pslot = (addr + (key ^ i));    //H.G trick to follow most probable path
         slot = *pslot;
         s_data = (slot.move ^ slot.eval ^ slot.data);
@@ -147,7 +147,7 @@ int SEARCHER::probe_hash(
 
     addr = proc->hash_tab[col];
     
-    for(int i = 0; i < HPROBES; i++) {
+    for(uint32_t i = 0; i < HPROBES; i++) {
         pslot = addr + (key ^ i);
         slot = *pslot;
         s_data = (slot.move ^ slot.eval ^ slot.data);
