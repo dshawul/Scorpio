@@ -1966,6 +1966,7 @@ MOVE SEARCHER::find_best() {
         INIT_MESSAGE init;
         get_init_pos(&init);
         for(int i = 0;i < PROCESSOR::n_hosts;i++) {
+            PROCESSOR::best_moves[i] = 0;
             if(i != PROCESSOR::host_id) {
                 PROCESSOR::ISend(i,PROCESSOR::INIT,&init,INIT_MESSAGE_SIZE(init));
                 /*start iterative deepening searcher for ABDADA/SHT*/

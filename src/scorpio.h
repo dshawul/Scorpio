@@ -1128,7 +1128,7 @@ typedef struct PROCESSOR {
 #ifdef CLUSTER
     enum processor_states {
         QUIT = 0,INIT,HELP,CANCEL,SPLIT,MERGE,PING,PONG,
-        GOROOT, RECORD_TT,PROBE_TT,PROBE_TT_RESULT
+        BMOVE, GOROOT, RECORD_TT,PROBE_TT,PROBE_TT_RESULT
     };
     static const char *const message_str[12];
     static int host_id;
@@ -1137,6 +1137,7 @@ typedef struct PROCESSOR {
     static int prev_dest;
     static std::list<int> available_host_workers;
     static std::atomic_int message_available;
+    static std::vector<MOVE> best_moves;
     static void cancel_idle_hosts();
     static void quit_hosts();
     static int MESSAGE_POLL_NODES;
@@ -1167,6 +1168,7 @@ typedef struct PROCESSOR {
     static void Max(int* sendbuf,int* recvbuf, int);
     static void handle_message(int dest,int message_id);
     static void offer_help();
+    static void send_best_move(int dest, MOVE move);
 #endif
 #if defined(PARALLEL) || defined(CLUSTER)
     bool has_block();

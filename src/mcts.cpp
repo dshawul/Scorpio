@@ -1404,6 +1404,21 @@ void SEARCHER::compute_time_factor(int rscore) {
             break;
         rscore = rscore - old_root_score;
     }
+    /*Extend time to resolve best move differences 
+     from different hosts*/
+#ifdef CLUSTER
+    if(use_abdada_cluster && PROCESSOR::n_hosts > 1
+        && PROCESSOR::host_id == 0
+        ) {
+        for(int i = 0; i < PROCESSOR::n_hosts; i++) {
+            MOVE move = PROCESSOR::best_moves[i];
+            if(move && move != stack[0].pv[0]) {
+                time_factor *= 1.5;
+                return;
+            }
+        }
+    }
+#endif
 }
 void SEARCHER::check_mcts_quit(bool single) {
 

@@ -57,6 +57,7 @@ void PROCESSOR::init(int argc, char* argv[]) {
         PROCESSOR::n_hosts,PROCESSOR::host_name,GETPID());
     
     /*global split point*/
+    best_moves.resize(n_hosts);
     global_split = new SPLIT_MESSAGE[n_hosts];
 #ifdef THREAD_POLLING
     if(n_hosts > 1)
@@ -110,6 +111,11 @@ bool PROCESSOR::IProbe(int& source,int& message_id) {
         return true;
     }
     return false;
+}
+void PROCESSOR::send_best_move(int dest, MOVE move) {
+    MPI_Request rq;
+    ISend(dest,PROCESSOR::BMOVE,&move,sizeof(MOVE),&rq);
+    Wait(&rq);
 }
 /**
 * Handle messages
@@ -334,6 +340,15 @@ void PROCESSOR::handle_message(int source,int message_id) {
             processors[i]->signal();
         }
 #endif
+        /***********************************
+        * Best move from slave hosts
+        ************************************/
+    } else if(message_id == BMOVE) {
+        MOVE move;
+        Recv(source,message_id,&move,sizeof(move));
+
+        PROCESSOR::best_moves[source] = move;
+
         /***********************************
         * Distributed transposition table
         ************************************/

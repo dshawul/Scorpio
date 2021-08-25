@@ -53,6 +53,7 @@ int PROCESSOR::CLUSTER_SPLIT_DEPTH = 8;
 int PROCESSOR::host_id;
 char PROCESSOR::host_name[256];
 std::list<int> PROCESSOR::available_host_workers;
+std::vector<MOVE> PROCESSOR::best_moves;
 int PROCESSOR::help_messages = 0;
 int PROCESSOR::prev_dest = -1;
 int PROCESSOR::vote_weight = 100;

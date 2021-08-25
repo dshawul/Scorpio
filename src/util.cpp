@@ -493,8 +493,22 @@ int SEARCHER::is_legal(MOVE& move) {
 Print principal variation (PV)
 */
 void SEARCHER::print_pv(int score) {
+
+#ifdef CLUSTER
+    /*send best move to master node*/
+    if(use_abdada_cluster && PROCESSOR::n_hosts > 1
+        && PROCESSOR::host_id > 0
+        && search_depth > 8
+        ) {
+        PROCESSOR::send_best_move(0,stack[0].pv[0]);
+    }
+#endif
+
+    /*check style*/
     if(pv_print_style != 0)
         return;
+
+    /*print pv*/
     MOVE  move;
     int i;
     char mv_str[10];
