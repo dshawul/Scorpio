@@ -334,6 +334,11 @@ void PROCESSOR::handle_message(int source,int message_id) {
             if(init.pv[i]) psb->do_move(init.pv[i]);    
             else psb->do_null();
         }
+
+        /*zero best move from all hosts*/
+        for(int i = 0;i < PROCESSOR::n_hosts;i++)
+            PROCESSOR::best_moves[i] = 0;
+
 #ifdef PARALLEL
         /*wakeup processors*/
         for(i = 0;i < n_processors;i++) {

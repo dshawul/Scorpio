@@ -497,10 +497,12 @@ void SEARCHER::print_pv(int score) {
 #ifdef CLUSTER
     /*send best move to master node*/
     if(use_abdada_cluster && PROCESSOR::n_hosts > 1
-        && PROCESSOR::host_id > 0
         && search_depth > 8
         ) {
-        PROCESSOR::send_best_move(0,stack[0].pv[0]);
+        for(int i = 0;i < PROCESSOR::n_hosts;i++) {
+            if(i != PROCESSOR::host_id)
+                PROCESSOR::send_best_move(i,stack[0].pv[0]);
+        }
     }
 #endif
 

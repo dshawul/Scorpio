@@ -1771,21 +1771,32 @@ MOVE SEARCHER::iterative_deepening(bool& montecarlo_skipped) {
                     POP_MOVE();
             }
 
-            /*sort moves*/
-            MOVE tempm;
-            uint64_t temps,bests = 0;
-
+            /*bias moves found to be best by other hosts and us*/
+            uint64_t bests = 0;
             for(int i = 0;i < pstack->count; i++) {
-                if(pstack->pv[0] == pstack->move_st[i]) {
+                MOVE& move = pstack->move_st[i];
+                if(move == pstack->pv[0]) {
                     bests = root_score_st[i];
                     root_score_st[i] = MAX_UINT64;
                 }
+#ifdef CLUSTER
+                else if(use_abdada_cluster && PROCESSOR::n_hosts > 1) {
+                    for(int j = 0;j < PROCESSOR::n_hosts;j++) {
+                        if(j != PROCESSOR::host_id) {
+                            if(move == PROCESSOR::best_moves[j])
+                                root_score_st[i] += (MAX_UINT64 >> 1);
+                        }
+                    }
+                }
+#endif
             }
+
+            /*sort*/
             for(int i = 0;i < pstack->count; i++) {
                 for(int j = i + 1;j < pstack->count;j++) {
                     if(root_score_st[i] < root_score_st[j]) {
-                        tempm = pstack->move_st[i];
-                        temps = root_score_st[i];
+                        MOVE tempm = pstack->move_st[i];
+                        uint64_t temps = root_score_st[i];
                         pstack->move_st[i] = pstack->move_st[j];
                         root_score_st[i] = root_score_st[j];
                         pstack->move_st[j] = tempm;
@@ -1793,10 +1804,18 @@ MOVE SEARCHER::iterative_deepening(bool& montecarlo_skipped) {
                     }
                 }
             }
+
+            /*remove applied bias*/
             for(int i = 0;i < pstack->count; i++) {
-                if(pstack->pv[0] == pstack->move_st[i]) {
+                MOVE& move = pstack->move_st[i];
+                if(move == pstack->pv[0])
                     root_score_st[i] = bests;
+#ifdef CLUSTER
+                else if(use_abdada_cluster && PROCESSOR::n_hosts > 1) {
+                    if(root_score_st[i] >= (MAX_UINT64 >> 1))
+                        root_score_st[i] -= (MAX_UINT64 >> 1);
                 }
+#endif
             }
         } else {
             /* Is there enough time to search the first move?*/
@@ -2121,8 +2140,10 @@ MOVE SEARCHER::find_best() {
                 factor *= 10;
             else if(root_score >= 400)
                 factor *= 4;
+            else if(root_score >= 300)
+                factor *= 3;
             else if(root_score >= 200)
-                factor *= 2;
+                factor *= 1.5;
 
             uint64_t maxn = 0;
             for(int i = 1; i < n_root_moves; i++) {
