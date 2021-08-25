@@ -51,7 +51,7 @@ void PROCESSOR::delete_tables() {
 void PROCESSOR::clear_tables(int id) {
     /*clear main hashtable*/
     PPROCESSOR proc = processors[0];
-    if(proc->hash_tab[white]) {
+    if(proc && proc->hash_tab[white]) {
         size_t size = 2 * (size_t(hash_tab_mask) + 1);
         size_t dim =  size / n_processors;
         size_t n_entries = (id == n_processors - 1) ? (size - id * dim) : dim;
@@ -60,10 +60,10 @@ void PROCESSOR::clear_tables(int id) {
     }
     /*clear local tables*/
     proc = processors[id];
-    if(proc->eval_hash_tab[white])
+    if(proc && proc->eval_hash_tab[white])
         memset(proc->eval_hash_tab[white],0,
             2 * (size_t(PROCESSOR::eval_hash_tab_mask) + 1) * sizeof(EVALHASH));
-    if(proc->pawn_hash_tab)
+    if(proc && proc->pawn_hash_tab)
         memset((void*)proc->pawn_hash_tab,0,
             (size_t(PROCESSOR::pawn_hash_tab_mask) + 1) * sizeof(PAWNHASH));
 }
