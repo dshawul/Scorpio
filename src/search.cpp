@@ -1439,9 +1439,6 @@ void SEARCHER::search_ab_prior() {
     bool dummy;
     MOVE bestm = iterative_deepening(dummy);
 
-#ifdef PARALLEL
-    t_sleep(30);
-#endif
     chess_clock.p_time /= frac_abprior;
     chess_clock.p_inc /= frac_abprior;
 
@@ -1628,8 +1625,10 @@ MOVE SEARCHER::iterative_deepening(bool& montecarlo_skipped) {
             
 #ifdef PARALLEL
             /* wake mcts threads*/
-            for(int i = PROCESSOR::n_cores;i < PROCESSOR::n_processors;i++)
+            for(int i = PROCESSOR::n_cores;i < PROCESSOR::n_processors;i++) {
                 processors[i]->state = WAIT;
+                processors[i]->signal();
+            }
 #endif
         }
 
@@ -1992,9 +1991,9 @@ MOVE SEARCHER::find_best() {
 #if defined(CLUSTER)
     PROCESSOR::set_mt_state(WAIT);
 #endif
-    t_sleep(30);
 #endif
 
+    /*iteratived deepening*/
     bool montecarlo_skipped = false;
     bmove = iterative_deepening(montecarlo_skipped);
     if(!SEARCHER::chess_clock.pondering)

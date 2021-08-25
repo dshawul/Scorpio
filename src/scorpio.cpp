@@ -120,7 +120,6 @@ static bool ht_setting_changed = false;
 
 static void wait_for_egbb() {
     while(egbb_is_loading) t_sleep(100);
-    print("--------------------------\n");
 }
 static void egbb_thread_proc(void*) {
     int start = get_time();
@@ -219,7 +218,7 @@ int CDECL main(int argc, char* argv[]) {
     if(use_abdada_cluster && (PROCESSOR::host_id == 0)) {
         while(PROCESSOR::available_host_workers.size() + 1 < 
             (unsigned)PROCESSOR::n_hosts) {
-            t_sleep(30);
+            t_sleep(100);
         }
     }
 #endif

@@ -1809,8 +1809,10 @@ void Node::parallel_job(Node* n, PTHREAD_PROC func, bool recursive) {
     }
 
 #ifdef PARALLEL
-    for(int i = 1;i < PROCESSOR::n_processors;i++)
+    for(int i = 1;i < PROCESSOR::n_processors;i++) {
         processors[i]->state = WAIT;
+        processors[i]->signal();
+    }
 #endif
 
 }
@@ -2180,7 +2182,6 @@ void SEARCHER::launch_worker_threads() {
     l_unlock(lock_smp);
 
     /*montecarlo search*/
-    t_sleep(30);
     worker_thread();
 
     /*wait till all helpers become idle*/

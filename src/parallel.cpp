@@ -218,6 +218,7 @@ void PROCESSOR::handle_message(int source,int message_id) {
         }
 
         processors[0]->state = WAIT;
+        processors[0]->signal();
 
         /***********************************************************
         * Send result back and release all helper nodes we aquired
@@ -827,7 +828,6 @@ void SEARCHER::attach_processor(int new_proc_id) {
         psearcher->master = this;
         psearcher->processor_id = new_proc_id;
         processors[new_proc_id]->searcher = psearcher;
-        processors[new_proc_id]->signal();
         workers[new_proc_id] = psearcher;
         n_workers++;
     }
