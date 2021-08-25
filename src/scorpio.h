@@ -1310,7 +1310,8 @@ bool  check_search_params(char**,char*,int&);
 void  print_search_params();
 bool  check_mcts_params(char**,char*,int&);
 void  print_mcts_params();
-void fill_input_planes(int, int, int, int, int*, int*, int*, float*, float*);
+void  fill_input_planes(int, int, int, int, int*, int*, int*, float*, float*);
+
 
 #ifdef TUNE
 bool check_eval_params(char**,char*,int&);

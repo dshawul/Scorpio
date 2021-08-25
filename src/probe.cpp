@@ -234,6 +234,17 @@ static void clean_path(char* main_path) {
     }
 }
 void LoadEgbbLibrary(char* main_path) {
+
+    /*suppress printf output*/
+#ifdef CLUSTER
+    int stdout_copy;
+    if(PROCESSOR::host_id) {
+        stdout_copy = dup(1);
+        close(1);
+    }
+#endif
+
+    /*load egbbdll*/
 #ifdef EGBB
     static HMODULE hmod = 0;
     PLOAD_EGBB load_egbb;
@@ -306,6 +317,14 @@ void LoadEgbbLibrary(char* main_path) {
         }
     } else {
         print("EgbbProbe not Loaded!\n");
+    }
+#endif
+
+    /*reopen stdout*/
+#ifdef CLUSTER
+    if(PROCESSOR::host_id) {
+        dup2(stdout_copy, 1);
+        close(stdout_copy);
     }
 #endif
 }

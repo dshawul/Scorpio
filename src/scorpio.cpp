@@ -120,6 +120,7 @@ static bool ht_setting_changed = false;
 
 static void wait_for_egbb() {
     while(egbb_is_loading) t_sleep(100);
+    print("--------------------------\n");
 }
 static void egbb_thread_proc(void*) {
     int start = get_time();
@@ -136,7 +137,7 @@ static void load_egbbs() {
 
         char header[512], header2[128];
 
-        strcpy(header,"\n--------------------------\n");
+        strcpy(header,"--------------------------\n");
         if(!(montecarlo && frac_abprior == 0)) {
             size = 1;
 #if NUMA_TT_TYPE == 0

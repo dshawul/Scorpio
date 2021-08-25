@@ -2012,7 +2012,7 @@ MOVE SEARCHER::find_best() {
 #ifdef CLUSTER
     /*quit hosts as soon as host 0 finishes*/
     if(PROCESSOR::host_id == 0 && (use_abdada_cluster || montecarlo)) {
-        CLUSTER_CODE(PROCESSOR::quit_hosts());
+        PROCESSOR::quit_hosts();
     }
     /*print pv with max score to avoid early adjuncation*/
     if(use_abdada_cluster && PROCESSOR::n_hosts > 1) {
