@@ -1413,7 +1413,7 @@ void SEARCHER::compute_time_factor(int rscore) {
         for(int i = 0; i < PROCESSOR::n_hosts; i++) {
             MOVE move = PROCESSOR::best_moves[i];
             if(move && move != stack[0].pv[0]) {
-                time_factor *= 1.5;
+                time_factor *= 2;
                 return;
             }
         }
