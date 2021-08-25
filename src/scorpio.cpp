@@ -121,7 +121,7 @@ static bool ht_setting_changed = false;
 static void wait_for_egbb() {
     while(egbb_is_loading) t_sleep(100);
 }
-static void egbb_thread_proc(void*) {
+static CDECL void egbb_thread_proc(void*) {
     int start = get_time();
     LoadEgbbLibrary(SEARCHER::egbb_path);
     int end = get_time();
@@ -139,16 +139,11 @@ static void load_egbbs() {
         strcpy(header,"--------------------------\n");
         if(!(montecarlo && frac_abprior == 0)) {
             size = 1;
-#if NUMA_TT_TYPE == 0
-            int factor = 1;
-#else
-            int factor = np;
-#endif
-            size_max = ht * ((1024 * 1024) / (factor * 2 * sizeof(HASH)));
+            size_max = ht * ((1024 * 1024) / (2 * sizeof(HASH)));
             while(2 * size <= size_max) size *= 2;
             PROCESSOR::hash_tab_mask = size - 1;
-            sprintf(header2,"ht %lu X 2 X %d X %d = %.1f MB\n",(unsigned long)size,(int)sizeof(HASH), factor,
-                (factor * 2 * size * sizeof(HASH)) / double(1024 * 1024));
+            sprintf(header2,"ht %lu X 2 X %d X %d = %.1f MB\n",(unsigned long)size,(int)sizeof(HASH), 1,
+                (2 * size * sizeof(HASH)) / double(1024 * 1024));
             strcat(header,header2);
 
             size = 1;

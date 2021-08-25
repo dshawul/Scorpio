@@ -11,9 +11,9 @@ Allocate tables
     -The rest is allocated for each thread.
 */
 void PROCESSOR::reset_hash_tab(int id,size_t size) {
-#if NUMA_TT_TYPE == 0
-    if(id != 0) return;
-#endif
+    if(id != 0)
+        return;
+
     if(size) hash_tab_mask = size - 1;
     else size = size_t(hash_tab_mask) + 1;
     /*page size*/
@@ -42,38 +42,62 @@ void PROCESSOR::reset_eval_hash_tab(size_t size) {
     eval_hash_tab[black] = eval_hash_tab[white] + size;
 }
 
-void PROCESSOR::clear_hash_tables() {
-    PPROCESSOR proc;
-    for(int i = 0;i < n_processors;i++) {
-        proc = processors[i];
-        if(proc->hash_tab[white])
-            memset(proc->hash_tab[white],0,2 * (size_t(hash_tab_mask) + 1) * sizeof(HASH));
-        if(proc->eval_hash_tab[white])
-            memset(proc->eval_hash_tab[white],0,2 * (size_t(eval_hash_tab_mask) + 1) * sizeof(EVALHASH));
-        if(proc->pawn_hash_tab)
-            memset((void*)proc->pawn_hash_tab,0,(size_t(pawn_hash_tab_mask) + 1) * sizeof(PAWNHASH));
-    }
-}
-
-void PROCESSOR::delete_hash_tables() {
+void PROCESSOR::delete_tables() {
     aligned_free<HASH>(hash_tab[white]);
     aligned_free<EVALHASH>(eval_hash_tab[white]);
     aligned_free<PAWNHASH>(pawn_hash_tab);
 }
 
-/* 
- Distributed hashtable on NUMA machines
- */
-#if NUMA_TT_TYPE == 0
-#define TT_PROC \
+void PROCESSOR::clear_tables(int id) {
+    /*clear main hashtable*/
     PPROCESSOR proc = processors[0];
-#elif NUMA_TT_TYPE == 1
-#define TT_PROC \
-    PPROCESSOR proc = processors[((hash_key >> 48) * PROCESSOR::n_processors) >> 16];
-#else
-#define TT_PROC \
-    PPROCESSOR proc = processors[processor_id];
+    if(proc->hash_tab[white]) {
+        size_t size = 2 * (size_t(hash_tab_mask) + 1);
+        size_t dim =  size / n_processors;
+        size_t n_entries = (id == n_processors - 1) ? (size - id * dim) : dim;
+        PHASH addr = processors[0]->hash_tab[white] + dim * id;
+        memset(addr,0,n_entries * sizeof(HASH));
+    }
+    /*clear local tables*/
+    proc = processors[id];
+    if(proc->eval_hash_tab[white])
+        memset(proc->eval_hash_tab[white],0,
+            2 * (size_t(PROCESSOR::eval_hash_tab_mask) + 1) * sizeof(EVALHASH));
+    if(proc->pawn_hash_tab)
+        memset((void*)proc->pawn_hash_tab,0,
+            (size_t(PROCESSOR::pawn_hash_tab_mask) + 1) * sizeof(PAWNHASH));
+}
+
+/*
+Clear hash tables in parallel
+*/
+static CDECL void clear_hash_proc(int id) {
+    PROCESSOR::clear_tables(id);
+}
+
+void PROCESSOR::clear_hash_tables() {
+#ifdef PARALLEL
+    for(int i = 1;i < PROCESSOR::n_processors;i++)
+        processors[i]->state = PARK;
 #endif
+
+    int ncores = (montecarlo && SEARCHER::use_nn) ? 
+            PROCESSOR::n_cores : PROCESSOR::n_processors;
+    std::thread* mthreads = new std::thread[ncores];
+    for(int id = 0; id < ncores; id++)
+        mthreads[id] = t_create(clear_hash_proc,id);
+    for(int id = 0; id < ncores; id++)
+        t_join(mthreads[id]);
+    delete[] mthreads;
+
+#ifdef PARALLEL
+    for(int i = 1;i < PROCESSOR::n_processors;i++) {
+        processors[i]->state = WAIT;
+        processors[i]->signal();
+    }
+#endif
+}
+
 /*
 Main hash table
 */
@@ -83,7 +107,7 @@ void SEARCHER::record_hash(
                  int col,const HASHKEY& hash_key,int depth,int ply,int flags,
                  int eval,int score,MOVE move,int mate_threat,int singular
                  ) {
-    TT_PROC;
+    PPROCESSOR proc = processors[0];
     PHASH addr,pslot,pr_slot = 0;
     HASH slot;
     int sc, max_sc = MAX_NUMBER;
@@ -138,7 +162,7 @@ int SEARCHER::probe_hash(
                MOVE& move,int alpha,int beta,int& mate_threat,int& singular,int& h_depth,
                bool exclusiveP
                ) {
-    TT_PROC;
+    PPROCESSOR proc = processors[0];
     PHASH addr,pslot;
     HASH slot;
     int flags;
@@ -268,7 +292,8 @@ prefetch tt
 */
 void SEARCHER::prefetch_tt() {
 #ifdef HAS_PREFETCH
-    TT_PROC;
+    /*main hashtable*/
+    PPROCESSOR proc = processors[0];
     if(proc->hash_tab[white]) {
         uint32_t key = uint32_t(hash_key & PROCESSOR::hash_tab_mask);
         PREFETCH_T0(proc->hash_tab[player] + key);

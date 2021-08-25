@@ -18,7 +18,6 @@ HPP = scorpio.h my_types.h params.h
 #  DHAS_PREFETCH   --  Prefetch hash table entries [Recommeneded] 
 #  DUSE_SPINLOCK   --  Use spin locks.
 #  DCLUSTER        --  Compile MPI cluster code.
-#  DNUMA_TT_TYPE=n     --  NUMA transposition table type (0 - global, 1 - distributed, 2 - local) default=0
 #  DCLUSTER_TT_TYPE=n  --  Distributed transposition table type (0 - global, 1 - distributed, 2 - local) default=2
 #  DMAX_CPUS=n     --  Compile for maximum of n cpus. Default is 32                 
 #  DYBW            --  Compile with YBW
@@ -47,7 +46,6 @@ DEFINES += -DEGBB
 #DEFINES += -DTUNE
 DEFINES += -DMAX_CPUS=432
 #DEFINES += -DYBW
-#DEFINES += -DNUMA_TT_TYPE=1
 #DEFINES += -DCLUSTER_TT_TYPE=1
 #DEFINES += -DCUTECHESS_FIX
 DEFINES += -DNODES_PRIOR

@@ -789,28 +789,25 @@ static void reset_tables(PPROCESSOR proc, int tid) {
         }
     }
 }
-void CDECL thread_proc(void* id) {
-    long tid = *((long*)id);
+static void CDECL thread_proc(int id) {
+    long tid = id;
     PPROCESSOR proc = new PROCESSOR();
     proc->searcher = NULL;
     proc->state = PARK;
     processors[tid] = proc;
     reset_tables(proc,tid);
+    proc->clear_tables(id);
     search((PPROCESSOR)proc);
 }
 void PROCESSOR::create(int id) {
-    long tid = id;
-    threads[id] = t_create(thread_proc,(void*)&tid);
-    int nidx = n_idle_processors;
-    while(n_idle_processors == nidx) 
-        t_yield();
+    threads[id] = t_create(thread_proc,id);
 }
 void PROCESSOR::kill(int id) {
     PPROCESSOR proc = processors[id];
     proc->state = KILL;
     while(proc->state == KILL) 
         t_yield();
-    proc->delete_hash_tables();
+    proc->delete_tables();
     delete proc;
     processors[id] = 0;
 }
@@ -1048,24 +1045,29 @@ void SEARCHER::clear_block() {
 */
 void init_smp(int mt) {
     PPROCESSOR proc = processors[0];
+    int n_procs = PROCESSOR::n_processors;
+
+    PROCESSOR::n_processors = mt;
     reset_tables(proc,0);
 
 #ifdef PARALLEL
-    if(PROCESSOR::n_processors < mt) {
+    if(n_procs < mt) {
         for(int i = 1; i < MAX_CPUS;i++) {
-            if(PROCESSOR::n_processors < mt) {
+            if(n_procs < mt) {
                 if(processors[i] == 0) {
                     PROCESSOR::create(i);
-                    PROCESSOR::n_processors++;
+                    n_procs++;
                 }
             } 
         }
-    } else if(PROCESSOR::n_processors > mt) {
+        while(PROCESSOR::n_idle_processors < mt - 1)
+            t_yield();
+    } else if(n_procs > mt) {
         for(int i = MAX_CPUS - 1; i >= 1;i--) {
-            if(PROCESSOR::n_processors > mt) {
+            if(n_procs > mt) {
                 if(processors[i] != 0) {
                     PROCESSOR::kill(i);
-                    PROCESSOR::n_processors--;
+                    n_procs--;
                 }
             }
         }

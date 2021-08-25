@@ -71,9 +71,6 @@ parallel search options
 * 1 - distributed tt
 * 2 - local tt
 */
-#if !defined(NUMA_TT_TYPE)
-#   define NUMA_TT_TYPE              0
-#endif
 #if !defined(CLUSTER_TT_TYPE)
 #   define CLUSTER_TT_TYPE           2
 #endif
@@ -1189,11 +1186,12 @@ typedef struct PROCESSOR {
     static uint32_t eval_hash_tab_mask;
     static int age;
 
-    void  reset_hash_tab(int id,size_t = 0);
-    void  reset_pawn_hash_tab(size_t = 0);
-    void  reset_eval_hash_tab(size_t = 0);
-    void  delete_hash_tables();
-    static void  clear_hash_tables();
+    void reset_hash_tab(int id,size_t = 0);
+    void reset_pawn_hash_tab(size_t = 0);
+    void reset_eval_hash_tab(size_t = 0);
+    void delete_tables();
+    static void clear_tables(int);
+    static void clear_hash_tables();
     static int hashfull();
 
     /*conditional wait*/
