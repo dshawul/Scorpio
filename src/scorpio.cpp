@@ -130,10 +130,12 @@ static void egbb_thread_proc(void*) {
 static void load_egbbs() {
     /*reset hash tables*/
     if(ht_setting_changed) {
-        uint32_t size, size_max;
+        uint64_t size, size_max;
         int np = (montecarlo && SEARCHER::use_nn) ? PROCESSOR::n_cores : mt;
 
-        print("--------------------------\n");
+        char header[512], header2[128];
+
+        strcpy(header,"\n--------------------------\n");
         if(!(montecarlo && frac_abprior == 0)) {
             size = 1;
 #if NUMA_TT_TYPE == 0
@@ -144,28 +146,33 @@ static void load_egbbs() {
             size_max = ht * ((1024 * 1024) / (factor * 2 * sizeof(HASH)));
             while(2 * size <= size_max) size *= 2;
             PROCESSOR::hash_tab_mask = size - 1;
-            print("ht %d X %d X %d = %.1f MB\n",2 * size,sizeof(HASH), factor,
+            sprintf(header2,"ht %lu X 2 X %d X %d = %.1f MB\n",(unsigned long)size,(int)sizeof(HASH), factor,
                 (factor * 2 * size * sizeof(HASH)) / double(1024 * 1024));
+            strcat(header,header2);
 
             size = 1;
             size_max = eht * ((1024 * 1024) / (2 * sizeof(EVALHASH)));
             while(2 * size <= size_max) size *= 2;
             PROCESSOR::eval_hash_tab_mask = size - 1;
-            print("eht %d X %d X %d = %.1f MB\n",size,sizeof(EVALHASH), np,
-            np * (2 * size * sizeof(EVALHASH)) / double(1024 * 1024));
+            sprintf(header2,"eht %u X 2 X %d X %d = %.1f MB\n",(unsigned int)size,(int)sizeof(EVALHASH), np,
+                np * (2 * size * sizeof(EVALHASH)) / double(1024 * 1024));
+            strcat(header,header2);
         }
         if(!SEARCHER::use_nnue) {
             size = 1;
             size_max = pht * ((1024 * 1024) / (sizeof(PAWNHASH)));
             while(2 * size <= size_max) size *= 2;
             PROCESSOR::pawn_hash_tab_mask = size - 1;
-            print("pht %d X %d X %d = %.1f MB\n",size,sizeof(PAWNHASH), np,
+            sprintf(header2,"pht %u X 1 X %d X %d = %.1f MB\n",(unsigned int)size,(int)sizeof(PAWNHASH), np,
                 np * (size * sizeof(PAWNHASH)) / double(1024 * 1024));
+            strcat(header,header2);
         }
 
         init_smp(mt);
-        print("processors [%d]\n",PROCESSOR::n_processors);
-        print("--------------------------\n");
+        sprintf(header2,"processors [%d]\n",PROCESSOR::n_processors);
+        strcat(header,header2);
+        strcat(header,"--------------------------\n");
+        print_all(header);
 
         ht_setting_changed = false;
     }
