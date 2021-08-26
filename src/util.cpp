@@ -2301,7 +2301,6 @@ void SEARCHER::epd_to_nn(char* fen, FILE* fb, int task) {
             print("**********************\n");                  \
         }                                                       \
     } else if(task == 5) {                                      \
-        PROCESSOR::clear_hash_tables();                         \
         SEARCHER::first_search = true;                          \
         SEARCHER::old_root_score = 0;                           \
         SEARCHER::root_score = 0;                               \

@@ -1050,7 +1050,6 @@ int xboard_commands(char** commands,char* command,int& command_num,int& do_searc
         SEARCHER::old_root_score = 0;
         SEARCHER::root_score = 0;
     } else if(!strcmp(command,"setboard")) {
-        PROCESSOR::clear_hash_tables();
         char fen[MAX_STR];
         strcpy(fen,commands[command_num++]);
         strcat(fen," ");
