@@ -214,6 +214,21 @@ void SEARCHER::do_move(const MOVE& move) {
 
     hply++;
 }
+/*get approximate key after move for prefetching*/
+HASHKEY SEARCHER::get_key_after(MOVE move) {
+    int from = m_from(move),to = m_to(move),pic;
+    HASHKEY key = hash_key;
+    if((pic = m_capture(move)) != 0)
+        key ^= PC_HKEY(pic,to);
+    if(from != to) {
+        pic = m_piece(move);
+        key ^= PC_HKEY(pic,to);
+        key ^= PC_HKEY(pic,from);
+    }
+    if(epsquare)
+        key ^= EP_HKEY(epsquare);
+    return key;
+}
 /*
 UNDO MOVE
 */

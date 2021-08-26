@@ -211,6 +211,7 @@ Scorpio moves are 32bit long
 #define FROM_TO_PROM     0x0f00ffff
 #define FROM_TO_PROM_CAS 0x2f00ffff
 #define CAP_PROM         0x0ff00000
+#define EP_CASTLE_PROM   0x3f000000
 #define m_from(x)        (int)((x) & FROM_FLAG)
 #define m_to(x)          (int)(((x) & TO_FLAG) >> 8)
 #define m_piece(x)       (int)(((x) & PIECE_FLAG) >> 16)
@@ -221,6 +222,7 @@ Scorpio moves are 32bit long
 #define is_cap_prom(x)   ((x) & CAP_PROM)
 #define is_ep(x)         ((x) & EP_FLAG)
 #define is_castle(x)     ((x) & CASTLE_FLAG)
+#define is_special(x)    ((x) & EP_CASTLE_PROM)
 /*
 Squares are of 0x88 type
 */
@@ -760,6 +762,7 @@ typedef struct SEARCHER{
     void  do_null();
     void  undo_move();
     void  undo_null();
+    HASHKEY get_key_after(MOVE move);
     void  PUSH_MOVE(MOVE);
     void  PUSH_NULL();
     void  POP_MOVE();
@@ -829,7 +832,7 @@ typedef struct SEARCHER{
     int   probe_pawn_hash(const HASHKEY&,SCORE&,PAWNREC&);
     void  record_eval_hash(const HASHKEY&,int);
     int   probe_eval_hash(const HASHKEY&,int&);
-    void  prefetch_tt();
+    void  prefetch_tt(const HASHKEY&);
     bool  san_mov(MOVE& move,char* s);
     void  str_mov(MOVE& move,char* s);
     void  mov_str(const MOVE& move,char* s);

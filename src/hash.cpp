@@ -290,23 +290,13 @@ int SEARCHER::probe_eval_hash(const HASHKEY& hash_key,int& score) {
 /*
 prefetch tt
 */
-void SEARCHER::prefetch_tt() {
+void SEARCHER::prefetch_tt(const HASHKEY& hkey) {
 #ifdef HAS_PREFETCH
     /*main hashtable*/
     PPROCESSOR proc = processors[0];
     if(proc->hash_tab[white]) {
-        uint32_t key = uint32_t(hash_key & PROCESSOR::hash_tab_mask);
+        uint32_t key = uint32_t(hkey & PROCESSOR::hash_tab_mask);
         PREFETCH_T0(proc->hash_tab[player] + key);
-    }
-    /*eval/pawn hashtable*/
-    proc = processors[processor_id];
-    if(proc->pawn_hash_tab) {
-        uint32_t key = uint32_t(pawn_hash_key & PROCESSOR::pawn_hash_tab_mask);
-        PREFETCH_T0(proc->pawn_hash_tab + key);
-    }
-    if(proc->hash_tab[white]) {
-        uint32_t key = uint32_t(hash_key & PROCESSOR::eval_hash_tab_mask);
-        PREFETCH_T0(proc->eval_hash_tab + key);
     }
 #endif
 }

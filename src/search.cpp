@@ -129,9 +129,6 @@ FORCEINLINE int SEARCHER::on_node_entry() {
         return true;
     }
 
-    /*prefetch*/
-    prefetch_tt();
-
     /*initialize node*/
     pstack->gen_status = GEN_START;
     pstack->flag = UPPER;
@@ -277,9 +274,6 @@ FORCEINLINE int SEARCHER::on_node_entry() {
 }
 
 FORCEINLINE int SEARCHER::on_qnode_entry() {
-
-    /*prefetch*/
-    prefetch_tt();
 
     /*initialize node*/
     pstack->gen_status = GEN_START;
@@ -752,6 +746,9 @@ START:
                         && (sb->pstack->search_state & ~MOVE_MASK) == SINGULAR_SEARCH) {
                             continue;
                     }
+                    /*prefetch tt entry*/
+                    if(!is_special(sb->pstack->current_move))
+                        sb->prefetch_tt(sb->get_key_after(sb->pstack->current_move));
                     /*
                     * play the move
                     */
@@ -1158,6 +1155,10 @@ void SEARCHER::qsearch() {
                     pstack->best_score = -MATE_SCORE + WIN_PLY * (ply + 1);
                 GOBACK_Q(true);
             }
+
+            /*prefetch tt entry*/
+            if(!is_special(pstack->current_move))
+                prefetch_tt(get_key_after(pstack->current_move));
 
             pstack->legal_moves++;
 
