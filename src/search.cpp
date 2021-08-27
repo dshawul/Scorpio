@@ -27,7 +27,8 @@ static PARAM razor_margin = 120;
 static PARAM futility_margin = 130;
 static PARAM probcut_margin = 195;
 static PARAM lmp_count[] = {0, 10, 10, 15, 21, 24, 44, 49};
-static PARAM lmr_count[2][8] = {{4, 6, 7, 8, 16, 32, 48, 64},{1, 2, 3, 4, 8, 16, 24, 32}};
+static PARAM lmr_count[2][8] = {{2, 4, 6, 8, 16, 32, 48, 64},
+                                {1, 2, 3, 4,  8, 16, 24, 32}};
 static PARAM lmr_ntype_count[] = {17, 5, 5};
 
 /* shared variables */
@@ -2137,12 +2138,16 @@ MOVE SEARCHER::find_best() {
             }
         } else {
             /*weight winning AB scores more*/
-            if(root_score >= 600)
+            if(root_score >= 800)
                 factor *= 10;
-            else if(root_score >= 400)
+            else if(root_score >= 600)
+                factor *= 6;
+            else if(root_score >= 500)
                 factor *= 4;
-            else if(root_score >= 300)
+            else if(root_score >= 400)
                 factor *= 3;
+            else if(root_score >= 300)
+                factor *= 2.5;
             else if(root_score >= 200)
                 factor *= 1.5;
 
