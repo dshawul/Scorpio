@@ -157,7 +157,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
         return false;
     }
 
-    /*mate distance prunining*/
+    /*mate distance pruning*/
     if(pstack->alpha > MATE_SCORE - WIN_PLY * (ply)) {
         pstack->best_score = pstack->alpha;
         return true; 
@@ -293,7 +293,7 @@ FORCEINLINE int SEARCHER::on_qnode_entry() {
         pstack->next_node_type = ALL_NODE;
     }
 
-    /*mate distance prunining*/
+    /*mate distance pruning*/
     if(pstack->alpha > MATE_SCORE - WIN_PLY * ply) {
         pstack->best_score = pstack->alpha;
         return true; 
@@ -439,25 +439,25 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
         && noncap_reduce
         && ABS((pstack - 1)->best_score) != MATE_SCORE
         ) {
-            //late move prunining
+            //late move pruning
             if(depth <= 7) {
                 int clmp = (improving ? lmp_count[depth] : lmp_count[depth] / 2);
                 if(nmoves >= clmp)
                     return true;
             }
 
-            //see prunining
+            //see pruning
             if(PIECE(m_piece(move)) != king
                 && piece_see_v[m_piece(move)] >= 100 * depth 
                 && see(move) <= -100 * depth)
                 return true;
 
-            //history prunining
+            //history pruning
             const MOVE& cMove = hstack[hply - 2].move;
             if(depth <= 3 && REF_FUP_HISTORY(cMove,move) <= -(MAX_HIST >> 4))
                 return true;
 
-            //futility prunining
+            //futility pruning
             if(depth <= 7) { 
                 score = (pstack - 1)->static_eval;
                 if(score + futility_margin * depth < (pstack - 1)->alpha) {
@@ -490,8 +490,8 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
         }
         //has tt move
         if((pstack-1)->hash_move == (pstack-1)->best_move) {
-            //reduce early moves
-            if(nmoves < lmr_count[0][0] && pstack->depth > 1) { reduce(1); }
+            //reduce late moves
+            if(nmoves >= 8 && pstack->depth > 1) { reduce(1); }
             //capture tt move
             if(is_cap_prom((pstack-1)->hash_move)) {
                 if(pstack->depth > 1) { reduce(1); }
