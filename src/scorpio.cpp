@@ -806,7 +806,7 @@ int internal_commands(char** commands,char* command,int& command_num) {
         } else {
             EPD epd;
             epd.open(source);
-            main_searcher->worker_thread_all(&epd,fb,task,(task == 8));
+            main_searcher->worker_thread_all(&epd,fb,task,(task == 9));
             epd.close();
         }
 

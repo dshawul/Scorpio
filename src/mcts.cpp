@@ -2173,6 +2173,17 @@ typedef struct TRAIN {
 void SEARCHER::launch_worker_threads() {
 
 #ifdef PARALLEL
+    /*wakeup threads*/
+    for(int i = 1;i < PROCESSOR::n_processors;i++) {
+        processors[i]->state = WAIT;
+        processors[i]->signal();
+    }
+#if defined(CLUSTER)
+    PROCESSOR::set_mt_state(WAIT);
+#endif
+#endif
+
+#ifdef PARALLEL
     /*attach helper processor here once*/
     l_lock(lock_smp);
     for(int i = 1;i < PROCESSOR::n_processors;i++) {
@@ -2190,6 +2201,14 @@ void SEARCHER::launch_worker_threads() {
     worker_thread();
 #endif
 
+#ifdef PARALLEL
+    /*park threads*/
+    for(int i = 1;i < PROCESSOR::n_processors;i++)
+        processors[i]->state = PARK;
+#if defined(CLUSTER)
+    PROCESSOR::set_mt_state(PARK);
+#endif
+#endif
 }
 
 /*selfplay with multiple threads*/
