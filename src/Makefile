@@ -73,6 +73,11 @@ else ifeq ($(COMP),pgcc-cluster)
 	CXX=mpicxx -cxx=pgc++
 	override COMP=pgcc
 	DEFINES += -DCLUSTER
+else ifeq ($(COMP),win-cluster)
+	CXX=mpicxx -cxx=x86_64-w64-mingw32-g++
+	override COMP=win
+	DEFINES += -DCLUSTER
+	STRIP=x86_64-w64-mingw32-strip
 else ifeq ($(COMP),gcc)
 	CXX=g++
 else ifeq ($(COMP),clang)

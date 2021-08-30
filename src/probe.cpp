@@ -5,6 +5,8 @@
 #    include <dlfcn.h>
 #    undef dlsym
 extern "C" void *(*dlsym(void *handle, const char *symbol))();
+#else
+#    include <io.h>
 #endif
 
 enum egbb_colors {

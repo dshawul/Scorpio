@@ -42,7 +42,7 @@ Some definitions to include/remove code
 #endif
 #include <vector>
 #ifdef CLUSTER
-#include <list>
+#  include <list>
 #  include "mpi.h"
 #endif
 #include "my_types.h"
