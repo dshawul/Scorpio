@@ -22,7 +22,6 @@ HPP = scorpio.h my_types.h params.h
 #  DMAX_CPUS=n     --  Compile for maximum of n cpus. Default is 32                 
 #  DYBW            --  Compile with YBW
 #  DTUNE           --  Compile evaluation tuning code. [NOT recommended to turn on]
-#  DTHREAD_POLLING --  Poll for MPI message using a thread. 
 #  DMYDEBUG        --  Turn on some MPI debugging
 #  DLOG_FILE       --  Include logging code
 #  DBOOK_PROBE     --  Include book probing code
@@ -37,7 +36,6 @@ ifneq ($(COMP),arm)
     DEFINES += -DHAS_PREFETCH
     DEFINES += -DUSE_SPINLOCK
 endif
-DEFINES += -DTHREAD_POLLING
 DEFINES += -DLOG_FILE
 DEFINES += -DBOOK_PROBE
 DEFINES += -DBOOK_CREATE

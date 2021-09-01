@@ -21,11 +21,9 @@ static SPLIT_MESSAGE* global_split;
 /**
 * Message polling thread for cluster
 */
-#ifdef THREAD_POLLING
 static void CDECL check_messages(void*) {
     PROCESSOR::message_idle_loop();
 }
-#endif
 static std::atomic_int message_thread_state = {PARK};
 void PROCESSOR::set_mt_state(int state) {
     message_thread_state = state;
@@ -59,10 +57,8 @@ void PROCESSOR::init(int argc, char* argv[]) {
     /*global split point*/
     best_moves.resize(n_hosts);
     global_split = new SPLIT_MESSAGE[n_hosts];
-#ifdef THREAD_POLLING
     if(n_hosts > 1)
         message_thread = t_create(check_messages,(void*)0);
-#endif
 }
 /*
 * MPI calls
@@ -594,17 +590,11 @@ void PROCESSOR::idle_loop() {
         if(!skip_message) {
 #ifdef CLUSTER
             int message_id,source;
-#   ifdef THREAD_POLLING
             if(message_available) {
                 message_id = g_message_id;
                 source = g_source_id;
                 handle_message(source,message_id);
             }
-#   else
-            while(IProbe(source,message_id))
-                handle_message(source,message_id);
-            offer_help();
-#   endif
 #endif
         }
         /*end*/

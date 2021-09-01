@@ -19,7 +19,6 @@ Some definitions to include/remove code
 #   define BOOK_CREATE
 #   define EGBB
 // #    define CLUSTER
-// #    define THREAD_POLLING
 // #    define TUNE
 // #    define NODES_PRIOR
 // #    define CUTECHESS_FIX
@@ -1140,7 +1139,6 @@ typedef struct PROCESSOR {
     static std::vector<MOVE> best_moves;
     static void cancel_idle_hosts();
     static void quit_hosts();
-    static int MESSAGE_POLL_NODES;
     static int CLUSTER_SPLIT_DEPTH;
     static int vote_weight;
     static void set_mt_state(int);

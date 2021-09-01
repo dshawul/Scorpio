@@ -48,7 +48,6 @@ int use_abdada_smp = 0;
 
 #ifdef CLUSTER
 std::atomic_int PROCESSOR::message_available = {0};
-int PROCESSOR::MESSAGE_POLL_NODES = 200;
 int PROCESSOR::CLUSTER_SPLIT_DEPTH = 8;
 int PROCESSOR::host_id;
 char PROCESSOR::host_name[256];

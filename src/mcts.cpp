@@ -1627,16 +1627,7 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
             }
         /*all threads searching same tree*/
         } else if(processor_id == 0) {
-
-            /*check for messages from other hosts*/
-#ifdef CLUSTER
-#   ifndef THREAD_POLLING
-            if(root->visits - ovisits >= visits_poll) {
-                ovisits = root->visits;
-                processors[processor_id]->idle_loop();
-            }
-#   endif
-#endif  
+ 
             /*rank 0*/
             if(true CLUSTER_CODE(&& PROCESSOR::host_id == 0)) { 
                 /*check quit*/

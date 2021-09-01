@@ -260,17 +260,6 @@ FORCEINLINE int SEARCHER::on_node_entry() {
         } 
     }
 
-    /*check for messages from other hosts*/
-#ifdef CLUSTER
-#   ifndef THREAD_POLLING
-    if(processor_id == 0 && 
-       nodes > message_check + PROCESSOR::MESSAGE_POLL_NODES) {
-        processors[processor_id]->idle_loop();
-        message_check = nodes;
-    }
-#   endif
-#endif
-
     return false;
 }
 
@@ -1549,7 +1538,7 @@ void SEARCHER::search_ab_prior() {
 #endif
 }
 /*
-Find best move using alpha-beta or mcts
+Iterative deepening
 */
 MOVE SEARCHER::iterative_deepening(bool& montecarlo_skipped) {
     int score;
@@ -2349,9 +2338,6 @@ bool check_search_params(char** commands,char* command,int& command_num) {
     } else if(!strcmp(command, "cluster_depth")) {
         CLUSTER_CODE(PROCESSOR::CLUSTER_SPLIT_DEPTH = atoi(commands[command_num]));
         command_num++;
-    } else if(!strcmp(command, "message_poll_nodes")) {
-        CLUSTER_CODE(PROCESSOR::MESSAGE_POLL_NODES = atoi(commands[command_num]));
-        command_num++;
     } else {
         return false;
     }
@@ -2363,7 +2349,6 @@ void print_search_params() {
     SMP_CODE(print_spin("smp_depth",PROCESSOR::SMP_SPLIT_DEPTH,1,10));
     CLUSTER_CODE(print_combo("cluster_type",parallelt,use_abdada_cluster,3));
     CLUSTER_CODE(print_spin("cluster_depth",PROCESSOR::CLUSTER_SPLIT_DEPTH,1,16));
-    CLUSTER_CODE(print_spin("message_poll_nodes",PROCESSOR::MESSAGE_POLL_NODES,10,20000));
     print_spin("contempt",contempt,0,100);
     print_spin("alphabeta_man_c",alphabeta_man_c,0,32);
     print_check("multipv",multipv);
