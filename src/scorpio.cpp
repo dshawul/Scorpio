@@ -56,7 +56,7 @@ int PROCESSOR::prev_dest = -1;
 int PROCESSOR::vote_weight = 100;
 const char *const PROCESSOR::message_str[] = {
     "QUIT","INIT","HELP","CANCEL","SPLIT","MERGE","PING","PONG",
-    "GOROOT","RECORD_TT","PROBE_TT","PROBE_TT_RESULT"
+    "BMOVE","GOROOT","RECORD_TT","PROBE_TT","PROBE_TT_RESULT"
 };
 int use_abdada_cluster = 0;
 #endif

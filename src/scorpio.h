@@ -1116,7 +1116,7 @@ typedef struct PROCESSOR {
         QUIT = 0,INIT,HELP,CANCEL,SPLIT,MERGE,PING,PONG,
         BMOVE, GOROOT, RECORD_TT,PROBE_TT,PROBE_TT_RESULT
     };
-    static const char *const message_str[12];
+    static const char *const message_str[13];
     static int host_id;
     static char host_name[256];
     static int help_messages;

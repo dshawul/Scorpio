@@ -101,7 +101,7 @@ bool PROCESSOR::IProbe(int& source,int& message_id) {
         message_id = mpi_status.MPI_TAG;
         source = mpi_status.MPI_SOURCE;
 #ifdef MYDEBUG
-        print("<" FMT64 "> from [%d] to [%d] message \"%-6s\" \n",
+        printf("<%012u> from [%d] to [%d] message \"%-6s\" \n",
             get_time(),source,host_id,message_str[message_id]);
 #endif
         return true;
