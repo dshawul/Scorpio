@@ -157,6 +157,7 @@ Prefetch
 #else
 #   define PREFETCH_T0(addr)
 #endif
+
 /*
 * Threads
 */
@@ -178,6 +179,7 @@ Prefetch
 #else
 #   define t_pause()  asm volatile("pause\n": : :"memory")
 #endif
+
 /*
 *locks
 */
@@ -212,6 +214,7 @@ Prefetch
 #   define l_lock(x)     m_lock(x)
 #   define l_unlock(x)   m_unlock(x)
 #endif
+
 /*
 * Performance counters
 */
@@ -231,8 +234,9 @@ inline double get_diff(TIMER s,TIMER e) {
     return (e.tv_sec - s.tv_sec) * 1e9 + (e.tv_nsec - s.tv_nsec);
 }
 #endif
+
 /*
-*optional compilation
+*optional code compilation
 */
 #ifdef CLUSTER
 #    define CLUSTER_CODE(x) x
@@ -245,7 +249,4 @@ inline double get_diff(TIMER s,TIMER e) {
 #    define DEBUG_CODE(x)
 #endif
 
-/*
-end
-*/
 #endif

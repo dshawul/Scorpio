@@ -430,18 +430,15 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
                 if(nmoves >= clmp)
                     return true;
             }
-
             //see pruning
             if(PIECE(m_piece(move)) != king
                 && piece_see_v[m_piece(move)] >= 100 * depth 
                 && see(move) <= -100 * depth)
                 return true;
-
             //history pruning
             const MOVE& cMove = hstack[hply - 2].move;
             if(depth <= 3 && REF_FUP_HISTORY(cMove,move) <= -(MAX_HIST >> 4))
                 return true;
-
             //futility pruning
             if(depth <= 7) { 
                 score = (pstack - 1)->static_eval;

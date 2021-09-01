@@ -517,10 +517,22 @@ Node* Node::Max_UCB_select(Node* n, bool has_ab, SEARCHER* ps) {
             /*compute Q considering fpu and virtual loss*/
             uct = current->compute_Q(fpu, collision_lev, has_ab);
 
+            float pol = current->policy;
+#ifdef CLUSTER
+            /*double policy of AB best move*/
+            if(is_root && use_abdada_cluster && PROCESSOR::n_hosts > 1) {
+                for(int j = 0;j < PROCESSOR::n_hosts;j++) {
+                    if(j != PROCESSOR::host_id) {
+                        if(current->move == PROCESSOR::best_moves[j])
+                            pol *= 2;
+                    }
+                }
+            }
+#endif
             if(select_formula == 0)
-                uct += factor * (current->policy / (current->visits + 1));
+                uct += factor * (pol / (current->visits + 1));
             else
-                uct += factor * sqrt(current->policy / (current->visits + 1));
+                uct += factor * sqrt(pol / (current->visits + 1));
 
             if(forced_playouts && is_selfplay && is_root && current->visits > 0) {
                 unsigned int n_forced = sqrt(2 * current->policy * n->visits);
