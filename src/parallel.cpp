@@ -335,13 +335,11 @@ void PROCESSOR::handle_message(int source,int message_id) {
         for(int i = 0;i < PROCESSOR::n_hosts;i++)
             PROCESSOR::best_moves[i] = 0;
 
-#ifdef PARALLEL
         /*wakeup processors*/
         for(i = 0;i < n_processors;i++) {
             processors[i]->state = WAIT;
             processors[i]->signal();
         }
-#endif
         /***********************************
         * Best move from slave hosts
         ************************************/
@@ -479,8 +477,34 @@ void PROCESSOR::message_idle_loop() {
         }
     }
 }
-
 #endif
+/**
+* idle loop for all other threads
+*/
+void PROCESSOR::idle_loop() {
+    bool skip_message = ((this != processors[0]) || (n_hosts == 1));
+    do {
+        if(state == PARK) {
+            wait();
+        } else if(state == WAIT) {
+            t_yield();
+            if(SEARCHER::use_nn) 
+                t_sleep(SEARCHER::delay);
+        }
+        /*check message*/
+        if(!skip_message) {
+#ifdef CLUSTER
+            int message_id,source;
+            if(message_available) {
+                message_id = g_message_id;
+                source = g_source_id;
+                handle_message(source,message_id);
+            }
+#endif
+        }
+        /*end*/
+    } while(state <= WAIT);
+}
 /**
 * Record hashtable entry in distributed system
 */
@@ -572,35 +596,6 @@ int SEARCHER::PROBE_HASH(
                 mate_threat,singular,h_depth,exclusiveP);
     }
 }
-/**
-* idle loop for all other threads
-*/
-#if defined(PARALLEL) || defined(CLUSTER)
-void PROCESSOR::idle_loop() {
-    bool skip_message = ((this != processors[0]) || (n_hosts == 1));
-    do {
-        if(state == PARK) {
-            wait();
-        } else if(state == WAIT) {
-            t_yield();
-            if(SEARCHER::use_nn) 
-                t_sleep(SEARCHER::delay);
-        }
-        /*check message*/
-        if(!skip_message) {
-#ifdef CLUSTER
-            int message_id,source;
-            if(message_available) {
-                message_id = g_message_id;
-                source = g_source_id;
-                handle_message(source,message_id);
-            }
-#endif
-        }
-        /*end*/
-    } while(state <= WAIT);
-}
-#endif
 /**
 exit scorpio 
 */
@@ -723,8 +718,6 @@ void SEARCHER::get_init_pos(INIT_MESSAGE* init) {
 }
 #endif
 
-#ifdef PARALLEL
-
 /**
 * Update bounds,score,move
 */
@@ -770,67 +763,7 @@ int SEARCHER::get_smp_move() {
     l_unlock(master->lock);
     return true;
 }
-/**
-* Create/kill search thread
-*/
-static void reset_tables(PPROCESSOR proc, int tid) {
-    if(tid < PROCESSOR::n_cores || !(montecarlo && SEARCHER::use_nn)) {
-        if(!(montecarlo && frac_abprior == 0)) {
-            proc->reset_hash_tab(tid);
-            proc->reset_eval_hash_tab();
-        }
-        if(!SEARCHER::use_nnue) {
-            proc->reset_pawn_hash_tab();
-        }
-    }
-}
-static void CDECL thread_proc(int id) {
-    long tid = id;
-    PPROCESSOR proc = new PROCESSOR();
-    proc->searcher = NULL;
-    proc->state = PARK;
-    processors[tid] = proc;
-    reset_tables(proc,tid);
-    proc->clear_tables(id);
-    search((PPROCESSOR)proc);
-}
-void PROCESSOR::create(int id) {
-    threads[id] = t_create(thread_proc,id);
-}
-void PROCESSOR::kill(int id) {
-    PPROCESSOR proc = processors[id];
-    proc->state = KILL;
-    while(proc->state == KILL) 
-        t_yield();
-    proc->delete_tables();
-    delete proc;
-    processors[id] = 0;
-}
-/**
-* Attach processor to help at the split node.
-* Copy board and other relevant data..
-*/
-void SEARCHER::attach_processor(int new_proc_id) {
-    int j = 0;
-    for(j = 0; (j < MAX_SEARCHERS_PER_CPU) && processors[new_proc_id]->searchers[j].used; j++);
-    if(j < MAX_SEARCHERS_PER_CPU) {
-        PSEARCHER psearcher = &processors[new_proc_id]->searchers[j];
-        psearcher->COPY(this);
-        psearcher->clear_block();
-        psearcher->master = this;
-        psearcher->processor_id = new_proc_id;
-        processors[new_proc_id]->searcher = psearcher;
-        workers[new_proc_id] = psearcher;
-        n_workers++;
-    }
-}
-bool PROCESSOR::has_block() {
-    for(int j = 0;j < MAX_SEARCHERS_PER_CPU; j++) {
-        if(!searchers[j].used)
-            return true;
-    }
-    return false;
-}
+
 /**
 * Copy local search result of this thread back to the master. 
 * We have been updating search bounds whenever we got a new move.
@@ -880,6 +813,105 @@ void SEARCHER::update_master(int skip) {
     /*zero helper*/
     master->workers[processor_id] = 0;
     master->n_workers--;
+}
+
+/**
+* Attach processor to help at the split node.
+* Copy board and other relevant data..
+*/
+void SEARCHER::attach_processor(int new_proc_id) {
+    int j = 0;
+    for(j = 0; (j < MAX_SEARCHERS_PER_CPU) && processors[new_proc_id]->searchers[j].used; j++);
+    if(j < MAX_SEARCHERS_PER_CPU) {
+        PSEARCHER psearcher = &processors[new_proc_id]->searchers[j];
+        psearcher->COPY(this);
+        psearcher->clear_block();
+        psearcher->master = this;
+        psearcher->processor_id = new_proc_id;
+        processors[new_proc_id]->searcher = psearcher;
+        workers[new_proc_id] = psearcher;
+        n_workers++;
+    }
+}
+bool PROCESSOR::has_block() {
+    for(int j = 0;j < MAX_SEARCHERS_PER_CPU; j++) {
+        if(!searchers[j].used)
+            return true;
+    }
+    return false;
+}
+/**
+* clear searcher block
+*/
+void SEARCHER::clear_block() {
+    master = 0;
+    stop_ply = ply;
+    stop_searcher = 0;
+    finish_search = false;
+    skip_nn = false;
+    used = true;
+    pstack->pv_length = ply;
+    pstack->best_move = 0;
+#ifdef CLUSTER
+    n_host_workers = 0;
+    host_workers.clear();
+#endif
+    n_workers = 0;
+    for(int i = 0; i < PROCESSOR::n_processors;i++)
+        workers[i] = 0;
+
+    /*reset counts*/
+    nodes = 0;
+    qnodes = 0;
+    ecalls = 0;
+    nnecalls = 0;
+    time_check = 0;
+    splits = 0;
+    bad_splits = 0;
+    egbb_probes = 0;
+    seldepth = 0;
+}
+/**
+* Stop workers at split point
+*/
+void SEARCHER::stop_workers() {
+    l_lock(lock);
+    for(int i = 0; i < PROCESSOR::n_processors; i++) {
+        SEARCHER* pworker = workers[i].load();
+        if(pworker) {
+            if(pworker->n_workers) 
+                pworker->stop_workers();
+            pworker->stop_searcher = 1;
+        }
+    }
+#ifdef CLUSTER
+    if(n_host_workers) {
+        std::list<int>::iterator it;
+        for(it = host_workers.begin();it != host_workers.end();++it)
+            PROCESSOR::ISend(*it,PROCESSOR::QUIT);
+    }
+#endif
+    l_unlock(lock);
+}
+
+/**
+* Fail high handler
+*/
+void SEARCHER::handle_fail_high() {
+    /*only once*/
+    l_lock(lock);
+    if(stop_searcher) {
+        l_unlock(lock);
+        return;
+    }
+    stop_searcher = 1;
+    l_unlock(lock);
+
+    bad_splits++;
+    /*stop workers*/
+    l_lock(lock_smp);
+    stop_workers();
+    l_unlock(lock_smp);
 }
 
 /**
@@ -956,83 +988,43 @@ int SEARCHER::check_split() {
     }
     return false;
 }
+
 /**
-* Stop workers at split point
+* Create/kill search thread
 */
-void SEARCHER::stop_workers() {
-    l_lock(lock);
-    for(int i = 0; i < PROCESSOR::n_processors; i++) {
-        SEARCHER* pworker = workers[i].load();
-        if(pworker) {
-            if(pworker->n_workers) 
-                pworker->stop_workers();
-            pworker->stop_searcher = 1;
+static void reset_tables(PPROCESSOR proc, int tid) {
+    if(tid < PROCESSOR::n_cores || !(montecarlo && SEARCHER::use_nn)) {
+        if(!(montecarlo && frac_abprior == 0)) {
+            proc->reset_hash_tab(tid);
+            proc->reset_eval_hash_tab();
+        }
+        if(!SEARCHER::use_nnue) {
+            proc->reset_pawn_hash_tab();
         }
     }
-#ifdef CLUSTER
-    if(n_host_workers) {
-        std::list<int>::iterator it;
-        for(it = host_workers.begin();it != host_workers.end();++it)
-            PROCESSOR::ISend(*it,PROCESSOR::QUIT);
-    }
-#endif
-    l_unlock(lock);
 }
-
-#endif
-
-#if defined(PARALLEL) || defined(CLUSTER)
-/**
-* Fail high handler
-*/
-void SEARCHER::handle_fail_high() {
-    /*only once*/
-    l_lock(lock);
-    if(stop_searcher) {
-        l_unlock(lock);
-        return;
-    }
-    stop_searcher = 1;
-    l_unlock(lock);
-
-    bad_splits++;
-    /*stop workers*/
-    l_lock(lock_smp);
-    stop_workers();
-    l_unlock(lock_smp);
+static void CDECL thread_proc(int id) {
+    long tid = id;
+    PPROCESSOR proc = new PROCESSOR();
+    proc->searcher = NULL;
+    proc->state = PARK;
+    processors[tid] = proc;
+    reset_tables(proc,tid);
+    proc->clear_tables(id);
+    search((PPROCESSOR)proc);
 }
-/**
-* clear searcher block
-*/
-void SEARCHER::clear_block() {
-    master = 0;
-    stop_ply = ply;
-    stop_searcher = 0;
-    finish_search = false;
-    skip_nn = false;
-    used = true;
-    pstack->pv_length = ply;
-    pstack->best_move = 0;
-#ifdef CLUSTER
-    n_host_workers = 0;
-    host_workers.clear();
-#endif
-    n_workers = 0;
-    for(int i = 0; i < PROCESSOR::n_processors;i++)
-        workers[i] = 0;
-
-    /*reset counts*/
-    nodes = 0;
-    qnodes = 0;
-    ecalls = 0;
-    nnecalls = 0;
-    time_check = 0;
-    splits = 0;
-    bad_splits = 0;
-    egbb_probes = 0;
-    seldepth = 0;
+void PROCESSOR::create(int id) {
+    threads[id] = t_create(thread_proc,id);
 }
-#endif
+void PROCESSOR::kill(int id) {
+    PPROCESSOR proc = processors[id];
+    proc->state = KILL;
+    while(proc->state == KILL) 
+        t_yield();
+    proc->delete_tables();
+    delete proc;
+    processors[id] = 0;
+}
 
 /**
 * Initialize mt number of threads by creating/deleting 
@@ -1045,7 +1037,6 @@ void init_smp(int mt) {
     PROCESSOR::n_processors = mt;
     reset_tables(proc,0);
 
-#ifdef PARALLEL
     if(n_procs < mt) {
         for(int i = 1; i < MAX_CPUS;i++) {
             if(n_procs < mt) {
@@ -1067,7 +1058,6 @@ void init_smp(int mt) {
             }
         }
     }
-#endif
 }
 
 /**

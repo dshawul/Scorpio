@@ -76,10 +76,8 @@ static CDECL void clear_hash_proc(int id) {
 }
 
 void PROCESSOR::clear_hash_tables() {
-#ifdef PARALLEL
     for(int i = 1;i < PROCESSOR::n_processors;i++)
         processors[i]->state = PARK;
-#endif
 
     int ncores = (montecarlo && SEARCHER::use_nn) ? 
             PROCESSOR::n_cores : PROCESSOR::n_processors;
@@ -90,12 +88,10 @@ void PROCESSOR::clear_hash_tables() {
         t_join(mthreads[id]);
     delete[] mthreads;
 
-#ifdef PARALLEL
     for(int i = 1;i < PROCESSOR::n_processors;i++) {
         processors[i]->state = WAIT;
         processors[i]->signal();
     }
-#endif
 }
 
 /*

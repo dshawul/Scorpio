@@ -50,7 +50,6 @@ FORCEINLINE void SEARCHER::UPDATE_PV(MOVE move)  {
 bool SEARCHER::hash_cutoff() {
     /*abdada*/
     bool exclusiveP = false;
-#ifdef PARALLEL
     if(!montecarlo && (use_abdada_smp == 1) && ply > 1
         && PROCESSOR::n_processors > 1
         && (pstack - 1)->depth > PROCESSOR::SMP_SPLIT_DEPTH
@@ -59,7 +58,6 @@ bool SEARCHER::hash_cutoff() {
         ) {
         exclusiveP = true;
     }
-#endif
 
     /*probe*/
     pstack->hash_move = 0;
@@ -68,7 +66,6 @@ bool SEARCHER::hash_cutoff() {
         pstack->hash_score,pstack->hash_move,pstack->alpha,pstack->beta,pstack->mate_threat,
         pstack->singular,pstack->hash_depth,exclusiveP);
 
-#ifdef PARALLEL
     if(exclusiveP) {
         if(pstack->hash_flags == CRAP) {
             /*move is taken!*/
@@ -81,7 +78,6 @@ bool SEARCHER::hash_cutoff() {
             RECORD_HASH(player,hash_key,255,0,CRAP,0,0,0,0,0);
         }
     }
-#endif
 
     /*legality checking*/
     if(pstack->hash_move
@@ -545,28 +541,23 @@ Back up to previous ply
 /*
 Iterative search.
 */
-#ifdef PARALLEL
 void search(PROCESSOR* const proc, bool single)
-#else
-void search(SEARCHER* const sb, bool single)
-#endif
 {
     MOVE move;
     int score = 0;
-#ifdef PARALLEL
     PSEARCHER sb = proc->searcher;
     int active_workers;
     CLUSTER_CODE(int active_hosts);
-#endif
+
     /*
     * First processor goes on searching, while the
     * rest go to sleep mode.
     */
-    if(sb SMP_CODE(&& proc->state == GO)) {
+    if(sb && proc->state == GO) {
         sb->stop_ply = sb->ply;
         goto NEW_NODE;
     } else {
-        SMP_CODE(goto IDLE_START);
+        goto IDLE_START;
     }
 
     /*
@@ -678,7 +669,6 @@ START:
                 goto START;
             case NORMAL_MOVE:
                 while(true) {
-#ifdef PARALLEL
                     /*
                     * Get Smp move
                     */
@@ -686,12 +676,10 @@ START:
                         && sb->master && sb->stop_ply == sb->ply) {
                         if(!sb->get_smp_move())
                             GOBACK(false); //I
-                    } else
-#endif
                     /*
                     * Get a move in the regular manner
                     */
-                    {
+                    } else {
                         if(!sb->get_move()) {
                             if(!sb->pstack->legal_moves) {
                                 if(sb->hstack[sb->hply - 1].checks)
@@ -699,9 +687,7 @@ START:
                                 else 
                                     sb->pstack->best_score = 0;
                                 sb->pstack->flag = EXACT;
-                            }  
-#ifdef PARALLEL
-                            else if((use_abdada_smp == 1)
+                            } else if((use_abdada_smp == 1)
                                 && !sb->pstack->all_done
                                 && !sb->pstack->second_pass
                                 ) {
@@ -710,10 +696,8 @@ START:
                                     sb->pstack->gen_status = GEN_RESET;
                                     continue;
                             }
-#endif
                             GOBACK(true);
                         } else {
-#ifdef PARALLEL
                             if((use_abdada_smp == 1)
                                 && !sb->pstack->all_done
                                 && sb->pstack->second_pass
@@ -722,7 +706,6 @@ START:
                                     sb->pstack->legal_moves++;
                                     continue;
 			                }
-#endif
                         }
 
                         sb->pstack->legal_moves++;
@@ -792,139 +775,135 @@ POP:
             (sb->stop_searcher || sb->abort_search) ) ||
             sb->stop_ply == sb->ply
             ) {
-#ifndef PARALLEL
+            /*exit here on single processor search*/
+            if(single)
                 return;
-#else
-                /*exit here on single processor search*/
-                if(single)
-                    return;
-                /*
-                * Is this processor a slave?
-                */
-                if(sb->master) {
-                    l_lock(lock_smp);
-                    l_lock(sb->master->lock);
-                    sb->update_master(use_abdada_smp);
-                    active_workers = sb->master->n_workers;
-                    CLUSTER_CODE(active_hosts = sb->master->n_host_workers);
-                    l_unlock(sb->master->lock);
-                    l_unlock(lock_smp);
+            /*
+            * Is this processor a slave?
+            */
+            if(sb->master) {
+                l_lock(lock_smp);
+                l_lock(sb->master->lock);
+                sb->update_master(use_abdada_smp);
+                active_workers = sb->master->n_workers;
+                CLUSTER_CODE(active_hosts = sb->master->n_host_workers);
+                l_unlock(sb->master->lock);
+                l_unlock(lock_smp);
 #ifdef CLUSTER
-                    /* Wait until last helper host finishes*/ 
-                    if(!active_workers && active_hosts) {
-                        while(sb->master->n_host_workers) {
-                            proc->idle_loop();
-                            t_yield();
-                        }
-                        active_hosts = 0;
+                /* Wait until last helper host finishes*/ 
+                if(!active_workers && active_hosts) {
+                    while(sb->master->n_host_workers) {
+                        proc->idle_loop();
+                        t_yield();
                     }
-#endif
-                    /*
-                    * We have run out of work now. If this was the _last worker_, grab master 
-                    * search block and continue searching with it (i.e. backup). Otherwise goto 
-                    * idle mode until work is assigned. In a recursive search, only the thread 
-                    * that initiated the split can backup.
-                    */
-                    if(!use_abdada_smp
-                        && !active_workers 
-                        CLUSTER_CODE( && !active_hosts)
-                        ) {
-                            l_lock(lock_smp);
-                            SEARCHER* sbm = sb->master;
-                            /* switch worker processors*/
-                            if(sbm->processor_id != sb->processor_id && sbm->master) {
-                                sbm->master->workers[sbm->processor_id] = 0; 
-                                sbm->master->workers[sb->processor_id] = sbm;
-                            }
-                            sbm->processor_id = sb->processor_id;
-                            /*end*/
-                            sbm->stop_searcher = 0;
-                            sb->used = false;
-                            sb = sbm;
-                            proc->searcher = sbm;
-                            /*unlock*/
-                            l_unlock(lock_smp);
-
-                            GOBACK(true);
-                    } else {
-                        /*
-                        * make processor idle
-                        */ 
-                        l_lock(lock_smp);
-                        sb->used = false;
-                        if(proc->state == GO) {
-                            proc->searcher = NULL;
-                            proc->state = WAIT;
-                        }
-                        l_unlock(lock_smp);
-IDLE_START: 
-                        /*
-                        * processor's state loop
-                        */
-                        if(proc->state <= WAIT) {
-                            l_lock(lock_smp);       
-                            PROCESSOR::n_idle_processors++;
-                            PROCESSOR::set_num_searchers();
-                            l_unlock(lock_smp);
-
-                            proc->idle_loop();
-
-                            l_lock(lock_smp);       
-                            PROCESSOR::n_idle_processors--; 
-                            PROCESSOR::set_num_searchers();
-                            l_unlock(lock_smp);
-                        }
-                        if(proc->state == GO || proc->state == GOSP) {
-                            sb = proc->searcher;
-                            if(montecarlo || proc->state == GOSP) {
-                                if(proc->state == GOSP) {
-                                    proc->state = GO;
-                                    sb->worker_thread();
-                                } else
-                                    sb->search_mc();
-
-                                l_lock(lock_smp);
-                                sb->used = false;
-                                proc->searcher = NULL;
-                                proc->state = WAIT;
-                                l_unlock(lock_smp);
-
-                                goto IDLE_START;
-                            } else {
-                                if(!use_abdada_smp) 
-                                    goto START;
-                                else 
-                                    goto NEW_NODE;
-                            }
-                        } else if(proc->state == KILL) {
-                            proc->state = GO;
-                            return;
-                        }
-                    }
-                } else {
-                    /*
-                    * Only processor[0] can return from here to the root! If some other 
-                    * processor reached here first, switch to processor[0] and return from there. 
-                    * Also send the current processor to sleep.
-                    */
-                    if(sb->processor_id == 0) {
-                        return;
-                    } else {
-                        l_lock(lock_smp);
-                        if(!use_abdada_smp) {
-                            sb->processor_id = 0;
-                            processors[0]->searcher = sb;
-                            processors[0]->state = KILL;
-                        } else {
-                            sb->used = false;
-                        }
-                        proc->searcher = NULL;
-                        proc->state = WAIT;
-                        l_unlock(lock_smp);
-                        goto IDLE_START;
-                    }
+                    active_hosts = 0;
                 }
 #endif
+                /*
+                * We have run out of work now. If this was the _last worker_, grab master 
+                * search block and continue searching with it (i.e. backup). Otherwise goto 
+                * idle mode until work is assigned. In a recursive search, only the thread 
+                * that initiated the split can backup.
+                */
+                if(!use_abdada_smp
+                    && !active_workers 
+                    CLUSTER_CODE( && !active_hosts)
+                    ) {
+                        l_lock(lock_smp);
+                        SEARCHER* sbm = sb->master;
+                        /* switch worker processors*/
+                        if(sbm->processor_id != sb->processor_id && sbm->master) {
+                            sbm->master->workers[sbm->processor_id] = 0; 
+                            sbm->master->workers[sb->processor_id] = sbm;
+                        }
+                        sbm->processor_id = sb->processor_id;
+                        /*end*/
+                        sbm->stop_searcher = 0;
+                        sb->used = false;
+                        sb = sbm;
+                        proc->searcher = sbm;
+                        /*unlock*/
+                        l_unlock(lock_smp);
+
+                        GOBACK(true);
+                } else {
+                    /*
+                    * make processor idle
+                    */ 
+                    l_lock(lock_smp);
+                    sb->used = false;
+                    if(proc->state == GO) {
+                        proc->searcher = NULL;
+                        proc->state = WAIT;
+                    }
+                    l_unlock(lock_smp);
+IDLE_START: 
+                    /*
+                    * processor's state loop
+                    */
+                    if(proc->state <= WAIT) {
+                        l_lock(lock_smp);       
+                        PROCESSOR::n_idle_processors++;
+                        PROCESSOR::set_num_searchers();
+                        l_unlock(lock_smp);
+
+                        proc->idle_loop();
+
+                        l_lock(lock_smp);       
+                        PROCESSOR::n_idle_processors--; 
+                        PROCESSOR::set_num_searchers();
+                        l_unlock(lock_smp);
+                    }
+                    if(proc->state == GO || proc->state == GOSP) {
+                        sb = proc->searcher;
+                        if(montecarlo || proc->state == GOSP) {
+                            if(proc->state == GOSP) {
+                                proc->state = GO;
+                                sb->worker_thread();
+                            } else
+                                sb->search_mc();
+
+                            l_lock(lock_smp);
+                            sb->used = false;
+                            proc->searcher = NULL;
+                            proc->state = WAIT;
+                            l_unlock(lock_smp);
+
+                            goto IDLE_START;
+                        } else {
+                            if(!use_abdada_smp) 
+                                goto START;
+                            else 
+                                goto NEW_NODE;
+                        }
+                    } else if(proc->state == KILL) {
+                        proc->state = GO;
+                        return;
+                    }
+                }
+            } else {
+                /*
+                * Only processor[0] can return from here to the root! If some other 
+                * processor reached here first, switch to processor[0] and return from there. 
+                * Also send the current processor to sleep.
+                */
+                if(sb->processor_id == 0) {
+                    return;
+                } else {
+                    l_lock(lock_smp);
+                    if(!use_abdada_smp) {
+                        sb->processor_id = 0;
+                        processors[0]->searcher = sb;
+                        processors[0]->state = KILL;
+                    } else {
+                        sb->used = false;
+                    }
+                    proc->searcher = NULL;
+                    proc->state = WAIT;
+                    l_unlock(lock_smp);
+                    goto IDLE_START;
+                }
+            }
         }
         /*
         * decide to go back one step OR research
@@ -937,7 +916,6 @@ IDLE_START:
             sb->POP_NULL();
             break;
         case NORMAL_MOVE:
-#ifdef PARALLEL
             /*remeber skipped moves*/
             if((use_abdada_smp == 1)
                 && score == -SKIP_SCORE
@@ -947,7 +925,6 @@ IDLE_START:
                 sb->pstack->score_st[sb->pstack->current_index - 1] = score;
                 continue;
             }
-#endif
             /*research with full depth*/
             if(sb->pstack->reduction > 0
                 && score > (sb->pstack - 1)->alpha
@@ -1026,7 +1003,7 @@ IDLE_START:
                     }
 
                     if(score <= sb->pstack->alpha || score >= sb->pstack->beta);
-                    else SMP_CODE(if(!use_abdada_smp || !sb->processor_id))
+                    else if(!use_abdada_smp || !sb->processor_id)
                         sb->print_pv(sb->pstack->best_score);
 
                     if(!sb->chess_clock.pondering)
@@ -1046,27 +1023,23 @@ IDLE_START:
                 if(score >= sb->pstack->beta) {
                     sb->pstack->flag = LOWER;
                     if(!is_cap_prom(move))
-                        sb->update_history(move);
-#ifdef PARALLEL     
+                        sb->update_history(move);    
                     /* stop workers*/
                     if(!use_abdada_smp && !single && 
                         sb->master && sb->stop_ply == sb->ply)
                         sb->master->handle_fail_high();
-#endif
                     GOBACK(true);
                 }
                 sb->pstack->alpha = score;
                 sb->pstack->flag = EXACT;
                 sb->UPDATE_PV(move);
             }
-#ifdef PARALLEL 
             /* Check for split here since at least one move is searched now.
              * Reset the sb pointer to the child block pointed to by this processor.*/
             if(!use_abdada_smp && !single
                 && (sb->ply || sb->pstack->legal_moves >= 4) 
                 && sb->check_split())
                 sb = proc->searcher;
-#endif
             break;
         }
         /* Go up and process another move.
@@ -1223,7 +1196,6 @@ void SEARCHER::qsearch_nn() {
 searcher's search function
 */
 void SEARCHER::idle_loop_main() {
-#ifdef PARALLEL
     l_lock(lock_smp);       
     PROCESSOR::n_idle_processors++;
     PROCESSOR::set_num_searchers();
@@ -1238,38 +1210,30 @@ void SEARCHER::idle_loop_main() {
     PROCESSOR::n_idle_processors--;
     PROCESSOR::set_num_searchers();
     l_unlock(lock_smp);
-#endif
 }
 
 void SEARCHER::search() {
 
     /*mcts*/
     if(montecarlo) {
-#ifdef PARALLEL
-            /*attach helper processor here once*/
-            l_lock(lock_smp);
-            for(int i = 1;i < PROCESSOR::n_processors;i++) {
-                if(processors[i]->state == WAIT) {
-                    attach_processor(i);
-                    processors[i]->state = GO;
-                }
+        /*attach helper processor here once*/
+        l_lock(lock_smp);
+        for(int i = 1;i < PROCESSOR::n_processors;i++) {
+            if(processors[i]->state == WAIT) {
+                attach_processor(i);
+                processors[i]->state = GO;
             }
-            l_unlock(lock_smp);
+        }
+        l_unlock(lock_smp);
 
-            /*montecarlo search*/
-            search_mc();
+        /*montecarlo search*/
+        search_mc();
 
-            /*wait till all helpers become idle*/
-            stop_workers();
-            idle_loop_main();
-#else
-            search_mc();
-#endif
-
+        /*wait till all helpers become idle*/
+        stop_workers();
+        idle_loop_main();
     /*alphabeta*/
     } else {
-
-#ifdef PARALLEL
         /*attach helper processor here once for abdada*/
         if(use_abdada_smp) {
             l_lock(lock_smp);
@@ -1293,9 +1257,6 @@ void SEARCHER::search() {
             stop_workers();
             idle_loop_main();
         }
-#else
-        ::search(this);
-#endif
     }
 }
 /*
@@ -1304,11 +1265,7 @@ Get search score
 int SEARCHER::search_ab() {
     if(pstack->depth <= 0) qsearch_calls++;
     else search_calls++;
-#ifdef PARALLEL
     ::search(processors[processor_id],true);
-#else
-    ::search(this,true);
-#endif
     return pstack->best_score;
 }
 /*
@@ -1593,11 +1550,9 @@ MOVE SEARCHER::iterative_deepening(bool& montecarlo_skipped) {
             ((all_man_c <= alphabeta_man_c && root_score >= -80) || root_score >= 400);
 
         if(has_ab) {
-#ifdef PARALLEL
             /*park mcts threads*/
             for(int i = PROCESSOR::n_cores;i < PROCESSOR::n_processors;i++)
                 processors[i]->state = PARK;
-#endif
             /*prior ab search*/
             search_ab_prior();
 
@@ -1613,14 +1568,11 @@ MOVE SEARCHER::iterative_deepening(bool& montecarlo_skipped) {
             stop_searcher = 0;
             abort_search = 0;
             search_depth = MIN(search_depth + mcts_strategy_depth, MAX_PLY - 2);
-            
-#ifdef PARALLEL
             /* wake mcts threads*/
             for(int i = PROCESSOR::n_cores;i < PROCESSOR::n_processors;i++) {
                 processors[i]->state = WAIT;
                 processors[i]->signal();
             }
-#endif
         }
 
         /*rank nodes and reset bounds*/
@@ -1916,9 +1868,7 @@ MOVE SEARCHER::find_best() {
     seldepth = 0;
     prev_pv_length = 0;
     old_root_score = root_score;
-#ifdef PARALLEL
     PROCESSOR::set_num_searchers();
-#endif
     clear_history();
 
     /*fen*/
@@ -1992,7 +1942,6 @@ MOVE SEARCHER::find_best() {
 
     MOVE bmove = 0;
 
-#ifdef PARALLEL
     /*wakeup threads*/
     for(int i = 1;i < PROCESSOR::n_processors;i++) {
         processors[i]->state = WAIT;
@@ -2001,7 +1950,6 @@ MOVE SEARCHER::find_best() {
 #if defined(CLUSTER)
     PROCESSOR::set_mt_state(WAIT);
 #endif
-#endif
 
     /*iteratived deepening*/
     bool montecarlo_skipped = false;
@@ -2009,13 +1957,11 @@ MOVE SEARCHER::find_best() {
     if(!SEARCHER::chess_clock.pondering)
         SEARCHER::expected_move = stack[0].pv[1];
 
-#ifdef PARALLEL
     /*park threads*/
     for(int i = 1;i < PROCESSOR::n_processors;i++)
         processors[i]->state = PARK;
 #if defined(CLUSTER)
     PROCESSOR::set_mt_state(PARK);
-#endif
 #endif
 
 #ifdef CLUSTER
@@ -2320,11 +2266,9 @@ bool check_search_params(char** commands,char* command,int& command_num) {
 #endif
     } else if(!strcmp(command, "smp_type")) {
         command = commands[command_num++];
-#ifdef PARALLEL
         if(!strcmp(command,"YBW")) use_abdada_smp = 0;
         else if(!strcmp(command,"ABDADA")) use_abdada_smp = 1;
         else use_abdada_smp = 2;
-#endif
     } else if(!strcmp(command, "cluster_type")) {
         command = commands[command_num++];
 #ifdef CLUSTER
@@ -2333,7 +2277,7 @@ bool check_search_params(char** commands,char* command,int& command_num) {
         else use_abdada_cluster = 2;
 #endif
     } else if(!strcmp(command, "smp_depth")) {
-        SMP_CODE(PROCESSOR::SMP_SPLIT_DEPTH = atoi(commands[command_num]));
+        PROCESSOR::SMP_SPLIT_DEPTH = atoi(commands[command_num]);
         command_num++;
     } else if(!strcmp(command, "cluster_depth")) {
         CLUSTER_CODE(PROCESSOR::CLUSTER_SPLIT_DEPTH = atoi(commands[command_num]));
@@ -2345,8 +2289,8 @@ bool check_search_params(char** commands,char* command,int& command_num) {
 }
 void print_search_params() {
     static const char* parallelt[] = {"YBW", "ABDADA", "SHT"};
-    SMP_CODE(print_combo("smp_type",parallelt,use_abdada_smp,3));
-    SMP_CODE(print_spin("smp_depth",PROCESSOR::SMP_SPLIT_DEPTH,1,10));
+    print_combo("smp_type",parallelt,use_abdada_smp,3);
+    print_spin("smp_depth",PROCESSOR::SMP_SPLIT_DEPTH,1,10);
     CLUSTER_CODE(print_combo("cluster_type",parallelt,use_abdada_cluster,3));
     CLUSTER_CODE(print_spin("cluster_depth",PROCESSOR::CLUSTER_SPLIT_DEPTH,1,16));
     print_spin("contempt",contempt,0,100);

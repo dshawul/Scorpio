@@ -9,7 +9,6 @@ For others, they are set in Makefile
 #   define ARC_64BIT
 #   define HAS_POPCNT
 #   define HAS_PREFETCH
-#   define PARALLEL
 #   define USE_SPINLOCK
 #endif
 #ifdef HAS_BSF
@@ -182,62 +181,36 @@ Prefetch
 /*
 *locks
 */
-#if defined PARALLEL
 //atomic ops
-#   define l_set(x,v) x.exchange(v)
-#   define l_add(x,v) x.fetch_add(v)
-#   define l_and(x,v) x.fetch_and(v)
-#   define l_or(x,v) x.fetch_or(v)
-#   define l_barrier()
+#define l_set(x,v) x.exchange(v)
+#define l_add(x,v) x.fetch_add(v)
+#define l_and(x,v) x.fetch_and(v)
+#define l_or(x,v) x.fetch_or(v)
+#define l_barrier()
 //conditional variable
-#   define COND std::condition_variable
-#   define c_create(x)
-#   define c_signal(x)   x.notify_one()
-#   define c_wait(x,l)   x.wait(l)
+#define COND std::condition_variable
+#define c_create(x)
+#define c_signal(x)   x.notify_one()
+#define c_wait(x,l)   x.wait(l)
 //mutex
-#   define MUTEX std::mutex
-#   define m_create(x)
-#   define m_try_lock(x) x.trylock()
-#   define m_lock(x)     x.lock()
-#   define m_unlock(x)   x.unlock()
+#define MUTEX std::mutex
+#define m_create(x)
+#define m_try_lock(x) x.trylock()
+#define m_lock(x)     x.lock()
+#define m_unlock(x)   x.unlock()
 //spinlock
-#   ifdef USE_SPINLOCK
-#       define LOCK std::atomic_int
-#       define l_create(x)   ((x) = 0)
-#       define l_try_lock(x) (l_set(x,1) != 0)
-#       define l_lock(x)     while(l_try_lock(x)) {while((x) != 0) t_pause();}
-#       define l_unlock(x)   ((x) = 0)
-#   else
-#       define LOCK MUTEX
-#       define l_create(x)   m_create(x)
-#       define l_try_lock(x) m_try_lock(x)
-#       define l_lock(x)     m_lock(x)
-#       define l_unlock(x)   m_unlock(x)
-#   endif
+#ifdef USE_SPINLOCK
+#   define LOCK std::atomic_int
+#   define l_create(x)   ((x) = 0)
+#   define l_try_lock(x) (l_set(x,1) != 0)
+#   define l_lock(x)     while(l_try_lock(x)) {while((x) != 0) t_pause();}
+#   define l_unlock(x)   ((x) = 0)
 #else
-//atomic ops
-#   define l_set(x,v) ((x) = v)
-#   define l_add(x,v) ((x) += v)
-#   define l_and(x,v) ((x) &= v)
-#   define l_or(x,v)  ((x) |= v)
-#   define l_barrier()
-//conditional variable
-#   define COND int
-#   define c_create(x)
-#   define c_signal(x)
-#   define c_wait(x,l)
-//mutex
-#   define MUTEX int
-#   define m_create(x)
-#   define m_lock(x)
-#   define m_try_lock(x) (1)
-#   define m_unlock(x)
-//locks
-#   define LOCK int
-#   define l_create(x)
-#   define l_lock(x)
-#   define l_try_lock(x) (1)
-#   define l_unlock(x)
+#   define LOCK MUTEX
+#   define l_create(x)   m_create(x)
+#   define l_try_lock(x) m_try_lock(x)
+#   define l_lock(x)     m_lock(x)
+#   define l_unlock(x)   m_unlock(x)
 #endif
 /*
 * Performance counters
@@ -261,11 +234,6 @@ inline double get_diff(TIMER s,TIMER e) {
 /*
 *optional compilation
 */
-#ifdef PARALLEL
-#    define SMP_CODE(x) x
-#else
-#    define SMP_CODE(x)
-#endif
 #ifdef CLUSTER
 #    define CLUSTER_CODE(x) x
 #else

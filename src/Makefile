@@ -12,7 +12,6 @@ HPP = scorpio.h my_types.h params.h
 # Some options
 # ------------
 #
-#  DPARALLEL       --  Compile parallel search code.
 #  DARC_64BIT      --  Is system 64 bit.
 #  DHAS_POPCNT     --  Use Intrinsic PopCnt. [HIGHLY recommeneded] 
 #  DHAS_PREFETCH   --  Prefetch hash table entries [Recommeneded] 
@@ -29,7 +28,6 @@ HPP = scorpio.h my_types.h params.h
 #  DEGBB           --  Include EGBB probing code
 #########################################################################
 DEFINES = 
-DEFINES += -DPARALLEL
 DEFINES += -DARC_64BIT
 DEFINES += -DHAS_POPCNT
 ifneq ($(COMP),arm)

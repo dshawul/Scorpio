@@ -298,11 +298,9 @@ float Node::compute_Q(float fpu, unsigned int collision_lev, bool has_ab) {
         uct = 1 - score;
         if(uct >= winning_threshold)
             uct += 100;
-#ifdef PARALLEL
         unsigned int vvst = collision_lev * get_busy();
         if(vvst)
             uct += (-uct * vvst) / (vvst + visits + 1);
-#endif
     }
     if(has_ab) {
         float uctp = 1 - prior;
@@ -310,9 +308,7 @@ float Node::compute_Q(float fpu, unsigned int collision_lev, bool has_ab) {
                     frac_abprior * uctp +
                     MIN(uct,uctp));
     }
-#ifdef PARALLEL
     if(is_create()) uct *= 0.1;
-#endif
     return uct;
 }
 
@@ -598,11 +594,9 @@ Node* Node::Max_AB_select(Node* n, int alpha, int beta, bool try_null,
                 uct = MAX_MOVES - current->rank;
                 if(current->rank == 1) uct = MATE_SCORE;
             }
-#ifdef PARALLEL
             /*Discourage selection of busy and children-in-creation node*/
             uct -= virtual_loss * current->get_busy() * 10;
             if(current->is_create()) uct *= 0.25;
-#endif
             /*pick best*/
             if(uct > bvalue) {
                 bvalue = uct;
@@ -1677,16 +1671,13 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
     }
 
     /*update statistics of parent*/
-#ifdef PARALLEL
     if(!single && master) {
         l_lock(lock_smp);
         l_lock(master->lock);
         update_master(1);
         l_unlock(master->lock);
         l_unlock(lock_smp);
-    } else
-#endif
-    if(!single && !abort_search && !stop_searcher) {
+    } else if(!single && !abort_search && !stop_searcher) {
         bool failed = (-best->score <= oalpha) || 
                       (-best->score >= obeta);
         if(!failed)
@@ -1761,10 +1752,8 @@ void Node::parallel_job(Node* n, PTHREAD_PROC func, bool recursive) {
     int T = 0, S = MAX(1,n->visits / (8 * nprocs)),
                  V = nprocs / ncores;
 
-#ifdef PARALLEL
     for(int i = 1;i < PROCESSOR::n_processors;i++)
         processors[i]->state = PARK;
-#endif
 
     Node::split(n, gc, S, T);
 
@@ -1799,13 +1788,10 @@ void Node::parallel_job(Node* n, PTHREAD_PROC func, bool recursive) {
         gc[i].clear();
     }
 
-#ifdef PARALLEL
     for(int i = 1;i < PROCESSOR::n_processors;i++) {
         processors[i]->state = WAIT;
         processors[i]->signal();
     }
-#endif
-
 }
 
 /*
@@ -2163,7 +2149,6 @@ typedef struct TRAIN {
 /*multiple worker threads*/
 void SEARCHER::launch_worker_threads() {
 
-#ifdef PARALLEL
     /*wakeup threads*/
     for(int i = 1;i < PROCESSOR::n_processors;i++) {
         processors[i]->state = WAIT;
@@ -2172,9 +2157,7 @@ void SEARCHER::launch_worker_threads() {
 #if defined(CLUSTER)
     PROCESSOR::set_mt_state(WAIT);
 #endif
-#endif
 
-#ifdef PARALLEL
     /*attach helper processor here once*/
     l_lock(lock_smp);
     for(int i = 1;i < PROCESSOR::n_processors;i++) {
@@ -2188,17 +2171,12 @@ void SEARCHER::launch_worker_threads() {
 
     /*wait till all helpers become idle*/
     idle_loop_main();
-#else
-    worker_thread();
-#endif
 
-#ifdef PARALLEL
     /*park threads*/
     for(int i = 1;i < PROCESSOR::n_processors;i++)
         processors[i]->state = PARK;
 #if defined(CLUSTER)
     PROCESSOR::set_mt_state(PARK);
-#endif
 #endif
 }
 

@@ -588,7 +588,6 @@ float SEARCHER::probe_neural(bool hard_probe) {
     return score;
 }
 
-#ifdef PARALLEL
 void PROCESSOR::set_num_searchers() {
 #ifdef EGBB
     if(SEARCHER::use_nn && set_num_active_searchers) {
@@ -597,7 +596,6 @@ void PROCESSOR::set_num_searchers() {
     }
 #endif
 }
-#endif
 
 /*
 Move policy format

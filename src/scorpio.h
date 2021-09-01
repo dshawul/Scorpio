@@ -49,20 +49,15 @@ Some definitions to include/remove code
 /*
 parallel search options
 */
-#ifdef  PARALLEL
-#   if !defined(MAX_CPUS)
-#       define MAX_CPUS             640
-#   endif
-#   if defined(YBW)
-#       define MAX_SEARCHERS_PER_CPU 32
-#       define MAX_CPUS_PER_SPLIT     8
-#   else
-#       define MAX_SEARCHERS_PER_CPU  1
-#       define MAX_CPUS_PER_SPLIT     1
-#   endif
+#if !defined(MAX_CPUS)
+#   define MAX_CPUS             640
+#endif
+#if defined(YBW)
+#   define MAX_SEARCHERS_PER_CPU 32
+#   define MAX_CPUS_PER_SPLIT     8
 #else
-#   define MAX_CPUS                   1
-#   define MAX_SEARCHERS_PER_CPU      1
+#   define MAX_SEARCHERS_PER_CPU  1
+#   define MAX_CPUS_PER_SPLIT     1
 #endif
 /*
 * Transposition table type
@@ -878,12 +873,9 @@ typedef struct SEARCHER{
     */
     bool used;
     int  processor_id;
-#if defined(PARALLEL) || defined(CLUSTER)
     SEARCHER* master;
     void handle_fail_high();
     void clear_block();
-#endif
-#ifdef PARALLEL
     LOCK lock;
     std::atomic_int n_workers;
     std::atomic<SEARCHER*> workers[MAX_CPUS];
@@ -893,7 +885,6 @@ typedef struct SEARCHER{
     void attach_processor(int);
     void update_master(int);
     void stop_workers();
-#endif
 #ifdef CLUSTER
     std::atomic_int n_host_workers;
     std::list<int> host_workers;
@@ -1000,11 +991,7 @@ typedef struct SEARCHER{
     */
 } *PSEARCHER;
 
-#ifdef PARALLEL
 void search(PROCESSOR* const, bool = false);
-#else
-void search(SEARCHER* const, bool = false);
-#endif
 /*
 inline piece list functions
 */
@@ -1146,12 +1133,10 @@ typedef struct PROCESSOR {
 
     /*functions*/
     static void exit_scorpio(int);
-#ifdef PARALLEL
     static int SMP_SPLIT_DEPTH;
     static void create(int id);
     static void kill(int id);
     static void set_num_searchers();
-#endif
     static void set_main();
 #ifdef CLUSTER
     static void init(int argc, char* argv[]);
@@ -1168,11 +1153,9 @@ typedef struct PROCESSOR {
     static void offer_help();
     static void send_best_move(int dest, MOVE move);
 #endif
-#if defined(PARALLEL) || defined(CLUSTER)
     bool has_block();
     void idle_loop();
     static void message_idle_loop();
-#endif
 
     /*hash tables*/
     PHASH hash_tab[2];
@@ -1226,11 +1209,9 @@ extern PPROCESSOR processors[MAX_CPUS];
 multi processors
 */
 void init_smp(int);
-#ifdef PARALLEL
 extern LOCK  lock_smp;
 extern LOCK  lock_io;
 extern int use_abdada_smp;
-#endif
 
 #ifdef CLUSTER
 extern int use_abdada_cluster;

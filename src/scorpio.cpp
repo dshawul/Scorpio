@@ -39,12 +39,10 @@ int PROCESSOR::n_cores;
 std::atomic_int PROCESSOR::n_idle_processors;
 int PROCESSOR::n_hosts = 1;
 
-#ifdef PARALLEL
 LOCK  lock_smp;
 LOCK  lock_io;
 int PROCESSOR::SMP_SPLIT_DEPTH = 4;
 int use_abdada_smp = 0;
-#endif
 
 #ifdef CLUSTER
 std::atomic_int PROCESSOR::message_available = {0};
@@ -294,9 +292,7 @@ END:
 initialize game
 */
 void init_game() {
-#ifdef PARALLEL
     l_create(lock_smp);
-#endif
     scorpio_start_time = get_time();
     PROCESSOR::n_cores = 1;
     PROCESSOR::n_idle_processors = 0;
@@ -518,14 +514,11 @@ int internal_commands(char** commands,char* command,int& command_num) {
         parallel search
         */
     } else if(!strcmp(command,"affinity")) {
-#ifdef PARALLEL
         int affinity = atoi(commands[command_num]);
         affinity = MIN(affinity, MAX_CPUS);
         PROCESSOR::n_cores = set_affinity(affinity);
-#endif
         command_num++;
     } else if(!strcmp(command,"mt") || !strcmp(command,"cores") || !strcmp(command,"Threads") ) {
-#ifdef PARALLEL
         if(strcmp(command,"mt") && montecarlo && SEARCHER::use_nn);
         else {
             if(!strcmp(commands[command_num],"auto"))
@@ -541,7 +534,6 @@ int internal_commands(char** commands,char* command,int& command_num) {
             mt = MIN(mt, MAX_CPUS);
             ht_setting_changed = true;
         }
-#endif
         command_num++;
 #ifdef CLUSTER
     } else if(!strcmp(command, "vote_weight")) {

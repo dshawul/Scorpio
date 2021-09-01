@@ -1028,17 +1028,13 @@ SEARCHER::SEARCHER() : board(&temp_board[36])
     stop_searcher = 0;
     finish_search = false;
     skip_nn = false;
-#if defined(PARALLEL) || defined(CLUSTER)
     master = 0;
-#endif
-#ifdef PARALLEL
     l_create(lock);
     used = false;
     n_workers = 0;
     for(int i = 0; i < MAX_CPUS;i++)
         workers[i] = NULL;
     processor_id = 0;
-#endif
 #ifdef CLUSTER
     host_workers.clear();
     n_host_workers = 0;
@@ -1192,9 +1188,7 @@ void init_io() {
     srand((unsigned)time(NULL) CLUSTER_CODE(+ PROCESSOR::host_id));
     rand();
     
-#ifdef PARALLEL
     l_create(lock_io);
-#endif
     
 #ifdef LOG_FILE
     /*log file*/
@@ -1468,9 +1462,7 @@ void SEARCHER::check_quit() {
     */
     if(time_used) {
         poll_nodes = int(int64_t(nodes) / (time_used / 100.0f));
-#ifdef PARALLEL
         poll_nodes /= PROCESSOR::n_processors;
-#endif
         poll_nodes = MAX(poll_nodes, 5000);
         poll_nodes = MIN(poll_nodes, 100000);
     }
