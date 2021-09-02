@@ -2072,15 +2072,23 @@ MOVE SEARCHER::find_best() {
             /*weight winning AB scores more*/
             if(root_score >= 800)
                 factor *= 10;
-            else if(root_score >= 600)
+            else if(root_score >= 600 ||
+                all_man_c <= 6)
                 factor *= 6;
-            else if(root_score >= 500)
+            else if(root_score >= 500 ||
+                all_man_c <= 8)
                 factor *= 4;
-            else if(root_score >= 400)
+            else if(root_score >= 400 ||
+                all_man_c <= 10)
                 factor *= 3;
-            else if(root_score >= 300)
+            else if(root_score >= 300 ||
+                all_man_c <= 12)
                 factor *= 2.5;
-            else if(root_score >= 200)
+            else if(root_score >= 200 ||
+                all_man_c <= 14)
+                factor *= 2.0;
+            else if(root_score >= 200 ||
+                all_man_c <= 16)
                 factor *= 1.5;
 
             uint64_t maxn = 0;
