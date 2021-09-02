@@ -1715,7 +1715,7 @@ MOVE SEARCHER::iterative_deepening(bool& montecarlo_skipped) {
             uint64_t bests = 0;
             for(int i = 0;i < pstack->count; i++) {
                 MOVE& move = pstack->move_st[i];
-                if(move == pstack->pv[0]) {
+                if(move == stack[0].pv[0]) {
                     bests = root_score_st[i];
                     root_score_st[i] = MAX_UINT64;
                 }
@@ -1748,7 +1748,7 @@ MOVE SEARCHER::iterative_deepening(bool& montecarlo_skipped) {
             /*remove applied bias*/
             for(int i = 0;i < pstack->count; i++) {
                 MOVE& move = pstack->move_st[i];
-                if(move == pstack->pv[0])
+                if(root_score_st[i] == MAX_UINT64)
                     root_score_st[i] = bests;
 #ifdef CLUSTER
                 else if(use_abdada_cluster && PROCESSOR::n_hosts > 1) {
@@ -2091,9 +2091,9 @@ MOVE SEARCHER::find_best() {
             if(root_score_st[0] < 1.5 * maxn)
                 root_score_st[0] = 1.5 * maxn;
 
-            uint64_t total_nodes = 0;
+            double total_nodes = 0;
             for(int i = 0; i < n_root_moves; i++)
-                total_nodes += root_score_st[i];
+                total_nodes += double(root_score_st[i]);
 
             for(int i = 0; i < n_root_moves; i++) {
                 move_st[i] = stack[0].move_st[i];
