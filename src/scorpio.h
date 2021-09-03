@@ -921,7 +921,8 @@ typedef struct SEARCHER{
     static int resign_count;
     static unsigned int average_pps;
     static CHESS_CLOCK chess_clock;
-    static uint64_t root_score_st[MAX_MOVES];
+    static uint64_t root_nodes[MAX_MOVES];
+    static int root_scores[MAX_MOVES];
     static int16_t history[14][64];
     static MOVE refutation[14][64];
     static int16_t* ref_fup_history;

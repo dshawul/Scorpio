@@ -972,9 +972,17 @@ IDLE_START:
             if(!sb->ply && !single) {
 
                 l_lock(lock_smp);
-                SEARCHER::root_score_st[sb->pstack->current_index - 1] 
+                SEARCHER::root_nodes[sb->pstack->current_index - 1] 
                       += (sb->nodes - sb->pstack->start_nodes);
+                SEARCHER::root_scores[sb->pstack->current_index - 1]
+                      = score;
                 l_unlock(lock_smp);
+#if 0
+                print("%d. %d [%d %d] " FMT64 "\n",
+                    sb->pstack->current_index,score,
+                    -(sb->pstack+1)->beta,-(sb->pstack+1)->alpha,
+                    SEARCHER::root_nodes[sb->pstack->current_index - 1]);
+#endif
 
                 if(sb->pstack->current_index == 1 || score > sb->pstack->alpha) {
                     sb->pstack->best_score = score;
@@ -1398,12 +1406,12 @@ void SEARCHER::search_ab_prior() {
     /*nodes to prior*/
     uint64_t maxn = 0;
     for(int i = 1; i < pstack->count; i++) {
-        uint64_t v = root_score_st[i];
+        uint64_t v = root_nodes[i];
         if(v > maxn) maxn = v;
     }
 
-    if(root_score_st[0] < 1.5 * maxn)
-        root_score_st[0] = 1.5 * maxn;
+    if(root_nodes[0] < 1.5 * maxn)
+        root_nodes[0] = 1.5 * maxn;
 
     /*assign prior*/
     Node* current = root_node->child;
@@ -1411,7 +1419,7 @@ void SEARCHER::search_ab_prior() {
         for(int i = 0;i < pstack->count; i++) {
             MOVE& move = pstack->move_st[i];
             if(move == current->move) {
-                double v = sqrt(double(root_score_st[i]) / maxn);
+                double v = sqrt(double(root_nodes[i]) / maxn);
                 current->prior = -(v - 0.5) * 100;
                 if(rollout_type == MCTS)
                     current->prior = logistic(current->prior);
@@ -1422,7 +1430,7 @@ void SEARCHER::search_ab_prior() {
                 mov_str(move,mvs);
                 print("%2d. %6s %9.6f %9.6f " FMT64W " " FMT64W "\n", 
                     current->rank, mvs, current->prior,
-                    v, root_score_st[i], maxn);
+                    v, root_nodes[i], maxn);
 #endif
                 break;
             }
@@ -1676,7 +1684,7 @@ MOVE SEARCHER::iterative_deepening(bool& montecarlo_skipped) {
                         print("%d. ",current->rank);
                         print_move(current->move);
                         print(" score %d visits %d bounds %d %d \n",
-                            int(-current->score),current->visits,
+                            int(-current->score),int(current->visits),
                             -current->beta, -current->alpha);
                         break;
                     }
@@ -1692,7 +1700,7 @@ MOVE SEARCHER::iterative_deepening(bool& montecarlo_skipped) {
              * First move taking lot more time than second. */
             if(!root_failed_low && chess_clock.is_timed()) {
                 int time_used = get_time() - start_time;
-                double ratio = double(root_score_st[0]) / root_score_st[1];
+                double ratio = double(root_nodes[0]) / root_nodes[1];
                 if((time_used >= 0.75 * time_factor * chess_clock.search_time) || 
                    (time_used >= 0.5 * time_factor * chess_clock.search_time && ratio >= 2.0)  ) {
                     abort_search = 1;
@@ -1716,15 +1724,15 @@ MOVE SEARCHER::iterative_deepening(bool& montecarlo_skipped) {
             for(int i = 0;i < pstack->count; i++) {
                 MOVE& move = pstack->move_st[i];
                 if(move == stack[0].pv[0]) {
-                    bests = root_score_st[i];
-                    root_score_st[i] = MAX_UINT64;
+                    bests = root_nodes[i];
+                    root_nodes[i] = MAX_UINT64;
                 }
 #ifdef CLUSTER
                 else if(use_abdada_cluster && PROCESSOR::n_hosts > 1) {
                     for(int j = 0;j < PROCESSOR::n_hosts;j++) {
                         if(j != PROCESSOR::host_id) {
                             if(move == PROCESSOR::best_moves[j])
-                                root_score_st[i] += (MAX_UINT64 >> 1);
+                                root_nodes[i] += (MAX_UINT64 >> 1);
                         }
                     }
                 }
@@ -1734,13 +1742,18 @@ MOVE SEARCHER::iterative_deepening(bool& montecarlo_skipped) {
             /*sort*/
             for(int i = 0;i < pstack->count; i++) {
                 for(int j = i + 1;j < pstack->count;j++) {
-                    if(root_score_st[i] < root_score_st[j]) {
+                    if(root_nodes[i] < root_nodes[j]) {
                         MOVE tempm = pstack->move_st[i];
-                        uint64_t temps = root_score_st[i];
+                        uint64_t tempn = root_nodes[i];
+                        int temps = root_scores[i];
+
                         pstack->move_st[i] = pstack->move_st[j];
-                        root_score_st[i] = root_score_st[j];
+                        root_nodes[i] = root_nodes[j];
+                        root_scores[i] = root_scores[j];
+
                         pstack->move_st[j] = tempm;
-                        root_score_st[j] = temps;
+                        root_nodes[j] = tempn;
+                        root_scores[j] = temps;
                     }
                 }
             }
@@ -1748,12 +1761,12 @@ MOVE SEARCHER::iterative_deepening(bool& montecarlo_skipped) {
             /*remove applied bias*/
             for(int i = 0;i < pstack->count; i++) {
                 MOVE& move = pstack->move_st[i];
-                if(root_score_st[i] == MAX_UINT64)
-                    root_score_st[i] = bests;
+                if(root_nodes[i] == MAX_UINT64)
+                    root_nodes[i] = bests;
 #ifdef CLUSTER
                 else if(use_abdada_cluster && PROCESSOR::n_hosts > 1) {
-                    if(root_score_st[i] >= (MAX_UINT64 >> 1))
-                        root_score_st[i] -= (MAX_UINT64 >> 1);
+                    if(root_nodes[i] >= (MAX_UINT64 >> 1))
+                        root_nodes[i] -= (MAX_UINT64 >> 1);
                 }
 #endif
             }
@@ -1881,8 +1894,10 @@ MOVE SEARCHER::find_best() {
     /*generate and score moves*/
     chess_clock.set_stime(hply,true);
     generate_and_score_moves(-MATE_SCORE,MATE_SCORE);
-    for(int i = 0; i < pstack->count; i++)
-        root_score_st[i] = 0;
+    for(int i = 0; i < pstack->count; i++) {
+        root_nodes[i] = 0;
+        root_scores[i] = -MATE_SCORE;
+    }
 
     /*no move*/
     if(pstack->count == 0) {
@@ -1999,7 +2014,7 @@ MOVE SEARCHER::find_best() {
             if(multipv)
                 Node::print_tree(root_node,has_ab,MAX_PLY);
 
-            /* print result*/
+            /* print search stats*/
             print_info("Stat: nodes " FMT64 " <%d%% qnodes> tbhits %d qcalls %d scalls %d time %dms nps %d eps %d\n",nodes,
                 int(int64_t(qnodes) / (int64_t(nodes) / 100.0f)),
                 egbb_probes,qsearch_calls,search_calls,
@@ -2012,8 +2027,19 @@ MOVE SEARCHER::find_best() {
         }
 
     } else {
+        /*print subtree sizes*/
+        if(multipv) {
+            print_info("ID Move    Score  Nodes\n");
+            print_info("-----------------------\n");
+            for(int i = 0; i < pstack->count; i++) {
+                char mvs[16];
+                mov_str(pstack->move_st[i],mvs);
+                print_info("%2d %s %6d    " FMT64 "\n",
+                    i + 1, mvs, root_scores[i], root_nodes[i]);
+            }
+        }
 
-        /*search has ended. display some info*/
+        /*print search stats*/
         int time_used = get_time() - start_time;
         if(!time_used) time_used = 1;
         if(pv_print_style == 1) {
@@ -2027,7 +2053,6 @@ MOVE SEARCHER::find_best() {
                 int(int64_t(ecalls) / (time_used / 1000.0f)),
                 int(int64_t(nnecalls) / (time_used / 1000.0f)));
         }
-
     }
 
     /*
@@ -2093,19 +2118,19 @@ MOVE SEARCHER::find_best() {
 
             uint64_t maxn = 0;
             for(int i = 1; i < n_root_moves; i++) {
-                uint64_t v = root_score_st[i];
+                uint64_t v = root_nodes[i];
                 if(v > maxn) maxn = v;
             }
-            if(root_score_st[0] < 1.5 * maxn)
-                root_score_st[0] = 1.5 * maxn;
+            if(root_nodes[0] < 1.5 * maxn)
+                root_nodes[0] = 1.5 * maxn;
 
             double total_nodes = 0;
             for(int i = 0; i < n_root_moves; i++)
-                total_nodes += double(root_score_st[i]);
+                total_nodes += double(root_nodes[i]);
 
             for(int i = 0; i < n_root_moves; i++) {
                 move_st[i] = stack[0].move_st[i];
-                score_st[i] = factor * sqrt(double(root_score_st[i]) / total_nodes);
+                score_st[i] = factor * sqrt(double(root_nodes[i]) / total_nodes);
             }
         }
 
