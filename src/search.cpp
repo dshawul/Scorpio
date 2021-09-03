@@ -1496,7 +1496,8 @@ MOVE SEARCHER::iterative_deepening(bool& montecarlo_skipped) {
         if(has_ab) {
             /*park mcts threads*/
             for(int i = PROCESSOR::n_cores;i < PROCESSOR::n_processors;i++)
-                processors[i]->state = PARK;
+                PROCESSOR::park(i);
+
             /*prior ab search*/
             search_ab_prior();
 
@@ -1910,7 +1911,8 @@ MOVE SEARCHER::find_best() {
 
     /*park threads*/
     for(int i = 1;i < PROCESSOR::n_processors;i++)
-        processors[i]->state = PARK;
+        PROCESSOR::park(i);
+
 #if defined(CLUSTER)
     PROCESSOR::set_mt_state(PARK);
 #endif

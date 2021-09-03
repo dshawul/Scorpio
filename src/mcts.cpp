@@ -1765,7 +1765,7 @@ void Node::parallel_job(Node* n, PTHREAD_PROC func, bool recursive) {
                  V = nprocs / ncores;
 
     for(int i = 1;i < PROCESSOR::n_processors;i++)
-        processors[i]->state = PARK;
+        PROCESSOR::park(i);
 
     Node::split(n, gc, S, T);
 
@@ -2186,7 +2186,7 @@ void SEARCHER::launch_worker_threads() {
 
     /*park threads*/
     for(int i = 1;i < PROCESSOR::n_processors;i++)
-        processors[i]->state = PARK;
+        PROCESSOR::park(i);
 #if defined(CLUSTER)
     PROCESSOR::set_mt_state(PARK);
 #endif

@@ -77,7 +77,7 @@ static CDECL void clear_hash_proc(int id) {
 
 void PROCESSOR::clear_hash_tables() {
     for(int i = 1;i < PROCESSOR::n_processors;i++)
-        processors[i]->state = PARK;
+        PROCESSOR::park(i);
 
     int ncores = (montecarlo && SEARCHER::use_nn) ? 
             PROCESSOR::n_cores : PROCESSOR::n_processors;

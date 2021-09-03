@@ -1101,7 +1101,7 @@ typedef struct PROCESSOR {
     /*searchers*/
     SEARCHER searchers[MAX_SEARCHERS_PER_CPU];
     PSEARCHER searcher;
-    std::atomic_int state;
+    std::atomic_int state, parked;
 
     /*processor count*/
     static int n_processors;
@@ -1135,6 +1135,7 @@ typedef struct PROCESSOR {
     static int SMP_SPLIT_DEPTH;
     static void create(int id);
     static void kill(int id);
+    static void park(int id);
     static void set_num_searchers();
     static void set_main();
 #ifdef CLUSTER
@@ -1192,6 +1193,7 @@ typedef struct PROCESSOR {
     /*constructor*/
     PROCESSOR() {
         state = KILL;
+        parked = 0;
         searcher = 0;
         hash_tab[white] = 0;
         hash_tab[black] = 0;

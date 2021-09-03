@@ -485,7 +485,9 @@ void PROCESSOR::idle_loop() {
     bool skip_message = ((this != processors[0]) || (n_hosts == 1));
     do {
         if(state == PARK) {
+            parked = 1;
             wait();
+            parked = 0;
         } else if(state == WAIT) {
             t_yield();
             if(SEARCHER::use_nn) 
@@ -1025,6 +1027,12 @@ void PROCESSOR::kill(int id) {
     proc->delete_tables();
     delete proc;
     processors[id] = 0;
+}
+void PROCESSOR::park(int id) {
+    PPROCESSOR proc = processors[id];
+    proc->state = PARK;
+    while(!proc->parked)
+        t_yield();
 }
 
 /**
