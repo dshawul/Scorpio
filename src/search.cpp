@@ -974,8 +974,10 @@ IDLE_START:
                 l_lock(lock_smp);
                 SEARCHER::root_nodes[sb->pstack->current_index - 1] 
                       += (sb->nodes - sb->pstack->start_nodes);
-                SEARCHER::root_scores[sb->pstack->current_index - 1]
-                      = score;
+                if(sb->pstack->current_index == 1 || score > sb->pstack->alpha) {
+                    SEARCHER::root_scores[sb->pstack->current_index - 1]
+                          = score;
+                }
                 l_unlock(lock_smp);
 #if 0
                 print("%d. %d [%d %d] " FMT64 "\n",
@@ -1896,7 +1898,7 @@ MOVE SEARCHER::find_best() {
     generate_and_score_moves(-MATE_SCORE,MATE_SCORE);
     for(int i = 0; i < pstack->count; i++) {
         root_nodes[i] = 0;
-        root_scores[i] = -MATE_SCORE;
+        root_scores[i] = pstack->score_st[i];
     }
 
     /*no move*/
@@ -2081,8 +2083,8 @@ MOVE SEARCHER::find_best() {
         else if(root_score >= 100)
             factor *= 1.2;
 
-        /*score root moves*/
         if(montecarlo && !montecarlo_skipped) {
+            /*compute vote based on subtree size*/
             int idx = 0;
             Node* current = root_node->child;
             while(current) {
@@ -2094,7 +2096,7 @@ MOVE SEARCHER::find_best() {
                 current = current->next;
             }
         } else {
-            /*weight winning AB scores more*/
+            /*weigh winning AB scores more*/
             if(root_score >= 800)
                 factor *= 10;
             else if(root_score >= 600 ||
@@ -2116,6 +2118,7 @@ MOVE SEARCHER::find_best() {
                 all_man_c <= 16)
                 factor *= 1.5;
 
+            /*compute vote based on subtree size alone*/
             uint64_t maxn = 0;
             for(int i = 1; i < n_root_moves; i++) {
                 uint64_t v = root_nodes[i];
