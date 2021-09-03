@@ -1921,8 +1921,8 @@ MOVE SEARCHER::find_best() {
         PROCESSOR::quit_hosts();
     }
     /*print pv with max score to avoid early adjuncation*/
+    int max_root_score;
     if(use_abdada_cluster && PROCESSOR::n_hosts > 1) {
-        int max_root_score;
         PROCESSOR::Max(&root_score,&max_root_score,1);
         if(PROCESSOR::host_id == 0)
             print_pv(max_root_score);
@@ -2021,6 +2021,10 @@ MOVE SEARCHER::find_best() {
             factor *= 1.2;
 
         if(montecarlo && !montecarlo_skipped) {
+            /*weight mcts more when its score greater than AB's*/
+            if(root_score >= max_root_score)
+                factor *= 2;
+
             /*compute vote based on subtree size*/
             int idx = 0;
             Node* current = root_node->child;
@@ -2048,7 +2052,7 @@ MOVE SEARCHER::find_best() {
             else if(root_score >= 300 ||
                 all_man_c <= 12)
                 factor *= 2.5;
-            else if(root_score >= 200 ||
+            else if(root_score >= 250 ||
                 all_man_c <= 14)
                 factor *= 2.0;
             else if(root_score >= 200 ||
