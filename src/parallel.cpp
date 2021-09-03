@@ -601,6 +601,7 @@ exit scorpio
 */
 void PROCESSOR::exit_scorpio(int status) {
     for(int  i = 1; i < PROCESSOR::n_processors; i++) {
+        processors[i]->state = WAIT;
         processors[i]->signal();
         PROCESSOR::kill(i);
     }
