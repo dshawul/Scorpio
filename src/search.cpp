@@ -1513,11 +1513,10 @@ MOVE SEARCHER::iterative_deepening(bool& montecarlo_skipped) {
             stop_searcher = 0;
             abort_search = 0;
             search_depth = MIN(search_depth + mcts_strategy_depth, MAX_PLY - 2);
+
             /* wake mcts threads*/
-            for(int i = PROCESSOR::n_cores;i < PROCESSOR::n_processors;i++) {
-                processors[i]->state = WAIT;
-                processors[i]->signal();
-            }
+            for(int i = PROCESSOR::n_cores;i < PROCESSOR::n_processors;i++)
+                PROCESSOR::wait(i);
         }
 
         /*rank nodes and reset bounds*/
@@ -1895,10 +1894,8 @@ MOVE SEARCHER::find_best() {
     MOVE bmove = 0;
 
     /*wakeup threads*/
-    for(int i = 1;i < PROCESSOR::n_processors;i++) {
-        processors[i]->state = WAIT;
-        processors[i]->signal();
-    }
+    for(int i = 1;i < PROCESSOR::n_processors;i++)
+        PROCESSOR::wait(i);
 #if defined(CLUSTER)
     PROCESSOR::set_mt_state(WAIT);
 #endif

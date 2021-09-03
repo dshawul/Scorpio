@@ -1136,6 +1136,7 @@ typedef struct PROCESSOR {
     static void create(int id);
     static void kill(int id);
     static void park(int id);
+    static void wait(int id);
     static void set_num_searchers();
     static void set_main();
 #ifdef CLUSTER

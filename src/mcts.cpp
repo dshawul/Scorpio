@@ -1800,10 +1800,8 @@ void Node::parallel_job(Node* n, PTHREAD_PROC func, bool recursive) {
         gc[i].clear();
     }
 
-    for(int i = 1;i < PROCESSOR::n_processors;i++) {
-        processors[i]->state = WAIT;
-        processors[i]->signal();
-    }
+    for(int i = 1;i < PROCESSOR::n_processors;i++)
+        PROCESSOR::wait(i);
 }
 
 /*
@@ -2162,10 +2160,8 @@ typedef struct TRAIN {
 void SEARCHER::launch_worker_threads() {
 
     /*wakeup threads*/
-    for(int i = 1;i < PROCESSOR::n_processors;i++) {
-        processors[i]->state = WAIT;
-        processors[i]->signal();
-    }
+    for(int i = 1;i < PROCESSOR::n_processors;i++)
+        PROCESSOR::wait(i);
 #if defined(CLUSTER)
     PROCESSOR::set_mt_state(WAIT);
 #endif

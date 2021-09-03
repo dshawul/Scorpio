@@ -213,8 +213,7 @@ void PROCESSOR::handle_message(int source,int message_id) {
             else psb->POP_NULL();
         }
 
-        processors[0]->state = WAIT;
-        processors[0]->signal();
+        PROCESSOR::wait(0);
 
         /***********************************************************
         * Send result back and release all helper nodes we aquired
@@ -336,10 +335,9 @@ void PROCESSOR::handle_message(int source,int message_id) {
             PROCESSOR::best_moves[i] = 0;
 
         /*wakeup processors*/
-        for(i = 0;i < n_processors;i++) {
-            processors[i]->state = WAIT;
-            processors[i]->signal();
-        }
+        for(i = 0;i < n_processors;i++)
+            PROCESSOR::wait(i);
+
         /***********************************
         * Best move from slave hosts
         ************************************/
@@ -603,8 +601,7 @@ exit scorpio
 */
 void PROCESSOR::exit_scorpio(int status) {
     for(int  i = 1; i < PROCESSOR::n_processors; i++) {
-        processors[i]->state = WAIT;
-        processors[i]->signal();
+        PROCESSOR::wait(i);
         PROCESSOR::kill(i);
     }
     CLUSTER_CODE(message_thread_state = KILL;)
@@ -1033,6 +1030,11 @@ void PROCESSOR::park(int id) {
     proc->state = PARK;
     while(!proc->parked)
         t_yield();
+}
+void PROCESSOR::wait(int id) {
+    PPROCESSOR proc = processors[id];
+    proc->state = WAIT;
+    proc->signal();
 }
 
 /**

@@ -88,10 +88,8 @@ void PROCESSOR::clear_hash_tables() {
         t_join(mthreads[id]);
     delete[] mthreads;
 
-    for(int i = 1;i < PROCESSOR::n_processors;i++) {
-        processors[i]->state = WAIT;
-        processors[i]->signal();
-    }
+    for(int i = 1;i < PROCESSOR::n_processors;i++)
+        PROCESSOR::wait(i);
 }
 
 /*
