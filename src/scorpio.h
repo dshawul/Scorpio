@@ -20,8 +20,6 @@ Some definitions to include/remove code
 #   define EGBB
 // #    define CLUSTER
 // #    define TUNE
-// #    define NODES_PRIOR
-// #    define CUTECHESS_FIX
 #endif
 
 /*includes*/

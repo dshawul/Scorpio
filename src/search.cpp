@@ -1383,8 +1383,6 @@ void SEARCHER::search_ab_prior() {
       Do regular AB search and use subtree size of root moves
       to set prior for the following montecarlo search
     */
-#ifdef NODES_PRIOR
-    /*do ab search*/
     montecarlo = 0;
     use_nn = 0;
 
@@ -1439,67 +1437,6 @@ void SEARCHER::search_ab_prior() {
         }
         current = current->next;
     }
-    /*
-      Evaluate each move separately. Slower than the above option
-    */
-#else
-    montecarlo = 0;
-    use_nn = 0;
-
-    chess_clock.p_time *= frac_abprior;
-    chess_clock.p_inc *= frac_abprior;
-    chess_clock.set_stime(hply,false);
-    chess_clock.p_time /= frac_abprior;
-    chess_clock.p_inc /= frac_abprior;
-
-    start_time = get_time();
-
-    for(int d = 2; d < MAX_PLY - 1 ; d++) {
-        stop_searcher = 0;
-        search_depth = d;
-        evaluate_moves(d);
-
-        int time_used = get_time() - start_time;
-        if(abort_search || time_used >= 0.75 * chess_clock.search_time)
-            break;
-        if(!easy 
-            && pstack->score_st[0] > pstack->score_st[1] + 175
-            && chess_clock.is_timed()
-            ) {
-            easy = true;
-            easy_move = pstack->move_st[0];
-            easy_score = pstack->score_st[0];
-        } else if(easy && 
-            (easy_move != pstack->pv[0] || pstack->score_st[0] <= easy_score - 60)) {
-            easy = false;
-        }
-    }
-
-    use_nn = save_use_nn;
-    montecarlo = 1;
-
-    while(ply > 0) {
-        if(hstack[hply - 1].move) POP_MOVE();
-        else POP_NULL();
-    }
-
-    /*assign prior*/
-    Node* current = root_node->child;
-    while(current) {
-        for(int i = 0;i < pstack->count; i++) {
-            MOVE& move = pstack->move_st[i];
-            if(move == current->move) {
-                current->prior = -pstack->score_st[i];
-                if(rollout_type == MCTS)
-                    current->prior = logistic(current->prior);
-                current->rank = i + 1;
-                if(i == 0) current->policy += 0.1;
-                break;
-            }
-        }
-        current = current->next;
-    }
-#endif
 }
 /*
 Iterative deepening
