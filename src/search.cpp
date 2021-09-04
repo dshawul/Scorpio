@@ -1909,7 +1909,6 @@ MOVE SEARCHER::find_best() {
     /*park threads*/
     for(int i = 1;i < PROCESSOR::n_processors;i++)
         PROCESSOR::park(i);
-
 #if defined(CLUSTER)
     PROCESSOR::set_mt_state(PARK);
 #endif
@@ -2020,8 +2019,9 @@ MOVE SEARCHER::find_best() {
             factor *= 1.2;
 
         if(montecarlo && !montecarlo_skipped) {
-            /*weight mcts more when its score greater than AB's*/
-            if(root_score >= max_root_score)
+            /*weigh mcts more when its score greater than AB's*/
+            if(PROCESSOR::host_id == 0 &&
+                root_score >= max_root_score)
                 factor *= 2;
 
             /*compute vote based on subtree size*/
@@ -2141,7 +2141,6 @@ MOVE SEARCHER::find_best() {
 
         /*print voted best move*/
         if(PROCESSOR::host_id == 0) {
-
             for(int i = 0;i < n_root_moves; i++) {
                 for(int j = i + 1;j < n_root_moves;j++) {
                     if(sum_score_st[i] < sum_score_st[j]) {
@@ -2176,14 +2175,11 @@ MOVE SEARCHER::find_best() {
                     mv_str, mv_str2);
             }
         }
-
     }
 #endif
 
     /*was this first search?*/
-    if(first_search) {
-        first_search = false;
-    }
+    first_search = false;
 
     return bmove;
 }
