@@ -1331,6 +1331,9 @@ int set_affinity(int ncores) {
 /*
 Break down a string into tokens
 */
+#ifdef _MSC_VER
+# define strtok_r strtok_s
+#endif
 int tokenize(char *str, char** tokens, const char *str2) {
     int nu_tokens = 0;
     tokens[nu_tokens] = strtok_r(str, str2, &str);
@@ -1339,6 +1342,9 @@ int tokenize(char *str, char** tokens, const char *str2) {
     }
     return nu_tokens;
 }
+#ifdef _MSC_VER
+# undef strtok_r
+#endif
 /*
 Chess Clock
 */
@@ -2151,7 +2157,7 @@ void SEARCHER::pgn_to_epd(char* pgn, FILE* fb, int task) {
             if(strchr(command,'{')) comment++;
             else if(strchr(command,'}')) comment--;
             else if(comment == 1) {
-                if(!strcmp(command,"[\%eval")) {
+                if(!strcmp(command,"[%%eval")) {
                     command = commands[command_num++];
                     double score;
                     if(command[0] == '#') {

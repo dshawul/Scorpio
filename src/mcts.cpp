@@ -152,7 +152,7 @@ static void add_node(Node* n, Node* node) {
     if(!n->child)
         n->child = node;
     else {
-        Node* current = n->child, *prev;
+        Node* current = n->child, *prev = 0;
         while(current) {
             prev = current;
             current = current->next;
@@ -665,7 +665,7 @@ Node* Node::Random_select(Node* n, int hply) {
         if(current->move) {
             node_pt.push_back(current);
             val = current->visits;
-            if(n->visits < low_visits_threshold) 
+            if(n->visits < (unsigned)low_visits_threshold) 
                 val += (low_visits_threshold - n->visits) * current->policy;
             else
                 val++;
@@ -755,7 +755,7 @@ Node* Node::Best_select(Node* n, bool has_ab) {
                       backup_type == MINMAX_MEM )
                 ) {
                     val = current->visits;
-                    if(n->visits < low_visits_threshold) 
+                    if(n->visits < (unsigned)low_visits_threshold) 
                         val += (low_visits_threshold - n->visits) * current->policy;
                     else
                         val++;

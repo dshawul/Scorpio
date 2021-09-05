@@ -71,7 +71,7 @@ void PROCESSOR::clear_tables(int id) {
 /*
 Clear hash tables in parallel
 */
-static CDECL void clear_hash_proc(int id) {
+static void CDECL clear_hash_proc(int id) {
     PROCESSOR::clear_tables(id);
 }
 

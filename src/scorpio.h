@@ -3,9 +3,8 @@
 
 /*Disable some MSVC warnings*/
 #ifdef _MSC_VER
-#    define _CRT_SECURE_NO_DEPRECATE
-#    define _SCL_SECURE_NO_DEPRECATE
-#    pragma warning (disable: 4127)
+#    pragma warning (disable: 4305)
+#    pragma warning (disable: 4267)
 #    pragma warning (disable: 4146)
 #    pragma warning (disable: 4244)
 #endif

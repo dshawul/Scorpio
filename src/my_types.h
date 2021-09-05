@@ -25,6 +25,7 @@ Os stuff
 */
 #ifdef _WIN32
 #    include <windows.h>
+#    include <process.h>
 #    undef CDECL
 #    define CDECL __cdecl
 #    define GETPID()  _getpid()

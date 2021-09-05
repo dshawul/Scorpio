@@ -119,7 +119,7 @@ static bool ht_setting_changed = false;
 static void wait_for_egbb() {
     while(egbb_is_loading) t_sleep(100);
 }
-static CDECL void egbb_thread_proc(void*) {
+static void CDECL egbb_thread_proc(void*) {
     int start = get_time();
     LoadEgbbLibrary(SEARCHER::egbb_path);
     int end = get_time();
