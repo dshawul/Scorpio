@@ -5,8 +5,6 @@
 #    include <dlfcn.h>
 #    undef dlsym
 extern "C" void *(*dlsym(void *handle, const char *symbol))();
-#else
-#    include <io.h>
 #endif
 
 enum egbb_colors {
@@ -236,18 +234,23 @@ static void clean_path(char* main_path) {
     }
 }
 void LoadEgbbLibrary(char* main_path) {
+#ifdef EGBB
+
+#if defined _WIN32
+#   define DEVNUL  "NUL"
+#   define DEVCON  "CON"
+#else
+#   define DEVNUL  "/dev/null"
+#   define DEVCON  "/dev/console"
+#endif
 
     /*suppress printf output*/
 #ifdef CLUSTER
-    int stdout_copy;
-    if(PROCESSOR::host_id) {
-        stdout_copy = dup(1);
-        close(1);
-    }
+    if (PROCESSOR::host_id)
+        freopen(DEVNUL, "w", stdout);
 #endif
 
     /*load egbbdll*/
-#ifdef EGBB
     static HMODULE hmod = 0;
     PLOAD_EGBB load_egbb;
     PLOAD_NN load_nn;
@@ -320,14 +323,15 @@ void LoadEgbbLibrary(char* main_path) {
     } else {
         print("EgbbProbe not Loaded!\n");
     }
-#endif
 
     /*reopen stdout*/
 #ifdef CLUSTER
-    if(PROCESSOR::host_id) {
-        dup2(stdout_copy, 1);
-        close(stdout_copy);
-    }
+    if(PROCESSOR::host_id)
+        freopen(DEVCON, "w", stdout);
+#endif
+#undef DEVNUL
+#undef DEVCON
+
 #endif
 }
 /*
