@@ -1633,7 +1633,6 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
             }
         /*all threads searching same tree*/
         } else if(processor_id == 0) {
- 
             /*rank 0*/
             if(true CLUSTER_CODE(&& PROCESSOR::host_id == 0)) { 
                 /*check quit*/
@@ -1647,7 +1646,7 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
                     else 
                         frac = double(get_time() - start_time) / chess_clock.search_time;
 
-                    if(frac - pfrac >= 0.1) {
+                    if(frac - pfrac >= 0.05) {
                         pfrac = frac;
                         if(rollout_type == MCTS) {
                             extract_pv(root);
@@ -1673,11 +1672,6 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
                         print_info("Freezing tree.\n");
                     }
                 }
-#ifdef CLUSTER
-                /*quit hosts*/
-                if(abort_search)
-                    PROCESSOR::quit_hosts();
-#endif
             }
         }
     }

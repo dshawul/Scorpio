@@ -5,6 +5,8 @@
 #    include <dlfcn.h>
 #    undef dlsym
 extern "C" void *(*dlsym(void *handle, const char *symbol))();
+#else
+#    include <io.h>
 #endif
 
 enum egbb_colors {
@@ -236,18 +238,22 @@ static void clean_path(char* main_path) {
 void LoadEgbbLibrary(char* main_path) {
 #ifdef EGBB
 
-#if defined _WIN32
-#   define DEVNUL  "NUL"
-#   define DEVCON  "CON"
-#else
-#   define DEVNUL  "/dev/null"
-#   define DEVCON  "/dev/console"
-#endif
-
     /*suppress printf output*/
 #ifdef CLUSTER
-    if (PROCESSOR::host_id)
-        freopen(DEVNUL, "w", stdout);
+#ifdef _MSC_VER
+#   define DUP(x)    _dup(x)
+#   define DUP2(x,y) _dup2(x,y)
+#   define CLOSE(x)  _close(x)
+#else
+#   define DUP(x)     dup(x)
+#   define DUP2(x,y)  dup2(x,y)
+#   define CLOSE(x)   close(x)
+#endif
+    int stdout_copy = 0;
+    if (PROCESSOR::host_id) {
+        stdout_copy = DUP(1);
+        CLOSE(1);
+    }
 #endif
 
     /*load egbbdll*/
@@ -326,11 +332,14 @@ void LoadEgbbLibrary(char* main_path) {
 
     /*reopen stdout*/
 #ifdef CLUSTER
-    if(PROCESSOR::host_id)
-        freopen(DEVCON, "w", stdout);
+    if(PROCESSOR::host_id) {
+        DUP2(stdout_copy, 1);
+        CLOSE(stdout_copy);
+    }
+#undef DUP
+#undef DUP2
+#undef CLOSE
 #endif
-#undef DEVNUL
-#undef DEVCON
 
 #endif
 }

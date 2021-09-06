@@ -1872,7 +1872,7 @@ MOVE SEARCHER::find_best() {
     send initial position to helper hosts
     */
 #ifdef CLUSTER
-    if(PROCESSOR::host_id == 0) {
+    if(PROCESSOR::host_id == 0 && PROCESSOR::n_hosts > 1) {
         INIT_MESSAGE init;
         get_init_pos(&init);
         for(int i = 0;i < PROCESSOR::n_hosts;i++) {
@@ -1885,6 +1885,8 @@ MOVE SEARCHER::find_best() {
             }
         }
     }
+    if(use_abdada_cluster || montecarlo)
+        PROCESSOR::Barrier();
 #endif
 
     /*
@@ -2019,11 +2021,6 @@ MOVE SEARCHER::find_best() {
             factor *= 1.2;
 
         if(montecarlo && !montecarlo_skipped) {
-            /*weigh mcts more when its score greater than AB's*/
-            if(PROCESSOR::host_id == 0 &&
-                root_score >= max_root_score)
-                factor *= 2;
-
             /*compute vote based on subtree size*/
             int idx = 0;
             Node* current = root_node->child;

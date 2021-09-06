@@ -630,6 +630,10 @@ void PROCESSOR::exit_scorpio(int status) {
 
 #ifdef CLUSTER
     print("Process [%d/%d] terminated.\n",host_id,n_hosts);
+    if(PROCESSOR::n_hosts > 1)
+        MPI_Abort(MPI_COMM_WORLD,0);
+    else
+        MPI_Finalize();
 #else
     print("Process terminated.\n");
 #endif

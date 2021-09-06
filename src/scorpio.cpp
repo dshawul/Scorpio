@@ -961,6 +961,7 @@ int xboard_commands(char** commands,char* command,int& command_num,int& do_searc
 #ifdef TUNE
         print_eval_params();
 #endif
+        wait_for_egbb();
         print("feature done=1\n");
         command_num++;
     } else if (!strcmp(command, "computer")
@@ -1380,7 +1381,7 @@ bool parse_commands(char** commands) {
                     SEARCHER::abort_search = 1;
                     return true;
                 }
-            } while(SEARCHER::analysis_mode);
+            } while(SEARCHER::analysis_mode && SEARCHER::abort_search <= 1);
             continue;
         }
         /*

@@ -578,13 +578,13 @@ void SEARCHER::print_pv(int score) {
         i++;
     }
     strcat(pv,"\n");
+    print_cluster(pv);
+    /*undo moves*/
     for (int j = 0; j < i ; j++) {
         move = hstack[hply - 1].move;
         if(move) POP_MOVE();
         else POP_NULL();
-    }
-    /*print pv*/
-    print_cluster(pv);
+    } 
 }
 /*
 Check for repeatition inside tree and fifty move draws
@@ -763,15 +763,22 @@ void SEARCHER::init_data() {
 
     /*frc*/
     PLIST current;
+    for(int i = 0; i < 6; i++)
+        frc_squares[i] = -1;
     for(int side = 0; side < 2; side++) {
         frc_squares[3*side] = plist[COMBINE(side,king)]->sq;
         current = plist[COMBINE(side,rook)];
         while(current) {
             if(rank(current->sq) == rank(frc_squares[3*side])) {
-                if(current->sq > frc_squares[3*side])
-                    frc_squares[3*side+1] = current->sq;
-                else
-                    frc_squares[3*side+2] = current->sq;
+                if(current->sq > frc_squares[3*side]) {
+                    if((side == 0 && (castle & WSC_FLAG)) ||
+                       (side == 1 && (castle & BSC_FLAG)))
+                            frc_squares[3*side+1] = current->sq;
+                } else {
+                    if((side == 0 && (castle & WLC_FLAG)) ||
+                       (side == 1 && (castle & BLC_FLAG)))
+                            frc_squares[3*side+2] = current->sq;
+                }
             }
             current = current->next;
         }
