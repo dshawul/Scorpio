@@ -93,6 +93,9 @@ void PROCESSOR::Sum(float* sendbuf,float* recvbuf,int count) {
 void PROCESSOR::Max(int* sendbuf,int* recvbuf,int count) {
     MPI_Reduce(sendbuf,recvbuf,count,MPI_INT,MPI_MAX,0,MPI_COMM_WORLD);
 }
+void PROCESSOR::Gather(char* sendbuf,char* recvbuf,int scount,int rcount) {
+    MPI_Gather(sendbuf,scount,MPI_CHAR,recvbuf,rcount,MPI_CHAR,0,MPI_COMM_WORLD);
+}
 bool PROCESSOR::IProbe(int& source,int& message_id) {
     static MPI_Status mpi_status;
     int flag;

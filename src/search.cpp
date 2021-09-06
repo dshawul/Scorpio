@@ -2125,7 +2125,7 @@ MOVE SEARCHER::find_best() {
         }
 
         /*print best 5 moves vote weights*/
-        char info[1024];
+        char info[128];
         sprintf(info,"# [%d] vote:",PROCESSOR::host_id);
         for(int i = 0; i < n_root_moves && i < 8; i++) {
             char mv_str[16], str[32];
@@ -2135,9 +2135,16 @@ MOVE SEARCHER::find_best() {
         }
         strcat(info,"\n");
 
-        PROCESSOR::Barrier();
-        print_cluster(info);
-        PROCESSOR::Barrier();
+        /*gather all voting info and print it*/
+        char* info_all = 0;
+        if(PROCESSOR::host_id == 0)
+            info_all = (char*)malloc(PROCESSOR::n_hosts * 128);
+        PROCESSOR::Gather(info, info_all, strlen(info)+1, 128);
+        if(PROCESSOR::host_id == 0) {
+            for(int i = 0; i < PROCESSOR::n_hosts; i++)
+                print(info_all + 128 * i);
+            free(info_all);
+        }
 
         /*print voted best move*/
         if(PROCESSOR::host_id == 0) {
