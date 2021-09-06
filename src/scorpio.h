@@ -1112,9 +1112,9 @@ typedef struct PROCESSOR {
 #ifdef CLUSTER
     enum processor_states {
         QUIT = 0,INIT,HELP,CANCEL,SPLIT,MERGE,PING,PONG,
-        BMOVE, GOROOT, RECORD_TT,PROBE_TT,PROBE_TT_RESULT
+        BMOVE,STRING,GOROOT,RECORD_TT,PROBE_TT,PROBE_TT_RESULT
     };
-    static const char *const message_str[13];
+    static const char *const message_str[14];
     static int host_id;
     static char host_name[256];
     static int help_messages;
@@ -1152,6 +1152,7 @@ typedef struct PROCESSOR {
     static void handle_message(int dest,int message_id);
     static void offer_help();
     static void send_best_move(int dest, MOVE move);
+    static void send_string(const char*);
 #endif
     bool has_block();
     void idle_loop();
@@ -1267,10 +1268,10 @@ int   get_time();
 void  init_io();
 void  remove_log_file();
 void  print(const char* format,...);
-void  print_all(const char* format,...);
 void  print_log(const char* format,...);
 void  print_std(const char* format,...);
 void  print_info(const char* format,...);
+void  print_cluster(const char* str);
 void  print_move(const MOVE&);
 void  print_move_full(const MOVE&);
 void  print_sq(const int&);

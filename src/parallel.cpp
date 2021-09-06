@@ -113,6 +113,11 @@ void PROCESSOR::send_best_move(int dest, MOVE move) {
     ISend(dest,PROCESSOR::BMOVE,&move,sizeof(MOVE),&rq);
     Wait(&rq);
 }
+void PROCESSOR::send_string(const char* str) {
+    MPI_Request rq;
+    ISend(0,PROCESSOR::STRING,(void*)&str[0],strlen(str)+1,&rq);
+    Wait(&rq);
+}
 /**
 * Handle messages
 */
@@ -346,7 +351,14 @@ void PROCESSOR::handle_message(int source,int message_id) {
         Recv(source,message_id,&move,sizeof(move));
 
         PROCESSOR::best_moves[source] = move;
+        /***********************************
+        * Any string ,such as PV,from slaves
+        ************************************/
+    } else if(message_id == STRING) {
+        char str[1024];
+        Recv(source,message_id,str,1024);
 
+        print_std(str);
         /***********************************
         * Distributed transposition table
         ************************************/

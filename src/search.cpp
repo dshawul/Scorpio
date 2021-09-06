@@ -2136,7 +2136,7 @@ MOVE SEARCHER::find_best() {
         strcat(info,"\n");
 
         PROCESSOR::Barrier();
-        print_all(info);
+        print_cluster(info);
         PROCESSOR::Barrier();
 
         /*print voted best move*/
@@ -2162,7 +2162,7 @@ MOVE SEARCHER::find_best() {
                 strcat(info,str);
             }
             strcat(info,"\n");
-            print_all(info);
+            print(info);
 
             char mv_str[16];
             mov_str(bmove,mv_str);

@@ -56,7 +56,7 @@ int PROCESSOR::prev_dest = -1;
 int PROCESSOR::vote_weight = 100;
 const char *const PROCESSOR::message_str[] = {
     "QUIT","INIT","HELP","CANCEL","SPLIT","MERGE","PING","PONG",
-    "BMOVE","GOROOT","RECORD_TT","PROBE_TT","PROBE_TT_RESULT"
+    "BMOVE","STRING","GOROOT","RECORD_TT","PROBE_TT","PROBE_TT_RESULT"
 };
 int use_abdada_cluster = 0;
 #endif
@@ -134,7 +134,11 @@ static void load_egbbs() {
 
         char header[512], header2[128];
 
+#ifdef CLUSTER
+        sprintf(header,"-------- Host %d ----------\n",PROCESSOR::host_id);
+#else
         strcpy(header,"--------------------------\n");
+#endif
         if(!(montecarlo && frac_abprior == 0)) {
             size = 1;
             size_max = ht * ((1024 * 1024) / (2 * sizeof(HASH)));
@@ -166,7 +170,7 @@ static void load_egbbs() {
         sprintf(header2,"processors [%d]\n",PROCESSOR::n_processors);
         strcat(header,header2);
         strcat(header,"--------------------------\n");
-        print_all(header);
+        print_cluster(header);
 
         ht_setting_changed = false;
     }

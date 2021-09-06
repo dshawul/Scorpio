@@ -28,14 +28,29 @@ void remove_log_file() {
 
 #define PRINT(pf,mstr) {        \
     va_start(ap, format);       \
-    vfprintf(pf,mstr, ap);      \
+    vfprintf(pf, mstr, ap);     \
     va_end(ap);                 \
     fflush(pf);                 \
 }
 
+void print_log(const char* format,...) {
+    if(!log_on || !log_file) return;
+    l_lock(lock_io);
+    va_list ap;
+    PRINT(log_file,format);
+    l_unlock(lock_io);
+}
+
+void print_std(const char* format,...) {
+    CLUSTER_CODE(if(PROCESSOR::host_id != 0) return;)
+    l_lock(lock_io);
+    va_list ap;
+    PRINT(stdout,format);
+    l_unlock(lock_io);
+}
+
 void print(const char* format,...) {
     l_lock(lock_io);
-        
     va_list ap;
     CLUSTER_CODE(if(PROCESSOR::host_id == 0))
     {
@@ -43,56 +58,34 @@ void print(const char* format,...) {
     }
     if(log_on && log_file)
         PRINT(log_file,format); 
-
     l_unlock(lock_io);
 }
-void print_all(const char* format,...) {
-    l_lock(lock_io);
-        
-    va_list ap;
-    PRINT(stdout,format);
-    if(log_on && log_file)
-        PRINT(log_file,format);    
 
-    l_unlock(lock_io);
-}
 void print_info(const char* format,...) {
-    
-    CLUSTER_CODE(if(PROCESSOR::host_id != 0) return;)
-
     char str[1024];
     sprintf(str,"# %s",format);
 
     l_lock(lock_io);
-        
     va_list ap;
-    PRINT(stdout,str);
+    CLUSTER_CODE(if(PROCESSOR::host_id == 0))
+    {
+        PRINT(stdout,str);
+    }
     if(log_on && log_file)
         PRINT(log_file,str);    
-
     l_unlock(lock_io);
 }
-void print_log(const char* format,...) {
-        
-    if(!log_on || !log_file) return;
-    
-    l_lock(lock_io);
 
-    va_list ap;
-    PRINT(log_file,format);
-
-    l_unlock(lock_io);
-}
-void print_std(const char* format,...) {
-    
-    CLUSTER_CODE(if(PROCESSOR::host_id != 0) return;)
-    
-    l_lock(lock_io);
-    
-    va_list ap;
-    PRINT(stdout,format);
-
-    l_unlock(lock_io);
+void print_cluster(const char* str) {
+    print(str);
+#ifdef CLUSTER
+    if(use_abdada_cluster
+        && PROCESSOR::n_hosts > 1
+        && PROCESSOR::host_id > 0
+        ) {
+        PROCESSOR::send_string(str);
+    }
+#endif
 }
 
 #undef PRINT
@@ -584,15 +577,14 @@ void SEARCHER::print_pv(int score) {
         else PUSH_NULL();
         i++;
     }
-    /*print it now*/
     strcat(pv,"\n");
-    print_all(pv);
-    /*undo moves*/
     for (int j = 0; j < i ; j++) {
         move = hstack[hply - 1].move;
         if(move) POP_MOVE();
         else POP_NULL();
     }
+    /*print pv*/
+    print_cluster(pv);
 }
 /*
 Check for repeatition inside tree and fifty move draws
