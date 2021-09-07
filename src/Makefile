@@ -50,6 +50,8 @@ DEFINES += -DNNUE_INC
 DEBUG=0
 COMP=gcc
 STRIP=strip
+CXXFLAGS=
+LXXFLAGS=
 
 ifeq ($(COMP),gcc-cluster)
 	CXX=mpicxx -cxx=g++
@@ -68,10 +70,12 @@ else ifeq ($(COMP),pgcc-cluster)
 	override COMP=pgcc
 	DEFINES += -DCLUSTER
 else ifeq ($(COMP),win-cluster)
-	CXX=mpicxx -cxx=x86_64-w64-mingw32-g++
+	CXX=x86_64-w64-mingw32-g++
 	override COMP=win
 	DEFINES += -DCLUSTER
 	STRIP=x86_64-w64-mingw32-strip
+	LXXFLAGS += -L/usr/local/msmpi/Lib/x64 -lmsmpi
+	CXXFLAGS += -I/usr/local/msmpi/Include
 else ifeq ($(COMP),gcc)
 	CXX=g++
 else ifeq ($(COMP),clang)
@@ -95,10 +99,11 @@ STRIP += $(EXE)
 ###########################
 
 ifeq ($(COMP),arm)
-    LXXFLAGS = -lm
+    LXXFLAGS += -lm
 else
-    LXXFLAGS = -lpthread -lm
+    LXXFLAGS += -lpthread -lm
 endif
+
 
 UNUSED = -Wno-unused-variable -Wno-unused-result  -Wno-unused-result 
 ifeq ($(COMP),clang)
@@ -108,16 +113,16 @@ endif
 
 ifeq ($(COMP),win)
     LXXFLAGS += -static
-    CXXFLAGS = -Wall -fstrict-aliasing -fno-exceptions -fno-rtti $(UNUSED) -std=c++11
+    CXXFLAGS += -Wall -fstrict-aliasing -fno-exceptions -fno-rtti $(UNUSED) -std=c++11
 else ifeq ($(COMP),pgcc)
-    CXXFLAGS = warn -c11
+    CXXFLAGS += warn -c11
     LXXFLAGS += -ldl
 else ifeq ($(COMP),icpc)
-    CXXFLAGS  = -wd128 -wd981 -wd869 -wd2259 -wd383 -wd1418
+    CXXFLAGS += -wd128 -wd981 -wd869 -wd2259 -wd383 -wd1418
     CXXFLAGS += -fstrict-aliasing -fno-exceptions -fno-rtti $(UNUSED) -std=c++11
     LXXFLAGS += -ldl
 else
-    CXXFLAGS = -Wall -fstrict-aliasing -fno-exceptions -fno-rtti $(UNUSED) -std=c++11
+    CXXFLAGS += -Wall -fstrict-aliasing -fno-exceptions -fno-rtti $(UNUSED) -std=c++11
     LXXFLAGS += -ldl
 endif
 
