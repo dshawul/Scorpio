@@ -113,13 +113,22 @@ bool PROCESSOR::IProbe(int& source,int& message_id) {
 }
 void PROCESSOR::send_best_move(int dest, MOVE move) {
     MPI_Request rq;
-    ISend(dest,PROCESSOR::BMOVE,&move,sizeof(MOVE),&rq);
+    ISend(dest,BMOVE,&move,sizeof(MOVE),&rq);
     Wait(&rq);
 }
 void PROCESSOR::send_string(const char* str) {
     MPI_Request rq;
-    ISend(0,PROCESSOR::STRING,(void*)&str[0],strlen(str)+1,&rq);
+    ISend(0,STRING,(void*)&str[0],strlen(str)+1,&rq);
     Wait(&rq);
+}
+void PROCESSOR::send_cmd(const char* str) {
+    for(int i = 0; i < PROCESSOR::n_hosts; i++) {
+        if(i != PROCESSOR::host_id) {
+            MPI_Request rq;
+            ISend(i,STRING_CMD,(void*)&str[0],strlen(str)+1,&rq);
+            Wait(&rq);
+        }
+    }
 }
 /**
 * Handle messages
@@ -361,7 +370,20 @@ void PROCESSOR::handle_message(int source,int message_id) {
         char str[1024];
         Recv(source,message_id,str,1024);
 
+        /*print it to screen*/
         print_std(str);
+        /***********************************
+        * Commands to be executed
+        ************************************/
+    } else if(message_id == STRING_CMD) {
+        char str[1024];
+        Recv(source,message_id,str,1024);
+
+        /*execute commands*/
+        char*  commands[MAX_STR];
+        commands[tokenize(str,commands)] = NULL;
+        parse_commands(commands);
+
         /***********************************
         * Distributed transposition table
         ************************************/

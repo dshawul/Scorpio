@@ -56,7 +56,7 @@ int PROCESSOR::prev_dest = -1;
 int PROCESSOR::vote_weight = 100;
 const char *const PROCESSOR::message_str[] = {
     "QUIT","INIT","HELP","CANCEL","SPLIT","MERGE","PING","PONG",
-    "BMOVE","STRING","GOROOT","RECORD_TT","PROBE_TT","PROBE_TT_RESULT"
+    "BMOVE","STRING","STRING_CMD","GOROOT","RECORD_TT","PROBE_TT","PROBE_TT_RESULT"
 };
 int use_abdada_cluster = 0;
 #endif
@@ -491,18 +491,23 @@ static void print_options() {
 int internal_commands(char** commands,char* command,int& command_num) {
     if (!strcmp(command, "xboard")) {
         PROTOCOL = XBOARD;
+        CLUSTER_CODE(if(PROCESSOR::host_id == 0) PROCESSOR::send_cmd(command);)
     } else if(!strcmp(command,"uci")) {
         PROTOCOL = UCI;
-        print("id name Scorpio %s\n",VERSION);
-        print("id author Daniel Shawul\n");
-        print_check("UCI_Chess960",variant);
-        print_options();
-        print_search_params();
-        print_mcts_params();
+        CLUSTER_CODE(if(PROCESSOR::host_id == 0))
+        {
+            print("id name Scorpio %s\n",VERSION);
+            print("id author Daniel Shawul\n");
+            print_check("UCI_Chess960",variant);
+            print_options();
+            print_search_params();
+            print_mcts_params();
 #ifdef TUNE
-        print_eval_params();
+            print_eval_params();
 #endif
-        print("uciok\n");
+            print("uciok\n");
+        }
+        CLUSTER_CODE(if(PROCESSOR::host_id == 0) PROCESSOR::send_cmd(command);)
         /*
         hash tables
         */
@@ -892,6 +897,10 @@ int internal_commands(char** commands,char* command,int& command_num) {
             variant = 1;
         else
             variant = 0;
+#ifdef CLUSTER
+        if(PROCESSOR::host_id == 0 && variant)
+            PROCESSOR::send_cmd("variant fischerandom");
+#endif
     } else if(!strcmp(command,"selfplay")) {
         int wins = 0, losses = 0, draws = 0,res;
         char FEN[MAX_STR];
@@ -1138,6 +1147,10 @@ int uci_commands(char** commands,char* command,int& command_num,int& do_search) 
         print("readyok\n");
     } else if (!strcmp(command, "UCI_Chess960")) {
         variant = is_checked(commands[command_num++]);
+#ifdef CLUSTER
+        if(PROCESSOR::host_id == 0 && variant)
+            PROCESSOR::send_cmd("UCI_Chess960 true");
+#endif
     } else if(!strcmp(command,"position")) {
         command = commands[command_num++];
         if(command && !strcmp(command,"fen")) {    
