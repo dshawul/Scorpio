@@ -261,7 +261,7 @@ int CDECL main(int argc, char* argv[]) {
          */
         print_log("==============================\n");
         while(true) {
-            if((SEARCHER::abort_search == 2) || !read_line(buffer))
+            if(!read_line(buffer))
                 goto END;
             if(PROTOCOL == CONSOLE || PROTOCOL == UCI) {
                 std::string s(buffer);
@@ -1394,7 +1394,7 @@ bool parse_commands(char** commands) {
                     SEARCHER::abort_search = 1;
                     return true;
                 }
-            } while(SEARCHER::analysis_mode && SEARCHER::abort_search <= 1);
+            } while(SEARCHER::analysis_mode);
             continue;
         }
         /*

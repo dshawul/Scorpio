@@ -1485,7 +1485,7 @@ void SEARCHER::check_quit() {
                 break;
             commands[tokenize(buffer,commands)] = NULL;
             if(!parse_commands(commands)) {
-                abort_search = 2;
+                abort_search = 1;
                 return;
             }
 

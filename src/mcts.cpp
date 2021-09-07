@@ -2587,12 +2587,12 @@ void SEARCHER::worker_thread() {
         return self_play_thread();
     } else if(work_type == 1) {
         char game[32 * MAX_FILE_STR];
-        while(p_pgn->next(game) && (SEARCHER::abort_search != 2)) {
+        while(p_pgn->next(game)) {
             pgn_to_epd(game,spfile,task);
         }
     } else {
         char epd[4 * MAX_FILE_STR];
-        while(p_pgn->next(epd) && (SEARCHER::abort_search != 2)) {
+        while(p_pgn->next(epd)) {
             epd_to_nn(epd,spfile,task);
         }
     }

@@ -659,6 +659,7 @@ void PROCESSOR::exit_scorpio(int status) {
 #else
     print("Process terminated.\n");
 #endif
+    exit(EXIT_SUCCESS);
 }
 #ifdef CLUSTER
 /**
