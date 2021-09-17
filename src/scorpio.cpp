@@ -200,9 +200,6 @@ int CDECL main(int argc, char* argv[]) {
 #ifdef CLUSTER
     PROCESSOR::init_mpi_thread();
 #endif
-
-    /*tell winboard to wait*/
-    print("feature done=0\n");
     
     /*init game*/
     init_game();
@@ -497,6 +494,7 @@ int internal_commands(char** commands,char* command,int& command_num) {
     if (!strcmp(command, "xboard")) {
         PROTOCOL = XBOARD;
         CLUSTER_CODE(if(PROCESSOR::host_id == 0) PROCESSOR::send_cmd(command);)
+        print("feature done=0\n");
     } else if(!strcmp(command,"uci")) {
         PROTOCOL = UCI;
         CLUSTER_CODE(if(PROCESSOR::host_id == 0))
