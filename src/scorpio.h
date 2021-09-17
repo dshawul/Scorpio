@@ -1139,7 +1139,8 @@ typedef struct PROCESSOR {
     static void set_num_searchers();
     static void set_main();
 #ifdef CLUSTER
-    static void init(int argc, char* argv[]);
+    static void init_mpi(int argc, char* argv[]);
+    static void init_mpi_thread();
     static void ISend(int dest,int message);
     static void ISend(int dest,int message,void* data,int size,MPI_Request* = 0);
     static void Recv(int dest,int message);

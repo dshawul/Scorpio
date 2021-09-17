@@ -188,14 +188,19 @@ int CDECL main(int argc, char* argv[]) {
     char   buffer[4*MAX_FILE_STR];
     char*  commands[4*MAX_STR];
 
-    /*init io*/
-    init_io();
-    
     /*init mpi*/
 #ifdef CLUSTER
-    PROCESSOR::init(argc,argv);
+    PROCESSOR::init_mpi(argc,argv);
 #endif
-    
+
+    /*init io*/
+    init_io();
+
+    /*init mpi message processing thread*/
+#ifdef CLUSTER
+    PROCESSOR::init_mpi_thread();
+#endif
+
     /*tell winboard to wait*/
     print("feature done=0\n");
     

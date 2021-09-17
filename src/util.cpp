@@ -1,6 +1,4 @@
-#include <ctime>
 #include <sstream>
-
 #include "scorpio.h"
 
 static const char piece_name[] = "_KQRBNPkqrbnpZ";
@@ -1171,6 +1169,25 @@ int get_time() {
 #endif
 }
 /*
+log file
+*/
+static void init_log() {
+
+#ifdef LOG_FILE
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+    int id = 0;
+    CLUSTER_CODE(id = PROCESSOR::host_id);
+    sprintf(log_name,"log/log-%d%02d%02d-%02d%02d%02d-%d.txt",
+        tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec,id);
+    if((log_file = fopen(log_name ,"w")) == 0)
+        log_on = false;
+#endif
+    if(log_file)
+        setbuf(log_file,NULL);
+
+}
+/*
 input/output from pipe/consol
 */
 #ifdef _WIN32
@@ -1188,29 +1205,8 @@ void init_io() {
     rand();
     
     l_create(lock_io);
-    
-#ifdef LOG_FILE
-    /*log file*/
-    int i;
-    const int MAX_LOGS = 1000;
-TOP:
-    for(i = 0;i < MAX_LOGS; i++){
-        sprintf(log_name,"log/log%03d.txt",i);
-        if((log_file = fopen(log_name ,"r")) == 0) break;
-        fclose(log_file);
-    }
-    if(i >= MAX_LOGS) {
-        for(i = 0;i < MAX_LOGS; i++){
-            sprintf(log_name,"log/log%03d.txt",i);
-            remove(log_name);
-        }
-        goto TOP;
-    }
-    if((log_file = fopen(log_name ,"w")) == 0)
-        log_on = false;
-#endif
-    if(log_file)
-        setbuf(log_file,NULL);
+    init_log();
+
     /*pipe/consol*/
 #ifdef _WIN32
     DWORD dw;

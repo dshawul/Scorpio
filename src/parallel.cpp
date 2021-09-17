@@ -32,7 +32,7 @@ void PROCESSOR::set_mt_state(int state) {
 /**
 * Initialize MPI
 */
-void PROCESSOR::init(int argc, char* argv[]) {
+void PROCESSOR::init_mpi(int argc, char* argv[]) {
     int namelen,provided,requested = MPI_THREAD_MULTIPLE;
     MPI_Init_thread(&argc, &argv,requested,&provided);
     MPI_Comm_size(MPI_COMM_WORLD, &PROCESSOR::n_hosts);
@@ -45,15 +45,19 @@ void PROCESSOR::init(int argc, char* argv[]) {
             "MPI_THREAD_SINGLE","MPI_THREAD_FUNNELED",
             "MPI_THREAD_SERIALIZED","MPI_THREAD_MULTIPLE"
         };
-        print("[Warning]: %s not supported. %s provided.\n",
+        printf("[Warning]: %s not supported. %s provided.\n",
             support[requested],support[provided]);
-        print("[Warning]: Scorpio may hang when run with multiple threads"
+        printf("[Warning]: Scorpio may hang when run with multiple threads"
             " (including message polling thread).\n");
     }
 
-    print("Process [%d/%d] on %s : pid %d\n",PROCESSOR::host_id,
+    printf("Process [%d/%d] on %s : pid %d\n",PROCESSOR::host_id,
         PROCESSOR::n_hosts,PROCESSOR::host_name,GETPID());
-    
+
+    PROCESSOR::Barrier();
+}
+
+void PROCESSOR::init_mpi_thread() {
     /*global split point*/
     best_moves.resize(n_hosts);
     global_split = new SPLIT_MESSAGE[n_hosts];
