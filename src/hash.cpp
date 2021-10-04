@@ -76,9 +76,6 @@ static void CDECL clear_hash_proc(int id) {
 }
 
 void PROCESSOR::clear_hash_tables() {
-    for(int i = 1;i < PROCESSOR::n_processors;i++)
-        PROCESSOR::park(i);
-
     int ncores = (montecarlo && SEARCHER::use_nn) ? 
             PROCESSOR::n_cores : PROCESSOR::n_processors;
     std::thread* mthreads = new std::thread[ncores];
@@ -87,9 +84,6 @@ void PROCESSOR::clear_hash_tables() {
     for(int id = 0; id < ncores; id++)
         t_join(mthreads[id]);
     delete[] mthreads;
-
-    for(int i = 1;i < PROCESSOR::n_processors;i++)
-        PROCESSOR::wait(i);
 }
 
 /*
