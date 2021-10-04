@@ -375,7 +375,8 @@ void PROCESSOR::handle_message(int source,int message_id) {
         Recv(source,message_id,str,1024);
 
         /*print it to screen*/
-        print_std(str);
+        if(!psb->abort_search)
+            print_std(str);
         /***********************************
         * Commands to be executed
         ************************************/
