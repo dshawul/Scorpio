@@ -139,6 +139,7 @@ void SEARCHER::record_hash(
     slot.score = int16_t(score);
     slot.depth = uint8_t(depth);
     slot.flags = uint8_t((flags - EXACT) | (mate_threat << 2) | (singular << 3) | (PROCESSOR::age << 4));
+    eval = fifty < 100 ? ((eval * 100) / (100 - fifty)) : 0;
     slot.eval = int32_t(eval);
     s_data = (slot.move ^ slot.eval ^ slot.data);
     slot.check_sum = (check_sum ^ s_data);
@@ -172,6 +173,7 @@ int SEARCHER::probe_hash(
                 score += WIN_PLY * (ply + 1);
             
             eval = slot.eval;
+            eval = (eval * (100 - fifty)) / 100;
             move = slot.move;
             mate_threat |= ((slot.flags >> 2) & 1);
             singular = ((slot.flags >> 3) & 1);

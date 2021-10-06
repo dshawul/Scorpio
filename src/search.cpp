@@ -86,6 +86,15 @@ bool SEARCHER::hash_cutoff() {
         pstack->hash_move = 0;
     }
 
+    /*update history*/
+    if(pstack->hash_move && !is_cap_prom(pstack->hash_move)) {
+        pstack->current_index = 1;
+        if(pstack->hash_flags == LOWER)
+            update_history(pstack->hash_move);
+        else if(pstack->hash_flags == UPPER)
+            update_history(pstack->hash_move,true);
+    }
+
     /*cutoff*/
     if(pstack->singular && pstack->hash_flags != HASH_GOOD)
         pstack->singular = 0;
@@ -99,14 +108,6 @@ bool SEARCHER::hash_cutoff() {
         }
         pstack->best_move = pstack->hash_move;
         pstack->best_score = pstack->hash_score;
-        /*update history*/
-        if(pstack->hash_move && !is_cap_prom(pstack->hash_move)) {
-            pstack->current_index = 1;
-            if(pstack->hash_flags == LOWER)
-                update_history(pstack->hash_move);
-            else if(pstack->hash_flags == UPPER)
-                update_history(pstack->hash_move,true);
-        }
         return true;
     }
 
