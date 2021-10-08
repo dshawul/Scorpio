@@ -113,6 +113,8 @@ LNK=https://github.com/dshawul/Scorpio/releases/download
 EGBB=nnprobe-${OS}-${DEV}${TRT}
 wget --no-check-certificate ${LNK}/${VERSION}/${EGBB}.zip
 unzip -o ${EGBB}.zip
+wget --no-check-certificate ${LNK}/${VERSION}/egbblib-${OS}.zip
+unzip -j -o egbblib-${OS}.zip -d ${EGBB}
 
 # networks
 NET="nets-nnue"

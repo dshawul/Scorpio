@@ -99,6 +99,12 @@ SET FILENAME=%EGBB%.zip
 bitsadmin /transfer mydownload /dynamic /download /priority FOREGROUND "%LNK%/%VERSION%/%FILENAME%" %CWD%%FILENAME%
 powershell Expand-Archive -Force %CWD%%FILENAME% -DestinationPath %CWD%
 DEL %CWD%%FILENAME%
+SET FILENAME=egbblib-%OSD%.zip
+bitsadmin /transfer mydownload /dynamic /download /priority FOREGROUND "%LNK%/%VERSION%/%FILENAME%" %CWD%%FILENAME%
+powershell Expand-Archive -Force %CWD%%FILENAME% -DestinationPath %CWD%%EGBB%
+MOVE "%CWD%%EGBB%\egbblib-%OSD%\*.*" "%CWD%%EGBB%"
+RMDIR /S /Q %CWD%%EGBB%\egbblib-%OSD%
+DEL %CWD%%FILENAME%
 
 REM --------- download egbb
 SET FILENAME=egbb.zip
