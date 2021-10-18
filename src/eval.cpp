@@ -44,7 +44,6 @@ int SEARCHER::eval(bool skip_nn_l)
     /*number of evaluation calls*/
     ecalls++;
 
-#ifdef EGBB
     /* neural network evaluation */
     if(use_nn_hard) {
         actual_score = logit(probe_neural());
@@ -57,10 +56,8 @@ int SEARCHER::eval(bool skip_nn_l)
         nnue_score = (nnue_score * (720 + (phase * PAWN_MG) / 32)) / 1024;
         nnue_score += TEMPO_BONUS + (phase * TEMPO_SLOPE) / MAX_MATERIAL;
         actual_score = nnue_score;
-    } else
-#endif
     /*hand-crafted evaluation*/
-    {
+    } else {
         actual_score = eval_hce();
     }
     /*scale some endgame evaluations*/

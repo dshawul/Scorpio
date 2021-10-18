@@ -13,10 +13,6 @@
 Some definitions to include/remove code
 */
 #ifdef _MSC_VER
-#   define LOG_FILE
-#   define BOOK_PROBE
-#   define BOOK_CREATE
-#   define EGBB
 // #    define CLUSTER
 // #    define TUNE
 #endif
@@ -1416,7 +1412,7 @@ FORCEINLINE unsigned int first_one(uint64_t b) {
 Brian Kernighan's sparse bitboard population count
 Used for king attack pattern.
 */
-#if !defined(HAS_POPCNT)
+#if !defined(ARC_64BIT) || !defined(HAS_POPCNT)
 FORCEINLINE int popcnt_sparse(uint64_t b) {
     int count = 0;
     while (b) {

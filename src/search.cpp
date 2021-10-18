@@ -1851,7 +1851,6 @@ MOVE SEARCHER::find_best() {
         return pstack->move_st[0];
     }
 
-#ifdef BOOK_PROBE
     /*find book move*/
     if(book_loaded 
         && hply <= last_book_move + 6 
@@ -1865,7 +1864,6 @@ MOVE SEARCHER::find_best() {
                 return move;
             }
     }
-#endif
 
     stack[0].pv[0] = pstack->move_st[0];
 

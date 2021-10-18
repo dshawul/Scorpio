@@ -318,9 +318,7 @@ void init_game() {
     SEARCHER::resign_value = 600;
     SEARCHER::resign_count = 0;
     SEARCHER::allocate_history();
-#ifdef BOOK_PROBE
     load_book();
-#endif
 }
 /*
 "help" command added by Dann Corbit
@@ -556,7 +554,6 @@ int internal_commands(char** commands,char* command,int& command_num) {
         /*
         egbb
         */
-#ifdef EGBB
     } else if(!strcmp(command, "egbb_path")) {
         egbb_setting_changed = true;
         strcpy(SEARCHER::egbb_path,commands[command_num]);
@@ -680,9 +677,7 @@ int internal_commands(char** commands,char* command,int& command_num) {
         command = commands[command_num++];
         if(!strcmp(command,"FCFS")) SEARCHER::scheduling = 0;
         else SEARCHER::scheduling = 1;
-#endif
 
-#ifdef BOOK_PROBE
     } else if (!strcmp(command, "book")) {
         if(commands[command_num]) {
             if(!strcmp(commands[command_num],"on"))
@@ -693,8 +688,6 @@ int internal_commands(char** commands,char* command,int& command_num) {
         } else if(book_loaded) {
             searcher.show_book_moves();
         }
-#endif
-#ifdef BOOK_CREATE
     } else if (!strcmp(command,"build")) {
         int col = neutral,hsize = 1024 * 1024,plies = 30;
         char source[1024] = "book.pgn",dest[1024] = "book.dat";
@@ -816,7 +809,6 @@ int internal_commands(char** commands,char* command,int& command_num) {
 
         if(task < 8)
             fclose(fb);
-#endif
 #ifdef TUNE
     } else if (!strcmp(command, "jacobian") ||
                !strcmp(command, "tune")
@@ -834,14 +826,12 @@ int internal_commands(char** commands,char* command,int& command_num) {
         /*call tuner*/
         searcher.tune(task,commands[command_num++]);
 #endif
-#ifdef LOG_FILE
     } else if (!strcmp(command, "log")) {
         if(is_checked(commands[command_num]))
             log_on = true;
         else
             log_on = false;
         command_num++;
-#endif
     } else if(check_search_params(commands,command,command_num)) {
     } else if(check_mcts_params(commands,command,command_num)) {
 #ifdef TUNE

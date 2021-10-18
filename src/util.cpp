@@ -1172,8 +1172,6 @@ int get_time() {
 log file
 */
 static void init_log() {
-
-#ifdef LOG_FILE
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
     int id = 0;
@@ -1182,7 +1180,6 @@ static void init_log() {
         tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec,id);
     if((log_file = fopen(log_name ,"w")) == 0)
         log_on = false;
-#endif
     if(log_file)
         setbuf(log_file,NULL);
 
@@ -1520,7 +1517,6 @@ void SEARCHER::check_quit() {
 /*
 BOOK
 */
-#ifdef BOOK_PROBE
 typedef struct BOOK_E {
     HASHKEY hash_key;
     uint16_t wins;
@@ -1675,10 +1671,6 @@ void SEARCHER::show_book_moves() {
     gen_all_legal();
     get_book_move();
 }
-
-#   endif //BOOK_PROBE
-
-#ifdef BOOK_CREATE
 
 /*
 SAN
@@ -1953,8 +1945,6 @@ void merge_books(char* path1,char* path2,char* path,double w1 = 1.0,double w2 = 
     fclose(f1);
     fclose(f2);
 }
-
-#   endif   //BOOK_CREATE
 
 /*
 Process PGN/EPD in parallel

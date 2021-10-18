@@ -236,7 +236,6 @@ static void clean_path(char* main_path) {
     }
 }
 void LoadEgbbLibrary(char* main_path) {
-#ifdef EGBB
 
     /*suppress printf output*/
 #ifdef CLUSTER
@@ -341,7 +340,6 @@ void LoadEgbbLibrary(char* main_path) {
 #undef CLOSE
 #endif
 
-#endif
 }
 /*
 Probe:
@@ -379,18 +377,15 @@ void SEARCHER::fill_list(int& count, int* piece, int* square) {
 }
 
 int SEARCHER::probe_bitbases(int& score) {
-#ifdef EGBB
     int piece[MAX_PIECES],square[MAX_PIECES],count = 0;
     fill_list(count,piece,square);
     score = probe_egbb(player,piece,square);
     if(score != _NOTFOUND)
         return true;
-#endif
     return false;
 }
 
 bool SEARCHER::bitbase_cutoff() {
-#ifdef EGBB
     int score;
     int dlimit = egbb_depth_limit;
     int plimit = egbb_ply_limit;
@@ -412,7 +407,6 @@ bool SEARCHER::bitbase_cutoff() {
 
             return true;
     }
-#endif
     return false;
 }
 
@@ -447,7 +441,6 @@ void init_input_planes() {
 }
 
 float SEARCHER::probe_neural_(bool hard_probe, float* policy, int nn_id_, int nn_type_, int wdl_head_) {
-#ifdef EGBB
     const int max_moves = MIN(pstack->count, MAX_MOVES_NN);
     uint64_t hkey = ((player == white) ? hash_key : 
              (hash_key ^ UINT64(0x2bc3964f82352234)));
@@ -510,7 +503,6 @@ float SEARCHER::probe_neural_(bool hard_probe, float* policy, int nn_id_, int nn
         }
         return p;
     }
-#endif
     return 0;
 }
 
@@ -602,12 +594,10 @@ float SEARCHER::probe_neural(bool hard_probe) {
 }
 
 void PROCESSOR::set_num_searchers() {
-#ifdef EGBB
     if(SEARCHER::use_nn && set_num_active_searchers) {
         int n_searchers = n_processors - n_idle_processors;
         set_num_active_searchers(n_searchers);
     }
-#endif
 }
 
 /*
@@ -1155,7 +1145,6 @@ int SEARCHER::compress_input_planes(float** iplanes, char* buffer) {
 NNUE
 */
 int SEARCHER::probe_nnue() {
-#ifdef EGBB
     int piece[33],square[33],count = 0;
     fill_list(count,piece,square);
 
@@ -1170,6 +1159,5 @@ int SEARCHER::probe_nnue() {
         player,piece,square);
 #endif
 
-#endif
     return 0;
 }

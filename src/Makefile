@@ -22,10 +22,6 @@ HPP = scorpio.h my_types.h params.h
 #  DYBW            --  Compile with YBW
 #  DTUNE           --  Compile evaluation tuning code. [NOT recommended to turn on]
 #  DMYDEBUG        --  Turn on some MPI debugging
-#  DLOG_FILE       --  Include logging code
-#  DBOOK_PROBE     --  Include book probing code
-#  DBOOK_CREATE    --  Include book creation code
-#  DEGBB           --  Include EGBB probing code
 #########################################################################
 DEFINES = 
 DEFINES += -DARC_64BIT
@@ -34,10 +30,6 @@ ifneq ($(COMP),arm)
     DEFINES += -DHAS_PREFETCH
     DEFINES += -DUSE_SPINLOCK
 endif
-DEFINES += -DLOG_FILE
-DEFINES += -DBOOK_PROBE
-DEFINES += -DBOOK_CREATE
-DEFINES += -DEGBB
 #DEFINES += -DMYDEBUG
 #DEFINES += -DTUNE
 DEFINES += -DMAX_CPUS=656
