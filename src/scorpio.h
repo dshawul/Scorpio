@@ -247,13 +247,13 @@ distances
 template<class T>
 const T& MAX_SCORPIO(const T& a, const T& b)
 {
-    return (a > b) ? b : a;
+    return (a < b) ? b : a;
 }
 
 template<class T>
 const T& MIN_SCORPIO(const T& a, const T& b)
 {
-    return (a < b) ? b : a;
+    return (a > b) ? b : a;
 }
 
 #define ABS(a)           abs(a)
