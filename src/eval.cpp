@@ -1529,7 +1529,7 @@ void SEARCHER::eval_win_chance(int& w_win_chance,int& b_win_chance) {
         
         if(pfile == mask[FILEA]
             && (w_piece_value_c == 0 || !is_light(bsq))) {
-            if(distance(ksq,A8) <= 1 ||
+            if(distance(ksq,(int)A8) <= 1 ||
                 (rank(psq) < rank(ksq) && file(ksq) == FILEB)) {
                 bool is_draw = true;
                 for(int sq = psq + RR;sq < B8;sq += UU) {
@@ -1542,7 +1542,7 @@ void SEARCHER::eval_win_chance(int& w_win_chance,int& b_win_chance) {
             }
         } else if(pfile == mask[FILEH] 
             && (w_piece_value_c == 0 || is_light(bsq))) {
-            if(distance(ksq,H8) <= 1 ||
+            if(distance(ksq,(int)H8) <= 1 ||
                 (rank(psq) < rank(ksq) && file(ksq) == FILEG)) {
                 bool is_draw = true;
                 for(int sq = psq + LL;sq < G8;sq += UU) {
@@ -1571,7 +1571,7 @@ void SEARCHER::eval_win_chance(int& w_win_chance,int& b_win_chance) {
         
         if(pfile == mask[FILEA] 
             && (b_piece_value_c == 0 || is_light(bsq))) {
-            if(distance(ksq,A1) <= 1 ||
+            if(distance(ksq,(int)A1) <= 1 ||
                 (rank(psq) > rank(ksq) && file(ksq) == FILEB)) {
                 bool is_draw = true;
                 for(int sq = psq + RR;sq > B1;sq += DD) {
@@ -1584,7 +1584,7 @@ void SEARCHER::eval_win_chance(int& w_win_chance,int& b_win_chance) {
             }
         } else if(pfile == mask[FILEH] 
             && (b_piece_value_c == 0 || !is_light(bsq))) {
-            if(distance(ksq,H1) <= 1 ||
+            if(distance(ksq,(int)H1) <= 1 ||
                 (rank(psq) > rank(ksq) && file(ksq) == FILEG)) {
                 bool is_draw = true;
                 for(int sq = psq + LL;sq > G1;sq += DD) {
