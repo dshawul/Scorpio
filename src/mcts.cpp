@@ -1993,6 +1993,35 @@ float SEARCHER::generate_and_score_moves(int alpha, int beta) {
     /*generate moves here*/
     gen_all_legal();
 
+    /*filter egbb moves*/
+    if(egbb_is_loaded && all_man_c <= MAX_EGBB) {
+        int score, bscore;
+
+        if(probe_bitbases(bscore)) {
+            int bscorem = (bscore >= WIN_SCORE) ? WIN_SCORE :
+                       ((bscore <= -WIN_SCORE) ? -WIN_SCORE : 0);
+            int legal_moves = 0;
+            for(int i = 0;i < pstack->count; i++) {
+                MOVE& move = pstack->move_st[i];
+                PUSH_MOVE(move);
+                if(probe_bitbases(score)) {
+                    score = -score;
+                    int scorem = (score >= WIN_SCORE) ? WIN_SCORE :
+                       ((score <= -WIN_SCORE) ? -WIN_SCORE : 0);
+                    if(scorem < bscorem) {
+                        POP_MOVE();
+                        continue;
+                    }
+                }
+                POP_MOVE();
+                pstack->move_st[legal_moves] = pstack->move_st[i];
+                pstack->score_st[legal_moves] = pstack->score_st[i];
+                legal_moves++;
+            }
+            pstack->count = legal_moves;
+        }
+    }
+
     /*compute move probabilities*/
     if(pstack->count) {
 
