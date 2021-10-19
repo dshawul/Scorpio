@@ -306,7 +306,7 @@ float Node::compute_Q(float fpu, unsigned int collision_lev, bool has_ab) {
         float uctp = 1 - prior;
         uct = 0.5 * ((1 - frac_abprior) * uct +
                     frac_abprior * uctp +
-                    MIN(uct,uctp));
+                    MIN_SCORPIO(uct,uctp));
     }
     if(is_create()) uct *= 0.1;
     return uct;
@@ -770,7 +770,7 @@ Node* Node::Best_select(Node* n, bool has_ab) {
                         double valp = 1 - current->prior;
                         val = 0.5 * ((1 - frac_abprior) * val + 
                                     frac_abprior * valp + 
-                                    MIN(val,valp));
+                                    MIN_SCORPIO(val,valp));
                     }
                 }
 
@@ -1312,7 +1312,7 @@ RESEARCH:
             /*Next ply depth*/
             pstack->depth = (pstack - 1)->depth - 3 - 
                             (pstack - 1)->depth / 4 -
-                            (MIN(3 , (n->score - (pstack - 1)->beta) / 128));
+                            (MIN_SCORPIO((float)3 , (n->score - (pstack - 1)->beta) / 128));
             /*Simulate nullmove*/
             play_simulation(next,score,visits);
 
@@ -1484,10 +1484,10 @@ void SEARCHER::check_mcts_quit(bool single) {
     /*calculate remain visits*/
     int remain_visits;
     if(chess_clock.max_visits == MAX_NUMBER) {
-        int time_used = MAX(1,get_time() - start_time);
+        int time_used = MAX_SCORPIO(1,get_time() - start_time);
         int remain_time = time_factor * chess_clock.search_time - time_used;
         float imf = insta_move_factor + (time_factor - 1.0) / 2;
-        imf = MIN(imf, 0.9);
+        imf = MIN_SCORPIO(imf, (float)0.9);
         remain_visits = (remain_time / (double)time_used) * 
             (root_node->visits - (root_node_reuse_visits * imf));
     } else {
@@ -1553,8 +1553,8 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
         visits_poll = 4 * PROCESSOR::n_processors;
     } else {
         unsigned int np = single ? 1 : PROCESSOR::n_processors;
-        visits_poll = MAX(200 * np, average_pps / 40);
-        visits_poll = MIN(1000 * np, visits_poll);
+        visits_poll = MAX_SCORPIO(200 * np, average_pps / 40);
+        visits_poll = MIN_SCORPIO(1000 * np, visits_poll);
     }
     prev_kld = -1;
 
@@ -1755,8 +1755,9 @@ void CDECL convert_score_thread_proc(void* seid_) {
 void Node::parallel_job(Node* n, PTHREAD_PROC func, bool recursive) {
     int ncores = PROCESSOR::n_cores;
     int nprocs = PROCESSOR::n_processors;
-    int T = 0, S = MAX(1,n->visits / (8 * nprocs)),
-                 V = nprocs / ncores;
+    int T = 0;
+	int	S = MAX_SCORPIO(1,(int)(n->visits / (8 * nprocs)));
+    int V = nprocs / ncores;
 
     for(int i = 1;i < PROCESSOR::n_processors;i++)
         PROCESSOR::park(i);
@@ -1921,7 +1922,7 @@ void SEARCHER::manage_tree(bool single) {
     /*no alphabeta*/
     if(frac_alphabeta == 0) {
         rollout_type = MCTS;
-        search_depth = MIN(search_depth + mcts_strategy_depth, MAX_PLY - 2);
+        search_depth = MIN_SCORPIO(search_depth + mcts_strategy_depth, MAX_PLY - 2);
     }
 
     /*create root node*/
@@ -2121,7 +2122,7 @@ float SEARCHER::generate_and_score_moves(int alpha, int beta) {
                 float* const p = (float*)&pstack->score_st[i];
                 float pp = *p * total;
                 if(pp < 2 * min_policy_value)
-                    pp = MAX(pp, min_policy_value + pp * 0.125f);
+                    pp = MAX_SCORPIO(pp, min_policy_value + pp * 0.125f);
                 *p = pp;
             }
 

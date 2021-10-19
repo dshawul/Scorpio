@@ -658,7 +658,7 @@ START:
                         /* Smooth scaling from Dann Corbit based on score and depth*/
                         sb->pstack->depth = (sb->pstack - 1)->depth - 3 - 
                                             (sb->pstack - 1)->depth / 4 -
-                                            (MIN(3 , score / 128));
+                                            (MIN_SCORPIO(3 , score / 128));
                         /*search normal move after null*/
                         sb->pstack->search_state = NORMAL_MOVE;
                         goto NEW_NODE;
@@ -1152,7 +1152,7 @@ NEW_NODE_Q:
             if( (!finish_search &&
                 (stop_searcher || abort_search) ) ||
                 on_qnode_entry() ) {
-                seldepth = MAX(seldepth, unsigned(ply));
+                seldepth = MAX_SCORPIO(seldepth, unsigned(ply));
                 goto POP_Q;
             }
         }
@@ -1513,7 +1513,7 @@ MOVE SEARCHER::iterative_deepening(bool& montecarlo_skipped) {
             /*reset flags for mcts*/
             stop_searcher = 0;
             abort_search = 0;
-            search_depth = MIN(search_depth + mcts_strategy_depth, MAX_PLY - 2);
+            search_depth = MIN_SCORPIO(search_depth + mcts_strategy_depth, MAX_PLY - 2);
 
             /* wake mcts threads*/
             for(int i = PROCESSOR::n_cores;i < PROCESSOR::n_processors;i++)
@@ -1598,9 +1598,9 @@ MOVE SEARCHER::iterative_deepening(bool& montecarlo_skipped) {
         compute_time_factor(root_score);
 
         if(!montecarlo && opponent_move_expected) {
-            float factor = (1 - MIN(0.9, (time_factor - 1.0) / 3));
+            float factor = (1 - MIN_SCORPIO(0.9, (time_factor - 1.0) / 3));
             if(chess_clock.p_time >= 0.8 * chess_clock.o_time)
-                factor = MIN(1.0, factor + 0.2);
+                factor = MIN_SCORPIO(1.0, factor + 0.2);
             time_factor *= factor;
         }
 
@@ -1730,7 +1730,7 @@ MOVE SEARCHER::iterative_deepening(bool& montecarlo_skipped) {
                     Node::parallel_job(root_node,convert_score_thread_proc);
                     rollout_type = MCTS;
                     use_nn = save_use_nn;
-                    search_depth = MIN(search_depth + mcts_strategy_depth, MAX_PLY - 2);
+                    search_depth = MIN_SCORPIO(search_depth + mcts_strategy_depth, MAX_PLY - 2);
                     pstack->depth = search_depth;
                     root_failed_low = 0;
                     freeze_tree = false;
@@ -1751,11 +1751,11 @@ MOVE SEARCHER::iterative_deepening(bool& montecarlo_skipped) {
             prev_pv_length = stack[0].pv_length;
         } else if(score <= alpha) {
             WINDOW = 3 * WINDOW / 2;
-            alpha = MAX(-MATE_SCORE,score - WINDOW);
+            alpha = MAX_SCORPIO(-MATE_SCORE,score - WINDOW);
             search_depth--;
         } else if (score >= beta){
             WINDOW = 3 * WINDOW / 2;
-            beta = MIN(MATE_SCORE,score + WINDOW);
+            beta = MIN_SCORPIO(MATE_SCORE,score + WINDOW);
             search_depth--;
         } else {
             WINDOW = aspiration_window;
@@ -1936,8 +1936,8 @@ MOVE SEARCHER::find_best() {
     if(montecarlo && !montecarlo_skipped) {
 
         /*search has ended. display some info*/
-        int time_used = MAX(1,get_time() - start_time);
-        int time_used_o = MAX(1,get_time() - start_time_o);
+        int time_used = MAX_SCORPIO(1,get_time() - start_time);
+        int time_used_o = MAX_SCORPIO(1,get_time() - start_time_o);
         unsigned int pps = int(playouts / (time_used / 1000.0f));
         unsigned int vps = int(root_node->visits / (time_used / 1000.0f));
         if(average_pps > 0 && pps >= 5 * average_pps);

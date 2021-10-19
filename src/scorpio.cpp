@@ -526,7 +526,7 @@ int internal_commands(char** commands,char* command,int& command_num) {
         */
     } else if(!strcmp(command,"affinity")) {
         int affinity = atoi(commands[command_num]);
-        affinity = MIN(affinity, MAX_CPUS);
+        affinity = MIN_SCORPIO(affinity, MAX_CPUS);
         PROCESSOR::n_cores = set_affinity(affinity);
         command_num++;
     } else if(!strcmp(command,"mt") || !strcmp(command,"cores") || !strcmp(command,"Threads") ) {
@@ -542,7 +542,7 @@ int internal_commands(char** commands,char* command,int& command_num) {
                 mt = PROCESSOR::n_cores / r;
             } else
                 mt = atoi(commands[command_num]);
-            mt = MIN(mt, MAX_CPUS);
+            mt = MIN_SCORPIO(mt, MAX_CPUS);
             ht_setting_changed = true;
         }
         command_num++;

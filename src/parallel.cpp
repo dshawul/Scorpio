@@ -825,7 +825,7 @@ void SEARCHER::update_master(int skip) {
     master->splits += splits;
     master->bad_splits += bad_splits;
     master->egbb_probes += egbb_probes;
-    master->seldepth = MAX(master->seldepth, seldepth);
+    master->seldepth = MAX_SCORPIO(master->seldepth, seldepth);
 
     if(!skip) {
         /*update stuff at split point. First FIX the stack location because 

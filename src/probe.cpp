@@ -441,7 +441,7 @@ void init_input_planes() {
 }
 
 float SEARCHER::probe_neural_(bool hard_probe, float* policy, int nn_id_, int nn_type_, int wdl_head_) {
-    const int max_moves = MIN(pstack->count, MAX_MOVES_NN);
+    const int max_moves = MIN_SCORPIO(pstack->count, MAX_MOVES_NN);
     uint64_t hkey = ((player == white) ? hash_key : 
              (hash_key ^ UINT64(0x2bc3964f82352234)));
 
@@ -465,8 +465,8 @@ float SEARCHER::probe_neural_(bool hard_probe, float* policy, int nn_id_, int nn
         float* p_outputs[2] = {wdl,policy};
         probe_nn(iplanes,p_outputs,p_size,p_index,hkey,hard_probe,nn_id_);
 
-        float minv = MIN(wdl[0],wdl[1]);
-        minv = MIN(minv,wdl[2]);
+        float minv = MIN_SCORPIO(wdl[0],wdl[1]);
+        minv = MIN_SCORPIO(minv,wdl[2]);
         float w_ = exp((wdl[0] - minv) *  win_weight / 100.0f);
         float d_ = exp((wdl[1] - minv) * draw_weight / 100.0f);
         float l_ = exp((wdl[2] - minv) * loss_weight / 100.0f);
@@ -492,8 +492,8 @@ float SEARCHER::probe_neural_(bool hard_probe, float* policy, int nn_id_, int nn
 
         float p;
         if(wdl_head_) {
-            float minv = MIN(wdl[0],wdl[1]);
-            minv = MIN(minv,wdl[2]);
+            float minv = MIN_SCORPIO(wdl[0],wdl[1]);
+            minv = MIN_SCORPIO(minv,wdl[2]);
             float w_ = exp((wdl[0] - minv) *  win_weight / 100.0f);
             float d_ = exp((wdl[1] - minv) * draw_weight / 100.0f);
             float l_ = exp((wdl[2] - minv) * loss_weight / 100.0f);
@@ -508,7 +508,7 @@ float SEARCHER::probe_neural_(bool hard_probe, float* policy, int nn_id_, int nn
 
 /*ensemble NNs*/
 void SEARCHER::ensemble_net(int nn_id_, int nn_type_, int wdl_head_, float& score) {
-    const int max_moves = MIN(pstack->count, MAX_MOVES_NN);
+    const int max_moves = MIN_SCORPIO(pstack->count, MAX_MOVES_NN);
     float* tpolicy = all_policy[processor_id];
     float* policy = (float*)pstack->score_st;
     float sc;
@@ -526,7 +526,7 @@ void SEARCHER::ensemble_net(int nn_id_, int nn_type_, int wdl_head_, float& scor
     }
 }
 float SEARCHER::probe_neural(bool hard_probe) {
-    const int max_moves = MIN(pstack->count, MAX_MOVES_NN);
+    const int max_moves = MIN_SCORPIO(pstack->count, MAX_MOVES_NN);
     float* policy = (float*)pstack->score_st;
     float score = 0.0;
 

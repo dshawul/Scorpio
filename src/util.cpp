@@ -420,7 +420,7 @@ Node* Node::print_tree(Node* root,bool has_ab_, int max_depth,int depth) {
                     double uctp = (1 - current->prior);
                     double avg = 0.5 * ((1 - frac_abprior) * uct 
                                         + frac_abprior * uctp + 
-                                        MIN(uct,uctp));
+                                        MIN_SCORPIO(uct,uctp));
                     print_info("%2d   (%.3f,%0.3f,%0.3f) %6.2f %7d   %s",
                         total+1,
                         uct,
@@ -1461,8 +1461,8 @@ void SEARCHER::check_quit() {
     if(time_used) {
         poll_nodes = int(int64_t(nodes) / (time_used / 100.0f));
         poll_nodes /= PROCESSOR::n_processors;
-        poll_nodes = MAX(poll_nodes, 5000);
-        poll_nodes = MIN(poll_nodes, 100000);
+        poll_nodes = MAX_SCORPIO(poll_nodes, (uint32_t)5000);
+        poll_nodes = MIN_SCORPIO(poll_nodes, (uint32_t)100000);
     }
 
     /*

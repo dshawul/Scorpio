@@ -629,7 +629,7 @@ bool SEARCHER::can_castle(bool sc) {
         rto = SQ(rank(kfrom), FILEF);
 
         all_bb ^= (BB(rfrom) | BB(kfrom));
-        if(blocked(MIN(kfrom,rto-1),MAX(rfrom,kto+1))) {
+        if(blocked(MIN_SCORPIO(kfrom,rto-1),MAX_SCORPIO(rfrom,kto+1))) {
             all_bb = save_all_bb;
             return false;
         }
@@ -640,7 +640,7 @@ bool SEARCHER::can_castle(bool sc) {
         rto = SQ(rank(kfrom), FILED);
 
         all_bb ^= (BB(rfrom) | BB(kfrom));
-        if(blocked(MIN(rfrom,kto-1),MAX(kfrom,rto+1))) {
+        if(blocked(MIN_SCORPIO(rfrom,kto-1),MAX_SCORPIO(kfrom,rto+1))) {
             all_bb = save_all_bb;
             return false;
         }
@@ -1860,7 +1860,7 @@ static FORCEINLINE void update_h(int16_t& h, int score) {
     h += (score << 5)  - ((h * ABS(score)) >> 9);
 }
 void SEARCHER::update_history(MOVE move, bool penalize) {
-    int score = MIN(361, pstack->depth * pstack->depth);
+    int score = MIN_SCORPIO(361, pstack->depth * pstack->depth);
 
     if(penalize) score = -score;
 

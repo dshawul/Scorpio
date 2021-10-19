@@ -244,13 +244,32 @@ piece and color
 /*
 distances
 */
-#define MAX(a, b)        (((a) > (b)) ? (a) : (b))
-#define MIN(a, b)        (((a) < (b)) ? (a) : (b))
+template<class T>
+const T& MAX_SCORPIO(const T& a, const T& b)
+{
+    return (a > b) ? b : a;
+}
+
+template<class T>
+const T& MIN_SCORPIO(const T& a, const T& b)
+{
+    return (a < b) ? b : a;
+}
+
 #define ABS(a)           abs(a)
 #define f_distance(x,y)  ABS(file(x)-file(y))
 #define r_distance(x,y)  ABS(rank(x)-rank(y))
-#define distance(x,y)            MAX(f_distance(x,y),r_distance(x,y))
-#define DISTANCE(f1,r1,f2,r2)    MAX(ABS((f1) - (f2)),ABS((r1) - (r2)))
+
+template<class T>
+const T& distance(const T& x, const T& y){
+	return MAX_SCORPIO(f_distance(x, y), r_distance(x, y));
+}
+template<class T>
+const T& DISTANCE(const T& f1, const T& r1, const T& f2, const T& r2)
+{
+    return MAX_SCORPIO(ABS((f1)-(f2)), ABS((r1)-(r2)));
+}
+
 /*
 hash keys
 */

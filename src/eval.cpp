@@ -31,7 +31,7 @@ int SEARCHER::eval(bool skip_nn_l)
 
     /*phase of the game*/
     int phase = piece_c[white] + piece_c[black];
-    phase = MIN(phase,MAX_MATERIAL);
+    phase = MIN_SCORPIO(phase,MAX_MATERIAL);
 
 #ifndef TUNE
     /* check_eval hash table */
@@ -125,7 +125,7 @@ int SEARCHER::eval_hce()
 
     /*phase of the game*/
     int phase = piece_c[white] + piece_c[black];
-    phase = MIN(phase,MAX_MATERIAL);
+    phase = MIN_SCORPIO(phase,MAX_MATERIAL);
 
     /*
     evaluate
@@ -1277,7 +1277,7 @@ int SEARCHER::eval_passed_pawns(uint8_t* wf_pawns,uint8_t* bf_pawns,uint8_t& all
             if(r == RANK2 && board[sq + UU] == blank && board[sq + UUU] == blank) 
                 qdist--;
             if(qdist < distance(b_ksq,A8 + f)) {
-                w_best_qdist = MIN(qdist,w_best_qdist);
+                w_best_qdist = MIN_SCORPIO(qdist,w_best_qdist);
             }
         }
         
@@ -1324,7 +1324,7 @@ int SEARCHER::eval_passed_pawns(uint8_t* wf_pawns,uint8_t* bf_pawns,uint8_t& all
             if(r == RANK7 && board[sq + DD] == blank && board[sq + DDD] == blank) 
                 qdist--;
             if(qdist < distance(w_ksq,A1 + f)) {
-                b_best_qdist = MIN(qdist,b_best_qdist);
+                b_best_qdist = MIN_SCORPIO(qdist,b_best_qdist);
             }
         }
 
@@ -1754,7 +1754,7 @@ double get_log_likelihood(double result, double se) {
     else if(fabs(result - 0.5) <= epsilon)
         return nlogp(1 - win_prob(se,eloH,eloD) - loss_prob(se,eloH,eloD));
     else {
-        double drawp = 0.7 * MIN(result, 1 - result);
+        double drawp = 0.7 * MIN_SCORPIO(result, 1 - result);
         double winp = result - drawp / 2.0;
         double lossp = 1.0 - winp - drawp;
 
