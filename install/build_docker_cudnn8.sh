@@ -8,8 +8,6 @@ TR=$((45*1024))
 NN=$((16*1024))
 HT=$((32*1024))
 
-BACKS='\\'
-
 build_image() {
      docker run --name temp -d -it --gpus=all ubuntu:18.04 bash
      docker exec -it temp /bin/bash -c " apt-get -y update && \
@@ -28,8 +26,6 @@ build_image() {
                       -e 's/^ht.*/ht ${HT}/' \
                       -e 's/^egbb_cache_size.*/egbb_cache_size 1024/' \
                       Scorpio/bin/Linux/scorpio.ini && \
-           sed -i.bak -e 's/^exec mpirun.*/exec mpirun -bind-to socket ${BACKS}/g' \
-                      Scorpio/bin/Linux/scorpio-mpich.sh && \
            rm -rf Scorpio/bin/Linux/calibrate.dat"
      docker commit temp ${1}
      docker rm -f temp
