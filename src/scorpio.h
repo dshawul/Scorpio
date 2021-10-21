@@ -1287,6 +1287,7 @@ void  load_book();
 bool  parse_commands(char**);
 void  merge_books(char*,char*,char*,double,double);
 int   set_affinity(int);
+void  get_core_node(int&,int&);
 bool  check_search_params(char**,char*,int&);
 void  print_search_params();
 bool  check_mcts_params(char**,char*,int&);

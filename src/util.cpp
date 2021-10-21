@@ -1321,6 +1321,19 @@ int set_affinity(int ncores) {
     return cores;
 }
 /*
+get core and node process is running on
+*/
+void get_core_node(int& core, int& node) {
+#ifdef _WIN32
+    core = GetCurrentProcessorNumber();
+    GetNumaProcessorNode(core,(UCHAR*)&node);
+#else
+#ifdef SYS_getcpu
+    syscall(SYS_getcpu, &core, &node, NULL);
+#endif
+#endif
+}
+/*
 Break down a string into tokens
 */
 #ifdef _MSC_VER

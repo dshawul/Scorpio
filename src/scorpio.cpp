@@ -169,6 +169,10 @@ static void load_egbbs() {
         init_smp(mt);
         sprintf(header2,"processors [%d]\n",PROCESSOR::n_processors);
         strcat(header,header2);
+        int core = 0, node = 0;
+        get_core_node(core,node);
+        sprintf(header2, "Process running on node %d and core %d\n",node,core);
+        strcat(header,header2);
         strcat(header,"--------------------------\n");
         print_cluster(header);
 
