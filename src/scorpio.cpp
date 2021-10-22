@@ -594,19 +594,11 @@ int internal_commands(char** commands,char* command,int& command_num) {
         SEARCHER::nn_cache_size_e = atoi(commands[command_num]);
         command_num++;
     } else if (!strcmp(command, "use_nn")) {
-        if(!strcmp(commands[command_num],"on") ||
-            !strcmp(commands[command_num],"1"))
-            SEARCHER::use_nn = true;
-        else
-            SEARCHER::use_nn = false;
+        SEARCHER::use_nn = is_checked(commands[command_num]);
         SEARCHER::save_use_nn = SEARCHER::use_nn;
         command_num++;
     } else if (!strcmp(command, "use_nnue")) {
-        if(!strcmp(commands[command_num],"on") ||
-            !strcmp(commands[command_num],"1"))
-            SEARCHER::use_nnue = true;
-        else
-            SEARCHER::use_nnue = false;
+        SEARCHER::use_nnue = is_checked(commands[command_num]);
         command_num++;
     } else if(!strcmp(command, "nnue_scale")) {
         SEARCHER::nnue_scale = atoi(commands[command_num]);
@@ -684,10 +676,7 @@ int internal_commands(char** commands,char* command,int& command_num) {
 
     } else if (!strcmp(command, "book")) {
         if(commands[command_num]) {
-            if(!strcmp(commands[command_num],"on"))
-                book_loaded = true;
-            else if(!strcmp(commands[command_num],"off"))
-                book_loaded = false;
+            book_loaded = is_checked(commands[command_num]);
             command_num++;
         } else if(book_loaded) {
             searcher.show_book_moves();
