@@ -1916,9 +1916,14 @@ MOVE SEARCHER::find_best() {
 
 #ifdef CLUSTER
     /*quit hosts as soon as host 0 finishes*/
-    if(PROCESSOR::host_id == 0 && (use_abdada_cluster || montecarlo)) {
-        PROCESSOR::quit_hosts();
+    if(use_abdada_cluster || montecarlo) {
+        if(PROCESSOR::host_id == 0) {
+            PROCESSOR::quit_hosts();
+            PROCESSOR::wait_hosts();
+        } else
+            PROCESSOR::ISend(0,PROCESSOR::PONG);
     }
+
     /*print pv with max score to avoid early adjuncation*/
     int max_root_score;
     if(use_abdada_cluster && PROCESSOR::n_hosts > 1) {

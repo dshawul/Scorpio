@@ -16,6 +16,7 @@ static std::thread threads[MAX_CPUS];
 static std::thread message_thread;
 static std::atomic_int g_message_id;
 static std::atomic_int g_source_id;
+static std::atomic_int pongs = {0};
 static SPLIT_MESSAGE* global_split;
 
 /**
@@ -375,8 +376,7 @@ void PROCESSOR::handle_message(int source,int message_id) {
         Recv(source,message_id,str,1024);
 
         /*print it to screen*/
-        if(!psb->abort_search)
-            print_std(str);
+        print_std(str);
         /***********************************
         * Commands to be executed
         ************************************/
@@ -453,6 +453,8 @@ void PROCESSOR::handle_message(int source,int message_id) {
             processors[0]->state = GO;
             psb->find_best();
             processors[0]->state = PARK;
+        } else if(message_id == PONG) {
+            pongs++;
         } else if(message_id == PING) {
             ISend(source,PONG);
         }
@@ -736,6 +738,14 @@ void PROCESSOR::quit_hosts() {
         if(i != host_id)
             ISend(i,QUIT);
     }
+}
+/**
+* Wait hosts 
+*/
+void PROCESSOR::wait_hosts() {
+    while(pongs < n_hosts - 1)
+        t_sleep(1);
+    pongs = 0;
 }
 /**
 * Get initial position

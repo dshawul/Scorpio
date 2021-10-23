@@ -1120,6 +1120,7 @@ typedef struct PROCESSOR {
     static std::vector<MOVE> best_moves;
     static void cancel_idle_hosts();
     static void quit_hosts();
+    static void wait_hosts();
     static int CLUSTER_SPLIT_DEPTH;
     static int vote_weight;
     static void set_mt_state(int);
