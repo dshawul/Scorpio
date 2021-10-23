@@ -111,21 +111,9 @@ static int self_play();
 /*
 load egbbs with a separate thread
 */
-static std::thread egbb_thread;
-static std::atomic_bool egbb_is_loading = {false};
 static bool egbb_setting_changed = false;
 static bool ht_setting_changed = false;
 
-static void wait_for_egbb() {
-    while(egbb_is_loading) t_sleep(100);
-}
-static void CDECL egbb_thread_proc(void*) {
-    int start = get_time();
-    LoadEgbbLibrary(SEARCHER::egbb_path);
-    int end = get_time();
-    print("loading_time = %ds\n",(end - start) / 1000);
-    egbb_is_loading = false;
-}
 static void load_egbbs() {
     /*reset hash tables*/
     if(ht_setting_changed) {
@@ -181,8 +169,10 @@ static void load_egbbs() {
     /*Wait if we are still loading EGBBs*/
     if(egbb_setting_changed && !SEARCHER::egbb_is_loaded) {
         egbb_setting_changed = false;
-        egbb_is_loading = true;
-        egbb_thread = t_create(egbb_thread_proc,(void*)0);
+        int start = get_time();
+        LoadEgbbLibrary(SEARCHER::egbb_path);
+        int end = get_time();
+        print("loading_time = %ds\n",(end - start) / 1000);
     }
 }
 /*
@@ -244,9 +234,6 @@ int CDECL main(int argc, char* argv[]) {
     if(!log_on)
         remove_log_file();
 
-    /* start loading egbbs */
-    load_egbbs();
-
     /*
      * Hosts other than 0 send ready message
      */
@@ -286,6 +273,8 @@ int CDECL main(int argc, char* argv[]) {
         }
 #ifdef  CLUSTER
     } else {
+        /*load egbbs*/
+        load_egbbs();
 
         /* goto wait mode */
         processors[0]->state = PARK;
@@ -294,8 +283,6 @@ int CDECL main(int argc, char* argv[]) {
 #endif
 
 END:
-    if(egbb_thread.joinable())
-        egbb_thread.join();
     PROCESSOR::exit_scorpio(EXIT_SUCCESS);
     return 0;
 }
@@ -497,6 +484,7 @@ int internal_commands(char** commands,char* command,int& command_num) {
         PROTOCOL = XBOARD;
         CLUSTER_CODE(if(PROCESSOR::host_id == 0) PROCESSOR::send_cmd(command);)
         print("feature done=0\n");
+        load_egbbs();
     } else if(!strcmp(command,"uci")) {
         PROTOCOL = UCI;
         CLUSTER_CODE(if(PROCESSOR::host_id == 0))
@@ -513,6 +501,7 @@ int internal_commands(char** commands,char* command,int& command_num) {
             print("uciok\n");
         }
         CLUSTER_CODE(if(PROCESSOR::host_id == 0) PROCESSOR::send_cmd(command);)
+        load_egbbs();
         /*
         hash tables
         */
@@ -732,7 +721,6 @@ int internal_commands(char** commands,char* command,int& command_num) {
             return 2;
 #endif
         load_egbbs();
-        wait_for_egbb();
 
         /*task number*/
         int task;
@@ -807,7 +795,6 @@ int internal_commands(char** commands,char* command,int& command_num) {
                !strcmp(command, "tune")
                ) {
         load_egbbs();
-        wait_for_egbb();
 
         /*task number*/
         int task;
@@ -897,7 +884,6 @@ int internal_commands(char** commands,char* command,int& command_num) {
         FILE* fw = fopen(name,"w");
 
         load_egbbs();
-        wait_for_egbb();
 
         is_selfplay = true;
         searcher.get_fen(FEN);
@@ -925,7 +911,6 @@ int internal_commands(char** commands,char* command,int& command_num) {
         FILE* fw2 = fopen(name,"w");
         
         load_egbbs();
-        wait_for_egbb();
         
         print("Starting %d selfplay games\n",N);
         is_selfplay = true;
@@ -956,7 +941,6 @@ int xboard_commands(char** commands,char* command,int& command_num,int& do_searc
 #ifdef TUNE
         print_eval_params();
 #endif
-        wait_for_egbb();
         print("feature done=1\n");
         command_num++;
     } else if (!strcmp(command, "computer")
@@ -1129,7 +1113,6 @@ int uci_commands(char** commands,char* command,int& command_num,int& do_search) 
         SEARCHER::old_root_score = 0;
         SEARCHER::root_score = 0;
     } else if(!strcmp(command, "isready")) {
-        wait_for_egbb();
         print("readyok\n");
     } else if (!strcmp(command, "UCI_Chess960")) {
         variant = is_checked(commands[command_num++]);
@@ -1358,7 +1341,6 @@ bool parse_commands(char** commands) {
 
         /*Wait if we are still loading EGBBs*/
         load_egbbs();
-        wait_for_egbb();
 
         /*
         Analyze mode
