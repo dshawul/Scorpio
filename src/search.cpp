@@ -2025,6 +2025,11 @@ MOVE SEARCHER::find_best() {
             factor *= 1.2;
 
         if(montecarlo && !montecarlo_skipped) {
+            /*AB has better losing score*/
+            if(root_score <= -200 && 
+                max_root_score > root_score + 100) {
+                factor *= 0.5;
+            }
             /*compute vote based on subtree size*/
             int idx = 0;
             Node* current = root_node->child;
