@@ -236,25 +236,6 @@ static void clean_path(char* main_path) {
     }
 }
 void LoadEgbbLibrary(char* main_path) {
-
-    /*suppress printf output*/
-#ifdef CLUSTER
-#ifdef _MSC_VER
-#   define DUP(x)    _dup(x)
-#   define DUP2(x,y) _dup2(x,y)
-#   define CLOSE(x)  _close(x)
-#else
-#   define DUP(x)     dup(x)
-#   define DUP2(x,y)  dup2(x,y)
-#   define CLOSE(x)   close(x)
-#endif
-    int stdout_copy = 0;
-    if (PROCESSOR::host_id) {
-        stdout_copy = DUP(1);
-        CLOSE(1);
-    }
-#endif
-
     /*load egbbdll*/
     static HMODULE hmod = 0;
     PLOAD_EGBB load_egbb;
@@ -328,18 +309,6 @@ void LoadEgbbLibrary(char* main_path) {
     } else {
         print("EgbbProbe not Loaded!\n");
     }
-
-    /*reopen stdout*/
-#ifdef CLUSTER
-    if(PROCESSOR::host_id) {
-        DUP2(stdout_copy, 1);
-        CLOSE(stdout_copy);
-    }
-#undef DUP
-#undef DUP2
-#undef CLOSE
-#endif
-
 }
 /*
 Probe:
