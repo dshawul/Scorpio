@@ -4,7 +4,7 @@
 int contempt = 10;
 static int alphabeta_man_c = 12;
 static int multipv = 0;
-
+static int multipv_margin = 100;
 /* search features */
 const int use_nullmove = 1;
 const int use_selective = 1;
@@ -34,6 +34,9 @@ static PARAM lmr_ntype_count[] = {17, 5, 5};
 /* shared variables */
 static int prev_pv_length = 0;
 int qsearch_level = 0;
+
+static int multipv_count = 0;
+static int multipv_bad = 0;
 
 /*
 * Update pv
@@ -927,13 +930,13 @@ IDLE_START:
             if(sb->pstack->reduction > 0
                 && score > (sb->pstack - 1)->alpha
                 ) {
-                    sb->pstack->depth++;
-                    sb->pstack->reduction--;
-                    sb->pstack->alpha = -(sb->pstack - 1)->alpha - 1;
-                    sb->pstack->beta = -(sb->pstack - 1)->alpha;
-                    sb->pstack->node_type = CUT_NODE;
-                    sb->pstack->search_state = NULL_MOVE;
-                    goto NEW_NODE;
+                sb->pstack->depth++;
+                sb->pstack->reduction--;
+                sb->pstack->alpha = -(sb->pstack - 1)->alpha - 1;
+                sb->pstack->beta = -(sb->pstack - 1)->alpha;
+                sb->pstack->node_type = CUT_NODE;
+                sb->pstack->search_state = NULL_MOVE;
+                goto NEW_NODE;
             }
             /*research with full window*/
             if((sb->pstack - 1)->node_type == PV_NODE 
@@ -941,11 +944,30 @@ IDLE_START:
                 && score > (sb->pstack - 1)->alpha
                 && score < (sb->pstack - 1)->beta
                 ) {
-                    sb->pstack->alpha = -(sb->pstack - 1)->beta;
-                    sb->pstack->beta = -(sb->pstack - 1)->alpha;
-                    sb->pstack->node_type = PV_NODE;
-                    sb->pstack->search_state = NULL_MOVE;
-                    goto NEW_NODE;
+                sb->pstack->alpha = -(sb->pstack - 1)->beta;
+                sb->pstack->beta = -(sb->pstack - 1)->alpha;
+                sb->pstack->node_type = PV_NODE;
+                sb->pstack->search_state = NULL_MOVE;
+                goto NEW_NODE;
+            }
+            /*check if second/multipv move is weak by a big margin*/
+            if(sb->ply == 1
+                && (sb->pstack - 1)->legal_moves > 1
+                && (sb->pstack - 1)->legal_moves <= 1 + multipv_count
+                && score <= (sb->pstack - 1)->alpha
+                && sb->pstack->beta < -(sb->pstack - 1)->alpha + multipv_margin
+                ) {
+                sb->pstack->alpha = -(sb->pstack - 1)->alpha + multipv_margin - 1;
+                sb->pstack->beta = -(sb->pstack - 1)->alpha + multipv_margin;
+                sb->pstack->node_type = CUT_NODE;
+                sb->pstack->search_state = NULL_MOVE;
+#if 0
+                char mvs[16];
+                mov_strx((sb->pstack - 1)->current_move,mvs);
+                printf("Researching multipv move %s with [%d, %d]\n",
+                    mvs,-sb->pstack->beta,-sb->pstack->alpha);
+#endif
+                goto NEW_NODE;
             }
             sb->POP_MOVE();
             break;
@@ -980,6 +1002,24 @@ IDLE_START:
                           = score;
                 }
                 l_unlock(lock_smp);
+
+                /*check if NN best score (second best) is a blunder*/
+                if(sb->pstack->legal_moves > 1
+                    && sb->pstack->legal_moves <= 1 + multipv_count
+                    ) {
+                    if(score <= sb->pstack->alpha - multipv_margin)
+                        multipv_bad = 1;
+                    else
+                        multipv_bad = 0;
+#if 0
+                    char mv0[16],mv1[16];
+                    mov_strx(move,mv1);
+                    mov_strx(sb->pstack->move_st[0],mv0);
+                    printf("%s alternative %s to main pv %s: %d %d\n",
+                        multipv_bad ? "Bad" : "Ok",
+                        mv1,mv0,score,sb->pstack->alpha);
+#endif
+                }
 #if 0
                 print("%d. %d [%d %d] " FMT64 "\n",
                     sb->pstack->current_index,score,
@@ -1453,6 +1493,8 @@ MOVE SEARCHER::iterative_deepening(bool& montecarlo_skipped) {
     PROCESSOR::age = (hply & AGE_MASK);
     show_full_pv = false;
     freeze_tree = false;
+    multipv_count = 0;
+    multipv_bad = 0;
 
     /*iterative deepening*/
     int alpha,beta,WINDOW = 2*aspiration_window;
@@ -1660,6 +1702,7 @@ MOVE SEARCHER::iterative_deepening(bool& montecarlo_skipped) {
             }
 
             /*bias moves found to be best by other hosts and us*/
+            multipv_count = 0;
             uint64_t bests = 0;
             for(int i = 0;i < pstack->count; i++) {
                 MOVE& move = pstack->move_st[i];
@@ -1705,11 +1748,14 @@ MOVE SEARCHER::iterative_deepening(bool& montecarlo_skipped) {
                     root_nodes[i] = bests;
 #ifdef CLUSTER
                 else if(use_abdada_cluster && PROCESSOR::n_hosts > 1) {
-                    if(root_nodes[i] >= (MAX_UINT64 >> 1))
+                    if(root_nodes[i] >= (MAX_UINT64 >> 1)) {
                         root_nodes[i] -= (MAX_UINT64 >> 1);
+                        multipv_count++;
+                    }
                 }
 #endif
             }
+            if(!multipv_count) multipv_bad = 0;
         } else {
             /* Is there enough time to search the first move?*/
             if(rollout_type == ALPHABETA) {
@@ -2064,6 +2110,10 @@ MOVE SEARCHER::find_best() {
                 all_man_c <= 16)
                 factor *= 1.5;
 
+            /*NN move is bad with multipv margin*/
+            if(multipv_bad)
+                factor *= 4;
+
             /*compute vote based on subtree size alone*/
             uint64_t maxn = 0;
             for(int i = 1; i < n_root_moves; i++) {
@@ -2227,6 +2277,8 @@ bool check_search_params(char** commands,char* command,int& command_num) {
         alphabeta_man_c = atoi(commands[command_num++]);
     } else if(!strcmp(command, "multipv")) {
         multipv = is_checked(commands[command_num++]);
+    } else if(!strcmp(command, "multipv_margin")) {
+        multipv_margin = atoi(commands[command_num++]);
 #ifdef TUNE
     } else if(!strcmp(command, "aspiration_window")) {
         aspiration_window = atoi(commands[command_num++]);
@@ -2278,4 +2330,5 @@ void print_search_params() {
     print_spin("contempt",contempt,0,100);
     print_spin("alphabeta_man_c",alphabeta_man_c,0,32);
     print_check("multipv",multipv);
+    print_spin("multipv_margin",multipv_margin,0,1000);
 }
