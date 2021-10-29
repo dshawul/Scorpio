@@ -522,10 +522,8 @@ Node* Node::Max_UCB_select(Node* n, bool has_ab, SEARCHER* ps) {
             /*double policy of AB best move*/
             if(is_root && use_abdada_cluster && PROCESSOR::n_hosts > 1) {
                 for(int j = 0;j < PROCESSOR::n_hosts;j++) {
-                    if(j != PROCESSOR::host_id) {
-                        if(current->move == PROCESSOR::best_moves[j])
-                            pol *= 2;
-                    }
+                    if(current->move == PROCESSOR::best_moves[j])
+                        pol *= 2;
                 }
             }
 #endif

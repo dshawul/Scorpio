@@ -494,6 +494,7 @@ void SEARCHER::print_pv(int score) {
             if(i != PROCESSOR::host_id)
                 PROCESSOR::send_best_move(i,stack[0].pv[0]);
         }
+        PROCESSOR::best_moves[PROCESSOR::host_id] = stack[0].pv[0];
     }
 #endif
 
