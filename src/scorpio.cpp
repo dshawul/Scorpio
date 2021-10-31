@@ -211,14 +211,12 @@ int CDECL main(int argc, char* argv[]) {
     load_ini();
 
     /*
-     * Host 0 waits until all helpers are ready
+     * Add all host workers to list of helpers
      */
 #ifdef CLUSTER
     if(use_abdada_cluster && (PROCESSOR::host_id == 0)) {
-        while(PROCESSOR::available_host_workers.size() + 1 < 
-            (unsigned)PROCESSOR::n_hosts) {
-            t_sleep(100);
-        }
+        for(int i = 1; i < PROCESSOR::n_hosts; i++)
+            PROCESSOR::available_host_workers.push_back(i);
     }
 #endif
 
@@ -227,6 +225,12 @@ int CDECL main(int argc, char* argv[]) {
      */
     strcpy(buffer,"");
     for(int i = 1;i < argc;i++) {
+#ifdef CLUSTER
+        if(PROCESSOR::host_id) {
+            if(!strcmp(argv[i],"xboard") || !strcmp(argv[i],"uci"))
+                continue;
+        }
+#endif
         strcat(buffer," ");
         strcat(buffer,argv[i]);
     }
@@ -239,15 +243,6 @@ int CDECL main(int argc, char* argv[]) {
     /* remove log file if not set*/
     if(!log_on)
         remove_log_file();
-
-    /*
-     * Hosts other than 0 send ready message
-     */
-#ifdef CLUSTER
-    if((PROCESSOR::host_id != 0) && use_abdada_cluster) {
-        PROCESSOR::ISend(0,PROCESSOR::HELP);
-    }
-#endif
 
     /*
      * Host 0 processes command line
