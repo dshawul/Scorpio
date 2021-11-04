@@ -1995,7 +1995,7 @@ float SEARCHER::generate_and_score_moves(int alpha, int beta) {
     if(egbb_is_loaded && all_man_c <= MAX_EGBB) {
         int score, bscore;
 
-        if(probe_bitbases(bscore)) {
+        if(pstack->count && probe_bitbases(bscore)) {
             int bscorem = (bscore >= WIN_SCORE) ? WIN_SCORE :
                        ((bscore <= -WIN_SCORE) ? -WIN_SCORE : 0);
             int legal_moves = 0;
@@ -2016,7 +2016,7 @@ float SEARCHER::generate_and_score_moves(int alpha, int beta) {
                 pstack->score_st[legal_moves] = pstack->score_st[i];
                 legal_moves++;
             }
-            pstack->count = legal_moves;
+            pstack->count = MAX(1,legal_moves);
         }
     }
 
