@@ -1923,7 +1923,7 @@ MOVE SEARCHER::find_best() {
         for(int i = 0;i < PROCESSOR::n_hosts;i++) {
             PROCESSOR::best_moves[i] = 0;
             if(i != PROCESSOR::host_id) {
-                PROCESSOR::ISend(i,PROCESSOR::INIT,&init,INIT_MESSAGE_SIZE(init));
+                PROCESSOR::send_init(i,init);
                 /*start iterative deepening searcher for ABDADA/SHT*/
                 if(use_abdada_cluster || montecarlo)
                     PROCESSOR::ISend(i,PROCESSOR::GOROOT);

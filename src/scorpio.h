@@ -1153,6 +1153,7 @@ typedef struct PROCESSOR {
     static void send_best_move(int dest, MOVE move);
     static void send_string(const char*);
     static void send_cmd(const char*);
+    static void send_init(int dest, const INIT_MESSAGE&);
 #endif
     bool has_block();
     void idle_loop();

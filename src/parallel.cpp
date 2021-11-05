@@ -126,6 +126,11 @@ void PROCESSOR::send_string(const char* str) {
     ISend(0,STRING,(void*)&str[0],strlen(str)+1,&rq);
     Wait(&rq);
 }
+void PROCESSOR::send_init(int dest, const INIT_MESSAGE& init) {
+    MPI_Request rq;
+    ISend(dest,INIT,(void*)&init,INIT_MESSAGE_SIZE(init),&rq);
+    Wait(&rq);
+}
 void PROCESSOR::send_cmd(const char* str) {
     for(int i = 0; i < PROCESSOR::n_hosts; i++) {
         if(i != PROCESSOR::host_id) {
