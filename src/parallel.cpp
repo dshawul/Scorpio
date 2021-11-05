@@ -59,8 +59,15 @@ void PROCESSOR::init_mpi(int argc, char* argv[]) {
 }
 
 void PROCESSOR::init_mpi_thread() {
+    /*pvs*/
+    node_pvs.resize(n_hosts);
+    for(int i = 0; i < n_hosts; i++) {
+        node_pvs[i].pv_length = 0;
+        node_pvs[i].pv[0] = 0;
+    }
+    pv_tree_nodes.resize(n_hosts * MAX_PLY);
+    pv_tree_nodes[0] = 0;
     /*global split point*/
-    best_moves.resize(n_hosts);
     global_split = new SPLIT_MESSAGE[n_hosts];
     if(n_hosts > 1)
         message_thread = t_create(check_messages,(void*)0);
@@ -116,9 +123,9 @@ bool PROCESSOR::IProbe(int& source,int& message_id) {
     }
     return false;
 }
-void PROCESSOR::send_best_move(int dest, MOVE move) {
+void PROCESSOR::send_pv(int dest, const PV_MESSAGE& pv) {
     MPI_Request rq;
-    ISend(dest,BMOVE,&move,sizeof(MOVE),&rq);
+    ISend(dest,PV,(void*)&pv,PV_MESSAGE_SIZE(pv),&rq);
     Wait(&rq);
 }
 void PROCESSOR::send_string(const char* str) {
@@ -351,28 +358,31 @@ void PROCESSOR::handle_message(int source,int message_id) {
         psb->set_board((char*)init.fen);
 
         /*make moves*/
-        int i;
-        for(i = 0;i < init.pv_length;i++) {
+        for(int i = 0;i < init.pv_length;i++) {
             if(init.pv[i]) psb->do_move(init.pv[i]);    
             else psb->do_null();
         }
 
         /*zero best move from all hosts*/
-        for(int i = 0;i < PROCESSOR::n_hosts;i++)
-            PROCESSOR::best_moves[i] = 0;
+        for(int i = 0;i < PROCESSOR::n_hosts;i++) {
+            PROCESSOR::node_pvs[i].pv_length = 0;
+            PROCESSOR::node_pvs[i].pv[0] = 0;
+        }
 
         /*wakeup processors*/
-        for(i = 0;i < n_processors;i++)
+        for(int i = 0;i < n_processors;i++)
             PROCESSOR::wait(i);
 
         /***********************************
         * Best move from slave hosts
         ************************************/
-    } else if(message_id == BMOVE) {
-        MOVE move;
-        Recv(source,message_id,&move,sizeof(move));
+    } else if(message_id == PV) {;
+        PV_MESSAGE pv;
+        Recv(source,message_id, &pv, sizeof(PV_MESSAGE));
+        l_lock(lock_smp);
+        PROCESSOR::node_pvs[source] = pv;
+        l_unlock(lock_smp);
 
-        PROCESSOR::best_moves[source] = move;
         /***********************************
         * Any string ,such as PV,from slaves
         ************************************/

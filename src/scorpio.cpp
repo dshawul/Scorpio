@@ -50,13 +50,14 @@ int PROCESSOR::CLUSTER_SPLIT_DEPTH = 8;
 int PROCESSOR::host_id;
 char PROCESSOR::host_name[256];
 std::list<int> PROCESSOR::available_host_workers;
-std::vector<MOVE> PROCESSOR::best_moves;
+std::vector<PV_MESSAGE> PROCESSOR::node_pvs;
+std::vector<Node*> PROCESSOR::pv_tree_nodes;
 int PROCESSOR::help_messages = 0;
 int PROCESSOR::prev_dest = -1;
 int PROCESSOR::vote_weight = 100;
 const char *const PROCESSOR::message_str[] = {
     "QUIT","INIT","HELP","CANCEL","SPLIT","MERGE","PING","PONG",
-    "BMOVE","STRING","STRING_CMD","GOROOT","RECORD_TT","PROBE_TT","PROBE_TT_RESULT"
+    "PV","STRING","STRING_CMD","GOROOT","RECORD_TT","PROBE_TT","PROBE_TT_RESULT"
 };
 int use_abdada_cluster = 0;
 #endif

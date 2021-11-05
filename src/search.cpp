@@ -1690,6 +1690,28 @@ MOVE SEARCHER::iterative_deepening(bool& montecarlo_skipped) {
                 }
             }
 
+#ifdef CLUSTER
+            /*install pvs of other nodes*/
+            if(use_abdada_cluster && PROCESSOR::n_hosts > 1) {
+                l_lock(lock_smp);
+                for(int j = 0;j < PROCESSOR::n_hosts;j++) {
+                    if(j != PROCESSOR::host_id) {
+                        int depth = 0;
+                        for(int i = 0;i < PROCESSOR::node_pvs[j].pv_length;i++) {
+                            MOVE mv = PROCESSOR::node_pvs[j].pv[i];
+                            if(is_legal_fast(mv)) {
+                                RECORD_HASH(player,hash_key,0,0,HASH_HIT,0,0,mv,0,0);
+                                PUSH_MOVE(mv);
+                                depth++;
+                            } else break;
+                        }
+                        for(int i = 0;i < depth;i++)
+                            POP_MOVE();
+                    }
+                }
+                l_unlock(lock_smp);
+            }
+#endif
             /*install fake pv into TT table so that it is searched
             first incase it was overwritten*/
             if(pstack->pv_length) {
@@ -1714,7 +1736,7 @@ MOVE SEARCHER::iterative_deepening(bool& montecarlo_skipped) {
                 else if(use_abdada_cluster && PROCESSOR::n_hosts > 1) {
                     for(int j = 0;j < PROCESSOR::n_hosts;j++) {
                         if(j != PROCESSOR::host_id) {
-                            if(move == PROCESSOR::best_moves[j])
+                            if(move == PROCESSOR::node_pvs[j].pv[0])
                                 root_nodes[i] += (MAX_UINT64 >> 1);
                         }
                     }
@@ -1921,7 +1943,8 @@ MOVE SEARCHER::find_best() {
         INIT_MESSAGE init;
         get_init_pos(&init);
         for(int i = 0;i < PROCESSOR::n_hosts;i++) {
-            PROCESSOR::best_moves[i] = 0;
+            PROCESSOR::node_pvs[i].pv_length = 0;
+            PROCESSOR::node_pvs[i].pv[0] = 0;
             if(i != PROCESSOR::host_id) {
                 PROCESSOR::send_init(i,init);
                 /*start iterative deepening searcher for ABDADA/SHT*/

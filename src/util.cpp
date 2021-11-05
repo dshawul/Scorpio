@@ -485,23 +485,6 @@ Print principal variation (PV)
 */
 void SEARCHER::print_pv(int score) {
 
-#ifdef CLUSTER
-    /*send best move to master node*/
-    if(use_abdada_cluster && PROCESSOR::n_hosts > 1
-        && search_depth > 8
-        ) {
-        for(int i = 0;i < PROCESSOR::n_hosts;i++) {
-            if(i != PROCESSOR::host_id)
-                PROCESSOR::send_best_move(i,stack[0].pv[0]);
-        }
-        PROCESSOR::best_moves[PROCESSOR::host_id] = stack[0].pv[0];
-    }
-#endif
-
-    /*check style*/
-    if(pv_print_style != 0)
-        return;
-
     /*print pv*/
     MOVE  move;
     int i;
@@ -576,14 +559,35 @@ void SEARCHER::print_pv(int score) {
         else PUSH_NULL();
         i++;
     }
-    strcat(pv,"\n");
-    print_cluster(pv);
     /*undo moves*/
     for (int j = 0; j < i ; j++) {
         move = hstack[hply - 1].move;
         if(move) POP_MOVE();
         else POP_NULL();
-    } 
+    }
+
+    /*send pv to master node*/
+    strcat(pv,"\n");
+    if(pv_print_style == 0)
+        print_cluster(pv);
+
+#ifdef CLUSTER
+    /*send PV moves to all nodes*/
+    if(use_abdada_cluster && PROCESSOR::n_hosts > 1
+        && search_depth > 8
+        ) {
+
+        PV_MESSAGE pv;
+        pv.pv_length = stack[0].pv_length;
+        memcpy(pv.pv, stack[0].pv, stack[0].pv_length * sizeof(MOVE));
+
+        for(int i = 0;i < PROCESSOR::n_hosts;i++) {
+            if(i != PROCESSOR::host_id)
+                PROCESSOR::send_pv(i,pv);
+        }
+        PROCESSOR::node_pvs[PROCESSOR::host_id] = pv;
+    }
+#endif
 }
 /*
 Check for repeatition inside tree and fifty move draws
