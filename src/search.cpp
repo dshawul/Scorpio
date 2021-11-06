@@ -9,7 +9,7 @@ static int multipv_margin = 100;
 const int use_nullmove = 1;
 const int use_selective = 1;
 const int use_aspiration = 1;
-const int use_iid = 1;
+const int use_iid = 0;
 const int use_pvs = 1;
 const int use_probcut = 0;
 const int use_singular = 1;
@@ -183,6 +183,12 @@ FORCEINLINE int SEARCHER::on_node_entry() {
     /*bitbase cutoff*/
     if(bitbase_cutoff())
         return true;
+
+    /*iid replacement?*/
+    if(!use_iid
+        && !pstack->hash_move
+        && pstack->depth >= 4)
+        pstack->depth--;
 
     /*static evaluation of position*/
     if(hply >= 1 && !hstack[hply - 1].checks) {
