@@ -849,15 +849,15 @@ IDLE_START:
                     * processor's state loop
                     */
                     if(proc->state <= WAIT) {
-                        l_lock(lock_smp);       
+                        l_lock(lock_smp);
                         PROCESSOR::n_idle_processors++;
                         PROCESSOR::set_num_searchers();
                         l_unlock(lock_smp);
 
                         proc->idle_loop();
 
-                        l_lock(lock_smp);       
-                        PROCESSOR::n_idle_processors--; 
+                        l_lock(lock_smp);    
+                        PROCESSOR::n_idle_processors--;
                         PROCESSOR::set_num_searchers();
                         l_unlock(lock_smp);
                     }

@@ -369,9 +369,8 @@ void PROCESSOR::handle_message(int source,int message_id) {
             PROCESSOR::node_pvs[i].pv[0] = 0;
         }
 
-        /*wakeup processors*/
-        for(int i = 0;i < n_processors;i++)
-            PROCESSOR::wait(i);
+        /*wakeup main processor*/
+        PROCESSOR::wait(0);
 
         /***********************************
         * Best move from slave hosts
@@ -465,8 +464,21 @@ void PROCESSOR::handle_message(int source,int message_id) {
         } else if(message_id == GOROOT) {
             message_available = 0;
             SEARCHER::chess_clock.infinite_mode = true;
+
             processors[0]->state = GO;
+
+            l_lock(lock_smp);
+            PROCESSOR::n_idle_processors--;
+            PROCESSOR::set_num_searchers();
+            l_unlock(lock_smp);
+
             psb->find_best();
+
+            l_lock(lock_smp);
+            PROCESSOR::n_idle_processors++;
+            PROCESSOR::set_num_searchers();
+            l_unlock(lock_smp);
+
             processors[0]->state = PARK;
         } else if(message_id == PONG) {
             pongs++;
