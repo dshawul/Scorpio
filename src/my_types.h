@@ -170,15 +170,18 @@ Prefetch
 
 #define t_create(f,p)    std::thread(f,p)
 #define t_join(h)        h.join()
-#define t_sleep(x)       std::this_thread::sleep_for(std::chrono::milliseconds(x))
 #define t_yield()        std::this_thread::yield()
 
 #if defined _WIN32
 #   define t_pause()  YieldProcessor()
-#elif defined __ANDROID__
+#   define t_sleep(x) Sleep(x)
+#else
+#   define t_sleep(x) usleep((x) * 1000)
+#if defined __ANDROID__
 #   define t_pause()
 #else
 #   define t_pause()  asm volatile("pause\n": : :"memory")
+#endif
 #endif
 
 /*
