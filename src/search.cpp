@@ -187,8 +187,13 @@ FORCEINLINE int SEARCHER::on_node_entry() {
     /*iid replacement?*/
     if(!use_iid
         && !pstack->hash_move
-        && pstack->depth >= 4)
+        && pstack->depth >= 6
+        && pstack->node_type != ALL_NODE
+        ) {
         pstack->depth--;
+        if(pstack->node_type == PV_NODE)
+            pstack->depth--;
+    }
 
     /*static evaluation of position*/
     if(hply >= 1 && !hstack[hply - 1].checks) {
@@ -343,9 +348,9 @@ FORCEINLINE int SEARCHER::on_qnode_entry() {
 int SEARCHER::is_pawn_push(MOVE move) const {
     if(PIECE(m_piece(move)) == pawn) {
         if(opponent == white) {
-            if(rank(m_from(move)) >= RANK6) return 1;
+            if(rank(m_from(move)) == RANK6) return 1;
         } else {
-            if(rank(m_from(move)) <= RANK3) return 1;
+            if(rank(m_from(move)) == RANK3) return 1;
         }
     }
     return 0;
@@ -406,12 +411,9 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
     /*
     extend
     */
-    if(hstack[hply - 1].checks) {
+    if(hstack[hply - 1].checks || is_pawn_push(move)) {
         if(node_t == PV_NODE) { extend(1); }
         else { extend(0); }
-    }
-    if(is_pawn_push(move)) { 
-        extend(0);
     }
     if(m_capture(move)
         && piece_c[white] + piece_c[black] == 0
@@ -479,6 +481,8 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
             && pstack->depth > 1
             ) { 
             reduce(1);
+            if(node_t == CUT_NODE && pstack->depth > 1)
+                reduce(1);
         }
         //has tt move
         if((pstack-1)->hash_move == (pstack-1)->best_move) {
