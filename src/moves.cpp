@@ -1533,10 +1533,11 @@ history score
 #define HIST_OFFSET  4178944
 
 int SEARCHER::get_history_score(const MOVE& move) {
-    int score = HISTORY(move) - HIST_OFFSET + 400;
+    int score = HISTORY(move) + 4 * HISTORY_PLY(move,ply) - HIST_OFFSET + 400;
     for(int i = 1; i <= 2 && hply >= i; i++) {
         const MOVE& cMove = hstack[hply - i].move;
-        score += 4 * REF_FUP_HISTORY(cMove, move);
+        if(cMove)
+            score += 4 * REF_FUP_HISTORY(cMove, move);
     }
     score += 2 * (pcsq[m_piece(move)][m_to(move)] - 
                   pcsq[m_piece(move)][m_from(move)]);
@@ -1865,10 +1866,13 @@ void SEARCHER::update_history(MOVE move, bool penalize) {
     if(penalize) score = -score;
 
     update_h(HISTORY(move),score);
+    update_h(HISTORY_PLY(move,ply),score);
     for(int i = 0; i < pstack->current_index - 1;i++) {
         const MOVE& mv = pstack->move_st[i];
-        if(!is_cap_prom(mv))
+        if(!is_cap_prom(mv)) {
             update_h(HISTORY(mv),-score);
+            update_h(HISTORY_PLY(mv,ply),-score);
+        }
     }
 
     if(!penalize && move != pstack->killer[0]) {
@@ -1892,6 +1896,7 @@ void SEARCHER::update_history(MOVE move, bool penalize) {
 }
 void SEARCHER::allocate_history() {
     memset(history,0,sizeof(history));
+    memset(history_ply,0,sizeof(history_ply));
     memset(refutation,0,sizeof(refutation));
     aligned_reserve<int16_t>(ref_fup_history, 14*64*14*64);
     memset(ref_fup_history,0,sizeof(int16_t)*14*64*14*64);
@@ -1900,6 +1905,7 @@ void SEARCHER::clear_history() {
     for(int i = 0;i < 14;i++)
         for(int j = 0;j < 64;j++)
             history[i][j] >>= 2;
+    memset(history_ply,0,sizeof(history_ply));
     for(int i = 0;i < 14*64*14*64;i++)
         ref_fup_history[i] >>= 2;
     for(int i = 0;i < MAX_PLY;i++)

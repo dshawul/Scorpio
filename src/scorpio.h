@@ -925,6 +925,7 @@ typedef struct SEARCHER{
     static uint64_t root_nodes[MAX_MOVES];
     static int root_scores[MAX_MOVES];
     static int16_t history[14][64];
+    static int16_t history_ply[64][6][64];
     static MOVE refutation[14][64];
     static int16_t* ref_fup_history;
     /*
@@ -1062,6 +1063,7 @@ FORCEINLINE void SEARCHER::POP_NULL() {
 history
 */
 #define HISTORY(move) (history[m_piece(move)][SQ8864(m_to(move))])
+#define HISTORY_PLY(move,ply) (history_ply[ply][PIECE(m_piece(move)) - 1][SQ8864(m_to(move))])
 #define REFUTATION(move) (refutation[m_piece(move)][SQ8864(m_to(move))])
 #define REF_FUP_HISTORY(movec,move) (\
             ref_fup_history[m_piece(movec)*64*14*64 + SQ8864(m_to(movec))*14*64 + \
