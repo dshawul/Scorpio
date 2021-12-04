@@ -61,7 +61,7 @@ int SEARCHER::eval(bool skip_nn_l)
         actual_score = eval_hce();
     }
     /*scale some endgame evaluations*/
-    if(all_man_c <= 18) {
+    if(!use_nn_hard && all_man_c <= 18) {
         int w_win_chance = 8,b_win_chance = 8;
         eval_win_chance(w_win_chance,b_win_chance);
         if(player == white) {
@@ -87,7 +87,8 @@ int SEARCHER::eval(bool skip_nn_l)
 
 END_EVAL:
     /*scale by 50 move rule*/
-    actual_score = (actual_score * (100 - fifty)) / 100;
+    if(!use_nn_hard)
+        actual_score = (actual_score * (100 - fifty)) / 100;
     return actual_score;
 }
 
