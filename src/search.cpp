@@ -3,8 +3,10 @@
 /* search options */
 int contempt = 10;
 static int alphabeta_man_c = 12;
+static int verbose = 0;
 static int multipv = 0;
 static int multipv_margin = 100;
+
 /* search features */
 const int use_nullmove = 1;
 const int use_selective = 1;
@@ -961,7 +963,7 @@ IDLE_START:
                 goto NEW_NODE;
             }
             /*check if second/multipv move is weak by a big margin*/
-            if(sb->ply == 1
+            if(multipv && sb->ply == 1
                 && (sb->pstack - 1)->legal_moves > 1
                 && (sb->pstack - 1)->legal_moves <= 1 + multipv_count
                 && score <= (sb->pstack - 1)->alpha
@@ -1014,7 +1016,8 @@ IDLE_START:
                 l_unlock(lock_smp);
 
                 /*check if NN best score (second best) is a blunder*/
-                if(sb->pstack->legal_moves > 1
+                if(multipv
+                    && sb->pstack->legal_moves > 1
                     && sb->pstack->legal_moves <= 1 + multipv_count
                     ) {
                     if(score <= sb->pstack->alpha - multipv_margin)
@@ -2033,7 +2036,7 @@ MOVE SEARCHER::find_best() {
                 int(int64_t(nnecalls) / (time_used / 1000.0f)));
         } else if(pv_print_style == 0) {
             /*print tree*/
-            if(multipv)
+            if(verbose)
                 Node::print_tree(root_node,has_ab,MAX_PLY);
 
             /* print search stats*/
@@ -2050,7 +2053,7 @@ MOVE SEARCHER::find_best() {
 
     } else {
         /*print subtree sizes*/
-        if(multipv) {
+        if(verbose) {
             print_info("ID Move    Score  Nodes\n");
             print_info("-----------------------\n");
             for(int i = 0; i < pstack->count; i++) {
@@ -2144,7 +2147,7 @@ MOVE SEARCHER::find_best() {
                 factor *= 1.5;
 
             /*NN move is bad with multipv margin*/
-            if(multipv_bad)
+            if(multipv && multipv_bad)
                 factor *= 4;
 
             /*compute vote based on subtree size alone*/
@@ -2308,6 +2311,8 @@ bool check_search_params(char** commands,char* command,int& command_num) {
         contempt = atoi(commands[command_num++]);
     } else if(!strcmp(command, "alphabeta_man_c")) {
         alphabeta_man_c = atoi(commands[command_num++]);
+    } else if(!strcmp(command, "verbose")) {
+        verbose = is_checked(commands[command_num++]);
     } else if(!strcmp(command, "multipv")) {
         multipv = is_checked(commands[command_num++]);
     } else if(!strcmp(command, "multipv_margin")) {
@@ -2362,6 +2367,7 @@ void print_search_params() {
     CLUSTER_CODE(print_spin("cluster_depth",PROCESSOR::CLUSTER_SPLIT_DEPTH,1,16));
     print_spin("contempt",contempt,0,100);
     print_spin("alphabeta_man_c",alphabeta_man_c,0,32);
+    print_check("verbose",verbose);
     print_check("multipv",multipv);
     print_spin("multipv_margin",multipv_margin,0,1000);
 }
