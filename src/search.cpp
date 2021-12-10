@@ -2148,7 +2148,7 @@ MOVE SEARCHER::find_best() {
 
             /*NN move is bad with multipv margin*/
             if(multipv && multipv_bad)
-                factor *= 4;
+                factor *= 2;
 
             /*compute vote based on subtree size alone*/
             uint64_t maxn = 0;
@@ -2166,6 +2166,10 @@ MOVE SEARCHER::find_best() {
             for(int i = 0; i < n_root_moves; i++) {
                 move_st[i] = stack[0].move_st[i];
                 score_st[i] = factor * sqrt(double(root_nodes[i]) / total_nodes);
+
+                /*penalize bad NN move*/
+                if((i >= 1 && i < 1 + multipv_count) && multipv && multipv_bad)
+                    score_st[i] /= 4;
             }
         }
 
