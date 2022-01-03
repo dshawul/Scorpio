@@ -6,6 +6,7 @@ static int alphabeta_man_c = 12;
 static int verbose = 0;
 static int multipv = 0;
 static int multipv_margin = 100;
+static int multipv_score = 0;
 
 /* search features */
 const int use_nullmove = 1;
@@ -967,11 +968,11 @@ IDLE_START:
                 && (sb->pstack - 1)->legal_moves > 1
                 && (sb->pstack - 1)->legal_moves <= 1 + multipv_count
                 && score <= (sb->pstack - 1)->alpha
-                && sb->pstack->beta < -(sb->pstack - 1)->alpha + multipv_margin
+                && sb->pstack->beta < -(sb->pstack - 1)->alpha + 6 * multipv_margin
                 ) {
                 sb->pstack->alpha = -(sb->pstack - 1)->alpha + multipv_margin - 1;
-                sb->pstack->beta = -(sb->pstack - 1)->alpha + multipv_margin;
-                sb->pstack->node_type = CUT_NODE;
+                sb->pstack->beta = -(sb->pstack - 1)->alpha + 6 * multipv_margin;
+                sb->pstack->node_type = PV_NODE;
                 sb->pstack->search_state = NULL_MOVE;
 #if 0
                 char mvs[16];
@@ -1024,13 +1025,15 @@ IDLE_START:
                         multipv_bad = 1;
                     else
                         multipv_bad = 0;
+
+                    multipv_score = score - sb->pstack->alpha;
 #if 0
                     char mv0[16],mv1[16];
                     mov_strx(move,mv1);
                     mov_strx(sb->pstack->move_st[0],mv0);
-                    printf("%s alternative %s to main pv %s: %d %d\n",
+                    printf("%s alternative %s to main pv %s: score %d alpha %d mpvs %d\n",
                         multipv_bad ? "Bad" : "Ok",
-                        mv1,mv0,score,sb->pstack->alpha);
+                        mv1,mv0,score,sb->pstack->alpha,multipv_score);
 #endif
                 }
 #if 0
@@ -2147,8 +2150,20 @@ MOVE SEARCHER::find_best() {
                 factor *= 1.5;
 
             /*NN move is bad with multipv margin*/
-            if(multipv && multipv_bad)
-                factor *= 2;
+            int badness = 1;
+            if(multipv && multipv_bad) {
+                if(multipv_score <= -5 * multipv_margin)
+                    badness = 10;
+                else if(multipv_score <= -4 * multipv_margin)
+                    badness = 8;
+                else if(multipv_score <= -3 * multipv_margin)
+                    badness = 5;
+                else if(multipv_score <= -2 * multipv_margin)
+                    badness = 3;
+                else
+                    badness = 2;
+                factor *= badness;
+            }
 
             /*compute vote based on subtree size alone*/
             uint64_t maxn = 0;
@@ -2168,8 +2183,9 @@ MOVE SEARCHER::find_best() {
                 score_st[i] = factor * sqrt(double(root_nodes[i]) / total_nodes);
 
                 /*penalize bad NN move*/
-                if((i >= 1 && i < 1 + multipv_count) && multipv && multipv_bad)
-                    score_st[i] /= 4;
+                if((i >= 1 && i < 1 + multipv_count) && multipv && multipv_bad) {
+                    score_st[i] /= badness;
+                }
             }
         }
 
