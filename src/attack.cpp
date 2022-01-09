@@ -315,8 +315,12 @@ int SEARCHER::is_legal_fast(MOVE move) {
                  cap = m_capture(move),
                  prom = m_promote(move),
                  sq;
+    bool frc_castle = (variant && is_castle(move));
 
-    if((from & 0x88) || (to & 0x88) || (from == to))
+    if((from & 0x88) || (to & 0x88))
+        return false;
+
+    if(!frc_castle && (from == to))
         return false;
     
     if(pic == blank || pic >= elephant)
@@ -353,12 +357,12 @@ int SEARCHER::is_legal_fast(MOVE move) {
                 if(piece_mask[pic] & QRBM) {
                     if(!blocked(from,to))
                         return true;
-                }else
+                } else
                     return true;
             }
         }
     }  else {
-        if(board[to] != blank)
+        if(!frc_castle && (board[to] != blank))
             return false;
         if(PIECE(pic) == pawn) {
             if(to == from + pawn_dir[player]) {
