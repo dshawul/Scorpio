@@ -317,43 +317,22 @@ int SEARCHER::is_legal_fast(MOVE move) {
                  sq;
     bool frc_castle = (variant && is_castle(move));
 
-    if((from & 0x88) || (to & 0x88))
-        return false;
-
-    if(!frc_castle && (from == to))
-        return false;
-    
-    if(pic == blank || pic >= elephant)
-        return false;
-
-    if(cap >= elephant)
-        return false;
-
-    if(prom >= elephant)
+    if(move == 0)
         return false;
 
     if(player != PCOLOR(pic))
         return false;
-    
+
     if(board[from] != pic)
         return false;
-    
+
     if(cap) {
-        if(PIECE(pic) == pawn) {
-            if(to != from + pawn_dir[player] + RR &&
-                to != from + pawn_dir[player] + LL)
-                return false;
-        }
         if(is_ep(move)) {
             sq = to - pawn_dir[player];
-            if(epsquare == to && board[to] == blank && board[sq] == COMBINE(opponent,pawn)) 
+            if(epsquare == to && board[to] == blank && board[sq] == cap)
                 return true;
         } else {
             if(board[to] == cap) {
-                if(PIECE(pic) != pawn) {
-                    if(!(sqatt_pieces(to - from) & piece_mask[pic]))
-                        return false;
-                }
                 if(piece_mask[pic] & QRBM) {
                     if(!blocked(from,to))
                         return true;
@@ -365,15 +344,11 @@ int SEARCHER::is_legal_fast(MOVE move) {
         if(!frc_castle && (board[to] != blank))
             return false;
         if(PIECE(pic) == pawn) {
-            if(to == from + pawn_dir[player]) {
-                if(board[from + pawn_dir[player]] == blank)
-                    return true;
-            } else if(to == from + 2 * pawn_dir[player]) {
-                if(board[from + pawn_dir[player]] == blank &&
-                    board[from + 2 * pawn_dir[player]] == blank)
-                    return true;
-            } else
-                return false;
+            if(to == from + pawn_dir[player])
+                return true;
+            else if(to == from + 2 * pawn_dir[player] &&
+                board[from + pawn_dir[player]] == blank)
+                return true;
         } else if(is_castle(move)) {
             if(player == white) {
                 if(castle & WSC_FLAG && to == G1 && can_castle(true))
@@ -387,8 +362,6 @@ int SEARCHER::is_legal_fast(MOVE move) {
                     return true;
             }
         } else {
-            if(!(sqatt_pieces(to - from) & piece_mask[pic]))
-                return false;
             if(piece_mask[pic] & QRBM) {
                 if(!blocked(from,to))
                     return true;
