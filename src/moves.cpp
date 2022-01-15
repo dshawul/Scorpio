@@ -30,9 +30,22 @@ void SEARCHER::do_move(const MOVE& move) {
     if(use_nnue && !use_nn) {
         nnue[hply+1].accumulator.computedAccumulation = 0;
         dp = &(nnue[hply+1].dirtyPiece);
-        dp->dirtyNum = 1;
+        dp->dirtyNum = 0;
     }
 #endif
+
+    /*move piece*/
+    if(from != to) {
+        all_bb ^= (BB(from) | BB(to));
+#ifdef NNUE_INC
+        if(use_nnue && !use_nn) {
+            dp->pc[dp->dirtyNum] = m_piece(move);
+            dp->from[dp->dirtyNum] = SQ8864(from);
+            dp->to[dp->dirtyNum] = SQ8864(to);
+            dp->dirtyNum++;
+        }
+#endif
+    }
 
     /*remove captured piece*/
     if((pic = m_capture(move)) != 0) {
@@ -58,22 +71,10 @@ void SEARCHER::do_move(const MOVE& move) {
 
 #ifdef NNUE_INC
         if(use_nnue && !use_nn) {
-            dp->dirtyNum = 2;
-            dp->pc[1] = pic;
-            dp->from[1] = SQ8864(sq);
-            dp->to[1] = 64;
-        }
-#endif
-    }
-
-    /*move piece*/
-    if(from != to) {
-        all_bb ^= (BB(from) | BB(to));
-#ifdef NNUE_INC
-        if(use_nnue && !use_nn) {
-            dp->pc[0] = m_piece(move);
-            dp->from[0] = SQ8864(from);
-            dp->to[0] = SQ8864(to);
+            dp->pc[dp->dirtyNum] = pic;
+            dp->from[dp->dirtyNum] = SQ8864(sq);
+            dp->to[dp->dirtyNum] = 64;
+            dp->dirtyNum++;
         }
 #endif
     }
@@ -157,10 +158,10 @@ void SEARCHER::do_move(const MOVE& move) {
                                    pcsq[pic][toc + 8] - pcsq[pic][fromc + 8]);
 #ifdef NNUE_INC
             if(use_nnue && !use_nn) {
-                dp->dirtyNum = 2;
-                dp->pc[1] = pic;
-                dp->from[1] = SQ8864(fromc);
-                dp->to[1] = SQ8864(toc);
+                dp->pc[dp->dirtyNum] = pic;
+                dp->from[dp->dirtyNum] = SQ8864(fromc);
+                dp->to[dp->dirtyNum] = SQ8864(toc);
+                dp->dirtyNum++;
             }
 #endif
         }
