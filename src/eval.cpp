@@ -60,6 +60,10 @@ int SEARCHER::eval(bool skip_nn_l)
     } else {
         actual_score = eval_hce();
     }
+    /*special frc evals*/
+    if(variant == 1) {
+        actual_score += eval_frc_special();
+    }
     /*scale some endgame evaluations*/
     if(!use_nn_hard && all_man_c <= 18) {
         int w_win_chance = 8,b_win_chance = 8;
@@ -91,7 +95,38 @@ END_EVAL:
         actual_score = (actual_score * (100 - fifty)) / 100;
     return actual_score;
 }
+/*
+special frc evals
+*/
+int SEARCHER::eval_frc_special() {
+    int score = 0;
 
+    /*corner trapped bishop*/
+    if(board[A8] == bbishop && board[B7] == bpawn) {
+        score += FRC_TRAPPED_BISHOP;
+        if(board[B6] != blank)
+             score += (FRC_TRAPPED_BISHOP >> 1);
+    }
+    if(board[H8] == bbishop && board[G7] == bpawn) {
+        score += FRC_TRAPPED_BISHOP;
+        if(board[G6] != blank)
+             score += (FRC_TRAPPED_BISHOP >> 1);
+    }
+    if(board[A1] == wbishop && board[B2] == wpawn) {
+        score -= FRC_TRAPPED_BISHOP;
+        if(board[B3] != blank)
+             score -= (FRC_TRAPPED_BISHOP >> 1);
+    }
+    if(board[H1] == wbishop && board[G2] == wpawn) {
+        score -= FRC_TRAPPED_BISHOP;
+        if(board[G3] != blank)
+             score -= (FRC_TRAPPED_BISHOP >> 1);
+    }
+
+    /*score relative to player*/
+    if(player == black) score = -score;
+    return score;
+}
 /*
 Hand-crafted evaluation
 */
@@ -152,49 +187,49 @@ int SEARCHER::eval_hce()
         ) {
         w_score.sub(TRAPPED_BISHOP);
         if(board[C7] == bpawn)
-            w_score.sub(TRAPPED_BISHOP/2);
+            w_score.sub(TRAPPED_BISHOP >> 1);
     }
     if((board[H7] == wbishop || (board[G8] == wbishop && board[F7] == bpawn))
         && board[G6] == bpawn
         ) {
         w_score.sub(TRAPPED_BISHOP);
         if(board[F7] == bpawn) 
-            w_score.sub(TRAPPED_BISHOP/2);
+            w_score.sub(TRAPPED_BISHOP >> 1);
     }
     if((board[A2] == bbishop || (board[B1] == bbishop && board[C2] == wpawn))
         && board[B3] == wpawn
         ) {
         b_score.sub(TRAPPED_BISHOP);
         if(board[C2] == wpawn)
-            b_score.sub(TRAPPED_BISHOP/2);
+            b_score.sub(TRAPPED_BISHOP >> 1);
     }
     if((board[H2] == bbishop || (board[G1] == bbishop && board[F2] == wpawn))
         && board[G3] == wpawn
         ) {
         b_score.sub(TRAPPED_BISHOP);
         if(board[F2] == wpawn) 
-            b_score.sub(TRAPPED_BISHOP/2);
+            b_score.sub(TRAPPED_BISHOP >> 1);
     }
 
     /*trapped bishop at A6/H6/A3/H3*/
     if(board[A6] == wbishop && board[B5] == bpawn)
-        w_score.sub(5 * TRAPPED_BISHOP / 8);
+        w_score.sub((5 * TRAPPED_BISHOP) >> 3);
     if(board[H6] == wbishop && board[G5] == bpawn)
-        w_score.sub(5 * TRAPPED_BISHOP / 8);
+        w_score.sub((5 * TRAPPED_BISHOP) >> 3);
     if(board[A3] == bbishop && board[B4] == wpawn)
-        b_score.sub(5 * TRAPPED_BISHOP / 8);
+        b_score.sub((5 * TRAPPED_BISHOP) >> 3);
     if(board[H3] == bbishop && board[G4] == wpawn)
-        b_score.sub(5 * TRAPPED_BISHOP / 8);
+        b_score.sub((5 * TRAPPED_BISHOP) >> 3);
 
     /*trapped knight*/
     if(board[A7] == wknight && board[B7] == bpawn && (board[C6] == bpawn || board[A6] == bpawn))
-        w_score.sub(5 * TRAPPED_BISHOP / 8);
+        w_score.sub((5 * TRAPPED_BISHOP) >> 3);
     if(board[H7] == wknight && board[G7] == bpawn && (board[F6] == bpawn || board[H6] == bpawn)) 
-        w_score.sub(5 * TRAPPED_BISHOP / 8);
+        w_score.sub((5 * TRAPPED_BISHOP) >> 3);
     if(board[A2] == bknight && board[B2] == wpawn && (board[C3] == wpawn || board[A3] == wpawn)) 
-        b_score.sub(5 * TRAPPED_BISHOP / 8);
+        b_score.sub((5 * TRAPPED_BISHOP) >> 3);
     if(board[H2] == bknight && board[G2] == wpawn && (board[F3] == wpawn || board[H3] == wpawn)) 
-        b_score.sub(5 * TRAPPED_BISHOP / 8);
+        b_score.sub((5 * TRAPPED_BISHOP) >> 3);
 
     /*trapped knight at A8/H8/A1/H1*/
     if(board[A8] == wknight && (board[A7] == bpawn || board[C7] == bpawn))
@@ -2139,6 +2174,7 @@ void init_parameters(int group) {
     ADD(TRAPPED_BISHOP,0,0,0,512,actm);
     ADD(TRAPPED_KNIGHT,0,0,0,512,actm);
     ADD(TRAPPED_ROOK,0,0,0,512,actm);
+    ADD(FRC_TRAPPED_BISHOP,0,0,0,512,actm);
     ADD(EXTRA_PAWN,0,0,0,512,actm);
     ADD(QUEEN_MG,0,wqueen,0,4096,actm);
     ADD(QUEEN_EG,0,bqueen,0,4096,actm);
