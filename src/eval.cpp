@@ -123,6 +123,24 @@ int SEARCHER::eval_frc_special() {
              score -= (FRC_TRAPPED_BISHOP >> 1);
     }
 
+    /*encourage castling to get to standard chess ASAP */
+    if(all_man_c >= 24) {
+        if(!(castle & WSLC_FLAG)) {
+            int ksq = plist[wking]->sq;
+            if(rank(ksq) == RANK1) {
+                if(ksq >= G1 || ksq <= B1)
+                    score += FRC_CASTLE_BONUS;
+            }
+        }
+        if(!(castle & BSLC_FLAG)) {
+            int ksq = plist[bking]->sq;
+            if(rank(ksq) == RANK8) {
+                if(ksq >= G8 || ksq <= B8)
+                    score -= FRC_CASTLE_BONUS;
+            }
+        }
+    }
+
     /*score relative to player*/
     if(player == black) score = -score;
     return score;
@@ -2175,6 +2193,7 @@ void init_parameters(int group) {
     ADD(TRAPPED_KNIGHT,0,0,0,512,actm);
     ADD(TRAPPED_ROOK,0,0,0,512,actm);
     ADD(FRC_TRAPPED_BISHOP,0,0,0,512,actm);
+    ADD(FRC_CASTLE_BONUS,0,0,0,512,actm);
     ADD(EXTRA_PAWN,0,0,0,512,actm);
     ADD(QUEEN_MG,0,wqueen,0,4096,actm);
     ADD(QUEEN_EG,0,bqueen,0,4096,actm);
