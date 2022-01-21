@@ -185,7 +185,7 @@ profile:
 	    llvm-profdata merge -output=default.profdata $(BIN)/*.profraw; \
 	fi
 	$(RM) $(OBJ) $(EXE) $(BIN)/*.profraw
-	$(MAKE) DEBUG=1 $(EXE)
+	$(MAKE) DEBUG=1 $(EXE) strip
 
 clean:
 	$(RM) $(OBJ) $(EXE) $(BIN)/core.* $(BIN)/*.profraw *.profdata *.gcda
