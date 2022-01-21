@@ -688,8 +688,16 @@ uint64_t SEARCHER::perft(int depth) {
             if(!get_move()) {
                 break;
             }
+            pstack->legal_moves++;
 
-            PUSH_MOVE(pstack->current_move);
+            MOVE& move = pstack->current_move;
+            PUSH_MOVE(move);
+
+            /*update killers and refutation*/
+            if((pstack-1)->legal_moves <= 4) {
+                if(!is_cap_prom(move))
+                    update_history(move); 
+            }
 
             pstack->depth = (pstack - 1)->depth - 1;
             pstack->gen_status = GEN_START;
