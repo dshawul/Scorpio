@@ -1269,6 +1269,19 @@ void SEARCHER::idle_loop_main() {
         t_yield();
         if(SEARCHER::use_nn) t_sleep(SEARCHER::delay);
     }
+
+    do {
+        int count = 0;
+        for(int i = 1; i < PROCESSOR::n_processors; i++) {
+            if(processors[i]->state <= WAIT) count++;
+            else break;
+        }
+        if(count == PROCESSOR::n_processors - 1)
+            break;
+        t_yield();
+        if(SEARCHER::use_nn) t_sleep(SEARCHER::delay);
+    } while(true);
+
     
     l_lock(lock_smp);       
     PROCESSOR::n_idle_processors--;
@@ -1454,11 +1467,6 @@ void SEARCHER::search_ab_prior() {
 
     montecarlo = 1;
     use_nn = save_use_nn;
-
-    while(ply > 0) {
-        if(hstack[hply - 1].move) POP_MOVE();
-        else POP_NULL();
-    }
 
     /*nodes to prior*/
     uint64_t maxn = 0;
@@ -1993,7 +2001,9 @@ MOVE SEARCHER::find_best() {
         SEARCHER::expected_move = stack[0].pv[1];
 
     /*park threads*/
-    for(int i = 1;i < PROCESSOR::n_processors;i++)
+    int n_end = montecarlo_skipped ? 
+        PROCESSOR::n_cores : PROCESSOR::n_processors;
+    for(int i = 1;i < n_end;i++)
         PROCESSOR::park(i);
 #if defined(CLUSTER)
     PROCESSOR::set_mt_state(PARK);
