@@ -65,7 +65,7 @@ void PROCESSOR::init_mpi_thread() {
         node_pvs[i].pv_length = 0;
         node_pvs[i].pv[0] = 0;
     }
-    pv_tree_nodes.resize(n_hosts * MAX_PLY);
+    pv_tree_nodes.resize(n_hosts * (MAX_PLY + 1));
     pv_tree_nodes[0] = 0;
     /*global split point*/
     global_split = new SPLIT_MESSAGE[n_hosts];

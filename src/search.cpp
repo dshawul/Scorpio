@@ -1723,7 +1723,7 @@ MOVE SEARCHER::iterative_deepening(bool& montecarlo_skipped) {
                         int depth = 0;
                         for(int i = 0;i < PROCESSOR::node_pvs[j].pv_length;i++) {
                             MOVE mv = PROCESSOR::node_pvs[j].pv[i];
-                            if(is_legal_fast(mv)) {
+                            if(mv && is_legal_fast(mv)) {
                                 RECORD_HASH(player,hash_key,0,0,HASH_HIT,0,0,mv,0,0);
                                 PUSH_MOVE(mv);
                                 depth++;
