@@ -926,7 +926,7 @@ typedef struct SEARCHER{
     static uint64_t root_nodes[MAX_MOVES];
     static int root_scores[MAX_MOVES];
     static int16_t history[14][64];
-    static int16_t history_ply[64][6][64];
+    static int16_t history_ply[MAX_PLY][6][64];
     static MOVE refutation[14][64];
     static int16_t* ref_fup_history;
     /*

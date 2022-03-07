@@ -1,6 +1,6 @@
 #include "scorpio.h"
 
-#define VERSION "3.0.15.3"
+#define VERSION "3.0.15.5"
 
 /*
 all external variables declared here
@@ -67,7 +67,7 @@ static global variables of SEARCHER
 uint64_t SEARCHER::root_nodes[MAX_MOVES];
 int SEARCHER::root_scores[MAX_MOVES];
 CACHE_ALIGN int16_t SEARCHER::history[14][64];
-CACHE_ALIGN int16_t SEARCHER::history_ply[64][6][64];
+CACHE_ALIGN int16_t SEARCHER::history_ply[MAX_PLY][6][64];
 CACHE_ALIGN MOVE SEARCHER::refutation[14][64];
 int16_t* SEARCHER::ref_fup_history = 0;
 CHESS_CLOCK SEARCHER::chess_clock;

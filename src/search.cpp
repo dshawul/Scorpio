@@ -1270,6 +1270,7 @@ void SEARCHER::idle_loop_main() {
         if(SEARCHER::use_nn) t_sleep(SEARCHER::delay);
     }
 
+    /*For When main thread finishes so fast before others started searching*/
     do {
         int count = 0;
         for(int i = 1; i < PROCESSOR::n_processors; i++) {

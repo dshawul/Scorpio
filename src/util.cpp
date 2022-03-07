@@ -280,7 +280,10 @@ void SEARCHER::print_board() const {
 void SEARCHER::print_history() {
     for(int i = 0;i < hply;i++) {
         print("%d. ",i);
-        print_move(hstack[i].move);
+        MOVE& move = hstack[i].move;
+        print_move(move);
+        print(" pic=%d cap=%d prom=%d",
+            m_piece(move),m_capture(move),m_promote(move));
         print(" cst=%d ep=",hstack[i].castle);
         print_sq(hstack[i].epsquare);
         print(" fif=%d chk=%d",hstack[i].fifty,hstack[i].checks);
