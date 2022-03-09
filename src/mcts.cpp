@@ -430,7 +430,8 @@ float Node::compute_regularized_policy_reverseKL(Node* n, float factor, float fp
 Node* Node::ExactPi_select(Node* n, bool has_ab, SEARCHER* ps) {
     bool is_root = (ps->ply == 0);
     float dCPUCT = cpuct_init * (is_root ? cpuct_init_root_factor : 1.0f) +
-                    cpuct_factor * logf((n->visits + cpuct_base + 1.0) / cpuct_base);
+                    cpuct_factor * logf((n->visits + cpuct_base + 1.0) / cpuct_base) +
+                    (1 - ((ps->processor_id + 1) % 3)) * 0.25;
     float factor = dCPUCT * (float)(sqrt(double(n->visits))) / (n->edges.get_children() + n->visits);
 
     /*compute fpu*/
@@ -487,7 +488,8 @@ Node* Node::ExactPi_select(Node* n, bool has_ab, SEARCHER* ps) {
 Node* Node::Max_UCB_select(Node* n, bool has_ab, SEARCHER* ps) {
     bool is_root = (ps->ply == 0);
     float dCPUCT = cpuct_init * (is_root ? cpuct_init_root_factor : 1.0f) +
-                    cpuct_factor * logf((n->visits + cpuct_base + 1.0) / cpuct_base);
+                    cpuct_factor * logf((n->visits + cpuct_base + 1.0) / cpuct_base) +
+                    (1 - ((ps->processor_id + 1) % 3)) * 0.25;
     float factor;
 
     /*compute fpu*/
