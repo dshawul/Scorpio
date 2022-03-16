@@ -472,8 +472,9 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
     if(noncap_reduce && nmoves >= 2) {
         //by number of moves searched so far including current move
         for(int i = 0; i < 8; i++) {
-            int lim = ((64 - depth) * lmr_count[0][i] + 
-                       (depth -  0) * lmr_count[1][i]) >> 6;
+            int D = MIN(depth, 64);
+            int lim = ((64 - D) * lmr_count[0][i] + 
+                       (D - 0) * lmr_count[1][i]) >> 6;
             if(nmoves >= lim && pstack->depth > 1) {
                 reduce(1);
             } else break;
