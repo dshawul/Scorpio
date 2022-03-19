@@ -472,9 +472,9 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
     if(noncap_reduce && nmoves >= 2) {
         //by number of moves searched so far including current move
         for(int i = 0; i < 8; i++) {
-            int D = MIN(depth, 64);
-            int lim = ((64 - D) * lmr_count[0][i] + 
-                       (D - 0) * lmr_count[1][i]) >> 6;
+            int D = MIN(depth, 32);
+            int lim = ((32 - D) * lmr_count[0][i] + 
+                       (D - 0) * lmr_count[1][i]) >> 5;
             if(nmoves >= lim && pstack->depth > 1) {
                 reduce(1);
             } else break;
@@ -510,8 +510,8 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
         if(pstack->reduction && (pstack - 1)->gen_status - 1 == GEN_KILLERS)
             reduce(-1);
         //reduce extended moves less
-        if(pstack->extension) {
-            reduce(-pstack->reduction / 2);
+        if(pstack->reduction && pstack->extension) {
+            reduce(-1);
         }
     }
     /*losing captures*/
@@ -2193,6 +2193,11 @@ MOVE SEARCHER::find_best() {
             for(int i = 0; i < n_root_moves; i++) {
                 move_st[i] = stack[0].move_st[i];
                 score_st[i] = factor * sqrt(double(root_nodes[i]) / total_nodes);
+
+                /*penalize fail low*/
+                if((i == 0) && root_failed_low) {
+                    score_st[i] /= (2 * root_failed_low);
+                }
 
                 /*penalize bad NN move*/
                 if((i >= 1 && i < 1 + multipv_count) && multipv && multipv_bad) {
