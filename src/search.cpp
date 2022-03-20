@@ -29,7 +29,7 @@ static PARAM failhigh_margin = 120;
 static PARAM razor_margin = 120;
 static PARAM futility_margin = 130;
 static PARAM probcut_margin = 195;
-static PARAM lmp_count[] = {0, 10, 10, 15, 21, 24, 44, 49};
+static PARAM lmp_count[] = {0, 8, 12, 16, 22, 26, 44, 50};
 static PARAM lmr_count[2][8] = {{2, 4, 6, 8, 16, 32, 48, 64},
                                 {1, 2, 3, 4,  8, 16, 24, 32}};
 static PARAM lmr_ntype_count[] = {17, 5, 5};
