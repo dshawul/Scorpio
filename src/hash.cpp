@@ -183,17 +183,21 @@ int SEARCHER::probe_hash(
             if(flags == CRAP)
                 return CRAP;
             
-            if(h_depth >= depth) {
-                if(flags == EXACT) {
+            if(flags == EXACT) {
+                eval = score;
+                if(h_depth >= depth)
                     return EXACT;
-                } else if(flags == LOWER) {
-                    if(score >= beta)
-                        return LOWER;
-                } else if(flags == UPPER) {
-                    if(score <= alpha)
-                        return UPPER;
-                }
-            } 
+            } else if(flags == LOWER) {
+                if(score > eval)
+                    eval = score;
+                if(score >= beta && h_depth >= depth)
+                    return LOWER;
+            } else if(flags == UPPER) {
+                if(score < eval)
+                    eval = score;
+                if(score <= alpha && h_depth >= depth)
+                    return UPPER;
+            }
 
             if(depth - 4 <= h_depth 
                 && (flags == UPPER && score < beta))
