@@ -77,8 +77,6 @@ bool SEARCHER::hash_cutoff() {
             /*move is taken!*/
             pstack->best_score = SKIP_SCORE;
             return true;
-        } else if(pstack->hash_flags == HASH_HIT) {
-            /*we had a hit and replaced the flag with load of CRAP (depth=255)*/
         } else if(pstack->hash_flags == UNKNOWN) {
             /*store new crap*/
             RECORD_HASH(player,hash_key,255,0,CRAP,0,0,0,0,0);

@@ -180,7 +180,7 @@ int SEARCHER::probe_hash(
             flags = (slot.flags & 3) + EXACT;
             h_depth = slot.depth;
 
-            if(flags == CRAP)
+            if(flags == CRAP && depth == 255)
                 return CRAP;
             
             if(flags == EXACT) {
@@ -199,6 +199,14 @@ int SEARCHER::probe_hash(
                     return UPPER;
             }
 
+            if(exclusiveP) {
+                slot.check_sum ^= slot.data;
+                slot.flags |= (CRAP - EXACT);
+                slot.depth = 255;
+                slot.check_sum ^= slot.data;
+                *pslot = slot;
+            }
+
             if(depth - 4 <= h_depth 
                 && (flags == UPPER && score < beta))
                 return AVOID_NULL;
@@ -207,14 +215,6 @@ int SEARCHER::probe_hash(
                 && ( (flags == EXACT && score > alpha) 
                   || (flags == LOWER && score >= beta)))
                 return HASH_GOOD;
-
-            if(exclusiveP) {
-                slot.check_sum ^= slot.data;
-                slot.flags |= (CRAP - EXACT);
-                slot.depth = 255;
-                slot.check_sum ^= slot.data;
-                *pslot = slot;
-            }
 
             return HASH_HIT;
         }
