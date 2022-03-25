@@ -166,7 +166,7 @@ enum square_names {
 #define MAX_MOVES          256
 #define MAX_MOVES_NN        80
 #define MAX_CAPS            64
-#define MAX_PLY             96
+#define MAX_PLY             64
 #define MAX_HSTACK        1024
 #define MATE_SCORE       20000
 #define SKIP_SCORE       15000
