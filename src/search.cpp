@@ -639,7 +639,7 @@ START:
                         sb->pstack->o_alpha = sb->pstack->alpha;
                         sb->pstack->o_beta = sb->pstack->beta;
                         sb->pstack->o_depth = sb->pstack->depth;
-                        sb->pstack->alpha = sb->pstack->hash_score - sb->pstack->depth;
+                        sb->pstack->alpha = sb->pstack->hash_score - 3 * sb->pstack->depth;
                         sb->pstack->beta = sb->pstack->alpha + 1;
                         sb->pstack->depth /= 2;
                         sb->pstack->search_state |= NORMAL_MOVE; 
