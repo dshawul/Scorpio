@@ -2144,19 +2144,19 @@ MOVE SEARCHER::find_best() {
                 all_man_c <= 6)
                 factor *= 6;
             else if(root_score >= 500 ||
-                all_man_c <= 8)
+                all_man_c <= 7)
                 factor *= 4;
             else if(root_score >= 400 ||
-                all_man_c <= 10)
+                all_man_c <= 8)
                 factor *= 3;
             else if(root_score >= 300 ||
-                all_man_c <= 12)
+                all_man_c <= 10)
                 factor *= 2.5;
             else if(root_score >= 250 ||
-                all_man_c <= 14)
+                all_man_c <= 12)
                 factor *= 2.0;
             else if(root_score >= 200 ||
-                all_man_c <= 16)
+                all_man_c <= 14)
                 factor *= 1.5;
 
             /*NN move is bad with multipv margin*/
