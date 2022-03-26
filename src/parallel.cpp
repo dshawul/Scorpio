@@ -943,6 +943,7 @@ void SEARCHER::clear_block() {
     n_workers = 0;
     for(int i = 0; i < PROCESSOR::n_processors;i++)
         workers[i] = 0;
+    l_unlock(lock);
 
     /*reset counts*/
     nodes = 0;

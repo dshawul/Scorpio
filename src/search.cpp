@@ -844,8 +844,8 @@ POP:
                     * make processor idle
                     */ 
                     l_lock(lock_smp);
-                    sb->used = false;
                     if(proc->state == GO) {
+                        sb->used = false;
                         proc->searcher = NULL;
                         proc->state = WAIT;
                     }
@@ -890,7 +890,9 @@ IDLE_START:
                                 goto NEW_NODE;
                         }
                     } else if(proc->state == KILL) {
+                        l_lock(lock_smp);
                         proc->state = GO;
+                        l_unlock(lock_smp);
                         return;
                     }
                 }
