@@ -221,7 +221,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
         ) {
             int score = pstack->static_eval;
             int rmargin = razor_margin * pstack->depth;
-            int fhmargin = failhigh_margin * pstack->depth;
+            int fhmargin = failhigh_margin * (pstack->depth - pstack->improving);
 
             if(score + rmargin <= pstack->alpha
                 && pstack->depth <= 4
