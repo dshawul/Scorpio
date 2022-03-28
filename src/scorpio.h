@@ -587,6 +587,10 @@ typedef struct HIST_STACK{
 } *PHIST_STACK;
 
 typedef struct STACK{
+    MOVE move_st[MAX_MOVES];
+    int score_st[MAX_MOVES];
+    MOVE bad_st[MAX_CAPS];
+    MOVE pv[MAX_PLY];
     int pv_length;
     MOVE current_move;
     int count;
@@ -625,10 +629,6 @@ typedef struct STACK{
     MOVE refutation;
     int qcheck_depth;
     uint64_t start_nodes;
-    MOVE move_st[MAX_MOVES];
-    int score_st[MAX_MOVES];
-    MOVE bad_st[MAX_CAPS];
-    MOVE pv[MAX_PLY];
     void sort_1(const int,const int);
     void sort_all();
 } *PSTACK;
@@ -732,10 +732,10 @@ typedef struct SEARCHER{
     PLIST plist[15];
     int frc_squares[6];
     HIST_STACK hstack[MAX_HSTACK];
+    STACK stack[MAX_PLY];
 #ifdef NNUE_INC
     NNUEdata* nnue;
 #endif
-    STACK stack[MAX_PLY];
     float prev_kld;
     /*eval data*/
     PAWNREC pawnrec;
