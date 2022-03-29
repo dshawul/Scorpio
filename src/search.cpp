@@ -632,7 +632,7 @@ START:
             case SINGULAR_SEARCH:
                 if(use_singular
                     && sb->pstack->hash_move
-                    && sb->pstack->depth >= 8
+                    && sb->pstack->depth >= 6
                     && sb->pstack->hash_flags == HASH_GOOD
                     && !sb->pstack->singular
                     ) {
