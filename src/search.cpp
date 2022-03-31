@@ -511,6 +511,10 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
         if(pstack->reduction && pstack->extension) {
             reduce(-1);
         }
+        //mate threat
+        if((pstack - 1)->mate_threat) {
+            reduce(-1);
+        }
     }
     /*losing captures*/
     if(loscap_reduce && nmoves >= 2) {
