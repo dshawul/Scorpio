@@ -422,6 +422,16 @@ int SEARCHER::be_selective(int nmoves, bool mc) {
         ) {
         extend(1);
     }
+    if(node_t == PV_NODE
+        && m_capture(move)
+        && !loscap_reduce
+        && depth <= 5 && hply >= 2
+        && m_capture(hstack[hply - 2].move)
+        && m_to(move) == m_to(hstack[hply - 2].move)
+        && piece_cv[m_capture(move)] == piece_cv[m_capture(hstack[hply - 2].move)]
+    ) {
+        extend(1);
+    }
     if((pstack - 1)->singular && nmoves == 1) {
         extend(1);
     }
