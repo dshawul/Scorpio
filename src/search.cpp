@@ -1313,8 +1313,11 @@ void SEARCHER::search() {
         idle_loop_main();
     /*alphabeta*/
     } else {
+        bool split_work = 
+            (use_abdada_smp && search_depth > PROCESSOR::SMP_SPLIT_DEPTH);
+
         /*attach helper processor here once for abdada*/
-        if(use_abdada_smp) {
+        if(split_work) {
             l_lock(lock_smp);
             for(int i = 1;i < PROCESSOR::n_processors;i++) {
                 if(processors[i]->state == WAIT) {
@@ -1332,7 +1335,7 @@ void SEARCHER::search() {
         ::search(processors[0]);
 
         /*wait till all helpers become idle*/
-        if(use_abdada_smp) {
+        if(split_work) {
             stop_workers();
             idle_loop_main();
         }
