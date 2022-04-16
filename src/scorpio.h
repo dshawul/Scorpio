@@ -608,6 +608,7 @@ typedef struct STACK{
     int extension;
     int reduction;
     int mate_threat;
+    MOVE null_killer;
     int singular;
     int legal_moves;
     int alpha;

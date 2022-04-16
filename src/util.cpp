@@ -1153,6 +1153,7 @@ void SEARCHER::COPY(SEARCHER* srcSearcher) {
         dstack->extension = sstack->extension;
         dstack->reduction = sstack->reduction;
         dstack->mate_threat = sstack->mate_threat;
+        dstack->null_killer = sstack->null_killer;
         dstack->singular = sstack->singular;
         dstack->best_move = sstack->best_move;
         dstack->best_score = sstack->best_score;

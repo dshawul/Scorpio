@@ -1610,6 +1610,13 @@ DO_AGAIN:
                 }
             }
         } else if(pstack->gen_status == GEN_CAPS) {
+            int null_from = -1;
+            if(pstack->null_killer)
+                null_from = m_from(pstack->null_killer);
+            int recap_sq = -1;
+            if(hply >= 1 && hstack[hply - 1].move)
+                recap_sq = m_to(hstack[hply - 1].move);
+
             start = pstack->count;
             gen_caps();
             pstack->sortm = 1;
@@ -1620,7 +1627,9 @@ DO_AGAIN:
                 else {
                     pstack->score_st[i] =   32 * piece_see_v[m_promote(move)] 
                                           + 16 * piece_see_v[m_capture(move)]
-                                          - piece_see_v[m_piece(move)];
+                                          - piece_see_v[m_piece(move)]
+                                          + 10 * (null_from >= 0 && m_to(move) == null_from)
+                                          +      (recap_sq >= 0 && m_to(move) == recap_sq);
                 }
             }
         } else if(pstack->gen_status == GEN_KILLERS) {
@@ -1657,6 +1666,10 @@ DO_AGAIN:
                 }
             }
         } else if(pstack->gen_status == GEN_NONCAPS) {
+            int null_to = -1;
+            if(pstack->null_killer)
+                null_to = m_to(pstack->null_killer);
+
             start = pstack->count;
             gen_noncaps();
             pstack->sortm = 2;
@@ -1673,6 +1686,8 @@ DO_AGAIN:
                         pstack->score_st[i] = 1000;
                     } else {
                         pstack->score_st[i] = get_history_score(move);
+                        if(m_from(move) == null_to)
+                            pstack->score_st[i] += (MAX_HIST >> 2);
                     }
                 }
             }
@@ -1777,13 +1792,17 @@ DO_AGAIN:
             const int cutoff_depth = (qsearch_level < -1) ? 1 : 4;
             const bool recap = (hply >= 1 && 
                 pstack->qcheck_depth <= -cutoff_depth);
+            const int recap_sq = 
+                ((hply >= 1) ? m_to(hstack[hply - 1].move) : -1);
+
             gen_caps(recap);
             pstack->sortm = 1;
             for(int i = 0; i < pstack->count;i++) {
                 move = pstack->move_st[i];
                 pstack->score_st[i] =   32 * piece_see_v[m_promote(move)] 
                                       + 16 * piece_see_v[m_capture(move)]
-                                      - piece_see_v[m_piece(move)];
+                                      - piece_see_v[m_piece(move)]
+                                      + (recap_sq == m_to(move));
             }
         } else if(pstack->gen_status == GEN_QNONCAPS) {
             if(pstack->qcheck_depth > 0) {  

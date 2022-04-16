@@ -139,6 +139,7 @@ FORCEINLINE int SEARCHER::on_node_entry() {
     pstack->best_score = -MATE_SCORE;
     pstack->best_move = 0;
     pstack->mate_threat = 0;
+    pstack->null_killer = 0;
     pstack->singular = 0;
     pstack->all_done = true;
     pstack->second_pass = false;
@@ -1012,6 +1013,7 @@ IDLE_START:
                 sb->pstack->flag = LOWER;
                 GOBACK(true);
             } else {
+                sb->pstack->null_killer = (sb->pstack + 1)->best_move;
                 if(score == -MATE_SCORE + WIN_PLY * (sb->ply + 3))
                     sb->pstack->mate_threat = 1;
             }
