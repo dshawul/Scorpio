@@ -1534,7 +1534,7 @@ history score
 #define HIST_OFFSET  4178944
 
 int SEARCHER::get_history_score(const MOVE& move) {
-    int score = HISTORY(move) + 4 * HISTORY_PLY(move,ply) - HIST_OFFSET + 400;
+    int score = HISTORY(move) + 2 * HISTORY_PLY(move,ply) - HIST_OFFSET + 400;
     for(int i = 1; i <= 2 && hply >= i; i++) {
         const MOVE& cMove = hstack[hply - i].move;
         if(cMove)
