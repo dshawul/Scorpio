@@ -26,7 +26,7 @@ const int use_singular = 1;
 
 static PARAM aspiration_window = 10;
 static PARAM failhigh_margin = 120;
-static PARAM razor_margin = 120;
+static PARAM razor_margin = 60;
 static PARAM futility_margin = 130;
 static PARAM probcut_margin = 195;
 static PARAM lmp_count[] = {0, 8, 12, 16, 22, 26, 44, 50};
