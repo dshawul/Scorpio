@@ -2214,8 +2214,8 @@ MOVE SEARCHER::find_best() {
                 score_st[i] = factor * sqrt(double(root_nodes[i]) / total_nodes);
 
                 /*penalize fail low*/
-                if((i == 0) && root_failed_low) {
-                    score_st[i] /= (2 * root_failed_low);
+                if((i == 0) && root_failed_low > 1) {
+                    score_st[i] /= 2;
                 }
 
                 /*penalize bad NN move*/
