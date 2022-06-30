@@ -175,7 +175,7 @@ static void load_net(int id, int nn_cache_size, PLOAD_NN load_nn) {
     } else if(nn_type == NNUE) {
         strcpy(input_names, "player_input opponent_input");
         sprintf(input_shapes, "%d 8 8  %d 8 8", net_channels[nn_type], net_channels[nn_type]);
-        strcpy(output_names, "value/Sigmoid");
+        strcpy(output_names, "valuea/Sigmoid");
         strcpy(output_sizes, "1");
     } else if(nn_type == LCZERO) {
         strcpy(input_names, "main_input");
@@ -276,7 +276,8 @@ void LoadEgbbLibrary(char* main_path) {
             SEARCHER::egbb_is_loaded = 1;
         }
             
-        if(strstr(SEARCHER::nn_path, ".uff") != NULL)
+        if(strstr(SEARCHER::nn_path, ".uff") != NULL ||
+           strstr(SEARCHER::nn_path, ".onnx") != NULL)
             is_trt = true;
         else
             is_trt = false;

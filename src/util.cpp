@@ -604,7 +604,7 @@ int SEARCHER::draw(int one_repeat) const {
 
     if(hply >= 2) {
         int repeat = 0;
-        for(int i = hply - 2;i >= hply - fifty;i -= 2) {
+        for(int i = hply - 2; i >= hply - fifty; i -= 2) {
             if(hstack[i].hash_key == hash_key) {
                 repeat++;
                 if(repeat >= 2 || ply > 1 || one_repeat)
@@ -651,7 +651,7 @@ int SEARCHER::print_result(bool output) {
     } else {
         int  repetition = 0;
         if(hply >= 2) {
-            for(int i = hply - 2;i >= hply - fifty;i -= 2) {
+            for(int i = hply - 2; i >= 1 && i >= hply - fifty; i -= 2) {
                 if(hstack[i].hash_key == hash_key)
                     repetition++;
             }
