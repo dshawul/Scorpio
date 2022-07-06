@@ -14,7 +14,7 @@ display_help() {
     echo "  --no-egbb          Do not install 5-men egbb."
     echo "  --no-lcnets        Do not install lczero nets."
     echo "  --no-scnets        Do not download scorpio nets."
-    echo "  --trt              72 is for latest GPUs."
+    echo "  --trt              84 is for latest GPUs."
     echo "                     60 is for older GPUs (default)."
     echo
     echo "Example: ./install.sh -p INT8 -t 80"
@@ -92,7 +92,7 @@ while ! [ -z "$1" ]; do
             ;;
         --trt )
             shift
-            [ "$1" = "72" ] && TRT="-trt-$1"
+            [ "$1" = "84" ] && TRT="-trt-$1"
             ;;
         -h | --help)
             display_help

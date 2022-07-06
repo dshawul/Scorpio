@@ -58,7 +58,7 @@ IF NOT "%1"=="" (
     ) ELSE IF "%1"=="--no-scnets" (
         SET ISCNET=0
     ) ELSE IF "%1"=="--trt" (
-        IF "%2"=="72" (
+        IF "%2"=="84" (
             SET TRT="-trt-%2"
         )
         SHIFT
@@ -74,7 +74,7 @@ IF NOT "%1"=="" (
         echo   --no-egbb          Do not install 5-men egbb.
         echo   --no-lcnets        Do not install lczero nets.
         echo   --no-scnets        Do not install scorpio nets.
-        echo   --trt              72 is for latest GPUs.
+        echo   --trt              84 is for latest GPUs.
         echo                      60 is for older GPUs.
         echo
         echo Example: install.bat -p INT8 - t 80

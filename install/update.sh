@@ -1,7 +1,7 @@
 #!/bin/bash
 wget https://github.com/dshawul/Scorpio/releases/download/3.0/install.sh
 chmod +x install.sh
-./install.sh --trt 72 --no-egbb --no-lcnets
+./install.sh --trt 84 --no-egbb --no-lcnets
 
 #RAM sizes
 TR=$((45*1024))

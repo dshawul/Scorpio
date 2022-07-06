@@ -14,7 +14,7 @@ and a shell script [install.sh](https://github.com/dshawul/Scorpio/releases/down
         --no-egbb          Do not install 5-men egbb.
         --no-lcnets        Do not install lczero nets.
         --no-scnets        Do not download scorpio nets.
-        --trt              72 is for latest GPUs.
+        --trt              84 is for latest GPUs.
                            60 is for older GPUs (default).
       
       Example: ./install.sh -p INT8 -t 80
@@ -38,9 +38,9 @@ AVX2 has been around since 2012 so your CPU most likely supports it unless it is
 
 For newer GPUs such as 3080s and 3090s, you can install scorpio as
 
-      $ ./install.sh --trt 72
+      $ ./install.sh --trt 84
 
-This will install Scorpio with TensorRT 7.2.
+This will install Scorpio with TensorRT 8.4.
 
 ## NNUE installation
 

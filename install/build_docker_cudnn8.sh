@@ -2,6 +2,7 @@
 
 VER=3.0
 IMAGE_NAME=scorpio:${VER}
+TRT=84
 
 #RAM sizes
 TR=$((45*1024))
@@ -20,7 +21,7 @@ build_image() {
            cd /home/scorpio && \
            wget https://github.com/dshawul/Scorpio/releases/download/${VER}/install.sh && \
            chmod 755 install.sh && \
-           ./install.sh --trt 72 --no-lcnets && \
+           ./install.sh --trt ${TRT} --no-lcnets && \
            sed -i.bak -e 's/^nn_cache_size .*/nn_cache_size ${NN}/g' \
                       -e 's/^treeht.*/treeht ${TR}/' \
                       -e 's/^ht.*/ht ${HT}/' \
