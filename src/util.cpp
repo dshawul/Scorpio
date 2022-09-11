@@ -509,6 +509,14 @@ void SEARCHER::print_pv(int score) {
         search_depth);
     int seld = (montecarlo ? Node::max_tree_depth : seldepth);
     int hashfull = ((!montecarlo && tm > 1000) ? PROCESSOR::hashfull() : 0);
+    uint32_t egbbp = egbb_probes;
+    if(montecarlo) {
+        if(!abort_search)
+            egbbp *= PROCESSOR::n_processors;
+        else if(n_workers)
+            egbbp = (PROCESSOR::n_processors * egbbp) /
+                    (PROCESSOR::n_processors - n_workers);
+    }
 
     if(PROTOCOL == UCI) {
         sprintf(pv,"info depth %d seldepth %d score cp %d time %d "
@@ -520,7 +528,7 @@ void SEARCHER::print_pv(int score) {
             (long long)nds,
             nps,
             hashfull,
-            egbb_probes);
+            egbbp);
     } else {
         sprintf(pv,"%02d %d %d " FMT64 " %d %d %d %d",
             depth,
@@ -530,7 +538,7 @@ void SEARCHER::print_pv(int score) {
             seld,
             nps,
             hashfull,
-            egbb_probes);
+            egbbp);
     }
 
     for(i = 0;i < stack[0].pv_length;i++) {
