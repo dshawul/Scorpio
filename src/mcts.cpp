@@ -1444,11 +1444,17 @@ void SEARCHER::compute_time_factor(int rscore) {
     if(use_abdada_cluster && PROCESSOR::n_hosts > 1
         && PROCESSOR::host_id == 0
         ) {
-        for(int i = 0; i < PROCESSOR::n_hosts; i++) {
+        for(int i = 1; i < PROCESSOR::n_hosts; i++) {
             MOVE move = PROCESSOR::node_pvs[i].pv[0];
-            if(move && move != stack[0].pv[0]) {
-                time_factor *= 2;
-                return;
+            if(move) {
+                if(PROCESSOR::node_pvs[i].depth >= MAX_PLY - 10) {
+                    time_factor = 0.5;
+                    return;
+                }
+                if(move != stack[0].pv[0]) {
+                    time_factor *= 2;
+                    return;
+                }
             }
         }
     }
@@ -1570,7 +1576,7 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
     int visits;
     int oalpha = pstack->alpha;
     int obeta = pstack->beta;
-    unsigned int ovisits = root->visits;
+    unsigned int o_playouts = playouts;
     unsigned int visits_poll;
 
     /*poll input after this many playouts*/
@@ -1578,7 +1584,10 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
         if(is_selfplay) visits_poll = 100;
         else visits_poll = chess_clock.max_visits / 40;
     } else if(use_nn) {
-        visits_poll = 4 * PROCESSOR::n_processors;
+        if(chess_clock.p_time < 10000)
+            visits_poll = PROCESSOR::n_processors;
+        else
+            visits_poll = 4 * PROCESSOR::n_processors;
     } else {
         unsigned int np = single ? 1 : PROCESSOR::n_processors;
         visits_poll = MAX(200 * np, average_pps / 40);
@@ -1655,19 +1664,18 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
 
         /*threads searching different trees*/
         if(single) {
-            if(root->visits - ovisits >= visits_poll) {
+            if(playouts - o_playouts >= visits_poll) {
                 check_mcts_quit(single);
-                ovisits = root->visits;
+                o_playouts = playouts;
             }
         /*all threads searching same tree*/
         } else if(processor_id == 0) {
             /*rank 0*/
             if(true CLUSTER_CODE(&& PROCESSOR::host_id == 0)) { 
                 /*check quit*/
-                if(root->visits - ovisits >= visits_poll) {
-                    ovisits = root->visits;
-                    check_quit();
-
+                if(playouts - o_playouts >= visits_poll) {
+                    o_playouts = playouts;
+                    /*print pv*/
                     float frac = 1;
                     if(chess_clock.max_visits != MAX_NUMBER)
                         frac = double(root->visits) / chess_clock.max_visits;
@@ -1684,10 +1692,8 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
                             boost_policy();
                         }
                     }
-                    
-                    if((is_selfplay || (frac >= 0.2)) && !chess_clock.infinite_mode)
-                        check_mcts_quit(single);
 
+                    /*turn off ensemble*/
                     if(ensemble && (frac > ensemble_setting)) {
                         print_info("Turning off ensemble.\n");
                         t_sleep(1);
@@ -1700,6 +1706,11 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
                         freeze_tree = true;
                         print_info("Freezing tree.\n");
                     }
+
+                    /*check whether to quit now or not*/
+                    if((is_selfplay || (frac >= 0.2)) && !chess_clock.infinite_mode)
+                        check_mcts_quit(single);
+                    check_quit();
                 }
             }
         }
@@ -1738,7 +1749,7 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
         /*Random selection for self play*/
         extract_pv(root,(is_selfplay && (hply < temp_plies || rand_temp_end > 0)));
         root_score = logit(root->score);
-        if(!single)
+        if(!single CLUSTER_CODE(&& PROCESSOR::n_hosts == 1))
             print_pv(root_score);
         search_depth++;
     }

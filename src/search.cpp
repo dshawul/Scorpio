@@ -256,7 +256,6 @@ FORCEINLINE int SEARCHER::on_node_entry() {
                 return true;
             }
     }
-
     /*
     * Processor 0 of host 0 does polling for input
     * from keypress and checks for time limit.
@@ -272,7 +271,6 @@ FORCEINLINE int SEARCHER::on_node_entry() {
             }
         } 
     }
-
     return false;
 }
 
@@ -343,7 +341,21 @@ FORCEINLINE int SEARCHER::on_qnode_entry() {
             pstack->alpha = score;
         }
     }
-
+    /*
+    * Processor 0 of host 0 does polling for input
+    * from keypress and checks for time limit.
+    */
+    if(processor_id == 0 CLUSTER_CODE(&& PROCESSOR::host_id == 0)) {
+        if(nodes > time_check + poll_nodes) {
+            time_check = nodes;
+            if(!abort_search)
+                check_quit();
+            if(abort_search CLUSTER_CODE(&& !use_abdada_cluster)) {
+                CLUSTER_CODE(PROCESSOR::quit_hosts());
+                return true;
+            }
+        } 
+    }
     return false;
 }
 /*pawn push*/
@@ -2044,8 +2056,12 @@ MOVE SEARCHER::find_best() {
     int max_root_score;
     if(use_abdada_cluster && PROCESSOR::n_hosts > 1) {
         PROCESSOR::Max(&root_score,&max_root_score,1);
-        if(PROCESSOR::host_id == 0)
-            print_pv(max_root_score);
+        if(PROCESSOR::host_id == 0) {
+            if(ABS(max_root_score) > MATE_SCORE - WIN_PLY * MAX_PLY) 
+                print_pv(max_root_score);
+            else
+                print_pv((root_score + max_root_score) >> 1);
+        }
     }
 #endif
 
@@ -2159,7 +2175,7 @@ MOVE SEARCHER::find_best() {
             }
         } else {
             /*weigh winning AB scores more*/
-            if(root_score >= 800)
+            if(root_score >= 800 || PROCESSOR::node_pvs[1].depth >= MAX_PLY - 10)
                 factor *= 10;
             else if(root_score >= 600 ||
                 all_man_c <= 6)

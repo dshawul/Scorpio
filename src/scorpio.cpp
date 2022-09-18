@@ -1,6 +1,6 @@
 #include "scorpio.h"
 
-#define VERSION "3.0.15.7"
+#define VERSION "3.0.15.10"
 
 /*
 all external variables declared here
@@ -29,6 +29,7 @@ int scorpio_start_time;
 bool is_selfplay = false;
 int  PROTOCOL = CONSOLE;
 int variant = 0;
+int move_overhead = 1500;
 
 /*
 parallel search
@@ -873,6 +874,9 @@ int internal_commands(char** commands,char* command,int& command_num) {
             score = searcher.eval();
             print("%d\n",score);
         }
+    } else if(!strcmp(command, "move_overhead")) {
+        move_overhead = atoi(commands[command_num]);
+        command_num++;
     } else if(!strcmp(command,"randomize")) {
         is_selfplay = true;
     } else if(!strcmp(command,"quit")) {
@@ -972,7 +976,7 @@ int xboard_commands(char** commands,char* command,int& command_num,int& do_searc
         print("!\n");
     } else if(!strcmp(command,"st")) {
         SEARCHER::chess_clock.max_sd = MAX_PLY;
-        SEARCHER::chess_clock.max_st = 1000 * (atoi(commands[command_num++]));
+        SEARCHER::chess_clock.max_st = 1000 * atof(commands[command_num++]);
     } else if(!strcmp(command,"sd")) {
         SEARCHER::chess_clock.max_st = MAX_NUMBER;
         SEARCHER::chess_clock.max_sd = atoi(commands[command_num++]);

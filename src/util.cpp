@@ -590,6 +590,7 @@ void SEARCHER::print_pv(int score) {
 
         PV_MESSAGE pv;
         pv.pv_length = stack[0].pv_length;
+        pv.depth = stack[0].depth;
         memcpy(pv.pv, stack[0].pv, stack[0].pv_length * sizeof(MOVE));
 
         for(int i = 0;i < PROCESSOR::n_hosts;i++) {
@@ -1426,8 +1427,8 @@ void CHESS_CLOCK::set_stime(int hply, bool output) {
     int moves_left, est_moves_left;
     int move_no = (hply / 2);
     int pp_time = p_time;
-    if(p_time > 5000) p_time -= 1500;
-    else p_time = int(0.7 * p_time);
+    p_time -= move_overhead;
+    if(p_time < 0) p_time = 0;
     if(pondering) p_time /= 4;
 
     if(move_no <= 35)
@@ -1463,6 +1464,8 @@ void CHESS_CLOCK::set_stime(int hply, bool output) {
             maximum_time = p_time / 2;
         }
     }
+
+    /* tolerance */
     maximum_time -= 30;
 
     if(SEARCHER::first_search)
@@ -1483,6 +1486,10 @@ void CHESS_CLOCK::set_stime(int hply, bool output) {
 
     p_time = pp_time;
 
+    /*make sure search time is less than max time*/
+    search_time = MIN(search_time, 3 * maximum_time / 4);
+
+
     /*
     print time
     */
@@ -1493,14 +1500,20 @@ void CHESS_CLOCK::set_stime(int hply, bool output) {
 void SEARCHER::check_quit() {
     int time_used = get_time() - start_time;
 
+#if 0
+    uint64_t nds = (montecarlo && root_node) ? 
+        unsigned(root_node->visits) : nodes;
+    print("time %d nodes " FMT64 " playouts %d\n",
+        time_used, nds, int(playouts));
+#endif
+
     /*
     poll nodes
     */
     if(time_used) {
         poll_nodes = int(int64_t(nodes) / (time_used / 100.0f));
-        poll_nodes /= PROCESSOR::n_processors;
         poll_nodes = MAX(poll_nodes, 5000);
-        poll_nodes = MIN(poll_nodes, 100000);
+        poll_nodes = MIN(poll_nodes, 20000);
     }
 
     /*

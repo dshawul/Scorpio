@@ -677,6 +677,7 @@ struct INIT_MESSAGE {
 };
 struct PV_MESSAGE {
     int32_t pv_length;
+    int32_t depth;
     MOVE  pv[MAX_PLY];
 };
 struct TT_MESSAGE {
@@ -697,7 +698,7 @@ struct TT_MESSAGE {
 #define   RESPLIT_MESSAGE_SIZE(x) (SPLIT_MESSAGE_SIZE(x) + 4)
 #define   MERGE_MESSAGE_SIZE(x)   (72 + ((x).pv_length << 2))
 #define   INIT_MESSAGE_SIZE(x)    (MAX_FEN_STR + 4 + ((x).pv_length << 2))
-#define   PV_MESSAGE_SIZE(x)      (4 + ((x).pv_length << 2))
+#define   PV_MESSAGE_SIZE(x)      (8 + ((x).pv_length << 2))
 
 #endif
 /*
@@ -1259,6 +1260,7 @@ extern int qsearch_level;
 extern int PROTOCOL;
 extern int train_data_type;
 extern int variant;
+extern int move_overhead;
 
 extern int win_weight;
 extern int draw_weight;
