@@ -2034,7 +2034,7 @@ MOVE SEARCHER::find_best() {
         SEARCHER::expected_move = stack[0].pv[1];
 
     /*park threads*/
-    int n_end = montecarlo_skipped ? 
+    int n_end = (montecarlo && montecarlo_skipped) ? 
         PROCESSOR::n_cores : PROCESSOR::n_processors;
     for(int i = 1;i < n_end;i++)
         PROCESSOR::park(i);

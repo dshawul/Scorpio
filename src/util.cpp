@@ -2195,7 +2195,6 @@ void SEARCHER::pgn_to_epd(char* pgn, FILE* fb, int task) {
             else if(comment == 1) {
                 if(!strcmp(command,"[%%eval")) {
                     command = commands[command_num++];
-                    double score;
                     if(command[0] == '#') {
                         if(command[1] == '-') score = -MATE_SCORE;
                         else score = MATE_SCORE;
