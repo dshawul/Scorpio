@@ -2225,6 +2225,8 @@ MOVE SEARCHER::find_best() {
             for(int i = 0; i < n_root_moves; i++)
                 total_nodes += double(root_nodes[i]);
 
+            double maxsc = factor * sqrt(double(maxn*1.2) / total_nodes);
+
             for(int i = 0; i < n_root_moves; i++) {
                 move_st[i] = stack[0].move_st[i];
                 score_st[i] = factor * sqrt(double(root_nodes[i]) / total_nodes);
@@ -2232,6 +2234,8 @@ MOVE SEARCHER::find_best() {
                 /*penalize fail low*/
                 if((i == 0) && root_failed_low > 1) {
                     score_st[i] /= 2;
+                    if(score_st[i] <= maxsc)
+                        score_st[i] = maxsc;
                 }
 
                 /*penalize bad NN move*/
