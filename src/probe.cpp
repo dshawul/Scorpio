@@ -189,7 +189,7 @@ static void load_net(int id, int nn_cache_size, PLOAD_NN load_nn) {
 
     /*generate INT8 calibration data here*/
     if(SEARCHER::device_type == GPU && SEARCHER::float_type >= 1) {
-        char trtPath[256];
+        char trtPath[512];
         sprintf(trtPath,"%s.%d_%d.trt", 
             path, PROCESSOR::n_processors, SEARCHER::float_type);
 

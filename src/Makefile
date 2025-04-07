@@ -1,227 +1,292 @@
 ############################
-# Target executable and files
+# Scorpio Chess Engine Makefile
 ############################
+.PHONY: default all clean strip help profile install
+
+# Target executable and directories
 BIN = ../bin
 EXE = $(BIN)/scorpio
+OBJ_DIR = ./obj
+
+# File management
 RM = rm -rf
-OBJ = attack.o scorpio.o eval.o hash.o moves.o parallel.o probe.o search.o mcts.o see.o magics.o util.o
-HPP = scorpio.h my_types.h params.h
+MKDIR = mkdir -p
+
+# Source files and dependencies
+SOURCES = attack.cpp scorpio.cpp eval.cpp hash.cpp moves.cpp parallel.cpp probe.cpp search.cpp mcts.cpp see.cpp magics.cpp util.cpp
+OBJECTS = $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(SOURCES))
+HEADERS = scorpio.h my_types.h params.h
+
+# Build configurations
+DEBUG ?= 0
+COMP ?= gcc
+STRIP_CMD = strip
 
 #########################################################################
-#
-# Some options
-# ------------
-#
-#  DARC_64BIT      --  Is system 64 bit.
-#  DHAS_POPCNT     --  Use Intrinsic PopCnt. [HIGHLY recommeneded] 
-#  DHAS_PREFETCH   --  Prefetch hash table entries [Recommeneded] 
-#  DUSE_SPINLOCK   --  Use spin locks.
-#  DCLUSTER        --  Compile MPI cluster code.
-#  DCLUSTER_TT_TYPE=n  --  Distributed transposition table type (0 - global, 1 - distributed, 2 - local) default=2
-#  DMAX_CPUS=n     --  Compile for maximum of n cpus. 
-#  DYBW            --  Compile with YBW
-#  DTUNE           --  Compile evaluation tuning code. [NOT recommended to turn on]
-#  DMYDEBUG        --  Turn on some MPI debugging
+# Feature Options
 #########################################################################
-DEFINES = 
-DEFINES += -DARC_64BIT
-DEFINES += -DHAS_POPCNT
+# DARC_64BIT      -- Is system 64 bit
+# DHAS_POPCNT     -- Use intrinsic PopCnt [HIGHLY recommended]
+# DHAS_PREFETCH   -- Prefetch hash table entries [Recommended]
+# DUSE_SPINLOCK   -- Use spin locks
+# DCLUSTER        -- Compile MPI cluster code
+# DCLUSTER_TT_TYPE=n -- Distributed transposition table type
+#                    (0 - global, 1 - distributed, 2 - local) default=2
+# DMAX_CPUS=n     -- Compile for maximum of n cpus
+# DYBW            -- Compile with YBW
+# DTUNE           -- Compile evaluation tuning code [NOT recommended]
+# DMYDEBUG        -- Turn on some MPI debugging
+# DNNUE_INC       -- Include NNUE support
+#########################################################################
+
+# Architecture-specific options
+ARCH_DEFINES = -DARC_64BIT -DHAS_POPCNT
+
+# Feature options
+FEATURE_DEFINES = -DMAX_CPUS=656 -DNNUE_INC
+
+# Conditional options based on compiler
+CONDITIONAL_DEFINES = 
 ifneq ($(COMP),arm)
-    DEFINES += -DHAS_PREFETCH
-    DEFINES += -DUSE_SPINLOCK
+    CONDITIONAL_DEFINES += -DHAS_PREFETCH -DUSE_SPINLOCK
 endif
-#DEFINES += -DMYDEBUG
-#DEFINES += -DTUNE
-DEFINES += -DMAX_CPUS=656
-#DEFINES += -DYBW
-#DEFINES += -DCLUSTER_TT_TYPE=1
-DEFINES += -DNNUE_INC
-############################
-# Compiler choice 
-############################
-DEBUG=0
-COMP=gcc
-STRIP=strip
-CXXFLAGS=
-LXXFLAGS=
 
+# Debug options
+DEBUG_DEFINES =
+#DEBUG_DEFINES += -DMYDEBUG
+
+# Optional features
+OPTIONAL_DEFINES =
+#OPTIONAL_DEFINES += -DTUNE
+#OPTIONAL_DEFINES += -DYBW
+#OPTIONAL_DEFINES += -DCLUSTER_TT_TYPE=1
+
+# Combine all defines
+DEFINES = $(ARCH_DEFINES) $(FEATURE_DEFINES) $(CONDITIONAL_DEFINES) $(DEBUG_DEFINES) $(OPTIONAL_DEFINES)
+
+############################
+# Compiler settings
+############################
+
+# C++ standard
+CXXSTANDARD = -std=c++17
+
+# Warning flags
+WARNINGS = -Wall -fstrict-aliasing -fno-exceptions -fno-rtti
+
+# Unused warnings suppression
+UNUSED = -Wno-unused-variable -Wno-unused-result -Wno-unused-but-set-variable -Wno-psabi -Wno-uninitialized
+
+# Default flags
+CXXFLAGS =
+LDFLAGS =
+
+############################
+# Compiler choices
+############################
+# Setup compiler based on COMP variable
 ifeq ($(COMP),gcc-cluster)
-	CXX=mpicxx -cxx=g++
-	override COMP=gcc
+	CXX = mpicxx -cxx=g++
+	override COMP = gcc
 	DEFINES += -DCLUSTER
 else ifeq ($(COMP),clang-cluster)
-	CXX=mpicxx -cxx=clang++
-	override COMP=clang
+	CXX = mpicxx -cxx=clang++
+	override COMP = clang
 	DEFINES += -DCLUSTER
 else ifeq ($(COMP),icpc-cluster)
-	CXX=mpicxx -cxx=icpc
-	override COMP=icpc
+	CXX = mpicxx -cxx=icpc
+	override COMP = icpc
 	DEFINES += -DCLUSTER
 else ifeq ($(COMP),pgcc-cluster)
-	CXX=mpicxx -cxx=pgc++
-	override COMP=pgcc
+	CXX = mpicxx -cxx=pgc++
+	override COMP = pgcc
 	DEFINES += -DCLUSTER
 else ifeq ($(COMP),win-cluster)
-	CXX=x86_64-w64-mingw32-g++
-	override COMP=win
+	CXX = x86_64-w64-mingw32-g++
+	override COMP = win
 	DEFINES += -DCLUSTER
-	STRIP=x86_64-w64-mingw32-strip
-	LXXFLAGS += -L/usr/local/msmpi/Lib/x64 -lmsmpi
+	STRIP_CMD = x86_64-w64-mingw32-strip
+	LDFLAGS += -L/usr/local/msmpi/Lib/x64 -lmsmpi
 	CXXFLAGS += -I/usr/local/msmpi/Include
 else ifeq ($(COMP),gcc)
-	CXX=g++
+	CXX = g++
 else ifeq ($(COMP),clang)
-	CXX=clang++
+	CXX = clang++
 else ifeq ($(COMP),icpc)
-	CXX=icpc
+	CXX = icpc
 else ifeq ($(COMP),pgcc)
-	CXX=pgc++
+	CXX = pgc++
 else ifeq ($(COMP),arm)
-	CXX=arm-linux-androideabi-g++
-	STRIP=arm-linux-androideabi-strip
+	CXX = arm-linux-androideabi-g++
+	STRIP_CMD = arm-linux-androideabi-strip
 else ifeq ($(COMP),win)
-	CXX=x86_64-w64-mingw32-g++
-	STRIP=x86_64-w64-mingw32-strip
+	CXX = x86_64-w64-mingw32-g++
+	STRIP_CMD = x86_64-w64-mingw32-strip
 endif
 
-STRIP += $(EXE)
-
-###########################
-#  Compiler flags
-###########################
-
+# Threading support
 ifeq ($(COMP),arm)
-    LXXFLAGS += -lm
+	LDFLAGS += -lm
 else
-    LXXFLAGS += -lpthread -lm
+	LDFLAGS += -lpthread -lm
 endif
 
-
-UNUSED = -Wno-unused-variable -Wno-unused-result  -Wno-unused-result 
-ifeq ($(COMP),clang)
-else
-    UNUSED += -Wno-unused-but-set-variable -Wno-maybe-uninitialized -Wno-psabi
-endif
-
+# Compiler-specific options
 ifeq ($(COMP),win)
-    LXXFLAGS += -static
-    CXXFLAGS += -Wall -fstrict-aliasing -fno-exceptions -fno-rtti $(UNUSED) -std=c++11
+	LDFLAGS += -static
+	CXXFLAGS += $(WARNINGS) $(UNUSED) $(CXXSTANDARD)
 else ifeq ($(COMP),pgcc)
-    CXXFLAGS += warn -c11
-    LXXFLAGS += -ldl
+	CXXFLAGS += -warn -c11
+	LDFLAGS += -ldl
 else ifeq ($(COMP),icpc)
-    CXXFLAGS += -wd128 -wd981 -wd869 -wd2259 -wd383 -wd1418
-    CXXFLAGS += -fstrict-aliasing -fno-exceptions -fno-rtti $(UNUSED) -std=c++11
-    LXXFLAGS += -ldl
+	CXXFLAGS += -wd128 -wd981 -wd869 -wd2259 -wd383 -wd1418
+	CXXFLAGS += $(WARNINGS) $(UNUSED) $(CXXSTANDARD)
+	LDFLAGS += -ldl
 else
-    CXXFLAGS += -Wall -fstrict-aliasing -fno-exceptions -fno-rtti $(UNUSED) -std=c++11
-    LXXFLAGS += -ldl
+	CXXFLAGS += $(WARNINGS) $(UNUSED) $(CXXSTANDARD)
+	LDFLAGS += -ldl
 endif
 
+# Architecture-specific optimizations
 ifeq ($(COMP),arm)
-     CXXFLAGS += -fPIE -pie
-     LXXFLAGS += -fPIE -pie
+	CXXFLAGS += -fPIE -pie
+	LDFLAGS += -fPIE -pie
 else ifeq ($(COMP),pgcc)
-     CXXFLAGS += -Mvect=avx2
+	ifneq ($(USE_AVX2),0)
+		CXXFLAGS += -Mvect=avx2
+	endif
 else
-     CXXFLAGS += -mavx2
+	ifneq ($(USE_AVX2),0)
+		CXXFLAGS += -mavx2
+	endif
 endif
 
+############################
+# Debug/Optimization settings
+############################
 ifeq ($(DEBUG),3)
-        ifeq ($(COMP),icpc)
-                CXXFLAGS += -O2 -prof-gen
-        else ifeq ($(COMP),pgcc)
-                CXXFLAGS += -O2 -Mpfi
-        else ifeq ($(COMP),clang)
-                CXXFLAGS += -O2 -fprofile-instr-generate
-                LXXFLAGS += -fprofile-instr-generate
-        else
-                CXXFLAGS += -O2 -fprofile-generate
-                LXXFLAGS += -lgcov
-        endif
-        STRIP=
+	# Prepare for profile guided optimization
+	ifeq ($(COMP),icpc)
+		CXXFLAGS += -O2 -prof-gen
+	else ifeq ($(COMP),pgcc)
+		CXXFLAGS += -O2 -Mpfi
+	else ifeq ($(COMP),clang)
+		CXXFLAGS += -O2 -fprofile-instr-generate
+		LDFLAGS += -fprofile-instr-generate
+	else
+		CXXFLAGS += -O2 -fprofile-generate
+		LDFLAGS += -lgcov
+	endif
+	DO_STRIP = 0
 else ifeq ($(DEBUG),2)
-        ifeq ($(COMP),icpc)
-                CXXFLAGS += -g -pg
-        else
-                CXXFLAGS += -g -pg
-                LXXFLAGS += -g -pg
-        endif
-        STRIP=
+	# Debug build with profiling
+	ifeq ($(COMP),icpc)
+		CXXFLAGS += -g -pg
+	else
+		CXXFLAGS += -g -pg
+		LDFLAGS += -g -pg
+	endif
+	DO_STRIP = 0
 else ifeq ($(DEBUG),1)
-        ifeq ($(COMP),icpc)
-                CXXFLAGS += -prof-use -fast -fomit-frame-pointer
-        else ifeq ($(COMP),pgcc)
-                CXXFLAGS += -Mpfo -fast noframe
-        else ifeq ($(COMP),clang)
-                CXXFLAGS += -fprofile-instr-use -Ofast -fomit-frame-pointer -flto
-                LXXFLAGS += -fprofile-use -flto
-        else
-                CXXFLAGS += -fprofile-use -Ofast -fomit-frame-pointer -flto -Wno-error=coverage-mismatch
-                LXXFLAGS += -lgcov -flto
-        endif
+	# Optimized build with profile data
+	ifeq ($(COMP),icpc)
+		CXXFLAGS += -prof-use -fast -fomit-frame-pointer
+	else ifeq ($(COMP),pgcc)
+		CXXFLAGS += -Mpfo -fast noframe
+	else ifeq ($(COMP),clang)
+		CXXFLAGS += -fprofile-instr-use -Ofast -fomit-frame-pointer -flto
+		LDFLAGS += -fprofile-use -flto
+	else
+		CXXFLAGS += -fprofile-use -Ofast -fomit-frame-pointer -flto -Wno-coverage-mismatch
+		LDFLAGS += -lgcov -flto
+	endif
+	DO_STRIP = 1
 else
-        ifeq ($(COMP),icpc)
-                CXXFLAGS += -fast -fomit-frame-pointer
-        else ifeq ($(COMP),pgcc)
-                CXXFLAGS += -fast noframe
-        else
-                CXXFLAGS += -Ofast -fomit-frame-pointer -flto
-                LXXFLAGS += -flto
-        endif
+	# Default optimized build
+	ifeq ($(COMP),icpc)
+		CXXFLAGS += -fast -fomit-frame-pointer
+	else ifeq ($(COMP),pgcc)
+		CXXFLAGS += -fast noframe
+	else
+		CXXFLAGS += -Ofast -fomit-frame-pointer -flto
+		LDFLAGS += -flto
+	endif
+	DO_STRIP = 1
 endif
 
 ######################
 # Rules
 ######################
 
-default:
-	$(MAKE) $(EXE) strip
+default: all
 
-profile:
+all: $(OBJ_DIR) $(EXE)
+	@if [ "$(DO_STRIP)" = "1" ]; then $(MAKE) strip; fi
+
+# Create necessary directories
+$(OBJ_DIR):
+	$(MKDIR) $(OBJ_DIR)
+
+# Main executable
+$(EXE): $(OBJECTS)
+	$(CXX) -o $@ $^ $(LDFLAGS)
+
+# Automatic dependency generation
+DEPFLAGS = -MMD -MP
+$(OBJ_DIR)/%.o: %.cpp
+	$(CXX) $(CXXFLAGS) $(DEFINES) $(DEPFLAGS) -c -o $@ $<
+
+# Include generated dependencies
+-include $(OBJECTS:.o=.d)
+
+# Profile guided optimization workflow
+PROFILE_PARAMS ?= mt 1 use_nn 0 montecarlo 0 st 20 go quit
+profile: $(OBJ_DIR)
 	$(MAKE) DEBUG=3 $(EXE)
-	$(BIN)/scorpio.sh mt 1 use_nn 0 montecarlo 0 st 20 go quit
-	@if [ $(COMP) = clang ]; then \
-	    llvm-profdata merge -output=default.profdata $(BIN)/*.profraw; \
+	$(BIN)/scorpio.sh $(PROFILE_PARAMS)
+	@if [ "$(COMP)" = "clang" ]; then \
+		llvm-profdata merge -output=default.profdata $(BIN)/*.profraw; \
 	fi
-	$(RM) $(OBJ) $(EXE) $(BIN)/*.profraw
-	$(MAKE) DEBUG=1 $(EXE) strip
+	$(RM) $(OBJECTS) $(EXE) $(BIN)/*.profraw
+	$(MAKE) DEBUG=1 $(EXE)
 
-clean:
-	$(RM) $(OBJ) $(EXE) $(BIN)/core.* $(BIN)/*.profraw *.profdata *.gcda
-
+# Strip debugging symbols
 strip:
-	$(STRIP)
+	$(STRIP_CMD) $(EXE)
 
+# Clean build artifacts
+clean:
+	$(RM) $(OBJ_DIR) $(EXE) $(BIN)/core.* *.profdata $(BIN)/*.profraw
+
+# Help information
 help:
 	@echo ""
-	@echo "1. make [DEBUG=n] [COMP=c]"
+	@echo "Scorpio Chess Engine Makefile"
+	@echo "============================="
 	@echo ""
-	@echo "  n ="
-	@echo "	0: Compile optimized binary (-03)"
-	@echo "	1: Compile with profile guided optimization (PGO)"
-	@echo "	2: Compile for deugging (default)"
-	@echo "	3: Prepare for PGO"
+	@echo "Available targets:"
+	@echo "  all      : Build the Scorpio executable (default)"
+	@echo "  clean    : Remove all build artifacts"
+	@echo "  strip    : Strip debugging symbols from the executable"
+	@echo "  profile  : Build with profile-guided optimization"
+	@echo "  help     : Display this help message"
 	@echo ""
-	@echo "  c ="
-	@echo "	gcc    :  gnu compiler"
-	@echo "	clang  :  clang compiler"
-	@echo "	icpc   :  intel compiler"
-	@echo "	pgcc   :  portland group compiler"
-	@echo "	arm    :  arm android compiler"
-	@echo "	win    :  windows cross compiler"
-	@echo "	[]-cluster:  mpicxx wrapper compiler"
+	@echo "Build options:"
+	@echo "  DEBUG=n  : Set debug level"
+	@echo "    0: Optimized build (default)"
+	@echo "    1: Build with profile-guided optimization"
+	@echo "    2: Debug build with profiling"
+	@echo "    3: Prepare for profile-guided optimization"
 	@echo ""
-	@echo "2. make clean - removes all files but source code"
-	@echo "3. make strip - strips executable of debugging/profiling data"
+	@echo "  COMP=c   : Set compiler"
+	@echo "    gcc          : GNU C++ compiler (default)"
+	@echo "    clang        : Clang C++ compiler"
+	@echo "    icpc         : Intel C++ compiler"
+	@echo "    pgcc         : Portland Group compiler"
+	@echo "    arm          : ARM Android compiler"
+	@echo "    win          : Windows cross-compiler"
+	@echo "    *-cluster    : MPI wrapper for cluster compilation"
 	@echo ""
-
-##############
-# Dependencies
-############## 
-
-$(EXE): $(OBJ)
-	$(CXX) -o $@ $(OBJ) $(LXXFLAGS) 
-
-%.o: %.cpp $(HPP)
-	$(CXX) $(CXXFLAGS) $(DEFINES) -c -o $@ $<
+	@echo "  USE_AVX2=0     : Disable AVX2 instructions"
+	@echo "  PROFILE_PARAMS : Parameters for profile generation"
+	@echo ""

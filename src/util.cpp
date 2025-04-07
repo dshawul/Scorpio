@@ -820,7 +820,7 @@ void SEARCHER::set_board(const char* fen_str) {
     int i,r,f,sq,move_number;
     int ksq[2];
 
-    strncpy(HIST_STACK::start_fen,fen_str,MAX_FEN_STR);
+    strncpy(HIST_STACK::start_fen,fen_str,MAX_FEN_STR - 1);
 
     for(sq = A1;sq <= H8;sq++) {
         if(!(sq & 0x88)) {
