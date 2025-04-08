@@ -9,7 +9,7 @@ for /f "tokens=* delims= " %%a in ("%LN:~9%") do set LN=%%a
 set PATH=%LN%;%PATH%
 
 mpiexec -aa -al 3:N ^
-   -np 1 scorpio-mpich.exe vote_weight 300 pvstyle 0 frac_abprior 0 %* : ^
-   -np 1 scorpio-mpich.exe vote_weight 100 pvstyle 0 use_nn 0 montecarlo 0 mt auto/2 %*
+   -np 1 scorpio-mpich.exe vote_weight 500 pvstyle 0 frac_abprior 0 %* : ^
+   -np 1 scorpio-mpich.exe vote_weight 100 pvstyle 0 use_nn 0 montecarlo 0 mt auto/4 %*
 
 cd %CWD%

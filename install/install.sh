@@ -28,7 +28,7 @@ VR=`echo $VERSION | tr -d '.'`
 # Autodetect operating system
 OS=windows
 exep=bin/Windows
-if [[ "$OSTYPE" == "linux-gnu" ]]; then
+if [[ "$OSTYPE" == "linux"* ]]; then
   OS=ubuntu
   exep=bin/Linux
 elif [[ "$OSTYPE" == "darwin"* ]]; then

@@ -43,7 +43,7 @@ Some definitions to include/remove code
 parallel search options
 */
 #if !defined(MAX_CPUS)
-#   define MAX_CPUS             656
+#   define MAX_CPUS             512
 #endif
 #if defined(YBW)
 #   define MAX_SEARCHERS_PER_CPU 32
