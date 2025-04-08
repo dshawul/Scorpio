@@ -58,7 +58,7 @@ IF NOT "%1"=="" (
     ) ELSE IF "%1"=="--no-scnets" (
         SET ISCNET=0
     ) ELSE IF "%1"=="--trt" (
-        IF "%2"=="84" (
+        IF NOT "%2"=="60" (
             SET TRT="-trt-%2"
         )
         SHIFT
@@ -149,8 +149,8 @@ SET EXE="%CWD%bin/Windows/scorpio.bat"
 
 SET nnuep=%CWD%nets-nnue/net-scorpio-k16.bin
 IF %GPUS% NEQ 0 (
-  SET nnp=%CWD%nets-scorpio/ens-net-20x256.uff
-  SET nnp_e=%CWD%nets-ender/ens-net-20x256.uff
+  SET nnp=%CWD%nets-scorpio/ens-net-20x256.onnx
+  SET nnp_e=%CWD%nets-ender/ens-net-20x256.onnx
 ) ELSE (
   SET nnp=%CWD%nets-scorpio/ens-net-12x128.pb
   SET nnp_e=%CWD%nets-scorpio/ens-net-12x128.pb

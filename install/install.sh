@@ -28,7 +28,7 @@ VR=`echo $VERSION | tr -d '.'`
 # Autodetect operating system
 OS=windows
 exep=bin/Windows
-if [[ "$OSTYPE" == "linux-gnu" ]]; then
+if [[ "$OSTYPE" == "linux"* ]]; then
   OS=ubuntu
   exep=bin/Linux
 elif [[ "$OSTYPE" == "darwin"* ]]; then
@@ -92,7 +92,7 @@ while ! [ -z "$1" ]; do
             ;;
         --trt )
             shift
-            [ "$1" = "84" ] && TRT="-trt-$1"
+            [ "$1" != "60" ] && TRT="-trt-$1"
             ;;
         -h | --help)
             display_help
@@ -158,8 +158,8 @@ exep=${PD}/${exep}
 
 nnuep=${PD}/nets-nnue/net-scorpio-k16.bin
 if [ $DEV = "gpu" ]; then
-    nnp=${PD}/nets-scorpio/ens-net-20x256.uff
-    nnp_e=${PD}/nets-ender/ens-net-20x256.uff
+    nnp=${PD}/nets-scorpio/ens-net-20x256.onnx
+    nnp_e=${PD}/nets-scorpio/ens-net-20x256.onnx
 else
     nnp=${PD}/nets-scorpio/ens-net-12x128.pb
     nnp_e=${PD}/nets-scorpio/ens-net-12x128.pb
