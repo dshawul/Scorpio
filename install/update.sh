@@ -4,7 +4,7 @@ set -x
 
 wget https://github.com/dshawul/Scorpio/releases/download/3.0/install.sh
 chmod +x install.sh
-./install.sh --trt 84 --no-egbb --no-lcnets --factor 1
+./install.sh --trt 109 --no-egbb --no-lcnets --factor 1
 
 # RAM sizes for TCEC machine
 TR=$((128*1024))
