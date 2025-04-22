@@ -1342,7 +1342,7 @@ void SEARCHER::search() {
     /*alphabeta*/
     } else {
         bool split_work = 
-            (use_abdada_smp && search_depth > PROCESSOR::SMP_SPLIT_DEPTH);
+            (PROCESSOR::n_processors > 1 && use_abdada_smp && search_depth > PROCESSOR::SMP_SPLIT_DEPTH);
 
         /*attach helper processor here once for abdada*/
         if(split_work) {
@@ -2035,7 +2035,7 @@ MOVE SEARCHER::find_best() {
 
     /*park threads*/
     int n_end = (montecarlo && montecarlo_skipped) ? 
-        PROCESSOR::n_cores : PROCESSOR::n_processors;
+        MIN(PROCESSOR::n_cores, PROCESSOR::n_processors) : PROCESSOR::n_processors;
     for(int i = 1;i < n_end;i++)
         PROCESSOR::park(i);
 #if defined(CLUSTER)

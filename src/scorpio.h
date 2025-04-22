@@ -33,6 +33,7 @@ Some definitions to include/remove code
 #   include <sys/time.h>
 #endif
 #include <vector>
+#include <array>
 #ifdef CLUSTER
 #  include <list>
 #  include "mpi.h"
@@ -42,9 +43,6 @@ Some definitions to include/remove code
 /*
 parallel search options
 */
-#if !defined(MAX_CPUS)
-#   define MAX_CPUS             512
-#endif
 #if defined(YBW)
 #   define MAX_SEARCHERS_PER_CPU 32
 #   define MAX_CPUS_PER_SPLIT     8
@@ -425,7 +423,7 @@ public:
 
     static void allocate(Edges&, int, int);
     static void reclaim(Edges&, int);
-    static std::vector<uint16_t*> mem_[MAX_CPUS][MAX_MOVES_NN >> 3];
+    static std::vector<std::array<std::vector<uint16_t*>, (MAX_MOVES_NN >> 3)>> mem_;
 };
 /*
 * Nodes of the tree
@@ -517,9 +515,10 @@ struct Node {
     static unsigned int max_tree_nodes;
     static unsigned int max_tree_depth;
     static unsigned int sum_tree_depth;
-    static std::vector<Node*> mem_[MAX_CPUS];
+    static std::vector<std::vector<Node*>> mem_;
+    static std::vector<std::vector<Node*>> gc;
     static Node* allocate(int);
-    static void  split(Node*, std::vector<Node*>*, const int, int&);
+    static void  split(Node*, const int, int&);
     static void  reclaim(Node*,int);
     static void  rank_children(Node*);
     static void  convert_score(Node*);
@@ -882,7 +881,7 @@ typedef struct SEARCHER{
     void clear_block();
     LOCK lock;
     std::atomic_int n_workers;
-    std::atomic<SEARCHER*> workers[MAX_CPUS];
+    std::atomic<SEARCHER*>* workers;
 
     int get_smp_move();
     int check_split();
@@ -1220,7 +1219,7 @@ typedef struct PROCESSOR {
 
 } *PPROCESSOR;
 
-extern PPROCESSOR processors[MAX_CPUS];
+extern std::vector<PPROCESSOR> processors;
 
 /*
 multi processors

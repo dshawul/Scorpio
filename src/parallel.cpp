@@ -9,7 +9,7 @@
 *    at each node will create enough threads to engage all its processors.
 */
 
-static std::thread threads[MAX_CPUS];
+static std::vector<std::thread> threads;
 
 #ifdef CLUSTER
 
@@ -904,6 +904,12 @@ void SEARCHER::update_master(int skip) {
 * Copy board and other relevant data..
 */
 void SEARCHER::attach_processor(int new_proc_id) {
+    if(workers == 0) {
+        workers = new std::atomic<SEARCHER*>[PROCESSOR::n_processors];
+        for(int i = 0; i < PROCESSOR::n_processors; i++)
+            workers[i] = 0;
+    }
+
     int j = 0;
     for(j = 0; (j < MAX_SEARCHERS_PER_CPU) && processors[new_proc_id]->searchers[j].used; j++);
     if(j < MAX_SEARCHERS_PER_CPU) {
@@ -941,8 +947,6 @@ void SEARCHER::clear_block() {
     host_workers.clear();
 #endif
     n_workers = 0;
-    for(int i = 0; i < PROCESSOR::n_processors;i++)
-        workers[i] = 0;
     l_unlock(lock);
 
     /*reset counts*/
@@ -961,12 +965,14 @@ void SEARCHER::clear_block() {
 */
 void SEARCHER::stop_workers() {
     l_lock(lock);
-    for(int i = 0; i < PROCESSOR::n_processors; i++) {
-        SEARCHER* pworker = workers[i].load();
-        if(pworker) {
-            if(pworker->n_workers) 
-                pworker->stop_workers();
-            pworker->stop_searcher = 1;
+    if(workers) {
+        for(int i = 0; i < PROCESSOR::n_processors; i++) {
+            SEARCHER* pworker = workers[i].load();
+            if(pworker) {
+                if(pworker->n_workers) 
+                    pworker->stop_workers();
+                pworker->stop_searcher = 1;
+            }
         }
     }
 #ifdef CLUSTER
@@ -1126,6 +1132,13 @@ void PROCESSOR::wait(int id) {
 * Initialize mt number of threads by creating/deleting 
 * threads from the pool of processors.
 */
+static void resize_threads(int mt) {
+    threads.resize(mt);
+    processors.resize(mt, 0);
+    Node::mem_.resize(mt);
+    Node::gc.resize(mt+1);
+    Edges::mem_.resize(mt);
+}
 void init_smp(int mt) {
     PPROCESSOR proc = processors[0];
     int n_procs = PROCESSOR::n_processors;
@@ -1134,7 +1147,8 @@ void init_smp(int mt) {
     reset_tables(proc,0);
 
     if(n_procs < mt) {
-        for(int i = 1; i < MAX_CPUS;i++) {
+        resize_threads(mt);
+        for(int i = 1; i < mt;i++) {
             if(n_procs < mt) {
                 if(processors[i] == 0) {
                     PROCESSOR::create(i);
@@ -1145,7 +1159,7 @@ void init_smp(int mt) {
         while(PROCESSOR::n_idle_processors < mt - 1)
             t_yield();
     } else if(n_procs > mt) {
-        for(int i = MAX_CPUS - 1; i >= 1;i--) {
+        for(int i = n_procs - 1; i >= 1;i--) {
             if(n_procs > mt) {
                 if(processors[i] != 0) {
                     PROCESSOR::kill(i);
@@ -1153,6 +1167,7 @@ void init_smp(int mt) {
                 }
             }
         }
+        resize_threads(mt);
     }
 }
 
@@ -1165,5 +1180,6 @@ void PROCESSOR::set_main() {
     proc->searcher->used = true;
     proc->searcher->processor_id = 0;
     proc->state = GO;
+    resize_threads(1);
     processors[0] = proc;
 }

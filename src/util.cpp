@@ -1054,8 +1054,7 @@ SEARCHER::SEARCHER() : board(&temp_board[36])
     l_create(lock);
     used = false;
     n_workers = 0;
-    for(int i = 0; i < MAX_CPUS;i++)
-        workers[i] = NULL;
+    workers = 0;
     processor_id = 0;
 #ifdef CLUSTER
     host_workers.clear();

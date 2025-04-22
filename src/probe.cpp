@@ -384,10 +384,10 @@ bool SEARCHER::bitbase_cutoff() {
 Neural network
 */
 
-static float* inp_planes[MAX_CPUS];
-static unsigned short* all_pindex[MAX_CPUS];
-static float* all_policy[MAX_CPUS];
-static float all_wdl[MAX_CPUS][3];
+static std::vector<float*> inp_planes;
+static std::vector<unsigned short*> all_pindex;
+static std::vector<float*> all_policy;
+static std::vector<std::array<float,3>> all_wdl;
 
 void init_input_planes() {
     static bool init_done = false;
@@ -398,6 +398,11 @@ void init_input_planes() {
     unsigned int N_PLANE = (SEARCHER::nn_type == NNUE) ? 
                (8 * 8 * net_channels[NNUE] * 2) :
                (8 * 8 * net_channels[LCZERO]);
+
+    inp_planes.reserve(PROCESSOR::n_processors);
+    all_pindex.reserve(PROCESSOR::n_processors);
+    all_policy.reserve(PROCESSOR::n_processors);
+    all_wdl.reserve(PROCESSOR::n_processors);
 
     aligned_reserve<float>(planes, PROCESSOR::n_processors * N_PLANE);
     aligned_reserve<unsigned short>(index, PROCESSOR::n_processors * MAX_MOVES_NN);

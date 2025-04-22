@@ -32,7 +32,6 @@ STRIP_CMD = strip
 # DCLUSTER        -- Compile MPI cluster code
 # DCLUSTER_TT_TYPE=n -- Distributed transposition table type
 #                    (0 - global, 1 - distributed, 2 - local) default=2
-# DMAX_CPUS=n     -- Compile for maximum of n cpus
 # DYBW            -- Compile with YBW
 # DTUNE           -- Compile evaluation tuning code [NOT recommended]
 # DMYDEBUG        -- Turn on some MPI debugging
@@ -44,7 +43,6 @@ ARCH_DEFINES = -DARC_64BIT -DHAS_POPCNT
 
 # Feature options
 FEATURE_DEFINES = -DNNUE_INC
-#FEATURE_DEFINES += -DMAX_CPUS=1360
 
 # Conditional options based on compiler
 CONDITIONAL_DEFINES = 

@@ -34,7 +34,7 @@ int move_overhead = 1500;
 /*
 parallel search
 */
-PPROCESSOR processors[MAX_CPUS] = {0};
+std::vector<PPROCESSOR> processors;
 int PROCESSOR::n_processors;
 int PROCESSOR::n_cores;
 std::atomic_int PROCESSOR::n_idle_processors;
@@ -437,7 +437,7 @@ static void print_options() {
     print_check("log",log_on);
     print_button("clear_hash");
     print_spin("resign",SEARCHER::resign_value,100,30000);
-    print_spin("mt",PROCESSOR::n_processors,1,MAX_CPUS);
+    print_spin("mt",PROCESSOR::n_processors,1,(1<<20));
     print_spin("ht",ht,1,131072);
     print_spin("eht",eht,1,16384);
     print_spin("pht",pht,1,256);
@@ -537,7 +537,6 @@ int internal_commands(char** commands,char* command,int& command_num) {
         */
     } else if(!strcmp(command,"affinity")) {
         int affinity = atoi(commands[command_num]);
-        affinity = MIN(affinity, MAX_CPUS);
         PROCESSOR::n_cores = set_affinity(affinity);
         command_num++;
     } else if(!strcmp(command,"mt") || !strcmp(command,"cores") || !strcmp(command,"Threads") ) {
@@ -553,7 +552,6 @@ int internal_commands(char** commands,char* command,int& command_num) {
                 mt = PROCESSOR::n_cores / r;
             } else
                 mt = atoi(commands[command_num]);
-            mt = MIN(mt, MAX_CPUS);
             ht_setting_changed = true;
         }
         command_num++;

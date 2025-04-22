@@ -73,8 +73,9 @@ static std::atomic_int n_collisions = {0};
 static std::atomic_int n_terminals = {0};
 
 /*Nodes and edges of tree*/
-std::vector<Node*> Node::mem_[MAX_CPUS];
-std::vector<uint16_t*>  Edges::mem_[MAX_CPUS][MAX_MOVES_NN >> 3];
+std::vector<std::vector<Node*>> Node::mem_;
+std::vector<std::vector<Node*>> Node::gc;
+std::vector<std::array<std::vector<uint16_t*>, (MAX_MOVES_NN >> 3)>> Edges::mem_;
 std::atomic_uint Node::total_nodes = {0};
 unsigned int Node::max_tree_nodes = 0;
 unsigned int Node::max_tree_depth = 0;
@@ -270,12 +271,12 @@ void Node::reset_bounds(Node* n) {
     }
 }
 
-void Node::split(Node* n, std::vector<Node*>* pn, const int S, int& T) {
+void Node::split(Node* n, const int S, int& T) {
     static int id = 0;
     Node* current = n->child;
     while(current) {
         if(current->visits <= (unsigned)S || !current->child) {
-            pn[id].push_back(current);
+            Node::gc[id].push_back(current);
             current->set_dead();
 
             T += current->visits;
@@ -284,7 +285,7 @@ void Node::split(Node* n, std::vector<Node*>* pn, const int S, int& T) {
                 if(++id >= PROCESSOR::n_processors) id = 0;
             }
         } else {
-            split(current,pn,S,T);
+            split(current,S,T);
         }
         current = current->next;
     }
@@ -1765,22 +1766,20 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
 /*
 Traverse tree in parallel
 */
-static std::vector<Node*> gc[MAX_CPUS+1];
-
 void CDECL gc_thread_proc(void* seid_) {
     int* seid = (int*)seid_;
     for(int proc_id = seid[0]; proc_id < seid[1]; proc_id++) {
-        for(unsigned int i = 0; i < gc[proc_id].size(); i++) {
-            Node::reclaim(gc[proc_id][i],proc_id);
+        for(unsigned int i = 0; i < Node::gc[proc_id].size(); i++) {
+            Node::reclaim(Node::gc[proc_id][i],proc_id);
         }
     }
 }
 void CDECL rank_reset_thread_proc(void* seid_) {
     int* seid = (int*)seid_;
     for(int proc_id = seid[0]; proc_id < seid[1]; proc_id++) {
-        for(unsigned int i = 0; i < gc[proc_id].size(); i++) {
-            Node::rank_children(gc[proc_id][i]);
-            Node::reset_bounds(gc[proc_id][i]);
+        for(unsigned int i = 0; i < Node::gc[proc_id].size(); i++) {
+            Node::rank_children(Node::gc[proc_id][i]);
+            Node::reset_bounds(Node::gc[proc_id][i]);
         }
     }
 }
@@ -1788,8 +1787,8 @@ void CDECL rank_reset_thread_proc(void* seid_) {
 void CDECL convert_score_thread_proc(void* seid_) {
     int* seid = (int*)seid_;
     for(int proc_id = seid[0]; proc_id < seid[1]; proc_id++) {
-        for(unsigned int i = 0; i < gc[proc_id].size(); i++) {
-            Node::convert_score(gc[proc_id][i]);
+        for(unsigned int i = 0; i < Node::gc[proc_id].size(); i++) {
+            Node::convert_score(Node::gc[proc_id][i]);
         }
     }
 }
@@ -1803,15 +1802,15 @@ void Node::parallel_job(Node* n, PTHREAD_PROC func, bool recursive) {
     for(int i = 1;i < PROCESSOR::n_processors;i++)
         PROCESSOR::park(i);
 
-    Node::split(n, gc, S, T);
+    Node::split(n, S, T);
 
     int* seid = new int[2 * ncores];
     std::thread* tid = new std::thread[ncores];
 
     if(!recursive)
-        gc[0].push_back(n);
+        Node::gc[0].push_back(n);
     else {
-        gc[nprocs].push_back(n);
+        Node::gc[nprocs].push_back(n);
         seid[0] = nprocs;
         seid[1] = nprocs + 1;
         tid[0] = t_create(*func,&seid[0]);
@@ -1830,10 +1829,10 @@ void Node::parallel_job(Node* n, PTHREAD_PROC func, bool recursive) {
     delete[] tid;
 
     for(int i = 0; i < nprocs;i++) {
-        for(unsigned int j = 0; j < gc[i].size(); j++) {
-            gc[i][j]->clear_dead();
+        for(unsigned int j = 0; j < Node::gc[i].size(); j++) {
+            Node::gc[i][j]->clear_dead();
         }
-        gc[i].clear();
+        Node::gc[i].clear();
     }
 
     for(int i = 1;i < PROCESSOR::n_processors;i++)
