@@ -3,47 +3,47 @@
 
 /*mcts parameters*/
 static unsigned int  cpuct_base = 75610;
-static float  cpuct_factor = 3.48;
-static float  cpuct_init = 0.84;
-static float  policy_temp = 2.15;
-static float  policy_temp_m = 2.15;
-static float  policy_temp_e = 2.15;
-static float  fpu_red = 0.33;
+static float  cpuct_factor = 3.48f;
+static float  cpuct_init = 0.84f;
+static float  policy_temp = 2.15f;
+static float  policy_temp_m = 2.15f;
+static float  policy_temp_e = 2.15f;
+static float  fpu_red = 0.33f;
 static int    fpu_is_loss = 0;
-static float  fpu_red_m = 0.33;
+static float  fpu_red_m = 0.33f;
 static int    fpu_is_loss_m = 0;
-static float  fpu_red_e = 0.33;
+static float  fpu_red_e = 0.33f;
 static int    fpu_is_loss_e = 0;
-static float  cpuct_init_root_factor = 1.0;
-static float  policy_temp_root_factor = 1.0;
+static float  cpuct_init_root_factor = 1.0f;
+static float  policy_temp_root_factor = 1.0f;
 static int  reuse_tree = 1;
 static int  backup_type_setting = MIX_VISIT;
 static int  backup_type = backup_type_setting; 
-static float frac_freeze_tree = 1.0;
-static float frac_abrollouts = 0.2;
+static float frac_freeze_tree = 1.0f;
+static float frac_abrollouts = 0.2f;
 static int  alphabeta_depth = 1;
 static int  evaluate_depth = 0;
 static int virtual_loss = 1;
 static unsigned int visit_threshold = 800;
 static std::random_device rd;
 static std::mt19937 mtgen(rd());
-static float noise_frac = 0.25;
-static float noise_alpha = 0.3;
-static float noise_beta = 1.0;
+static float noise_frac = 0.25f;
+static float noise_alpha = 0.3f;
+static float noise_beta = 1.0f;
 static int temp_plies = 30;
-static float rand_temp = 1.0;
-static float rand_temp_delta = 0.0;
-static float rand_temp_end = 0.0;
-static const float winning_threshold = 0.9;
+static float rand_temp = 1.0f;
+static float rand_temp_delta = 0.0f;
+static float rand_temp_end = 0.0f;
+static const float winning_threshold = 0.9f;
 static const int low_visits_threshold = 100;
 static const int node_size = 
     (sizeof(Node) + 32 * (sizeof(uint16_t) + sizeof(uint16_t)));
-static float min_policy_value = 1.0 / 100;
+static float min_policy_value = 1.0f / 100;
 static int playout_cap_rand = 1;
-static float frac_full_playouts = 0.25;
-static float frac_sv_low = 1.0 / 3;
-static float pcr_write_low = 0;
-static float kld_threshold = 0;
+static float frac_full_playouts = 0.25f;
+static float frac_sv_low = 1.0f / 3;
+static float pcr_write_low = 0.0f;
+static float kld_threshold = 0.0f;
 static int early_stop = 1;
 static int sp_resign_value = 600;
 static int forced_playouts = 0;
@@ -52,18 +52,18 @@ static int select_formula = 0;
 static int filter_quiet = 0;
 static int max_collisions = 0;
 static int max_terminals = 0;
-static float max_collisions_ratio = 0.25;
-static float max_terminals_ratio = 2.0;
-static float rms_power = 1.4;
-static float insta_move_factor = 0.0;
+static float max_collisions_ratio = 0.25f;
+static float max_terminals_ratio = 2.0f;
+static float rms_power = 1.4f;
+static float insta_move_factor = 0.0f;
 int  mcts_strategy_depth = 30;
 int train_data_type = 0;
 
 int montecarlo = 0;
 int rollout_type = ALPHABETA;
 bool freeze_tree = false;
-float frac_abprior = 0.3;
-float frac_alphabeta = 0.0;
+float frac_abprior = 0.3f;
+float frac_alphabeta = 0.0f;
 
 int ensemble = 0;
 static float ensemble_setting = 0;
@@ -321,24 +321,24 @@ float Node::compute_Q(float fpu, unsigned int collision_lev, bool has_ab) {
 }
 
 float Node::compute_fpu(int ply) {
-    float fpu = 0.0;
+    float fpu = 0.0f;
     if(!ply || visits > 10000)
-        fpu = 1.0;            //fpu = win
+        fpu = 1.0f;            //fpu = win
     else if(!fpu_is_loss) {
         float fpur = fpu_red; //fpu = reduction
         if((ply == 1) || (visits > 3200))
-            fpur = 0;         //fpu reduction = 0
+            fpur = 0.0f;         //fpu reduction = 0
         else
             fpu = v_pol_sum;  //sum of children policies
         fpu = score - fpur * sqrt(fpu);
     } else {
-        fpu = (1 - fpu_is_loss) / 2.0; //fpu is loss or win
+        fpu = (1.0f - fpu_is_loss) / 2.0f; //fpu is loss or win
     }
     return fpu;
 }
 
 float Node::compute_policy_sum_reverseKL(Node* n, float factor, float fpu, float alpha) {
-    float reg_policy_sum = 0.f, policy_sum = 0.f, Q;
+    float reg_policy_sum = 0.0f, policy_sum = 0.0f, Q;
 
     Node* current = n->child;
     while(current) {
@@ -358,7 +358,7 @@ float Node::compute_policy_sum_reverseKL(Node* n, float factor, float fpu, float
     }
 
     Q = fpu;
-    reg_policy_sum += factor * (1 - policy_sum) / (alpha - Q);
+    reg_policy_sum += factor * (1.0f - policy_sum) / (alpha - Q);
     return reg_policy_sum;
 }
 
@@ -374,7 +374,7 @@ float Node::compute_regularized_policy_reverseKL(Node* n, float factor, float fp
     }
 
     /*find alpha_min and alpha_max*/
-    float alpha, alpha_min = -100, alpha_max = -100;
+    float alpha, alpha_min = -100.0f, alpha_max = -100.0f;
     Node* current = n->child;
     while(current) {
         if(current->move && !current->is_dead()) {
@@ -402,20 +402,20 @@ float Node::compute_regularized_policy_reverseKL(Node* n, float factor, float fp
     }
 
     /*find alpha and regularized policy using dichotomous search*/
-    static const float eps = 0.01, eps_alpha = 0.001;
+    static const float eps = 0.01f, eps_alpha = 0.001f;
     static const int max_iters = 100;
     float sum, sum_min, sum_max;
     sum_min = Node::compute_policy_sum_reverseKL(n,factor,fpu,alpha_min);
     sum_max = Node::compute_policy_sum_reverseKL(n,factor,fpu,alpha_max);
     for(int i = 0; i < max_iters; i++) {
-        alpha = 0.5 * (alpha_min + alpha_max);
+        alpha = 0.5f * (alpha_min + alpha_max);
         sum = Node::compute_policy_sum_reverseKL(n,factor,fpu,alpha);
 
-        if(fabs(1 - sum) <= eps ||
+        if(fabs(1.0f - sum) <= eps ||
            fabs(alpha_min - alpha_max) <= eps_alpha ||
            fabs(sum_min - sum_max) <= eps)
             break;
-        if(sum < 1) {
+        if(sum < 1.0f) {
             alpha_max = alpha;
             sum_max = sum;
         } else {
@@ -438,8 +438,8 @@ float Node::compute_regularized_policy_reverseKL(Node* n, float factor, float fp
 Node* Node::ExactPi_select(Node* n, bool has_ab, SEARCHER* ps) {
     bool is_root = (ps->ply == 0);
     float dCPUCT = cpuct_init * (is_root ? cpuct_init_root_factor : 1.0f) +
-                    cpuct_factor * logf((n->visits + cpuct_base + 1.0) / cpuct_base) +
-                    (1 - ((ps->processor_id + 1) % 3)) * 0.25;
+                    cpuct_factor * logf((n->visits + cpuct_base + 1.0f) / cpuct_base) +
+                    (1.0f - ((ps->processor_id + 1) % 3)) * 0.25f;
     float factor = dCPUCT * (float)(sqrt(double(n->visits))) / (n->edges.get_children() + n->visits);
 
     /*compute fpu*/
@@ -449,8 +449,8 @@ Node* Node::ExactPi_select(Node* n, bool has_ab, SEARCHER* ps) {
     float factor_unvisited = Node::compute_regularized_policy_reverseKL(n,factor,fpu,has_ab);
 
     /*select*/
-    float uct, bvalue = -10;
-    Node* current = n->child, *bnode = 0;
+    float uct, bvalue = -100.f;
+    Node* current = n->child, *bnode = nullptr;
     while(current) {
         if(current->move && !current->is_dead()) {
 
@@ -458,7 +458,7 @@ Node* Node::ExactPi_select(Node* n, bool has_ab, SEARCHER* ps) {
 
             if(forced_playouts && is_selfplay && is_root && current->visits > 0) {
                 unsigned int n_forced = sqrt(2 * current->policy * n->visits);
-                if(current->visits < n_forced) uct += 5;
+                if(current->visits < n_forced) uct += 5.0f;
             }
 
             if(uct > bvalue) {
@@ -587,7 +587,7 @@ Node* Node::Max_AB_select(Node* n, int alpha, int beta, bool try_null,
     /*select*/
     float bvalue = -MAX_NUMBER, uct;
     int alphac, betac;
-    Node* current = n->child, *bnode = 0;
+    Node* current = n->child, *bnode = nullptr;
     while(current) {
         alphac = current->alpha;
         betac = current->beta;
@@ -609,8 +609,8 @@ Node* Node::Max_AB_select(Node* n, int alpha, int beta, bool try_null,
                 if(current->rank == 1) uct = MATE_SCORE;
             }
             /*Discourage selection of busy and children-in-creation node*/
-            uct -= virtual_loss * current->get_busy() * 10;
-            if(current->is_create()) uct *= 0.25;
+            uct -= virtual_loss * current->get_busy() * 10.0f;
+            if(current->is_create()) uct *= 0.25f;
             /*pick best*/
             if(uct > bvalue) {
                 bvalue = uct;
@@ -697,7 +697,7 @@ int SEARCHER::Random_select_ab() {
     std::vector<int> freq;
     int bidx = 0;
 
-    static const float scale = 12.f;
+    static const float scale = 12.0f;
     double temp;
     if(hply < temp_plies)
         temp = rand_temp - (hply >> 1) * rand_temp_delta / ((temp_plies >> 1) - 1);
@@ -838,16 +838,16 @@ float Node::Rms_score_mem(Node* n, float score, int visits) {
 #define signof(x) (((x) > 0) ? 1 : -1)
     float sc, sc1;
 
-    sc = 2 * n->score - 1;
+    sc = 2.0f * n->score - 1.0f;
     sc = signof(sc) * pow(fabs(sc), rms_power);
 
-    sc1 = 2 * score - 1;
+    sc1 = 2.0f * score - 1.0f;
     sc1 = signof(sc1) * pow(fabs(sc1), rms_power);
 
     sc += double(sc1 - sc) * visits / (n->visits + visits);
 
-    sc = signof(sc) * pow(fabs(sc), 1.0 / rms_power);
-    sc = sc / 2.0 + 0.5;
+    sc = signof(sc) * pow(fabs(sc), 1.0f / rms_power);
+    sc = sc / 2.0f + 0.5f;
 
     return sc;
 #undef signof
@@ -857,7 +857,7 @@ float Node::Rms_score_mem(Node* n, float score, int visits) {
     float sc = pow(n->score, rms_power);
     float sc1 = pow(score, rms_power);
     sc += double(sc1 - sc) * visits / (n->visits + visits);
-    sc = pow(sc, 1.0 / rms_power);
+    sc = pow(sc, 1.0f / rms_power);
     return sc;
 }
 #endif
@@ -869,9 +869,9 @@ void Node::Backup(Node* n,float& score,int visits) {
             score = Avg_score_mem(n,score,visits);
         else if(backup_type == MIX_VISIT) {
             if(n->visits > visit_threshold)
-                score = 1 - Max_visits_score(n);
+                score = 1.0f - Max_visits_score(n);
             else
-                score = 1 - Avg_score(n);
+                score = 1.0f - Avg_score(n);
         }
         else if(backup_type == RMS) {
             if(n->visits > visit_threshold)
@@ -880,12 +880,12 @@ void Node::Backup(Node* n,float& score,int visits) {
                 score = Avg_score_mem(n,score,visits);
         }
         else if(backup_type == AVERAGE)
-            score = 1 - Avg_score(n);
+            score = 1.0f - Avg_score(n);
         else {
             if(backup_type == MINMAX || backup_type == MINMAX_MEM)
-                score = 1 - Min_score(n);
+                score = 1.0f - Min_score(n);
             else if(backup_type == MIX  || backup_type == MIX_MEM)
-                score = 1 - (Min_score(n) + 3 * Avg_score(n)) / 4;
+                score = 1.0f - (Min_score(n) + 3.0f * Avg_score(n)) / 4.0f;
 
             if(backup_type >= MINMAX_MEM)
                 score = Avg_score_mem(n,score,visits);
@@ -961,7 +961,7 @@ void SEARCHER::create_children(Node* n) {
 
     /*add children if we are at root node*/
     int nleaf = ply ? 0 : pstack->count;
-    float rscore = (rollout_type == MCTS) ? 1 - n->score : -n->score;
+    float rscore = (rollout_type == MCTS) ? 1.0f - n->score : -n->score;
     for(int i = 0; i < nleaf; i++) {
         float* pp =(float*)&pstack->score_st[i];
         n->add_child(processor_id, i,
@@ -1064,7 +1064,7 @@ void SEARCHER::play_simulation(Node* n, float& score, int& visits) {
             /*Draw*/
             if(draw()) {
                 if(rollout_type == MCTS)
-                    score = 0.5;
+                    score = 0.5f;
                 else
                     score = ((scorpio == player) ? -contempt : contempt);
                 goto BACKUP_LEAF;
@@ -1139,9 +1139,9 @@ void SEARCHER::play_simulation(Node* n, float& score, int& visits) {
             if(!n->edges.count) {
                 if(rollout_type == MCTS) {
                     if(hstack[hply - 1].checks)
-                        score = 0;
+                        score = 0.0f;
                     else
-                        score = 0.5;
+                        score = 0.5f;
                 } else {
                     if(hstack[hply - 1].checks)
                         score = -MATE_SCORE + WIN_PLY * (ply + 1);
@@ -1431,21 +1431,21 @@ double SEARCHER::compute_kld() {
 void SEARCHER::compute_time_factor(int rscore) {
     for(int i = 0; i < 2; i++) {
         if(rscore <= -150)
-            time_factor *= 3.0;
+            time_factor *= 3.0f;
         else if(rscore <= -120)
-            time_factor *= 2.3;
+            time_factor *= 2.3f;
         else if(rscore <= -70)
-            time_factor *= 1.6;
+            time_factor *= 1.6f;
         else if(rscore <= -30)
-            time_factor *= 1.3;
+            time_factor *= 1.3f;
         else if(rscore >= 100)
-            time_factor *= 2.0;
+            time_factor *= 2.0f;
         else if(rscore >= 55)
-            time_factor *= 1.6;
+            time_factor *= 1.6f;
         else if(rscore >= 35)
-            time_factor *= 1.3;
+            time_factor *= 1.3f;
         else if(ABS(rscore) > 10)
-            time_factor *= 1.1;
+            time_factor *= 1.1f;
         if(first_search)
             break;
         rscore = rscore - old_root_score;
@@ -1460,11 +1460,11 @@ void SEARCHER::compute_time_factor(int rscore) {
             MOVE move = PROCESSOR::node_pvs[i].pv[0];
             if(move) {
                 if(PROCESSOR::node_pvs[i].depth >= MAX_PLY - 10) {
-                    time_factor = 0.5;
+                    time_factor = 0.5f;
                     return;
                 }
                 if(move != stack[0].pv[0]) {
-                    time_factor *= 2;
+                    time_factor *= 2.0f;
                     return;
                 }
             }
@@ -1521,9 +1521,9 @@ void SEARCHER::check_mcts_quit(bool single) {
     }
 
     /*determine time factor*/
-    time_factor = 1.0;
+    time_factor = 1.0f;
     if(bnval != bnvis)
-        time_factor *= 1.3;
+        time_factor *= 1.3f;
     int rscore = logit(root_node->score);
     compute_time_factor(rscore);
 
@@ -1532,8 +1532,8 @@ void SEARCHER::check_mcts_quit(bool single) {
     if(chess_clock.max_visits == MAX_NUMBER) {
         int time_used = MAX(1,get_time() - start_time);
         int remain_time = time_factor * chess_clock.search_time - time_used;
-        float imf = insta_move_factor + (time_factor - 1.0) / 2;
-        imf = MIN(imf, 0.9);
+        float imf = insta_move_factor + (time_factor - 1.0f) / 2;
+        imf = MIN(imf, 0.9f);
         remain_visits = (remain_time / (double)time_used) * 
             (root_node->visits - (root_node_reuse_visits * imf));
     } else {
@@ -1550,9 +1550,9 @@ void SEARCHER::check_mcts_quit(bool single) {
     float factor;
 
     factor = sqrt(bnvis->policy / (bnvis2->policy + 1e-8));
-    if(factor >= 20) factor = 20;
+    if(factor >= 20.0f) factor = 20.0f;
 
-    visdiff = (bnvis->visits - bnvis2->visits) * (factor / 1.2);
+    visdiff = (bnvis->visits - bnvis2->visits) * (factor / 1.2f);
     if(visdiff >= remain_visits) {
         if(single)
             stop_searcher = 1;
@@ -1564,9 +1564,9 @@ void SEARCHER::check_mcts_quit(bool single) {
         Node* current = root_node->child;
         while(current) {
             factor = sqrt(bnvis->policy / (current->policy + 1e-8));
-            if(factor >= 20) factor = 20;
+            if(factor >= 20.0f) factor = 20.0f;
 
-            visdiff = (bnvis->visits - current->visits) * (factor / 1.2);
+            visdiff = (bnvis->visits - current->visits) * (factor / 1.2f);
             if(current->visits && !current->is_dead() && visdiff >= remain_visits) {
                 current->set_dead();
 #if 0
@@ -1584,7 +1584,7 @@ void SEARCHER::check_mcts_quit(bool single) {
 
 void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
     Node* root = root_node;
-    float pfrac = 0,score;
+    float pfrac = 0.0f,score;
     int visits;
     int oalpha = pstack->alpha;
     int obeta = pstack->beta;
@@ -1694,7 +1694,7 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
                     else 
                         frac = double(get_time() - start_time) / chess_clock.search_time;
 
-                    if(frac - pfrac >= 0.05) {
+                    if(frac - pfrac >= 0.05f) {
                         pfrac = frac;
                         if(rollout_type == MCTS) {
                             extract_pv(root);
@@ -1713,14 +1713,14 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
                     }
 
                     /*stop growing tree after some time*/
-                    if(rollout_type == ALPHABETA && !freeze_tree && frac_freeze_tree < 1.0 &&
+                    if(rollout_type == ALPHABETA && !freeze_tree && frac_freeze_tree < 1.0f &&
                         frac >= frac_freeze_tree * frac_alphabeta) {
                         freeze_tree = true;
                         print_info("Freezing tree.\n");
                     }
 
                     /*check whether to quit now or not*/
-                    if((is_selfplay || (frac >= 0.2)) && !chess_clock.infinite_mode)
+                    if((is_selfplay || (frac >= 0.2f)) && !chess_clock.infinite_mode)
                         check_mcts_quit(single);
                     check_quit();
                 }
@@ -2090,7 +2090,7 @@ float SEARCHER::generate_and_score_moves(int alpha, int beta) {
                 n_collisions = 0;
                 n_terminals = 0;
             }
-            const float uniform_pol = 1.0 / pstack->count;
+            const float uniform_pol = 1.0f / pstack->count;
             for(int i = 0;i < pstack->count; i++) {
                 float* p = (float*)&pstack->score_st[i];
                 *p = uniform_pol;
@@ -2116,8 +2116,8 @@ float SEARCHER::generate_and_score_moves(int alpha, int beta) {
             if(!montecarlo) return rscore;
 
             /*normalize policy*/
-            static const float scale = 25.f;
-            float total = 0.f;
+            static const float scale = 25.0f;
+            float total = 0.0f;
             for(int i = 0;i < pstack->count; i++) {
                 float* const p = (float*)&pstack->score_st[i];
                 float pp = logistic(pstack->score_st[i]) * scale;
@@ -2131,8 +2131,8 @@ float SEARCHER::generate_and_score_moves(int alpha, int beta) {
             }
         } else {
             rscore = probe_neural();
-            if(rscore > 1.0) rscore = 1.0;
-            else if(rscore < 0.0) rscore = 0.0;
+            if(rscore > 1.0f) rscore = 1.0f;
+            else if(rscore < 0.0f) rscore = 0.0f;
             if(rollout_type == ALPHABETA)
                 rscore = logit(rscore);
             n_collisions = 0;
@@ -2146,7 +2146,7 @@ float SEARCHER::generate_and_score_moves(int alpha, int beta) {
                 pstack->score_st[i] = mp;
 
             /*find minimum and maximum policy values*/
-            float total = 0.f, maxp = -100, minp = 100;
+            float total = 0.0f, maxp = -100.0f, minp = 100.0f;
             for(int i = 0;i < pstack->count; i++) {
                 float* const p = (float*)&pstack->score_st[i];
                 MOVE& move = pstack->move_st[i];
@@ -2155,11 +2155,11 @@ float SEARCHER::generate_and_score_moves(int alpha, int beta) {
                         case queen:
                             break;
                         case rook:
-                            *p = *p * 0.5;
+                            *p = *p * 0.5f;
                             break;
                         case knight:
                         case bishop:
-                            *p = *p * 0.25;
+                            *p = *p * 0.25f;
                             break;
                     }
                 }
@@ -2169,7 +2169,7 @@ float SEARCHER::generate_and_score_moves(int alpha, int beta) {
 
             /*Minimize draws for low visits training*/
             if(!ply && chess_clock.max_visits < low_visits_threshold) {
-                static const float margin[2][2] = {{0.36,0.49},{-100.0,-7.0}};
+                static const float margin[2][2] = {{0.36f,0.49f},{-100.0f,-7.0f}};
                 for(int i = 0;i < pstack->count; i++) {
                     float* const p = (float*)&pstack->score_st[i];
                     MOVE& move = pstack->move_st[i];
@@ -2179,14 +2179,14 @@ float SEARCHER::generate_and_score_moves(int alpha, int beta) {
                     gen_all_legal();
                     if(!pstack->count) {
                         if(hstack[hply - 1].checks) {      //mate
-                            *p = 5 * maxp;
+                            *p = 5.0f * maxp;
                         } else if(rscore >= margin[rollout_type][0]) {         //stale-mate
                             *p = minp;
                         }
                     } else if(rscore >= margin[rollout_type][1] && draw(1)) {   //repetition & 50-move draws
                         *p = minp;
                     } else if(sfifty > 0 && fifty == 0) {  //encourage progress
-                        *p += sfifty * (maxp - minp) / 50;
+                        *p += sfifty * (maxp - minp) / 50.0f;
                     }
                     POP_MOVE();
                 }
@@ -2292,8 +2292,8 @@ void SEARCHER::get_train_data(float& value, int& nmoves, int* moves,
 
     /*AB search*/
     if(!montecarlo) {
-        static const float scale = 12.f;
-        double total = 0.f;
+        static const float scale = 12.0f;
+        double total = 0.0f;
         for(int i = 0;i < pstack->count; i++) {
             MOVE& move = pstack->move_st[i];
             int score = pstack->score_st[i];
@@ -2315,11 +2315,11 @@ void SEARCHER::get_train_data(float& value, int& nmoves, int* moves,
 
     /*policy target pruning*/
     Node* current;
-    float factor, max_uct = 0;
+    float factor, max_uct = 0.0f;
 
     if(policy_pruning) {
         float dCPUCT = cpuct_init +
-            log((root_node->visits + cpuct_base + 1.0) / cpuct_base), uct;
+            log((root_node->visits + cpuct_base + 1.0f) / cpuct_base), uct;
         factor = dCPUCT * sqrt(double(root_node->visits));
 
         current = root_node->child;
@@ -2531,7 +2531,7 @@ void SEARCHER::self_play_thread() {
                 delete[] buffer;
 
                 if(processor_id == 0) {
-                    float diff = (get_time() - start_t) / 60000.0;
+                    float diff = (get_time() - start_t) / 60000.0f;
                     int ngames = wins + losses + draws;
                     print("[%d] generated %d games in %.2f min : "
                         "%.2f games/min %.2f nodes/move %.2f plies/game\n",
@@ -2742,60 +2742,60 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
     if(!strcmp(command, "cpuct_base")) {
         cpuct_base = atoi(commands[command_num++]);
     } else if(!strcmp(command, "cpuct_factor")) {
-        cpuct_factor = atoi(commands[command_num++]) / 100.0;
+        cpuct_factor = atoi(commands[command_num++]) / 100.0f;
     } else if(!strcmp(command, "cpuct_init")) {
-        cpuct_init = atoi(commands[command_num++]) / 100.0;
+        cpuct_init = atoi(commands[command_num++]) / 100.0f;
 
     } else if(!strcmp(command, "policy_temp")) {
-        policy_temp = atoi(commands[command_num++]) / 100.0;
+        policy_temp = atoi(commands[command_num++]) / 100.0f;
     } else if(!strcmp(command, "fpu_red")) {
-        fpu_red = atoi(commands[command_num++]) / 100.0;
+        fpu_red = atoi(commands[command_num++]) / 100.0f;
     } else if(!strcmp(command, "fpu_is_loss")) {
         fpu_is_loss = atoi(commands[command_num++]);
 
     } else if(!strcmp(command, "policy_temp_m")) {
-        policy_temp_m = atoi(commands[command_num++]) / 100.0;
+        policy_temp_m = atoi(commands[command_num++]) / 100.0f;
     } else if(!strcmp(command, "fpu_red_m")) {
-        fpu_red_m = atoi(commands[command_num++]) / 100.0;
+        fpu_red_m = atoi(commands[command_num++]) / 100.0f;
     } else if(!strcmp(command, "fpu_is_loss_m")) {
         fpu_is_loss_m = atoi(commands[command_num++]);
 
     } else if(!strcmp(command, "policy_temp_e")) {
-        policy_temp_e = atoi(commands[command_num++]) / 100.0;
+        policy_temp_e = atoi(commands[command_num++]) / 100.0f;
     } else if(!strcmp(command, "fpu_red_e")) {
-        fpu_red_e = atoi(commands[command_num++]) / 100.0;
+        fpu_red_e = atoi(commands[command_num++]) / 100.0f;
     } else if(!strcmp(command, "fpu_is_loss_e")) {
         fpu_is_loss_e = atoi(commands[command_num++]);
 
     } else if(!strcmp(command, "cpuct_init_root_factor")) {
-        cpuct_init_root_factor = atoi(commands[command_num++]) / 100.0;
+        cpuct_init_root_factor = atoi(commands[command_num++]) / 100.0f;
     } else if(!strcmp(command, "policy_temp_root_factor")) {
-        policy_temp_root_factor = atoi(commands[command_num++]) / 100.0;
+        policy_temp_root_factor = atoi(commands[command_num++]) / 100.0f;
 
     } else if(!strcmp(command, "noise_alpha")) {
-        noise_alpha = atoi(commands[command_num++]) / 100.0;
+        noise_alpha = atoi(commands[command_num++]) / 100.0f;
     } else if(!strcmp(command, "noise_beta")) {
-        noise_beta = atoi(commands[command_num++]) / 100.0;
+        noise_beta = atoi(commands[command_num++]) / 100.0f;
     } else if(!strcmp(command, "noise_frac")) {
-        noise_frac = atoi(commands[command_num++]) / 100.0;
+        noise_frac = atoi(commands[command_num++]) / 100.0f;
     } else if(!strcmp(command, "temp_plies")) {
         temp_plies = atoi(commands[command_num++]);
     } else if(!strcmp(command, "rand_temp")) {
-        rand_temp = atoi(commands[command_num++]) / 100.0;
+        rand_temp = atoi(commands[command_num++]) / 100.0f;
     } else if(!strcmp(command, "rand_temp_delta")) {
-        rand_temp_delta = atoi(commands[command_num++]) / 100.0;
+        rand_temp_delta = atoi(commands[command_num++]) / 100.0f;
     } else if(!strcmp(command, "rand_temp_end")) {
-        rand_temp_end = atoi(commands[command_num++]) / 100.0;
+        rand_temp_end = atoi(commands[command_num++]) / 100.0f;
     } else if(!strcmp(command, "playout_cap_rand")) {
         playout_cap_rand = is_checked(commands[command_num++]);
     } else if(!strcmp(command, "frac_full_playouts")) {
-        frac_full_playouts = atoi(commands[command_num++]) / 100.0;
+        frac_full_playouts = atoi(commands[command_num++]) / 100.0f;
     } else if(!strcmp(command, "frac_sv_low")) {
-        frac_sv_low = atoi(commands[command_num++]) / 100.0;
+        frac_sv_low = atoi(commands[command_num++]) / 100.0f;
     } else if(!strcmp(command, "pcr_write_low")) {
         pcr_write_low = is_checked(commands[command_num++]);
     } else if(!strcmp(command, "kld_threshold")) {
-        kld_threshold = atoi(commands[command_num++]) / 1000000.0;
+        kld_threshold = atoi(commands[command_num++]) / 1000000.0f;
     } else if(!strcmp(command, "early_stop")) {
         early_stop = is_checked(commands[command_num++]);
     } else if(!strcmp(command, "train_data_type")) {
@@ -2803,23 +2803,23 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
     } else if(!strcmp(command, "reuse_tree")) {
         reuse_tree = is_checked(commands[command_num++]);
     } else if(!strcmp(command, "ensemble")) {
-        ensemble_setting = atoi(commands[command_num++]) / 100.0;
+        ensemble_setting = atoi(commands[command_num++]) / 100.0f;
     } else if(!strcmp(command, "ensemble_type")) {
         ensemble_type = atoi(commands[command_num++]);
     } else if(!strcmp(command, "rms_power")) {
-        rms_power = atoi(commands[command_num++]) / 100.0;
+        rms_power = atoi(commands[command_num++]) / 100.0f;
     } else if(!strcmp(command, "min_policy_value")) {
-        min_policy_value = atoi(commands[command_num++]) / 1000.0;
+        min_policy_value = atoi(commands[command_num++]) / 1000.0f;
     } else if(!strcmp(command, "backup_type")) {
         backup_type_setting = atoi(commands[command_num++]);
     } else if(!strcmp(command, "frac_alphabeta")) {
-        frac_alphabeta = atoi(commands[command_num++]) / 100.0;
+        frac_alphabeta = atoi(commands[command_num++]) / 100.0f;
     } else if(!strcmp(command, "frac_freeze_tree")) {
-        frac_freeze_tree = atoi(commands[command_num++]) / 100.0;
+        frac_freeze_tree = atoi(commands[command_num++]) / 100.0f;
     } else if(!strcmp(command, "frac_abrollouts")) {
-        frac_abrollouts = atoi(commands[command_num++]) / 100.0;
+        frac_abrollouts = atoi(commands[command_num++]) / 100.0f;
     } else if(!strcmp(command, "frac_abprior")) {
-        frac_abprior = atoi(commands[command_num++]) / 100.0;
+        frac_abprior = atoi(commands[command_num++]) / 100.0f;
     } else if(!strcmp(command, "mcts_strategy_depth")) {
         mcts_strategy_depth = atoi(commands[command_num++]);
     } else if(!strcmp(command, "alphabeta_depth")) {
@@ -2829,11 +2829,11 @@ bool check_mcts_params(char** commands,char* command,int& command_num) {
     } else if(!strcmp(command, "virtual_loss")) {
         virtual_loss = atoi(commands[command_num++]);
     } else if(!strcmp(command, "max_collisions_ratio")) {
-        max_collisions_ratio = atoi(commands[command_num++]) / 100.0;
+        max_collisions_ratio = atoi(commands[command_num++]) / 100.0f;
     } else if(!strcmp(command, "max_terminals_ratio")) {
-        max_terminals_ratio = atoi(commands[command_num++]) / 100.0;
+        max_terminals_ratio = atoi(commands[command_num++]) / 100.0f;
     } else if(!strcmp(command, "insta_move_factor")) {
-        insta_move_factor = atoi(commands[command_num++]) / 100.0;
+        insta_move_factor = atoi(commands[command_num++]) / 100.0f;
     } else if(!strcmp(command, "visit_threshold")) {
         visit_threshold = atoi(commands[command_num++]);
     } else if(!strcmp(command, "montecarlo")) {
