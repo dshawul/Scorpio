@@ -293,23 +293,30 @@ void Node::split(Node* n, const int S, int& T) {
 
 float Node::compute_Q(float fpu, unsigned int collision_lev, bool has_ab) {
     float uct;
-    if(!visits) {
+    if (!visits) {
         uct = fpu;
     } else {
-        uct = 1 - score;
-        if(uct >= winning_threshold)
-            uct += 100;
+        uct = 1.0f - score;
+        if (uct >= winning_threshold)
+            uct += 100.0f;
         unsigned int vvst = collision_lev * get_busy();
-        if(vvst)
-            uct += (-uct * vvst) / (vvst + visits + 1);
+        if (vvst) {
+            float denom = 1.0f / (vvst + visits + 1);
+            uct += (-uct * vvst) * denom;
+        }
     }
-    if(has_ab) {
-        float uctp = 1 - prior;
-        uct = 0.5 * ((1 - frac_abprior) * uct +
-                    frac_abprior * uctp +
-                    MIN(uct,uctp));
+
+    if (has_ab) {
+        float uctp = 1.0f - prior;
+        float mixed = 0.5f * ((1.0f - frac_abprior) * uct +
+                              frac_abprior * uctp +
+                              std::min(uct, uctp));
+        uct = mixed;
     }
-    if(is_create()) uct *= 0.1;
+
+    if (is_create())
+        uct *= 0.1f;
+
     return uct;
 }
 
@@ -488,72 +495,76 @@ Node* Node::ExactPi_select(Node* n, bool has_ab, SEARCHER* ps) {
 
 Node* Node::Max_UCB_select(Node* n, bool has_ab, SEARCHER* ps) {
     bool is_root = (ps->ply == 0);
-    float dCPUCT = cpuct_init * (is_root ? cpuct_init_root_factor : 1.0f) +
-                    cpuct_factor * logf((n->visits + cpuct_base + 1.0) / cpuct_base) +
-                    (1 - ((ps->processor_id + 1) % 3)) * 0.25;
-    float factor;
 
-    /*compute fpu*/
+    /*dCPUCT computation*/
+    float vbase = n->visits + cpuct_base + 1.0f;
+    float dCPUCT = cpuct_init * (is_root ? cpuct_init_root_factor : 1.0f) +
+                   cpuct_factor * logf(vbase / cpuct_base) +
+                   (1 - ((ps->processor_id + 1) % 3)) * 0.25f;
+
     float fpu = n->compute_fpu(ps->ply);
 
-    /*Alphazero or UCT formula*/
-    if(select_formula == 0)
-        factor = dCPUCT * float(sqrt(double(n->visits)));
-    else
-        factor = dCPUCT * float(sqrt(log(double(n->visits))));
+    /*UCT multiplier factor*/
+    float factor = (select_formula == 0)
+                   ? dCPUCT * sqrtf((float)n->visits)
+                   : dCPUCT * sqrtf(logf((float)n->visits));
 
-    /*approaching collision limit?*/
+    /*Compute dynamic virtual loss factor*/
     unsigned int collision_lev = virtual_loss;
-    if(SEARCHER::use_nn && max_collisions >= 3) {
-        if(n_collisions >= ((3 * max_collisions) >> 2))
+    if (SEARCHER::use_nn && max_collisions >= 3) {
+        if (n_collisions >= ((3 * max_collisions) >> 2))
             collision_lev <<= 2;
-        else if(n_collisions >= (max_collisions >> 1))
+        else if (n_collisions >= (max_collisions >> 1))
             collision_lev <<= 1;
     }
 
-    /*select*/
-    float uct, bvalue = -10;
-    Node* current = n->child, *bnode = 0;
-    while(current) {
-        if(current->move && !current->is_dead()) {
+    /*UCB selection loop*/
+    float bvalue = -10.0f, uct = 0.0f;
+    Node* bnode = nullptr, *current = n->child;
 
-            /*compute Q considering fpu and virtual loss*/
-            uct = current->compute_Q(fpu, collision_lev, has_ab);
+    while (current) {
+        if (current->move && !current->is_dead()) {
+            float q = current->compute_Q(fpu, collision_lev, has_ab);
+            float visits_plus_1 = (float)(current->visits + 1);
+            float ucb;
 
-            if(select_formula == 0)
-                uct += factor * (current->policy / (current->visits + 1));
-            else
-                uct += factor * sqrt(current->policy / (current->visits + 1));
-
-            if(forced_playouts && is_selfplay && is_root && current->visits > 0) {
-                unsigned int n_forced = sqrt(2 * current->policy * n->visits);
-                if(current->visits < n_forced) uct += 5;
+            if (select_formula == 0) {
+                ucb = q + factor * (current->policy / visits_plus_1);
+            } else {
+                ucb = q + factor * sqrtf(current->policy / visits_plus_1);
             }
 
-            if(uct > bvalue) {
-                bvalue = uct;
+            /*Handle forced playouts*/
+            if (forced_playouts && is_selfplay && is_root && current->visits > 0) {
+                unsigned int n_forced = (unsigned int)sqrtf(2.0f * current->policy * n->visits);
+                if (current->visits < n_forced) ucb += 5.0f;
+            }
+
+            if (ucb > bvalue) {
+                bvalue = ucb;
                 bnode = current;
             }
-
         }
         current = current->next;
     }
 
-    /*check edges and add child*/
-    if(n->edges.try_create()) {
+    /*Add child node if edge available*/
+    if (n->edges.try_create()) {
         int idx = n->edges.get_children();
-        if(idx < n->edges.count) {
-            if(select_formula == 0)
-                uct = fpu + factor * n->edges.get_score(idx);
-            else
-                uct = fpu + factor * sqrt(n->edges.get_score(idx));
-            if(uct > bvalue) {
+        if (idx < n->edges.count) {
+            float score = n->edges.get_score(idx);
+            uct = (select_formula == 0)
+                  ? fpu + factor * score
+                  : fpu + factor * sqrtf(score);
+
+            if (uct > bvalue) {
                 bnode = n->add_child(ps->processor_id, idx,
                     ps->decode_move(n->edges.get_move(idx)),
-                    n->edges.get_score(idx),
-                    1 - n->edges.score);
-                if(ps->ply > 1)
-                    n->v_pol_sum += n->edges.get_score(idx);
+                    score, 1.0f - n->edges.score);
+
+                if (ps->ply > 1)
+                    n->v_pol_sum += score;
+
                 n->edges.inc_children();
                 n->edges.clear_create();
                 return bnode;

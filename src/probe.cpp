@@ -716,9 +716,8 @@ void fill_input_planes(
 #define DCHW(sq,C)     data[CHW(sq,C)]
 #define D(sq,C)        data[IDX(sq,C)]
 
-#define SET(C,V)  {                         \
-    for(int i = 0; i < 64; i++)             \
-        data[(C) * 64 + i] = V;             \
+#define SET(C,V)  {                                     \
+    std::fill(data + (C) * 64, data + (C + 1) * 64, V); \
 }
 
     memset(data,  0, sizeof(float) * 64 * CHANNELS);
@@ -863,40 +862,40 @@ void fill_input_planes(
             if(player == _BLACK) sq = MIRRORR(sq);
             if(flip_h) sq = MIRRORF(sq);
 
-            D(sq, (CHANNELS - 8)) = 1.0;
+            D(sq, (CHANNELS - 8)) = 1.0f;
         }
         if(is_trt) {
             if(player == _BLACK) {
-                if(cast & BLC_FLAG) SET((CHANNELS - (flip_h ? 6 : 7) ), 1.0);
-                if(cast & BSC_FLAG) SET((CHANNELS - (flip_h ? 7 : 6) ), 1.0);
-                if(cast & WLC_FLAG) SET((CHANNELS - (flip_h ? 4 : 5) ), 1.0);
-                if(cast & WSC_FLAG) SET((CHANNELS - (flip_h ? 5 : 4) ), 1.0);
+                if(cast & BLC_FLAG) SET((CHANNELS - (flip_h ? 6 : 7) ), 1.0f);
+                if(cast & BSC_FLAG) SET((CHANNELS - (flip_h ? 7 : 6) ), 1.0f);
+                if(cast & WLC_FLAG) SET((CHANNELS - (flip_h ? 4 : 5) ), 1.0f);
+                if(cast & WSC_FLAG) SET((CHANNELS - (flip_h ? 5 : 4) ), 1.0f);
             } else {
-                if(cast & WLC_FLAG) SET((CHANNELS - (flip_h ? 6 : 7) ), 1.0);
-                if(cast & WSC_FLAG) SET((CHANNELS - (flip_h ? 7 : 6) ), 1.0);
-                if(cast & BLC_FLAG) SET((CHANNELS - (flip_h ? 4 : 5) ), 1.0);
-                if(cast & BSC_FLAG) SET((CHANNELS - (flip_h ? 5 : 4) ), 1.0);
+                if(cast & WLC_FLAG) SET((CHANNELS - (flip_h ? 6 : 7) ), 1.0f);
+                if(cast & WSC_FLAG) SET((CHANNELS - (flip_h ? 7 : 6) ), 1.0f);
+                if(cast & BLC_FLAG) SET((CHANNELS - (flip_h ? 4 : 5) ), 1.0f);
+                if(cast & BSC_FLAG) SET((CHANNELS - (flip_h ? 5 : 4) ), 1.0f);
             }
-            SET((CHANNELS - 3), (hply / 2 + 1) / 200.0);
-            SET((CHANNELS - 2), fifty / 100.0);
-            SET((CHANNELS - 1), 1.0);
+            SET((CHANNELS - 3), (hply / 2 + 1) / 200.0f);
+            SET((CHANNELS - 2), fifty / 100.0f);
+            SET((CHANNELS - 1), 1.0f);
         } else {
             for(int i = 0; i < 64; i++) {
                 sq = SQ6488(i);
                 if(player == _BLACK) {
-                    if(cast & BLC_FLAG) D(sq,(CHANNELS - (flip_h ? 6 : 7) )) = 1.0;
-                    if(cast & BSC_FLAG) D(sq,(CHANNELS - (flip_h ? 7 : 6) )) = 1.0;
-                    if(cast & WLC_FLAG) D(sq,(CHANNELS - (flip_h ? 4 : 5) )) = 1.0;
-                    if(cast & WSC_FLAG) D(sq,(CHANNELS - (flip_h ? 5 : 4) )) = 1.0;
+                    if(cast & BLC_FLAG) D(sq,(CHANNELS - (flip_h ? 6 : 7) )) = 1.0f;
+                    if(cast & BSC_FLAG) D(sq,(CHANNELS - (flip_h ? 7 : 6) )) = 1.0f;
+                    if(cast & WLC_FLAG) D(sq,(CHANNELS - (flip_h ? 4 : 5) )) = 1.0f;
+                    if(cast & WSC_FLAG) D(sq,(CHANNELS - (flip_h ? 5 : 4) )) = 1.0f;
                 } else {
-                    if(cast & WLC_FLAG) D(sq,(CHANNELS - (flip_h ? 6 : 7) )) = 1.0;
-                    if(cast & WSC_FLAG) D(sq,(CHANNELS - (flip_h ? 7 : 6) )) = 1.0;
-                    if(cast & BLC_FLAG) D(sq,(CHANNELS - (flip_h ? 4 : 5) )) = 1.0;
-                    if(cast & BSC_FLAG) D(sq,(CHANNELS - (flip_h ? 5 : 4) )) = 1.0;
+                    if(cast & WLC_FLAG) D(sq,(CHANNELS - (flip_h ? 6 : 7) )) = 1.0f;
+                    if(cast & WSC_FLAG) D(sq,(CHANNELS - (flip_h ? 7 : 6) )) = 1.0f;
+                    if(cast & BLC_FLAG) D(sq,(CHANNELS - (flip_h ? 4 : 5) )) = 1.0f;
+                    if(cast & BSC_FLAG) D(sq,(CHANNELS - (flip_h ? 5 : 4) )) = 1.0f;
                 }
-                D(sq,(CHANNELS - 3)) = (hply / 2 + 1) / 200.0;
-                D(sq,(CHANNELS - 2)) = fifty / 100.0;
-                D(sq,(CHANNELS - 1)) = 1.0;
+                D(sq,(CHANNELS - 3)) = (hply / 2 + 1) / 200.0f;
+                D(sq,(CHANNELS - 2)) = fifty / 100.0f;
+                D(sq,(CHANNELS - 1)) = 1.0f;
             }
         }
 
@@ -989,26 +988,26 @@ void fill_input_planes(
             }
             if(draw && draw[h]) {
                 int off = 13 * h + 12;
-                SET(off, 1.0);
+                SET(off, 1.0f);
             }
             i++;
         }
 
         if(player == _BLACK) {
-            if(cast & BLC_FLAG) SET((CHANNELS - 8), 1.0);
-            if(cast & BSC_FLAG) SET((CHANNELS - 7), 1.0);
-            if(cast & WLC_FLAG) SET((CHANNELS - 6), 1.0);
-            if(cast & WSC_FLAG) SET((CHANNELS - 5), 1.0);
-            SET((CHANNELS - 4), 1.0);
+            if(cast & BLC_FLAG) SET((CHANNELS - 8), 1.0f);
+            if(cast & BSC_FLAG) SET((CHANNELS - 7), 1.0f);
+            if(cast & WLC_FLAG) SET((CHANNELS - 6), 1.0f);
+            if(cast & WSC_FLAG) SET((CHANNELS - 5), 1.0f);
+            SET((CHANNELS - 4), 1.0f);
         } else {
-            if(cast & WLC_FLAG) SET((CHANNELS - 8), 1.0);
-            if(cast & WSC_FLAG) SET((CHANNELS - 7), 1.0);
-            if(cast & BLC_FLAG) SET((CHANNELS - 6), 1.0);
-            if(cast & BSC_FLAG) SET((CHANNELS - 5), 1.0);
-            SET((CHANNELS - 4), 0.0);
+            if(cast & WLC_FLAG) SET((CHANNELS - 8), 1.0f);
+            if(cast & WSC_FLAG) SET((CHANNELS - 7), 1.0f);
+            if(cast & BLC_FLAG) SET((CHANNELS - 6), 1.0f);
+            if(cast & BSC_FLAG) SET((CHANNELS - 5), 1.0f);
+            SET((CHANNELS - 4), 0.0f);
         }
-        SET((CHANNELS - 3), fifty / 100.0);
-        SET((CHANNELS - 1), 1.0);
+        SET((CHANNELS - 3), fifty / 100.0f);
+        SET((CHANNELS - 1), 1.0f);
     }
 
 #if 0
