@@ -34,6 +34,8 @@ Some definitions to include/remove code
 #endif
 #include <vector>
 #include <array>
+#include <algorithm>
+#include <numeric> 
 #ifdef CLUSTER
 #  include <list>
 #  include "mpi.h"
@@ -1073,15 +1075,11 @@ history
 /*
 sort move list
 */
-#define SWAP(ii,jj) {                   \
-    if(ii != jj) {                      \
-        MOVE tempm = move_st[ii];       \
-        move_st[ii] = move_st[jj];      \
-        move_st[jj] = tempm;            \
-        int temps = score_st[ii];       \
-        score_st[ii] = score_st[jj];    \
-        score_st[jj] = temps;           \
-    }                                   \
+#define SWAP(ii,jj) {                           \
+    if(ii != jj) {                              \
+        std::swap(move_st[ii], move_st[jj]);    \
+        std::swap(score_st[ii], score_st[jj]);  \
+    }                                           \
 }
 
 FORCEINLINE void STACK::sort_1(const int start,const int end) {
@@ -1094,9 +1092,24 @@ FORCEINLINE void STACK::sort_1(const int start,const int end) {
     }
     SWAP(start,bi);
 }
+
 inline void STACK::sort_all() {
-    for(int i = 0; i < count; i++)
-        sort_1(i, count);
+    int indices[MAX_MOVES];
+    std::iota(indices, indices + count, 0);
+
+    std::sort(indices, indices + count, [&](int a, int b) {
+        return score_st[a] > score_st[b];
+    });
+
+    MOVE move_tmp[MAX_MOVES];
+    int score_tmp[MAX_MOVES];
+    for (int i = 0; i < count; ++i) {
+        move_tmp[i] = move_st[indices[i]];
+        score_tmp[i] = score_st[indices[i]];
+    }
+
+    std::copy(move_tmp, move_tmp + count, move_st);
+    std::copy(score_tmp, score_tmp + count, score_st);
 }
 /*
 PROCESSOR
