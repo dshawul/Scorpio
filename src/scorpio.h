@@ -1207,15 +1207,15 @@ typedef struct PROCESSOR {
     static int hashfull();
 
     /*conditional wait*/
-    MUTEX wait_lock;
-    COND  wait_cond;
-    void signal() {
+    static MUTEX wait_lock;
+    static COND  wait_cond;
+    static void signal_cv() {
         std::unique_lock<std::mutex> lk(wait_lock);
         c_signal(wait_cond);
     }
-    void wait() {
+    void park_cv() {
         std::unique_lock<std::mutex> lk(wait_lock);
-        c_wait(wait_cond,lk);
+        c_wait(wait_cond,lk,[this]{return state != PARK;});
     }
 
     /*constructor*/

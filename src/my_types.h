@@ -196,8 +196,8 @@ Prefetch
 //conditional variable
 #define COND std::condition_variable
 #define c_create(x)
-#define c_signal(x)   x.notify_one()
-#define c_wait(x,l)   x.wait(l)
+#define c_signal(x)   x.notify_all()
+#define c_wait(x,l,p) x.wait(l,p)
 //mutex
 #define MUTEX std::mutex
 #define m_create(x)

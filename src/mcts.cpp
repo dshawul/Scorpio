@@ -1848,6 +1848,7 @@ void Node::parallel_job(Node* n, PTHREAD_PROC func, bool recursive) {
 
     for(int i = 1;i < PROCESSOR::n_processors;i++)
         PROCESSOR::wait(i);
+    PROCESSOR::signal_cv();
 }
 
 /*
@@ -2237,6 +2238,7 @@ void SEARCHER::launch_worker_threads() {
     /*wakeup threads*/
     for(int i = 1;i < PROCESSOR::n_processors;i++)
         PROCESSOR::wait(i);
+    PROCESSOR::signal_cv();
 #if defined(CLUSTER)
     PROCESSOR::set_mt_state(WAIT);
 #endif

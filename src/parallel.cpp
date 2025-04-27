@@ -248,6 +248,7 @@ void PROCESSOR::handle_message(int source,int message_id) {
         }
 
         PROCESSOR::wait(0);
+        PROCESSOR::signal_cv();
 
         /***********************************************************
         * Send result back and release all helper nodes we aquired
@@ -371,6 +372,7 @@ void PROCESSOR::handle_message(int source,int message_id) {
 
         /*wakeup main processor*/
         PROCESSOR::wait(0);
+        PROCESSOR::signal_cv();
 
         /***********************************
         * Best move from slave hosts
@@ -555,7 +557,7 @@ void PROCESSOR::idle_loop() {
     do {
         if(state == PARK) {
             parked = 1;
-            wait();
+            park_cv();
             parked = 0;
         } else if(state == WAIT) {
             t_yield();
@@ -671,10 +673,11 @@ int SEARCHER::PROBE_HASH(
 exit scorpio 
 */
 void PROCESSOR::exit_scorpio(int status) {
-    for(int  i = 1; i < PROCESSOR::n_processors; i++) {
+    for(int  i = 1; i < PROCESSOR::n_processors; i++)
         PROCESSOR::wait(i);
+    PROCESSOR::signal_cv();
+    for(int  i = 1; i < PROCESSOR::n_processors; i++)
         PROCESSOR::kill(i);
-    }
     CLUSTER_CODE(message_thread_state = KILL;)
 
     if(!log_on)
@@ -1125,7 +1128,6 @@ void PROCESSOR::park(int id) {
 void PROCESSOR::wait(int id) {
     PPROCESSOR proc = processors[id];
     proc->state = WAIT;
-    proc->signal();
 }
 
 /**

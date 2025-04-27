@@ -39,6 +39,8 @@ int PROCESSOR::n_processors;
 int PROCESSOR::n_cores;
 std::atomic_int PROCESSOR::n_idle_processors;
 int PROCESSOR::n_hosts = 1;
+MUTEX PROCESSOR::wait_lock;
+COND  PROCESSOR::wait_cond;
 
 LOCK  lock_smp;
 LOCK  lock_io;

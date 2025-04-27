@@ -1617,6 +1617,7 @@ MOVE SEARCHER::iterative_deepening(bool& montecarlo_skipped) {
             /* wake mcts threads*/
             for(int i = PROCESSOR::n_cores;i < PROCESSOR::n_processors;i++)
                 PROCESSOR::wait(i);
+            PROCESSOR::signal_cv();
         }
 
         /*rank nodes and reset bounds*/
@@ -2023,6 +2024,7 @@ MOVE SEARCHER::find_best() {
     /*wakeup threads*/
     for(int i = 1;i < PROCESSOR::n_processors;i++)
         PROCESSOR::wait(i);
+    PROCESSOR::signal_cv();
 #if defined(CLUSTER)
     PROCESSOR::set_mt_state(WAIT);
 #endif
