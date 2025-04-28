@@ -97,7 +97,7 @@ else ifeq ($(COMP),icpc-cluster)
 	override COMP = icpc
 	DEFINES += -DCLUSTER
 else ifeq ($(COMP),pgcc-cluster)
-	CXX = mpicxx -cxx=pgc++
+	CXX = mpicxx
 	override COMP = pgcc
 	DEFINES += -DCLUSTER
 else ifeq ($(COMP),win-cluster)
@@ -135,7 +135,8 @@ ifeq ($(COMP),win)
 	LDFLAGS += -static
 	CXXFLAGS += $(WARNINGS) $(UNUSED) $(CXXSTANDARD)
 else ifeq ($(COMP),pgcc)
-	CXXFLAGS += -warn -c11
+	CXXFLAGS += -Minform=inform --diag_suppress integer_sign_change,set_but_not_used,declared_but_not_referenced
+	CXXFLAGS += $(CXXSTANDARD)
 	LDFLAGS += -ldl
 else ifeq ($(COMP),icpc)
 	CXXFLAGS += -wd128 -wd981 -wd869 -wd2259 -wd383 -wd1418
@@ -152,7 +153,7 @@ ifeq ($(COMP),arm)
 	LDFLAGS += -fPIE -pie
 else ifeq ($(COMP),pgcc)
 	ifneq ($(USE_AVX2),0)
-		CXXFLAGS += -Mvect=avx2
+		CXXFLAGS += -tp=haswell
 	endif
 else
 	ifneq ($(USE_AVX2),0)

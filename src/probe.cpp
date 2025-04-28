@@ -478,7 +478,6 @@ float SEARCHER::probe_neural_(bool hard_probe, float* policy, int nn_id_, int nn
         }
         return p;
     }
-    return 0;
 }
 
 /*ensemble NNs*/
@@ -1132,6 +1131,4 @@ int SEARCHER::probe_nnue() {
     return nnue_evaluate(
         player,piece,square);
 #endif
-
-    return 0;
 }

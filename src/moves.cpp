@@ -1900,8 +1900,8 @@ void SEARCHER::update_history(MOVE move, bool penalize) {
         pstack->killer[0] = move;
     }
 
-    for(int i = 1; i <= 2 && hply >= i; i++) {
-        const MOVE& cMove = hstack[hply - i].move;
+    for(int p = 1; p <= 2 && hply >= p; p++) {
+        const MOVE& cMove = hstack[hply - p].move;
         if(cMove) {
             update_h(REF_FUP_HISTORY(cMove,move),score);
             for(int i = 0; i < pstack->current_index - 1;i++) {
@@ -1909,7 +1909,7 @@ void SEARCHER::update_history(MOVE move, bool penalize) {
                 if(!is_cap_prom(mv))
                     update_h(REF_FUP_HISTORY(cMove,mv),-score);
             }
-            if(!penalize && i == 1 && pstack->depth > 1)
+            if(!penalize && p == 1 && pstack->depth > 1)
                 REFUTATION(cMove) = move;
         }
     }
