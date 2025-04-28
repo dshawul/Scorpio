@@ -240,7 +240,7 @@ $(OBJ_DIR)/%.o: %.cpp
 -include $(OBJECTS:.o=.d)
 
 # Profile guided optimization workflow
-PROFILE_PARAMS ?= mt 1 use_nn 0 montecarlo 0 st 20 go quit
+PROFILE_PARAMS ?= mt 1 use_nn 0 use_nnue 0 montecarlo 0 st 20 go quit
 profile: $(OBJ_DIR)
 	$(MAKE) DEBUG=3 $(EXE)
 	$(BIN)/scorpio.sh $(PROFILE_PARAMS)

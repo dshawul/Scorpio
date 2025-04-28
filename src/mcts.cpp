@@ -1807,8 +1807,8 @@ void Node::parallel_job(Node* n, PTHREAD_PROC func, bool recursive) {
 
     Node::split(n, S, T);
 
-    int* seid = new int[2 * ncores];
-    std::thread* tid = new std::thread[ncores];
+    int* seid = new int[unsigned(2 * ncores)];
+    std::thread* tid = new std::thread[unsigned(ncores)];
 
     if(!recursive)
         Node::gc[0].push_back(n);
