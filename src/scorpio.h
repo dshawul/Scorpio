@@ -487,8 +487,8 @@ struct Node {
     bool is_create() { return (flag & CREATE); }
 
     void set_bounds(int a,int b) {
-        l_set(alpha,a);
-        l_set(beta,b);
+        l_store(alpha,a);
+        l_store(beta,b);
     }
 
     void update_visits(unsigned int v) { l_add(visits,v); }
@@ -1205,6 +1205,16 @@ typedef struct PROCESSOR {
     static void clear_tables(int);
     static void clear_hash_tables();
     static int hashfull();
+
+    /*barrier for syncing threads*/
+    static void sync_processors() {
+        static std::atomic_int t_count = {0}; 
+        l_add(t_count,1);
+        while (t_count.load(std::memory_order_acquire) < n_processors) {
+            t_yield();
+            if (SEARCHER::use_nn) t_sleep(SEARCHER::delay);
+        }
+    }
 
     /*conditional wait*/
     static MUTEX wait_lock;

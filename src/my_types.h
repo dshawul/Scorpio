@@ -188,11 +188,18 @@ Prefetch
 *locks
 */
 //atomic ops
-#define l_set(x,v) x.exchange(v)
-#define l_add(x,v) x.fetch_add(v)
-#define l_and(x,v) x.fetch_and(v)
-#define l_or(x,v) x.fetch_or(v)
-#define l_barrier()
+#define l_loado(x,o) x.load(o)
+#define l_storeo(x,v,o) x.store(v, o)
+#define l_excho(x,v,o) x.exchange(v, o)
+#define l_addo(x,v,o) x.fetch_add(v, o)
+#define l_ando(x,v,o) x.fetch_and(v, o)
+#define l_oro(x,v,o) x.fetch_or(v, o)
+#define l_load(x) l_loado(x, std::memory_order_relaxed)
+#define l_store(x,v) l_storeo(x, v, std::memory_order_relaxed)
+#define l_exch(x,v) l_excho(x, v, std::memory_order_relaxed)
+#define l_add(x,v) l_addo(x, v, std::memory_order_relaxed)
+#define l_and(x,v) l_ando(x, v, std::memory_order_relaxed)
+#define l_or(x,v) l_oro(x, v, std::memory_order_relaxed)
 //conditional variable
 #define COND std::condition_variable
 #define c_create(x)
@@ -208,9 +215,9 @@ Prefetch
 #ifdef USE_SPINLOCK
 #   define LOCK std::atomic_int
 #   define l_create(x)   ((x) = 0)
-#   define l_try_lock(x) (l_set(x,1) != 0)
-#   define l_lock(x)     while(l_try_lock(x)) {while((x) != 0) t_pause();}
-#   define l_unlock(x)   ((x) = 0)
+#   define l_try_lock(x) (x.exchange(1, std::memory_order_acquire) != 0)
+#   define l_lock(x)     while(l_try_lock(x)) {while(x.load(std::memory_order_relaxed)) t_pause();}
+#   define l_unlock(x)   (x.store(0, std::memory_order_release))
 #else
 #   define LOCK MUTEX
 #   define l_create(x)   m_create(x)

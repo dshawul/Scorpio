@@ -1608,16 +1608,8 @@ void SEARCHER::search_mc(bool single, unsigned int nodes_limit) {
     prev_kld = -1;
 
     /*wait until all idle processors are awake*/
-    if(!single) {
-        static std::atomic_int t_count = {0};
-        int p_t_count = l_add(t_count,1);
-        if(p_t_count == PROCESSOR::n_processors - 1)
-            t_count = 0;
-        while(t_count > 0 && t_count < PROCESSOR::n_processors) {
-            t_yield();
-            if(SEARCHER::use_nn) t_sleep(SEARCHER::delay);
-        }
-    }
+    if(!single)
+        PROCESSOR::sync_processors();
 
     /*Set alphabeta rollouts depth*/
     int ablimit = (1 - frac_abrollouts) * pstack->depth;
