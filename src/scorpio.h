@@ -1208,11 +1208,16 @@ typedef struct PROCESSOR {
 
     /*barrier for syncing threads*/
     static void sync_processors() {
-        static std::atomic_int t_count = {0}; 
+        static std::atomic_int t_count = {0}, t_finished = {0}; 
         l_add(t_count,1);
         while (t_count.load(std::memory_order_acquire) < n_processors) {
             t_yield();
             if (SEARCHER::use_nn) t_sleep(SEARCHER::delay);
+        }
+        int count = l_add(t_finished, 1) + 1;
+        if(count == n_processors) { 
+            t_count.store(0, std::memory_order_release);
+            t_finished.store(0, std::memory_order_release);
         }
     }
 
