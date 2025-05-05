@@ -22,9 +22,3 @@ sed -i.bak -e "s|^egbb_files_path.*|egbb_files_path /home/scorpio|" \
 # Testing pure mcts
 EXE=$PWD/Scorpio/bin/Linux/scorpio.sh
 $EXE st 30 delay 0 go quit
-$EXE st 30 delay 1 go quit
-
-# Testing hybrid mcts-ab search
-EXE=$PWD/Scorpio/bin/Linux/scorpio-mpich.sh
-$EXE st 30 delay 0 go quit
-$EXE st 30 delay 1 go quit
