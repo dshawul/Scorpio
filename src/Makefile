@@ -116,8 +116,8 @@ else ifeq ($(COMP),icpc)
 else ifeq ($(COMP),pgcc)
 	CXX = pgc++
 else ifeq ($(COMP),arm)
-	CXX = arm-linux-androideabi-g++
-	STRIP_CMD = arm-linux-androideabi-strip
+	CXX = aarch64-linux-android21-clang++
+	STRIP_CMD =llvm-strip
 else ifeq ($(COMP),win)
 	CXX = x86_64-w64-mingw32-g++
 	STRIP_CMD = x86_64-w64-mingw32-strip
@@ -149,7 +149,7 @@ endif
 
 # Architecture-specific optimizations
 ifeq ($(COMP),arm)
-	CXXFLAGS += -fPIE -pie
+	CXXFLAGS += -fPIE
 	LDFLAGS += -fPIE -pie
 else ifeq ($(COMP),pgcc)
 	ifneq ($(USE_AVX2),0)
@@ -252,7 +252,11 @@ profile: $(OBJ_DIR)
 
 # Strip debugging symbols
 strip:
-	$(STRIP_CMD) $(EXE)
+	@if [ "$(COMP)" = "win" ]; then \
+	    $(STRIP_CMD) $(EXE).exe; \
+	else \
+	    $(STRIP_CMD) $(EXE); \
+	fi
 
 # Clean build artifacts
 clean:
