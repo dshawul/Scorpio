@@ -25,8 +25,7 @@ static int  alphabeta_depth = 1;
 static int  evaluate_depth = 0;
 static int virtual_loss = 1;
 static unsigned int visit_threshold = 800;
-static std::random_device rd;
-static std::mt19937 mtgen(rd());
+thread_local std::mt19937 mtgen(std::random_device{}());
 static float noise_frac = 0.25f;
 static float noise_alpha = 0.3f;
 static float noise_beta = 1.0f;
@@ -153,7 +152,7 @@ static void add_node(Node* n, Node* node) {
     if(!n->child)
         n->child = node;
     else {
-        Node* current = n->child, *prev = 0;
+        Node* current = n->child, *prev = nullptr;
         while(current) {
             prev = current;
             current = current->next;
@@ -195,7 +194,7 @@ Node* Node::add_null_child(int processor_id, float score) {
 void Node::rank_children(Node* n) {
 
     /*rank all children*/
-    Node* current = n->child, *best = 0;
+    Node* current = n->child, *best = nullptr;
     int brank = MAX_MOVES - 1;
 
     while(current) {
@@ -330,9 +329,9 @@ float Node::compute_fpu(int ply) {
             fpur = 0.0f;         //fpu reduction = 0
         else
             fpu = v_pol_sum;  //sum of children policies
-        fpu = score - fpur * sqrt(fpu);
+        fpu = score - fpur * sqrtf(fpu);
     } else {
-        fpu = (1.0f - fpu_is_loss) / 2.0f; //fpu is loss or win
+        fpu = 0.5f * (1.0f - fpu_is_loss); //fpu is loss or win
     }
     return fpu;
 }
@@ -457,7 +456,7 @@ Node* Node::ExactPi_select(Node* n, bool has_ab, SEARCHER* ps) {
             uct = current->reg_policy - float(double(current->visits) / n->visits);
 
             if(forced_playouts && is_selfplay && is_root && current->visits > 0) {
-                unsigned int n_forced = sqrt(2 * current->policy * n->visits);
+                unsigned int n_forced = sqrtf(2.0f * current->policy * n->visits);
                 if(current->visits < n_forced) uct += 5.0f;
             }
 
@@ -1171,7 +1170,7 @@ BACKUP_LEAF:
     } else {
 SELECT:
         /*select move*/
-        Node* next = 0;
+        Node* next = nullptr;
         if(rollout_type == ALPHABETA) {
             bool try_null = pstack->node_type != PV_NODE
                             && pstack->depth >= 4
@@ -1872,11 +1871,11 @@ void SEARCHER::manage_tree(bool single) {
         } else if(found && reuse_tree) {
             MOVE move;
 
-            Node* oroot = root_node, *new_root = 0;
+            Node* oroot = root_node, *new_root = nullptr;
             for(int j = (idx - 1); j >= 0; --j) {
                 move = hstack[hply - 1 - j].move;
 
-                Node* current = root_node->child, *prev = 0;
+                Node* current = root_node->child, *prev = nullptr;
                 while(current) {
                     if(current->move == move) {
                         if(j == 0) {
@@ -1885,7 +1884,7 @@ void SEARCHER::manage_tree(bool single) {
                                 root_node->child = current->next;
                             else
                                 prev->next = current->next;
-                            current->next = 0;
+                            current->next = nullptr;
                         }
                         root_node = current;
                         break;
@@ -1912,11 +1911,11 @@ void SEARCHER::manage_tree(bool single) {
                 }
             }
             else
-                root_node = 0;
+                root_node = nullptr;
         } else {
             if(single) Node::reclaim(root_node,processor_id);
             else Node::parallel_job(root_node, gc_thread_proc);
-            root_node = 0;
+            root_node = nullptr;
         }
 
         int en = get_time();
