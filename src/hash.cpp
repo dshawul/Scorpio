@@ -59,13 +59,15 @@ void PROCESSOR::clear_tables(int id) {
         memset(addr,0,n_entries * sizeof(HASH));
     }
     /*clear local tables*/
-    proc = processors[id];
-    if(proc && proc->eval_hash_tab[white])
-        memset(proc->eval_hash_tab[white],0,
-            2 * (size_t(PROCESSOR::eval_hash_tab_mask) + 1) * sizeof(EVALHASH));
-    if(proc && proc->pawn_hash_tab)
-        memset((void*)proc->pawn_hash_tab,0,
-            (size_t(PROCESSOR::pawn_hash_tab_mask) + 1) * sizeof(PAWNHASH));
+    if(id < processors.size()) {
+        proc = processors[id];
+        if(proc && proc->eval_hash_tab[white])
+            memset(proc->eval_hash_tab[white],0,
+                2 * (size_t(PROCESSOR::eval_hash_tab_mask) + 1) * sizeof(EVALHASH));
+        if(proc && proc->pawn_hash_tab)
+            memset((void*)proc->pawn_hash_tab,0,
+                (size_t(PROCESSOR::pawn_hash_tab_mask) + 1) * sizeof(PAWNHASH));
+    }
 }
 
 /*
