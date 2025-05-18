@@ -2280,8 +2280,10 @@ void SEARCHER::get_train_data(float& value, int& nmoves, int* moves,
         value = 1 - value;
 
     /*value head only returns here*/
-    if(train_data_type == 3)
+    if(train_data_type == 3) {
+        nmoves = 1;
         return;
+    }
 
     /*AB search*/
     if(!montecarlo) {
